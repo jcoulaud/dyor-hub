@@ -13,7 +13,7 @@ export class SolanaAddressPipe implements PipeTransform<string> {
     // Remove any whitespace
     const cleanValue = value.trim();
 
-    // Basic format check
+    // Basic format check (32-44 characters)
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(cleanValue)) {
       throw new BadRequestException(
         'Invalid Solana address format. Must be base58 encoded, 32-44 characters long.',
@@ -21,17 +21,9 @@ export class SolanaAddressPipe implements PipeTransform<string> {
     }
 
     try {
-      const publicKey = new PublicKey(cleanValue);
-      const normalizedAddress = publicKey.toBase58();
-
-      // Solana addresses are always 32 bytes (44 characters in base58)
-      if (normalizedAddress.length !== 44) {
-        throw new BadRequestException(
-          'Invalid Solana address length. Must be 44 characters after normalization.',
-        );
-      }
-
-      return normalizedAddress;
+      // Validate that it's a valid PublicKey
+      new PublicKey(cleanValue);
+      return cleanValue;
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;

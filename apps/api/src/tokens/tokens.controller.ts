@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Post } from '@nestjs/common';
 import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
 import { TokenEntity } from '../entities/token.entity';
 import { TokensService } from './tokens.service';
@@ -12,6 +12,13 @@ export class TokensController {
     @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
   ): Promise<TokenEntity> {
     return this.tokensService.getTokenData(mintAddress);
+  }
+
+  @Post(':mintAddress/refresh')
+  async refreshTokenMetadata(
+    @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
+  ): Promise<TokenEntity> {
+    return this.tokensService.refreshTokenMetadata(mintAddress);
   }
 
   @Get()

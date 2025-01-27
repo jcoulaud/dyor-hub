@@ -19,6 +19,12 @@ export class TokenEntity implements Partial<Token> {
   @Column()
   symbol: string;
 
+  @Column({ nullable: true, type: 'text' })
+  description?: string;
+
+  @Column({ nullable: true })
+  imageUrl?: string;
+
   @Column({ nullable: true })
   websiteUrl?: string;
 
@@ -33,6 +39,9 @@ export class TokenEntity implements Partial<Token> {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @Column({ nullable: true })
+  lastRefreshedAt?: Date;
 
   // Relationships
   @OneToMany(() => CommentEntity, (comment) => comment.token)
