@@ -130,33 +130,46 @@ export class TokensService {
           this.fetchDexScreenerData(mintAddress),
         ]);
 
-        console.log('metadata', metadata);
-        console.log('dexData', dexData);
+        // Create base token data from metadata
+        const baseTokenData = {
+          mintAddress,
+          name: metadata?.name,
+          symbol: metadata?.symbol,
+          description: metadata?.description,
+          imageUrl: metadata?.imageUrl,
+          websiteUrl: metadata?.websiteUrl,
+          telegramUrl: metadata?.telegramUrl,
+          twitterHandle: metadata?.twitterHandle,
+          viewsCount: 1, // Initialize with 1 view
+        };
 
-        if (!metadata) {
+        // If we have dexData, use its values when metadata values are undefined
+        if (dexData) {
+          baseTokenData.websiteUrl =
+            baseTokenData.websiteUrl || dexData.websiteUrl;
+          baseTokenData.telegramUrl =
+            baseTokenData.telegramUrl || dexData.telegramUrl;
+          baseTokenData.twitterHandle =
+            baseTokenData.twitterHandle ||
+            dexData.twitterHandle?.replace('https://x.com/', '');
+        }
+
+        // Only throw not found if we have no meaningful data at all
+        if (!metadata?.name && !metadata?.symbol) {
           throw new NotFoundException(
             `Token with address ${mintAddress} not found`,
           );
         }
 
-        const newToken = this.tokenRepository.create({
-          mintAddress,
-          ...metadata,
-          ...(dexData && {
-            websiteUrl: dexData.websiteUrl || metadata.websiteUrl,
-            telegramUrl: dexData.telegramUrl || metadata.telegramUrl,
-            twitterHandle: dexData.twitterHandle || metadata.twitterHandle,
-          }),
-          viewsCount: 1,
-        });
-
+        const newToken = this.tokenRepository.create(baseTokenData);
         await this.tokenRepository.save(newToken);
         token = await this.tokenRepository.findOne({
           where: { mintAddress },
           relations: ['comments', 'comments.votes'],
         });
       } else {
-        token.viewsCount += 1;
+        // Increment view count for existing token
+        token.viewsCount = (token.viewsCount || 0) + 1;
         await this.tokenRepository.save(token);
       }
 
@@ -200,26 +213,45 @@ export class TokensService {
       const metadata = {
         name: result.content?.metadata?.name,
         symbol: result.content?.metadata?.symbol,
-        description: result.content?.metadata?.description,
-        imageUrl: result.content?.links?.image,
+        description: null,
+        imageUrl: null,
         websiteUrl: null,
         telegramUrl: null,
         twitterHandle: null,
+        supply: result.token_info?.supply,
+        decimals: result.token_info?.decimals,
       };
 
-      // Fetch additional metadata from IPFS
+      // Try to get additional data from IPFS if available
       const jsonUri = result.content?.json_uri;
       if (jsonUri) {
         try {
           const ipfsResponse = await fetch(jsonUri);
           if (ipfsResponse.ok) {
             const ipfsMetadata = await ipfsResponse.json();
-            metadata.websiteUrl = ipfsMetadata.website;
-            metadata.telegramUrl = ipfsMetadata.telegram;
-            metadata.twitterHandle = ipfsMetadata.twitter?.replace(
-              'https://x.com/',
-              '',
-            );
+
+            // Use IPFS data if Helius data is missing
+            metadata.name = metadata.name || ipfsMetadata.name;
+            metadata.symbol = metadata.symbol || ipfsMetadata.symbol;
+            metadata.description = ipfsMetadata.description || null;
+            metadata.imageUrl =
+              ipfsMetadata.image || result.content?.links?.image || null;
+            metadata.websiteUrl =
+              ipfsMetadata.website || ipfsMetadata.external_url || null;
+            metadata.telegramUrl = ipfsMetadata.telegram || null;
+
+            // Handle different Twitter URL formats
+            if (ipfsMetadata.twitter) {
+              metadata.twitterHandle = ipfsMetadata.twitter
+                .replace('https://x.com/', '')
+                .replace('https://twitter.com/', '')
+                .replace('@', '');
+            }
+
+            // Additional metadata
+            if (ipfsMetadata.createdOn) {
+              this.logger.debug(`Token created on: ${ipfsMetadata.createdOn}`);
+            }
           }
         } catch (error) {
           this.logger.error(
@@ -239,9 +271,6 @@ export class TokensService {
   async getAllTokens(): Promise<TokenEntity[]> {
     return this.tokenRepository.find({
       relations: ['comments', 'comments.votes'],
-      order: {
-        viewsCount: 'DESC',
-      },
     });
   }
 }

@@ -4,8 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { tokens } from '@/lib/api';
-import { formatNumber, isValidSolanaAddress } from '@/lib/utils';
-import { ExternalLink, Twitter } from 'lucide-react';
+import { isValidSolanaAddress } from '@/lib/utils';
+import { Globe, Twitter } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -54,7 +54,7 @@ export default async function Page({ params }: PageProps) {
                     target='_blank'
                     rel='noopener noreferrer'
                     className='flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground'>
-                    <ExternalLink className='w-4 h-4' />
+                    <Globe className='w-4 h-4' />
                     Website
                   </Link>
                 )}
@@ -72,12 +72,6 @@ export default async function Page({ params }: PageProps) {
           </div>
           <div className='flex items-start gap-4'>
             <RefreshTokenButton mintAddress={token.mintAddress} />
-          </div>
-        </div>
-        <div className='mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4'>
-          <div className='text-right'>
-            <div className='text-sm text-muted-foreground'>Views</div>
-            <div className='text-2xl font-bold'>{formatNumber(token.viewsCount)}</div>
           </div>
         </div>
       </Card>
@@ -105,10 +99,6 @@ export function TokenPageSkeleton() {
               <Skeleton className='w-24 h-6' />
               <Skeleton className='w-24 h-6' />
             </div>
-          </div>
-          <div className='text-right'>
-            <Skeleton className='w-16 h-4 ml-auto' />
-            <Skeleton className='w-24 h-8 mt-1' />
           </div>
         </div>
       </Card>
