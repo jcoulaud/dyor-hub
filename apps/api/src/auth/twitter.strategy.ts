@@ -15,8 +15,10 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
     private readonly authConfigService: AuthConfigService,
     private readonly authService: AuthService,
   ) {
-    super(authConfigService.twitterConfig);
-    this.logger.log('Twitter strategy initialized');
+    super({
+      ...authConfigService.twitterConfig,
+      passReqToCallback: true,
+    });
   }
 
   async validate(
@@ -26,11 +28,18 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
     profile: TwitterProfile,
   ): Promise<UserEntity> {
     try {
-      this.logger.debug(
-        `Validating Twitter user: ${profile.username} (${profile.id})`,
-      );
+      if (!profile || !profile.id) {
+        this.logger.error('Invalid Twitter profile received:', { profile });
+        throw new TwitterAuthenticationException(
+          'Invalid or missing Twitter profile data',
+        );
+      }
 
       const user = await this.authService.validateTwitterUser(profile);
+
+      if (!user) {
+        throw new TwitterAuthenticationException('Failed to validate user');
+      }
 
       await this.authService.updateTwitterTokens(
         user.id,
@@ -38,12 +47,12 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
         refreshToken,
       );
 
-      this.logger.debug(`Twitter user validated successfully: ${user.id}`);
       return user;
     } catch (error) {
       this.logger.error(
         'Twitter validation failed:',
         error instanceof Error ? error.message : 'Unknown error',
+        error,
       );
       throw new TwitterAuthenticationException(
         error instanceof Error

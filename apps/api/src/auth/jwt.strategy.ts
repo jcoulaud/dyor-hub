@@ -24,8 +24,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       secretOrKey: authConfigService.jwtSecret,
       passReqToCallback: false,
     });
-
-    this.logger.debug('JWT Strategy initialized');
   }
 
   async validate(payload: JwtPayload): Promise<UserEntity> {
@@ -34,9 +32,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         return null;
       }
 
-      this.logger.debug(`Validating JWT payload for user: ${payload.sub}`);
       const user = await this.authService.validateJwtPayload(payload);
-      this.logger.debug(`JWT validation successful for user: ${user.id}`);
 
       return user;
     } catch (error) {

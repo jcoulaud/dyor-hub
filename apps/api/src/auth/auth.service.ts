@@ -26,37 +26,38 @@ export class AuthService {
 
   async validateTwitterUser(profile: TwitterProfile): Promise<UserEntity> {
     try {
+      if (!profile?.id) {
+        this.logger.error('Invalid Twitter profile - missing ID');
+        throw new TwitterAuthenticationException(
+          'Invalid Twitter profile data',
+        );
+      }
+
       this.logger.debug(`Looking up user with Twitter ID: ${profile.id}`);
 
       let user = await this.userRepository.findOne({
         where: { twitterId: profile.id },
       });
 
+      const userData = {
+        twitterId: profile.id,
+        username: profile.username || `twitter_${profile.id}`,
+        displayName:
+          profile.displayName ||
+          profile.username ||
+          `Twitter User ${profile.id}`,
+        avatarUrl:
+          profile.photos?.[0]?.value || profile._json?.profile_image_url || '',
+        isVerified: profile._json?.verified || false,
+        email: profile.emails?.[0]?.value,
+      };
+
       if (!user) {
         this.logger.debug('Creating new user from Twitter profile');
-        user = this.userRepository.create({
-          twitterId: profile.id,
-          username: profile.username,
-          displayName: profile.displayName,
-          avatarUrl:
-            profile.photos?.[0]?.value ||
-            profile._json?.profile_image_url ||
-            '',
-          isVerified: profile._json?.verified || false,
-          email: profile.emails?.[0]?.value,
-        });
+        user = this.userRepository.create(userData);
       } else {
         this.logger.debug(`Updating existing user: ${user.id}`);
-        Object.assign(user, {
-          username: profile.username,
-          displayName: profile.displayName,
-          avatarUrl:
-            profile.photos?.[0]?.value ||
-            profile._json?.profile_image_url ||
-            user.avatarUrl,
-          isVerified: profile._json?.verified || user.isVerified,
-          email: profile.emails?.[0]?.value || user.email,
-        });
+        Object.assign(user, userData);
       }
 
       const savedUser = await this.userRepository.save(user);
@@ -64,6 +65,9 @@ export class AuthService {
       return savedUser;
     } catch (error) {
       this.logger.error('Failed to validate Twitter user:', error);
+      if (error instanceof TwitterAuthenticationException) {
+        throw error;
+      }
       throw new TwitterAuthenticationException(
         'Failed to validate or create user from Twitter profile',
       );
@@ -114,8 +118,6 @@ export class AuthService {
   }
 
   async validateJwtPayload(payload: JwtPayload): Promise<UserEntity> {
-    this.logger.debug(`Validating JWT payload for user: ${payload.sub}`);
-
     if (!payload.sub) {
       throw new UserNotFoundException('Invalid token payload - no user ID');
     }
