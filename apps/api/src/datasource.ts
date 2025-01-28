@@ -3,6 +3,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { CommentVoteEntity } from './entities/comment-vote.entity';
 import { CommentEntity } from './entities/comment.entity';
 import { TokenEntity } from './entities/token.entity';
+import { UserEntity } from './entities/user.entity';
 
 config(); // Load .env file
 
@@ -13,7 +14,7 @@ export const dataSourceOptions: DataSourceOptions = {
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  entities: [TokenEntity, CommentEntity, CommentVoteEntity],
+  entities: [TokenEntity, CommentEntity, CommentVoteEntity, UserEntity],
   migrations: ['src/migrations/*.ts'],
   synchronize: false,
 };

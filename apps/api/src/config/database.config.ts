@@ -6,6 +6,7 @@ import {
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
 import { TokenEntity } from '../entities/token.entity';
+import { UserEntity } from '../entities/user.entity';
 
 export const databaseConfig: TypeOrmModuleAsyncOptions = {
   imports: [ConfigModule],
@@ -20,7 +21,7 @@ export const databaseConfig: TypeOrmModuleAsyncOptions = {
       username: configService.get('DB_USERNAME'),
       password: configService.get('DB_PASSWORD'),
       database: configService.get('DB_NAME'),
-      entities: [TokenEntity, CommentEntity, CommentVoteEntity],
+      entities: [TokenEntity, CommentEntity, CommentVoteEntity, UserEntity],
       synchronize: configService.get('NODE_ENV') !== 'production',
       logging: false,
       ssl: false,

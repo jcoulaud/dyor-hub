@@ -130,6 +130,9 @@ export class TokensService {
           this.fetchDexScreenerData(mintAddress),
         ]);
 
+        console.log('metadata', metadata);
+        console.log('dexData', dexData);
+
         if (!metadata) {
           throw new NotFoundException(
             `Token with address ${mintAddress} not found`,

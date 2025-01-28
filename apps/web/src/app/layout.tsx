@@ -1,4 +1,6 @@
+import { Header } from '@/components/layout/Header';
 import { Toaster } from '@/components/ui/toast';
+import { AuthProvider } from '@/providers/auth-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
 import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
@@ -32,8 +34,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Script>
       </head>
       <body className='min-h-screen bg-black font-sans antialiased'>
-        <ThemeProvider>{children}</ThemeProvider>
-        <Toaster />
+        <ThemeProvider>
+          <Toaster>
+            <AuthProvider>
+              <Header />
+              {children}
+            </AuthProvider>
+          </Toaster>
+        </ThemeProvider>
       </body>
     </html>
   );
