@@ -14,9 +14,11 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs}/**/*.ts\" --fix",
     "typeorm": "typeorm-ts-node-commonjs",
-    "migration:generate": "NODE_PATH=./src typeorm-ts-node-commonjs -d ./src/datasource.ts migration:generate ./src/migrations/auto",
-    "migration:run": "NODE_PATH=./src typeorm-ts-node-commonjs -d ./src/datasource.ts migration:run",
-    "migration:revert": "NODE_PATH=./src typeorm-ts-node-commonjs -d ./src/datasource.ts migration:revert"
+    "migration:generate": "pnpm tsx ./node_modules/typeorm/cli.js migration:generate -d ./src/datasource.ts ./src/migrations/auto",
+    "migration:run": "pnpm tsx ./node_modules/typeorm/cli.js migration:run -d ./src/datasource.ts",
+    "migration:revert": "pnpm tsx ./node_modules/typeorm/cli.js migration:revert -d ./src/datasource.ts",
+    "migration:clear": "rm -rf ./src/migrations/*",
+    "db:drop": "pnpm tsx ./src/scripts/drop-database.ts"
   },
   "dependencies": {
     "@dyor-hub/types": "workspace:*",
@@ -60,6 +62,7 @@
     "ts-loader": "^9.4.3",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.1.3"
   }
 }

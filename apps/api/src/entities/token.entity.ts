@@ -1,47 +1,47 @@
-import { Token } from '@dyor-hub/types';
 import {
   Column,
   CreateDateColumn,
   Entity,
   OneToMany,
   PrimaryColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { CommentEntity } from './comment.entity';
 
 @Entity('tokens')
-export class TokenEntity implements Partial<Token> {
-  @PrimaryColumn()
+export class TokenEntity {
+  @PrimaryColumn({ name: 'mint_address', type: 'varchar' })
   mintAddress: string;
 
-  @Column()
+  @Column({ name: 'name', type: 'varchar' })
   name: string;
 
-  @Column()
+  @Column({ name: 'symbol', type: 'varchar' })
   symbol: string;
 
-  @Column({ nullable: true, type: 'text' })
+  @Column({ name: 'description', nullable: true, type: 'text' })
   description?: string;
 
-  @Column({ nullable: true })
-  imageUrl?: string;
+  @Column({ name: 'image_url', nullable: true, type: 'varchar' })
+  imageUrl: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'website_url', nullable: true, type: 'varchar' })
   websiteUrl?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'telegram_url', nullable: true, type: 'varchar' })
   telegramUrl?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'twitter_handle', nullable: true, type: 'varchar' })
   twitterHandle?: string;
 
-  @Column({ default: 0 })
+  @Column({ name: 'views_count', default: 0, type: 'integer' })
   viewsCount: number;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @Column({ nullable: true })
-  lastRefreshedAt?: Date;
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 
   // Relationships
   @OneToMany(() => CommentEntity, (comment) => comment.token)

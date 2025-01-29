@@ -7,6 +7,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest(err: any, user: any): any {
     if (err || !user) {
+      this.logger.error('Authentication failed', {
+        error: err?.message,
+      });
       throw new UnauthorizedException(
         'You must be authenticated to perform this action',
       );

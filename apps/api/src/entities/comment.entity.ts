@@ -7,6 +7,7 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { CommentVoteEntity } from './comment-vote.entity';
 import { TokenEntity } from './token.entity';
@@ -17,48 +18,54 @@ export class CommentEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ name: 'content', type: 'text' })
   content: string;
 
-  @ManyToOne(() => TokenEntity, (token) => token.comments)
-  @JoinColumn({ name: 'token_mint_address' })
-  token: TokenEntity;
-
-  @Column()
+  @Column({ name: 'token_mint_address', type: 'varchar' })
   tokenMintAddress: string;
 
-  @ManyToOne(() => UserEntity, (user) => user.comments)
+  @Column({ name: 'user_id', type: 'uuid' })
+  userId: string;
+
+  @Column({ name: 'parent_id', nullable: true, type: 'uuid' })
+  parentId: string | null;
+
+  @Column({ name: 'upvotes_count', type: 'integer', default: 0 })
+  upvotes: number;
+
+  @Column({ name: 'downvotes_count', type: 'integer', default: 0 })
+  downvotes: number;
+
+  @ManyToOne(() => UserEntity, (user) => user.comments, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 
-  @Column()
-  userId: string;
+  @ManyToOne(() => TokenEntity, (token) => token.comments, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'token_mint_address' })
+  token: TokenEntity;
 
-  @Column({ default: 0 })
-  upvotes: number;
-
-  @Column({ default: 0 })
-  downvotes: number;
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @DeleteDateColumn()
-  deletedAt?: Date;
-
-  // New fields for threading
   @ManyToOne(() => CommentEntity, (comment) => comment.replies, {
-    nullable: true,
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'parent_id' })
-  parent?: CommentEntity;
+  parent: CommentEntity | null;
 
   @OneToMany(() => CommentEntity, (comment) => comment.parent)
   replies: CommentEntity[];
 
-  @Column({ nullable: true })
-  parentId?: string;
-
   @OneToMany(() => CommentVoteEntity, (vote) => vote.comment)
   votes: CommentVoteEntity[];
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt?: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 }

@@ -26,15 +26,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayload): Promise<UserEntity> {
+  async validate(payload: JwtPayload): Promise<UserEntity | null> {
     try {
       if (!payload?.sub) {
+        this.logger.error('Invalid payload - missing sub');
         return null;
       }
 
-      const user = await this.authService.validateJwtPayload(payload);
+      const user = await this.authService
+        .validateJwtPayload(payload)
+        .catch((error) => {
+          this.logger.error('Failed to validate JWT payload', { error });
+          return null;
+        });
 
       if (!user?.id) {
+        this.logger.error('No user found for payload');
         return null;
       }
 

@@ -95,6 +95,7 @@ export class AuthService {
 
   async login(user: UserEntity): Promise<string> {
     if (!user) {
+      this.logger.error('Login attempt with no user data');
       throw new UserNotFoundException();
     }
 
@@ -108,8 +109,9 @@ export class AuthService {
   }
 
   async validateJwtPayload(payload: JwtPayload): Promise<UserEntity> {
-    if (!payload.sub) {
-      throw new UserNotFoundException('Invalid token payload - no user ID');
+    if (!payload?.sub) {
+      this.logger.error('Invalid JWT payload - missing sub claim');
+      throw new UserNotFoundException();
     }
 
     const user = await this.userRepository.findOne({
@@ -117,6 +119,7 @@ export class AuthService {
     });
 
     if (!user) {
+      this.logger.error('User not found for JWT payload', { sub: payload.sub });
       throw new UserNotFoundException();
     }
 
@@ -125,9 +128,11 @@ export class AuthService {
 
   async findUserById(id: string): Promise<UserEntity> {
     const user = await this.userRepository.findOne({ where: { id } });
+
     if (!user) {
       throw new UserNotFoundException();
     }
+
     return user;
   }
 }

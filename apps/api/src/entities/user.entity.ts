@@ -2,7 +2,6 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  Index,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -15,41 +14,33 @@ export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
-  @Index()
+  @Column({ name: 'twitter_id', type: 'varchar' })
   twitterId: string;
 
-  @Column({ unique: true })
-  @Index()
+  @Column({ name: 'username', type: 'varchar' })
   username: string;
 
-  @Column()
+  @Column({ name: 'display_name', type: 'varchar' })
   displayName: string;
 
-  @Column()
+  @Column({ name: 'avatar_url', type: 'varchar' })
   avatarUrl: string;
 
-  @Column({ default: false })
-  isVerified: boolean;
+  @Column({ name: 'twitter_access_token', nullable: true, type: 'varchar' })
+  twitterAccessToken: string;
 
-  @Column({ nullable: true })
-  email?: string;
-
-  @Column({ nullable: true })
-  twitterAccessToken?: string;
-
-  @Column({ nullable: true })
-  twitterRefreshToken?: string;
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @Column({ name: 'twitter_refresh_token', nullable: true, type: 'varchar' })
+  twitterRefreshToken: string;
 
   @OneToMany(() => CommentEntity, (comment) => comment.user)
   comments: CommentEntity[];
 
   @OneToMany(() => CommentVoteEntity, (vote) => vote.user)
   commentVotes: CommentVoteEntity[];
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 }

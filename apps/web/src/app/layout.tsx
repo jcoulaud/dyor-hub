@@ -35,12 +35,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className='min-h-screen bg-black font-sans antialiased'>
         <ThemeProvider>
-          <Toaster>
-            <AuthProvider>
+          <AuthProvider>
+            <Toaster>
               <Header />
               {children}
-            </AuthProvider>
-          </Toaster>
+            </Toaster>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

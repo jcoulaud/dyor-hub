@@ -16,7 +16,7 @@ import { TokensModule } from './tokens/tokens.module';
       envFilePath: '.env',
       cache: true,
     }),
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+    PassportModule.register({}),
     TypeOrmModule.forRootAsync(databaseConfig),
     AuthModule,
     TokensModule,

@@ -9,7 +9,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
-import { UserEntity } from '../entities/user.entity';
 import { CreateCommentDto } from './dto/create-comment.dto';
 
 @Injectable()
@@ -25,34 +24,77 @@ export class CommentsService {
 
   async findByTokenMintAddress(
     tokenMintAddress: string,
+    currentUserId?: string,
   ): Promise<CommentEntity[]> {
-    return this.commentRepository.find({
-      where: { tokenMintAddress },
-      relations: ['user', 'votes', 'votes.user'],
-      order: {
-        createdAt: 'DESC',
-      },
+    const query = this.commentRepository
+      .createQueryBuilder('comment')
+      .leftJoinAndSelect('comment.user', 'user')
+      .select([
+        'comment.id',
+        'comment.content',
+        'comment.tokenMintAddress',
+        'comment.upvotes',
+        'comment.downvotes',
+        'comment.createdAt',
+        'comment.updatedAt',
+        'comment.deletedAt',
+        'comment.parentId',
+        'user.id',
+        'user.displayName',
+        'user.username',
+        'user.avatarUrl',
+      ])
+      .where('comment.tokenMintAddress = :tokenMintAddress', {
+        tokenMintAddress,
+      });
+
+    // Only get current user's vote if they're authenticated
+    if (currentUserId) {
+      query.leftJoinAndSelect(
+        'comment.votes',
+        'vote',
+        'vote.userId = :currentUserId',
+        { currentUserId },
+      );
+    }
+
+    const comments = await query.orderBy('comment.createdAt', 'DESC').getMany();
+
+    // Transform the response to include only the current user's vote
+    return comments.map((comment) => {
+      const entity = new CommentEntity();
+      Object.assign(entity, {
+        ...comment,
+        votes: comment.votes ? [comment.votes[0]].filter(Boolean) : [], // Only include the current user's vote if it exists
+      });
+      return entity;
     });
   }
 
   async create(
     createCommentDto: CreateCommentDto,
-    user: UserEntity,
+    userId: string,
   ): Promise<CommentEntity> {
-    if (!user?.id) {
+    if (!userId) {
       throw new UnauthorizedException('Invalid user data');
     }
 
     const comment = this.commentRepository.create({
       content: createCommentDto.content,
       tokenMintAddress: createCommentDto.tokenMintAddress,
-      user,
-      userId: user.id,
+      parentId: createCommentDto.parentId,
+      userId,
+      upvotes: 0,
+      downvotes: 0,
     });
 
     const savedComment = await this.commentRepository.save(comment);
 
-    return savedComment;
+    // Load the comment with user data
+    return this.commentRepository.findOne({
+      where: { id: savedComment.id },
+      relations: ['user'],
+    });
   }
 
   async update(id: string, dto: UpdateCommentDto, userId: string) {
@@ -93,8 +135,15 @@ export class CommentsService {
   async vote(
     commentId: string,
     type: VoteType,
-    user: UserEntity,
-  ): Promise<CommentVoteEntity> {
+    userId: string,
+  ): Promise<{
+    id: string;
+    type: VoteType | null;
+    upvotes: number;
+    downvotes: number;
+    userId: string;
+  }> {
+    // Get the comment with its current vote counts
     const comment = await this.commentRepository.findOne({
       where: { id: commentId },
       relations: ['votes'],
@@ -104,20 +153,71 @@ export class CommentsService {
       throw new NotFoundException(`Comment with ID ${commentId} not found`);
     }
 
-    // Remove existing vote if any
-    await this.voteRepository.delete({
-      comment: { id: commentId },
-      user: { id: user.id },
+    // Find existing vote by userId
+    const existingVote = await this.voteRepository.findOne({
+      where: {
+        commentId: commentId,
+        userId: userId,
+      },
+      relations: ['comment'],
     });
 
-    // Create new vote
+    // If user has already voted with the same type, remove the vote (toggle off)
+    if (existingVote && existingVote.type === type) {
+      await this.voteRepository.remove(existingVote);
+
+      // Update comment vote counts
+      if (type === 'upvote') {
+        comment.upvotes = Math.max(0, comment.upvotes - 1);
+      } else {
+        comment.downvotes = Math.max(0, comment.downvotes - 1);
+      }
+      await this.commentRepository.save(comment);
+
+      return {
+        id: commentId,
+        type: null,
+        upvotes: comment.upvotes,
+        downvotes: comment.downvotes,
+        userId,
+      };
+    }
+
+    // Remove existing vote if any (different type)
+    if (existingVote) {
+      // Update comment vote counts for the old vote
+      if (existingVote.type === 'upvote') {
+        comment.upvotes = Math.max(0, comment.upvotes - 1);
+      } else {
+        comment.downvotes = Math.max(0, comment.downvotes - 1);
+      }
+      await this.voteRepository.remove(existingVote);
+    }
+
+    // Create new vote and update counts
     const vote = this.voteRepository.create({
       type,
       comment,
-      user,
+      commentId: comment.id,
+      userId,
     });
+    await this.voteRepository.save(vote);
 
-    return this.voteRepository.save(vote);
+    // Update comment vote counts for the new vote
+    if (type === 'upvote') {
+      comment.upvotes += 1;
+    } else {
+      comment.downvotes += 1;
+    }
+    await this.commentRepository.save(comment);
+
+    return {
+      id: commentId,
+      type,
+      upvotes: comment.upvotes,
+      downvotes: comment.downvotes,
+      userId,
+    };
   }
 
   async getVoteCount(
