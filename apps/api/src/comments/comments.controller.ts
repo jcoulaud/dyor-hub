@@ -46,7 +46,12 @@ export class CommentsController {
       throw new UnauthorizedException('User not authenticated');
     }
 
-    return this.commentsService.create(createCommentDto, req.user);
+    const comment = await this.commentsService.create(
+      createCommentDto,
+      req.user,
+    );
+
+    return comment;
   }
 
   @Put(':id')

@@ -28,15 +28,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtPayload): Promise<UserEntity> {
     try {
-      if (!payload) {
+      if (!payload?.sub) {
         return null;
       }
 
       const user = await this.authService.validateJwtPayload(payload);
 
+      if (!user?.id) {
+        return null;
+      }
+
       return user;
     } catch (error) {
-      this.logger.error('JWT validation failed:', error);
+      this.logger.error('JWT Strategy - Validation failed:', error);
       return null;
     }
   }

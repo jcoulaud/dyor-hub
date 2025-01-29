@@ -33,8 +33,6 @@ export class AuthService {
         );
       }
 
-      this.logger.debug(`Looking up user with Twitter ID: ${profile.id}`);
-
       let user = await this.userRepository.findOne({
         where: { twitterId: profile.id },
       });
@@ -53,15 +51,12 @@ export class AuthService {
       };
 
       if (!user) {
-        this.logger.debug('Creating new user from Twitter profile');
         user = this.userRepository.create(userData);
       } else {
-        this.logger.debug(`Updating existing user: ${user.id}`);
         Object.assign(user, userData);
       }
 
       const savedUser = await this.userRepository.save(user);
-      this.logger.debug(`User saved successfully: ${savedUser.id}`);
       return savedUser;
     } catch (error) {
       this.logger.error('Failed to validate Twitter user:', error);
@@ -80,8 +75,6 @@ export class AuthService {
     refreshToken?: string,
   ): Promise<void> {
     try {
-      this.logger.debug(`Updating Twitter tokens for user: ${userId}`);
-
       const tokens: TwitterTokens = {
         accessToken,
         ...(refreshToken && { refreshToken }),
@@ -91,8 +84,6 @@ export class AuthService {
         twitterAccessToken: tokens.accessToken,
         twitterRefreshToken: tokens.refreshToken,
       });
-
-      this.logger.debug('Twitter tokens updated successfully');
     } catch (error) {
       this.logger.error(
         `Failed to update Twitter tokens for user ${userId}:`,
@@ -113,7 +104,6 @@ export class AuthService {
       displayName: user.displayName,
     };
 
-    this.logger.debug(`Creating JWT for user: ${user.id}`);
     return this.jwtService.sign(payload);
   }
 

@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/api';
 import { Twitter } from 'lucide-react';
@@ -16,18 +17,47 @@ import { useCallback } from 'react';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onAuthSuccess?: () => Promise<void>;
 }
 
-export function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
   const { toast } = useToast();
+  const { checkAuth } = useAuth();
 
   const handleAuthSuccess = useCallback(async () => {
-    toast({
-      title: 'Success',
-      description: 'Successfully signed in with Twitter',
-    });
-    onClose();
-  }, [onClose, toast]);
+    try {
+      // Wait a bit to ensure the session is established
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Check auth state
+      const authState = await auth.getProfile();
+      if (!authState.authenticated) {
+        throw new Error('Authentication failed');
+      }
+
+      // Update local auth state
+      await checkAuth();
+
+      if (onAuthSuccess) {
+        // Wait a bit more before executing the action to ensure everything is synced
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await onAuthSuccess();
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Successfully signed in with Twitter',
+      });
+      onClose();
+    } catch (error) {
+      console.error('Auth error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to complete the action after authentication',
+        variant: 'destructive',
+      });
+    }
+  }, [onClose, onAuthSuccess, toast, checkAuth]);
 
   const handleTwitterLogin = () => {
     const width = 600;
@@ -45,9 +75,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       if (popup?.closed) {
         clearInterval(pollTimer);
         try {
-          await auth.getProfile();
-          handleAuthSuccess();
+          await handleAuthSuccess();
         } catch (error) {
+          console.error('Twitter auth error:', error);
           toast({
             title: 'Error',
             description: 'Failed to authenticate with Twitter',

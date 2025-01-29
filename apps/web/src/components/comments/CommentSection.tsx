@@ -172,7 +172,11 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
         </div>
       </div>
 
-      <AuthModal isOpen={showAuthModal} onClose={handleAuthModalClose} />
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={handleAuthModalClose}
+        onAuthSuccess={pendingAction ?? undefined}
+      />
     </>
   );
 }

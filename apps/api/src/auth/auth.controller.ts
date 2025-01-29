@@ -38,8 +38,6 @@ export class AuthController {
     @Res() res: Response,
   ): Promise<void> {
     try {
-      this.logger.debug('Processing Twitter callback');
-
       if (!req.user) {
         throw new TwitterAuthenticationException(
           'No user data received from Twitter',
@@ -47,14 +45,12 @@ export class AuthController {
       }
 
       const token = await this.authService.login(req.user);
-      this.logger.debug('JWT token generated successfully');
 
       // Set JWT token in cookie
       const cookieConfig = this.authConfigService.getCookieConfig(
         this.authConfigService.isDevelopment,
       );
 
-      this.logger.debug('Setting authentication cookie');
       res.cookie('jwt', token, cookieConfig);
 
       // Always use popup mode with postMessage

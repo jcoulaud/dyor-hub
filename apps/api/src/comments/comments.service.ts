@@ -39,13 +39,20 @@ export class CommentsService {
     createCommentDto: CreateCommentDto,
     user: UserEntity,
   ): Promise<CommentEntity> {
+    if (!user?.id) {
+      throw new UnauthorizedException('Invalid user data');
+    }
+
     const comment = this.commentRepository.create({
       content: createCommentDto.content,
       tokenMintAddress: createCommentDto.tokenMintAddress,
       user,
+      userId: user.id,
     });
 
-    return this.commentRepository.save(comment);
+    const savedComment = await this.commentRepository.save(comment);
+
+    return savedComment;
   }
 
   async update(id: string, dto: UpdateCommentDto, userId: string) {
