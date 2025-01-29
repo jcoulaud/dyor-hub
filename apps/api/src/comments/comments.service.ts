@@ -136,88 +136,66 @@ export class CommentsService {
     commentId: string,
     type: VoteType,
     userId: string,
-  ): Promise<{
-    id: string;
-    type: VoteType | null;
-    upvotes: number;
-    downvotes: number;
-    userId: string;
-  }> {
-    // Get the comment with its current vote counts
+  ): Promise<CommentEntity> {
+    // Get the comment
     const comment = await this.commentRepository.findOne({
       where: { id: commentId },
-      relations: ['votes'],
     });
 
     if (!comment) {
       throw new NotFoundException(`Comment with ID ${commentId} not found`);
     }
 
-    // Find existing vote by userId
+    // Find existing vote
     const existingVote = await this.voteRepository.findOne({
-      where: {
-        commentId: commentId,
-        userId: userId,
-      },
-      relations: ['comment'],
+      where: { commentId, userId },
     });
 
-    // If user has already voted with the same type, remove the vote (toggle off)
+    // If same vote exists, remove it (toggle off)
     if (existingVote && existingVote.type === type) {
       await this.voteRepository.remove(existingVote);
-
-      // Update comment vote counts
-      if (type === 'upvote') {
-        comment.upvotes = Math.max(0, comment.upvotes - 1);
-      } else {
-        comment.downvotes = Math.max(0, comment.downvotes - 1);
-      }
+      comment.upvotes =
+        type === 'upvote' ? Math.max(0, comment.upvotes - 1) : comment.upvotes;
+      comment.downvotes =
+        type === 'downvote'
+          ? Math.max(0, comment.downvotes - 1)
+          : comment.downvotes;
       await this.commentRepository.save(comment);
-
-      return {
-        id: commentId,
-        type: null,
-        upvotes: comment.upvotes,
-        downvotes: comment.downvotes,
-        userId,
-      };
+      return this.commentRepository.findOne({
+        where: { id: commentId },
+        relations: ['votes', 'user'],
+      });
     }
 
-    // Remove existing vote if any (different type)
+    // If different vote exists, remove it
     if (existingVote) {
-      // Update comment vote counts for the old vote
-      if (existingVote.type === 'upvote') {
-        comment.upvotes = Math.max(0, comment.upvotes - 1);
-      } else {
-        comment.downvotes = Math.max(0, comment.downvotes - 1);
-      }
       await this.voteRepository.remove(existingVote);
+      comment.upvotes =
+        existingVote.type === 'upvote'
+          ? Math.max(0, comment.upvotes - 1)
+          : comment.upvotes;
+      comment.downvotes =
+        existingVote.type === 'downvote'
+          ? Math.max(0, comment.downvotes - 1)
+          : comment.downvotes;
     }
 
-    // Create new vote and update counts
-    const vote = this.voteRepository.create({
-      type,
-      comment,
-      commentId: comment.id,
-      userId,
-    });
+    // Create new vote
+    const vote = new CommentVoteEntity();
+    vote.type = type;
+    vote.commentId = commentId;
+    vote.userId = userId;
     await this.voteRepository.save(vote);
 
-    // Update comment vote counts for the new vote
-    if (type === 'upvote') {
-      comment.upvotes += 1;
-    } else {
-      comment.downvotes += 1;
-    }
+    // Update counts
+    comment.upvotes += type === 'upvote' ? 1 : 0;
+    comment.downvotes += type === 'downvote' ? 1 : 0;
     await this.commentRepository.save(comment);
 
-    return {
-      id: commentId,
-      type,
-      upvotes: comment.upvotes,
-      downvotes: comment.downvotes,
-      userId,
-    };
+    return this.commentRepository.findOne({
+      where: { id: commentId },
+      relations: ['votes', 'user'],
+    });
   }
 
   async getVoteCount(
