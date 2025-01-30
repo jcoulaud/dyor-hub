@@ -1,4 +1,4 @@
-import type { Comment } from '@dyor-hub/types';
+import type { Comment, VoteType } from '@dyor-hub/types';
 import { Token } from '@dyor-hub/types';
 
 // API base URL
@@ -58,6 +58,12 @@ const api = async <T = any>(endpoint: string, options: ApiOptions = {}): Promise
   return response.json();
 };
 
+interface VoteResponse {
+  upvotes: number;
+  downvotes: number;
+  userVoteType: VoteType | null;
+}
+
 // Typed API methods
 export const comments = {
   list: (tokenMintAddress: string) =>
@@ -67,7 +73,7 @@ export const comments = {
     api<Comment>('comments', { method: 'POST', body: data }),
 
   vote: (commentId: string, type: 'upvote' | 'downvote') =>
-    api<Comment>(`comments/${commentId}/vote`, {
+    api<VoteResponse>(`comments/${commentId}/vote`, {
       method: 'POST',
       body: { type },
     }),

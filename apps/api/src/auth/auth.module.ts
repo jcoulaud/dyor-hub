@@ -5,9 +5,11 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from '../entities/user.entity';
 import { AuthController } from './auth.controller';
+import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { AuthConfigService } from './config/auth.config';
 import { JwtStrategy } from './jwt.strategy';
+import { OptionalAuthGuard } from './optional-auth.guard';
 import { TwitterStrategy } from './twitter.strategy';
 
 @Module({
@@ -30,8 +32,15 @@ import { TwitterStrategy } from './twitter.strategy';
     }),
     TypeOrmModule.forFeature([UserEntity]),
   ],
-  providers: [AuthConfigService, AuthService, TwitterStrategy, JwtStrategy],
+  providers: [
+    AuthConfigService,
+    AuthService,
+    TwitterStrategy,
+    JwtStrategy,
+    AuthGuard,
+    OptionalAuthGuard,
+  ],
   controllers: [AuthController],
-  exports: [AuthService, JwtModule, PassportModule],
+  exports: [AuthService, JwtModule, PassportModule, AuthConfigService],
 })
 export class AuthModule {}

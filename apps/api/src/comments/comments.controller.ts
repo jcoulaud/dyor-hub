@@ -1,9 +1,6 @@
+import { CreateCommentDto, UpdateCommentDto, VoteType } from '@dyor-hub/types';
 import {
-  CreateCommentDto,
-  UpdateCommentDto,
-  VoteCommentDto,
-} from '@dyor-hub/types';
-import {
+  BadRequestException,
   Body,
   ClassSerializerInterceptor,
   Controller,
@@ -14,15 +11,16 @@ import {
   Post,
   Put,
   Query,
-  Req,
-  UnauthorizedException,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthGuard } from '../auth/auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import { CommentsService } from './comments.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
+import { VoteResponseDto } from './dto/vote-response.dto';
 
 @Controller('comments')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -32,13 +30,14 @@ export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
   @Get()
+  @UseGuards(OptionalAuthGuard)
   async getComments(
     @Query('tokenMintAddress') tokenMintAddress: string,
-    @Req() req: any,
+    @CurrentUser() user?: { id: string },
   ): Promise<CommentResponseDto[]> {
     const comments = await this.commentsService.findByTokenMintAddress(
       tokenMintAddress,
-      req.user?.id,
+      user?.id,
     );
     return comments.map((comment) =>
       plainToInstance(CommentResponseDto, comment, {
@@ -48,20 +47,15 @@ export class CommentsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AuthGuard)
   async createComment(
     @Body() createCommentDto: CreateCommentDto,
-    @Req() req: any,
+    @CurrentUser() user: { id: string },
   ): Promise<CommentResponseDto> {
-    if (!req.user) {
-      this.logger.error('No user found in request');
-      throw new UnauthorizedException('User not authenticated');
-    }
-
     try {
       const comment = await this.commentsService.create(
         createCommentDto,
-        req.user.id,
+        user.id,
       );
 
       return plainToInstance(CommentResponseDto, comment, {
@@ -70,47 +64,47 @@ export class CommentsController {
     } catch (error) {
       this.logger.error('Failed to create comment', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: req.user.id,
+        userId: user.id,
       });
       throw error;
     }
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AuthGuard)
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateCommentDto,
-    @Req() req: any,
+    @CurrentUser() user: { id: string },
   ): Promise<CommentResponseDto> {
-    const comment = await this.commentsService.update(id, dto, req.user.id);
+    const comment = await this.commentsService.update(id, dto, user.id);
     return plainToInstance(CommentResponseDto, comment, {
       excludeExtraneousValues: true,
     });
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AuthGuard)
   async delete(
     @Param('id') id: string,
-    @Req() req: any,
+    @CurrentUser() user: { id: string },
   ): Promise<CommentResponseDto> {
-    const comment = await this.commentsService.delete(id, req.user.id);
+    const comment = await this.commentsService.delete(id, user.id);
     return plainToInstance(CommentResponseDto, comment, {
       excludeExtraneousValues: true,
     });
   }
 
   @Post(':id/vote')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AuthGuard)
   async vote(
     @Param('id') id: string,
-    @Body() dto: VoteCommentDto,
-    @Req() req: any,
-  ): Promise<CommentResponseDto> {
-    const comment = await this.commentsService.vote(id, dto.type, req.user.id);
-    return plainToInstance(CommentResponseDto, comment, {
-      excludeExtraneousValues: true,
-    });
+    @Body('type') type: VoteType,
+    @CurrentUser() user: { id: string },
+  ): Promise<VoteResponseDto> {
+    if (type !== 'upvote' && type !== 'downvote') {
+      throw new BadRequestException('Invalid vote type');
+    }
+    return this.commentsService.vote(id, user.id, type);
   }
 }

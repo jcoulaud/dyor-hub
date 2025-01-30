@@ -10,6 +10,8 @@ import { Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { VoteResponseDto } from './dto/vote-response.dto';
+import { CommentWithVoteType } from './types';
 
 @Injectable()
 export class CommentsService {
@@ -25,50 +27,44 @@ export class CommentsService {
   async findByTokenMintAddress(
     tokenMintAddress: string,
     currentUserId?: string,
-  ): Promise<CommentEntity[]> {
+  ): Promise<CommentWithVoteType[]> {
     const query = this.commentRepository
       .createQueryBuilder('comment')
-      .leftJoinAndSelect('comment.user', 'user')
-      .select([
-        'comment.id',
-        'comment.content',
-        'comment.tokenMintAddress',
-        'comment.upvotes',
-        'comment.downvotes',
-        'comment.createdAt',
-        'comment.updatedAt',
-        'comment.deletedAt',
-        'comment.parentId',
-        'user.id',
-        'user.displayName',
-        'user.username',
-        'user.avatarUrl',
-      ])
-      .where('comment.tokenMintAddress = :tokenMintAddress', {
-        tokenMintAddress,
-      });
+      .leftJoinAndSelect('comment.user', 'user');
 
-    // Only get current user's vote if they're authenticated
+    // Add subquery to get current user's vote type
     if (currentUserId) {
-      query.leftJoinAndSelect(
-        'comment.votes',
-        'vote',
-        'vote.userId = :currentUserId',
-        { currentUserId },
-      );
+      query
+        .leftJoin(
+          CommentVoteEntity,
+          'vote',
+          'vote.comment_id = comment.id AND vote.user_id = :currentUserId',
+          { currentUserId },
+        )
+        .addSelect('vote.type', 'userVoteType');
     }
 
-    const comments = await query.orderBy('comment.createdAt', 'DESC').getMany();
+    query
+      .where('comment.token_mint_address = :tokenMintAddress', {
+        tokenMintAddress,
+      })
+      .orderBy('comment.created_at', 'DESC');
 
-    // Transform the response to include only the current user's vote
-    return comments.map((comment) => {
-      const entity = new CommentEntity();
-      Object.assign(entity, {
-        ...comment,
-        votes: comment.votes ? [comment.votes[0]].filter(Boolean) : [], // Only include the current user's vote if it exists
-      });
-      return entity;
-    });
+    const [entities, raw] = await Promise.all([
+      query.getMany(),
+      query.getRawMany(),
+    ]);
+
+    // Map the raw results to get userVoteType
+    const voteTypeMap = new Map(
+      raw.map((item) => [item.comment_id, item.userVoteType]),
+    );
+
+    // Combine entities with userVoteType
+    return entities.map((comment) => ({
+      ...comment,
+      userVoteType: voteTypeMap.get(comment.id) || null,
+    }));
   }
 
   async create(
@@ -134,68 +130,67 @@ export class CommentsService {
 
   async vote(
     commentId: string,
-    type: VoteType,
     userId: string,
-  ): Promise<CommentEntity> {
-    // Get the comment
+    type: VoteType,
+  ): Promise<VoteResponseDto> {
     const comment = await this.commentRepository.findOne({
       where: { id: commentId },
+      relations: ['votes'],
     });
 
     if (!comment) {
-      throw new NotFoundException(`Comment with ID ${commentId} not found`);
+      throw new NotFoundException('Comment not found');
     }
 
-    // Find existing vote
+    // Check if user has already voted this way
     const existingVote = await this.voteRepository.findOne({
       where: { commentId, userId },
     });
 
-    // If same vote exists, remove it (toggle off)
-    if (existingVote && existingVote.type === type) {
+    // If same vote type exists, remove it (toggle off)
+    if (existingVote?.type === type) {
       await this.voteRepository.remove(existingVote);
-      comment.upvotes =
-        type === 'upvote' ? Math.max(0, comment.upvotes - 1) : comment.upvotes;
-      comment.downvotes =
-        type === 'downvote'
-          ? Math.max(0, comment.downvotes - 1)
-          : comment.downvotes;
-      await this.commentRepository.save(comment);
-      return this.commentRepository.findOne({
-        where: { id: commentId },
-        relations: ['votes', 'user'],
-      });
+
+      // Get updated vote counts
+      const votes = await this.voteRepository.find({ where: { commentId } });
+      const upvotes = votes.filter((v) => v.type === 'upvote').length;
+      const downvotes = votes.filter((v) => v.type === 'downvote').length;
+
+      // Update comment with new vote counts
+      await this.commentRepository.update(commentId, { upvotes, downvotes });
+
+      return {
+        upvotes,
+        downvotes,
+        userVoteType: null, // No active vote after toggle
+      };
     }
 
-    // If different vote exists, remove it
+    // Remove any existing vote (if different type)
     if (existingVote) {
       await this.voteRepository.remove(existingVote);
-      comment.upvotes =
-        existingVote.type === 'upvote'
-          ? Math.max(0, comment.upvotes - 1)
-          : comment.upvotes;
-      comment.downvotes =
-        existingVote.type === 'downvote'
-          ? Math.max(0, comment.downvotes - 1)
-          : comment.downvotes;
     }
 
     // Create new vote
     const vote = new CommentVoteEntity();
     vote.type = type;
-    vote.commentId = commentId;
     vote.userId = userId;
+    vote.commentId = commentId;
     await this.voteRepository.save(vote);
 
-    // Update counts
-    comment.upvotes += type === 'upvote' ? 1 : 0;
-    comment.downvotes += type === 'downvote' ? 1 : 0;
-    await this.commentRepository.save(comment);
+    // Get updated vote counts
+    const votes = await this.voteRepository.find({ where: { commentId } });
+    const upvotes = votes.filter((v) => v.type === 'upvote').length;
+    const downvotes = votes.filter((v) => v.type === 'downvote').length;
 
-    return this.commentRepository.findOne({
-      where: { id: commentId },
-      relations: ['votes', 'user'],
-    });
+    // Update comment with new vote counts
+    await this.commentRepository.update(commentId, { upvotes, downvotes });
+
+    return {
+      upvotes,
+      downvotes,
+      userVoteType: type,
+    };
   }
 
   async getVoteCount(

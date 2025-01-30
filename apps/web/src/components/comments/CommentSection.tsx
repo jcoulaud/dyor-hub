@@ -3,7 +3,7 @@
 import { useToast } from '@/hooks/use-toast';
 import { comments } from '@/lib/api';
 import { useAuthContext } from '@/providers/auth-provider';
-import type { Comment as CommentType, CommentVote, VoteType } from '@dyor-hub/types';
+import type { Comment as CommentType, VoteType } from '@dyor-hub/types';
 import { ArrowBigDown, ArrowBigUp } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { AuthModal } from '../auth/AuthModal';
@@ -75,33 +75,28 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
   };
 
   const handleVote = async (commentId: string, type: VoteType) => {
-    await withAuth(async () => {
-      try {
-        const response = (await comments.vote(commentId, type)) as unknown as VoteResponse;
+    try {
+      const response = await comments.vote(commentId, type);
 
-        setComments(
-          (prevComments) =>
-            prevComments.map((comment) => {
-              if (comment.id === commentId) {
-                const updatedComment = {
-                  ...comment,
-                  upvotes: response.upvotes,
-                  downvotes: response.downvotes,
-                  votes: response.type ? [{ type: response.type } as CommentVote] : [],
-                };
-                return updatedComment;
+      setComments((prevComments) =>
+        prevComments.map((comment) =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                upvotes: response.upvotes,
+                downvotes: response.downvotes,
+                userVoteType: response.userVoteType,
               }
-              return comment;
-            }) as CommentType[],
-        );
-      } catch (err) {
-        toast({
-          title: 'Error',
-          description: err instanceof Error ? err.message : 'Failed to vote',
-          variant: 'destructive',
-        });
-      }
-    });
+            : comment,
+        ),
+      );
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to vote',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleSubmitComment = async () => {
@@ -164,69 +159,65 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
         </div>
 
         <div className='space-y-4'>
-          {commentsList.map((comment) => (
-            <Card key={comment.id} className='p-4'>
-              <div className='flex items-start gap-4'>
-                <div className='flex flex-col items-center gap-1'>
-                  <Button
-                    variant='ghost'
-                    size='icon'
-                    onClick={() => handleVote(comment.id, 'upvote')}
-                    className={
-                      comment.votes?.some((v) => v.type === 'upvote')
-                        ? 'bg-green-100 hover:bg-green-200'
-                        : ''
-                    }>
-                    <ArrowBigUp
+          {commentsList.map((comment) => {
+            const voteCount = (comment.upvotes || 0) - (comment.downvotes || 0);
+
+            return (
+              <Card key={comment.id} className='p-4'>
+                <div className='flex items-start gap-4'>
+                  <div className='flex flex-col items-center gap-1'>
+                    <Button
+                      variant='ghost'
+                      size='icon'
+                      onClick={() => handleVote(comment.id, 'upvote')}
                       className={
-                        comment.votes?.some((v) => v.type === 'upvote')
-                          ? 'text-green-500'
-                          : 'text-gray-500'
-                      }
-                    />
-                  </Button>
-                  <span className='font-medium text-sm'>
-                    {(comment.upvotes || 0) - (comment.downvotes || 0)}
-                  </span>
-                  <Button
-                    variant='ghost'
-                    size='icon'
-                    onClick={() => handleVote(comment.id, 'downvote')}
-                    className={
-                      comment.votes?.some((v) => v.type === 'downvote')
-                        ? 'bg-red-100 hover:bg-red-200'
-                        : ''
-                    }>
-                    <ArrowBigDown
-                      className={
-                        comment.votes?.some((v) => v.type === 'downvote')
-                          ? 'text-red-500'
-                          : 'text-gray-500'
-                      }
-                    />
-                  </Button>
-                </div>
-                <div className='flex-1'>
-                  <div className='flex items-center gap-2 mb-1'>
-                    <Avatar className='h-6 w-6'>
-                      <AvatarImage
-                        src={comment.user?.avatarUrl}
-                        alt={comment.user?.displayName || 'Anonymous'}
+                        comment.userVoteType === 'upvote' ? 'bg-green-100 hover:bg-green-200' : ''
+                      }>
+                      <ArrowBigUp
+                        className={
+                          comment.userVoteType === 'upvote' ? 'text-green-500' : 'text-gray-500'
+                        }
                       />
-                      <AvatarFallback>{comment.user?.displayName?.charAt(0) || 'A'}</AvatarFallback>
-                    </Avatar>
-                    <span className='font-medium text-sm'>
-                      {comment.user?.displayName || 'Anonymous'}
-                    </span>
-                    <span className='text-xs text-gray-500'>
-                      {new Date(comment.createdAt).toLocaleDateString()}
-                    </span>
+                    </Button>
+                    <span className='font-medium text-sm'>{voteCount}</span>
+                    <Button
+                      variant='ghost'
+                      size='icon'
+                      onClick={() => handleVote(comment.id, 'downvote')}
+                      className={
+                        comment.userVoteType === 'downvote' ? 'bg-red-100 hover:bg-red-200' : ''
+                      }>
+                      <ArrowBigDown
+                        className={
+                          comment.userVoteType === 'downvote' ? 'text-red-500' : 'text-gray-500'
+                        }
+                      />
+                    </Button>
                   </div>
-                  <p className='text-gray-700 text-sm'>{comment.content}</p>
+                  <div className='flex-1'>
+                    <div className='flex items-center gap-2 mb-1'>
+                      <Avatar className='h-6 w-6'>
+                        <AvatarImage
+                          src={comment.user?.avatarUrl}
+                          alt={comment.user?.displayName || 'Anonymous'}
+                        />
+                        <AvatarFallback>
+                          {comment.user?.displayName?.charAt(0) || 'A'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className='font-medium text-sm'>
+                        {comment.user?.displayName || 'Anonymous'}
+                      </span>
+                      <span className='text-xs text-gray-500'>
+                        {new Date(comment.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className='text-gray-700 text-sm'>{comment.content}</p>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       </div>
 
