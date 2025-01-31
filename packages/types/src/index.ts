@@ -32,6 +32,7 @@ export interface Comment {
   content: string;
   upvotes: number;
   downvotes: number;
+  voteCount: number;
   ipHash: string;
   createdAt: Date;
   deletedAt?: Date;
@@ -41,6 +42,7 @@ export interface Comment {
   votes?: CommentVote[];
   user: User;
   userId: string;
+  userVoteType?: VoteType | null;
 }
 
 export type VoteType = 'upvote' | 'downvote';
@@ -68,3 +70,6 @@ export interface UpdateCommentDto {
 export interface VoteCommentDto {
   type: VoteType;
 }
+
+export * from './comment';
+export * from './vote';

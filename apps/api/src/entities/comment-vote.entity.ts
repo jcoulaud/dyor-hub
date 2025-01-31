@@ -6,42 +6,36 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { CommentEntity } from './comment.entity';
 import { UserEntity } from './user.entity';
 
 @Entity('comment_votes')
-@Unique(['userId', 'commentId'])
 export class CommentVoteEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'comment_id', type: 'uuid' })
-  commentId: string;
-
-  @Column({ name: 'user_id', type: 'uuid' })
-  userId: string;
-
-  @Column({ name: 'vote_type', type: 'enum', enum: ['upvote', 'downvote'] })
+  @Column({ type: 'enum', enum: ['upvote', 'downvote'] })
   type: VoteType;
 
-  @ManyToOne(() => CommentEntity, (comment) => comment.votes, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'comment_id' })
-  comment: CommentEntity;
+  @Column({ name: 'user_id' })
+  userId: string;
 
-  @ManyToOne(() => UserEntity, (user) => user.commentVotes, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'user_id' })
-  user: UserEntity;
+  @Column({ name: 'comment_id' })
+  commentId: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @ManyToOne(() => CommentEntity, (comment) => comment.votes)
+  @JoinColumn({ name: 'comment_id' })
+  comment: CommentEntity;
+
+  @ManyToOne(() => UserEntity)
+  @JoinColumn({ name: 'user_id' })
+  user: UserEntity;
 }

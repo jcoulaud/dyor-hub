@@ -1,22 +1,19 @@
 import { UpdateCommentDto, VoteType } from '@dyor-hub/types';
 import {
   Injectable,
-  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
+import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { VoteResponseDto } from './dto/vote-response.dto';
-import { CommentWithVoteType } from './types';
 
 @Injectable()
 export class CommentsService {
-  private readonly logger = new Logger(CommentsService.name);
-
   constructor(
     @InjectRepository(CommentEntity)
     private readonly commentRepository: Repository<CommentEntity>,
@@ -27,44 +24,53 @@ export class CommentsService {
   async findByTokenMintAddress(
     tokenMintAddress: string,
     currentUserId?: string,
-  ): Promise<CommentWithVoteType[]> {
+  ): Promise<CommentResponseDto[]> {
     const query = this.commentRepository
       .createQueryBuilder('comment')
-      .leftJoinAndSelect('comment.user', 'user');
+      .leftJoinAndSelect('comment.user', 'user')
+      .where('comment.token_mint_address = :tokenMintAddress', {
+        tokenMintAddress,
+      });
 
-    // Add subquery to get current user's vote type
     if (currentUserId) {
+      // Join with votes table to get current user's vote
       query
-        .leftJoin(
-          CommentVoteEntity,
-          'vote',
-          'vote.comment_id = comment.id AND vote.user_id = :currentUserId',
-          { currentUserId },
-        )
+        .leftJoin('comment.votes', 'vote', 'vote.user_id = :currentUserId', {
+          currentUserId,
+        })
         .addSelect('vote.type', 'userVoteType');
     }
 
-    query
-      .where('comment.token_mint_address = :tokenMintAddress', {
-        tokenMintAddress,
-      })
-      .orderBy('comment.created_at', 'DESC');
+    const comments = await query
+      .orderBy('comment.created_at', 'DESC')
+      .getMany();
 
-    const [entities, raw] = await Promise.all([
-      query.getMany(),
-      query.getRawMany(),
-    ]);
+    // Get all votes for the current user
+    let userVotes = [];
+    if (currentUserId) {
+      userVotes = await this.voteRepository.find({
+        where: {
+          userId: currentUserId,
+          commentId: In(comments.map((c) => c.id)),
+        },
+      });
+    }
 
-    // Map the raw results to get userVoteType
-    const voteTypeMap = new Map(
-      raw.map((item) => [item.comment_id, item.userVoteType]),
-    );
-
-    // Combine entities with userVoteType
-    return entities.map((comment) => ({
-      ...comment,
-      userVoteType: voteTypeMap.get(comment.id) || null,
-    }));
+    return comments.map((comment) => {
+      const userVote = userVotes.find((v) => v.commentId === comment.id);
+      return {
+        id: comment.id,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        voteCount: comment.upvotes - comment.downvotes,
+        user: {
+          id: comment.user.id,
+          displayName: comment.user.displayName,
+          avatarUrl: comment.user.avatarUrl,
+        },
+        userVoteType: userVote?.type || null,
+      };
+    });
   }
 
   async create(

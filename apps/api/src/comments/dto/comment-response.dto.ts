@@ -1,12 +1,9 @@
-import { Exclude, Expose, Type } from 'class-transformer';
+import { VoteType } from '@dyor-hub/types';
+import { Expose, Type } from 'class-transformer';
 
-@Exclude()
-export class CommentUserDto {
+class CommentUserDto {
   @Expose()
   id: string;
-
-  @Expose()
-  username: string;
 
   @Expose()
   displayName: string;
@@ -15,7 +12,6 @@ export class CommentUserDto {
   avatarUrl: string;
 }
 
-@Exclude()
 export class CommentResponseDto {
   @Expose()
   id: string;
@@ -24,24 +20,15 @@ export class CommentResponseDto {
   content: string;
 
   @Expose()
-  tokenMintAddress: string;
-
-  @Expose()
-  upvotes: number;
-
-  @Expose()
-  downvotes: number;
-
-  @Expose()
-  parentId: string | null;
-
-  @Expose()
   createdAt: Date;
 
   @Expose()
-  updatedAt: Date;
+  voteCount: number;
 
   @Expose()
   @Type(() => CommentUserDto)
   user: CommentUserDto;
+
+  @Expose()
+  userVoteType: VoteType | null;
 }
