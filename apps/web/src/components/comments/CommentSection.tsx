@@ -39,48 +39,35 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
   const [error, setError] = useState<string | null>(null);
   const { isAuthenticated, isLoading: authLoading } = useAuthContext();
 
-  const fetchComments = useCallback(
-    async (showLoading = true) => {
-      try {
-        if (showLoading) {
-          setIsLoading(true);
-        }
-        const data = await comments.list(tokenMintAddress);
-        setComments(
-          data.map((comment) => ({
-            id: comment.id,
-            content: comment.content,
-            createdAt: comment.createdAt.toString(),
-            voteCount: comment.voteCount,
-            user: {
-              id: comment.user.id,
-              displayName: comment.user.displayName,
-              avatarUrl: comment.user.avatarUrl,
-            },
-            userVoteType: comment.userVoteType || null,
-          })),
-        );
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch comments');
-      } finally {
-        if (showLoading) {
-          setIsLoading(false);
-        }
-      }
-    },
-    [tokenMintAddress],
-  );
+  const fetchComments = useCallback(async () => {
+    try {
+      const data = await comments.list(tokenMintAddress);
+      setComments(
+        data.map((comment) => ({
+          id: comment.id,
+          content: comment.content,
+          createdAt: comment.createdAt.toString(),
+          voteCount: comment.voteCount,
+          user: {
+            id: comment.user.id,
+            displayName: comment.user.displayName,
+            avatarUrl: comment.user.avatarUrl,
+          },
+          userVoteType: comment.userVoteType || null,
+        })),
+      );
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch comments');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [tokenMintAddress]);
 
-  // Fetch comments initially
-  useEffect(() => {
-    fetchComments(true);
-  }, [fetchComments]);
-
-  // Refetch comments when auth state changes
+  // Fetch comments when component mounts or auth state changes
   useEffect(() => {
     if (!authLoading) {
-      fetchComments(false); // Don't show loading state for auth-triggered refreshes
+      fetchComments();
     }
   }, [authLoading, isAuthenticated, fetchComments]);
 
@@ -164,7 +151,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
     return (
       <div className='text-red-500'>
         Error: {error}
-        <Button onClick={() => fetchComments(true)} className='ml-2'>
+        <Button onClick={() => fetchComments()} className='ml-2'>
           Retry
         </Button>
       </div>
