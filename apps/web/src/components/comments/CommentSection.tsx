@@ -154,17 +154,30 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
       try {
         const response = await comments.vote(commentId, type);
 
-        setComments((prevComments) =>
-          prevComments.map((comment) =>
-            comment.id === commentId
-              ? {
+        setComments((prevComments) => {
+          const updateCommentVotes = (comments: CommentType[]): CommentType[] => {
+            return comments.map((comment) => {
+              if (comment.id === commentId) {
+                return {
                   ...comment,
                   voteCount: response.upvotes - response.downvotes,
                   userVoteType: response.userVoteType,
-                }
-              : comment,
-          ),
-        );
+                };
+              }
+
+              if (comment.replies?.length) {
+                return {
+                  ...comment,
+                  replies: updateCommentVotes(comment.replies),
+                };
+              }
+
+              return comment;
+            });
+          };
+
+          return updateCommentVotes(prevComments);
+        });
       } catch (error) {
         toast({
           title: 'Error',
