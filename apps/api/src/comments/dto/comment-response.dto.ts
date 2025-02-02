@@ -26,6 +26,9 @@ export class CommentResponseDto {
   voteCount: number;
 
   @Expose()
+  parentId: string | null;
+
+  @Expose()
   @Type(() => CommentUserDto)
   user: CommentUserDto;
 

@@ -63,6 +63,7 @@ export class CommentsService {
         content: comment.content,
         createdAt: comment.createdAt,
         voteCount: comment.upvotes - comment.downvotes,
+        parentId: comment.parentId,
         user: {
           id: comment.user.id,
           displayName: comment.user.displayName,
