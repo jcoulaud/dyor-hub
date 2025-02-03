@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { COMMENT_MAX_LENGTH } from '@dyor-hub/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
@@ -127,6 +128,17 @@ export function CommentInput({
     [handleSubmit, handleCancel],
   );
 
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    if (newContent.length <= COMMENT_MAX_LENGTH) {
+      setContent(newContent);
+    }
+  };
+
+  const remainingChars = COMMENT_MAX_LENGTH - content.length;
+  const isNearLimit = remainingChars <= 100;
+  const isAtLimit = remainingChars === 0;
+
   return (
     <form
       ref={formRef}
@@ -134,44 +146,62 @@ export function CommentInput({
         e.preventDefault();
         void handleSubmit();
       }}
-      className={cn('relative rounded-md border bg-background overflow-hidden', className)}>
-      <div className='relative'>
+      className={cn('relative rounded-md border bg-background', className)}>
+      <div className='relative flex flex-col'>
         <Textarea
           ref={textareaRef}
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={handleChange}
           onFocus={expand}
           placeholder={placeholder}
           className={cn(
-            'resize-none transition-all duration-200 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 sm:p-3 pb-12',
+            'text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 sm:p-3 w-full',
             isExpanded
-              ? 'min-h-[100px] sm:min-h-[120px]'
-              : 'h-[34px] sm:h-[38px] min-h-0 py-1.5 sm:py-2',
+              ? 'min-h-[60px] max-h-[600px]'
+              : [
+                  'h-[34px] sm:h-[38px] min-h-0 py-1.5 sm:py-2 resize-none',
+                  'transition-[height] duration-200',
+                ],
           )}
+          style={{
+            resize: isExpanded ? 'vertical' : 'none',
+          }}
           onKeyDown={handleKeyDown}
           autoFocus={autoFocus}
+          maxLength={COMMENT_MAX_LENGTH}
         />
         {isExpanded && (
-          <div className='absolute bottom-0 right-0 p-1.5 sm:p-2 flex justify-end items-center gap-1.5 sm:gap-2'>
-            <Button
-              type='button'
-              variant='ghost'
-              size='sm'
-              onClick={handleCancel}
-              disabled={isSubmitting}
-              className='text-xs font-medium hover:bg-transparent hover:text-muted-foreground h-7 sm:h-8 px-2 sm:px-3'>
-              Cancel
-            </Button>
-            <Button
-              type='submit'
-              size='sm'
-              disabled={!content.trim() || isSubmitting}
+          <div className='p-1.5 sm:p-2 flex justify-between items-center w-full bg-background'>
+            <div
               className={cn(
-                'rounded-full bg-primary hover:bg-primary/90 text-xs font-bold h-7 sm:h-8 px-3 sm:px-4',
-                !content.trim() && 'opacity-50 cursor-not-allowed',
+                'text-[10px] px-2',
+                isNearLimit && 'text-yellow-500',
+                isAtLimit && 'text-red-500',
+                !isNearLimit && 'text-muted-foreground',
               )}>
-              {submitLabel}
-            </Button>
+              {remainingChars} characters remaining
+            </div>
+            <div className='flex items-center gap-1.5 sm:gap-2'>
+              <Button
+                type='button'
+                variant='ghost'
+                size='sm'
+                onClick={handleCancel}
+                disabled={isSubmitting}
+                className='text-xs font-medium hover:bg-transparent hover:text-muted-foreground h-7 sm:h-8 px-2 sm:px-3'>
+                Cancel
+              </Button>
+              <Button
+                type='submit'
+                size='sm'
+                disabled={!content.trim() || isSubmitting}
+                className={cn(
+                  'rounded-full bg-primary hover:bg-primary/90 text-xs font-bold h-7 sm:h-8 px-3 sm:px-4',
+                  !content.trim() && 'opacity-50 cursor-not-allowed',
+                )}>
+                {submitLabel}
+              </Button>
+            </div>
           </div>
         )}
       </div>

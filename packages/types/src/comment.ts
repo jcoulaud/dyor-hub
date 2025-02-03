@@ -1,6 +1,8 @@
 import { User } from './user';
 import { VoteType } from './vote';
 
+export const COMMENT_MAX_LENGTH = 10_000;
+
 export interface Comment {
   id: string;
   content: string;
@@ -22,11 +24,13 @@ export interface Comment {
 }
 
 export interface CreateCommentDto {
+  /** @maxLength {COMMENT_MAX_LENGTH} The content of the comment */
   content: string;
   tokenMintAddress: string;
   parentId?: string;
 }
 
 export interface UpdateCommentDto {
+  /** @maxLength {COMMENT_MAX_LENGTH} The content of the comment */
   content: string;
 }

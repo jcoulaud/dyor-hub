@@ -1,3 +1,5 @@
+import { COMMENT_MAX_LENGTH } from '@dyor-hub/types';
+import { MaxLength } from 'class-validator';
 import {
   Column,
   CreateDateColumn,
@@ -19,6 +21,9 @@ export class CommentEntity {
   id: string;
 
   @Column({ name: 'content', type: 'text' })
+  @MaxLength(COMMENT_MAX_LENGTH, {
+    message: `Comment cannot be longer than ${COMMENT_MAX_LENGTH} characters`,
+  })
   content: string;
 
   @Column({ name: 'token_mint_address', type: 'varchar' })
