@@ -41,6 +41,14 @@ import { TwitterStrategy } from './twitter.strategy';
     OptionalAuthGuard,
   ],
   controllers: [AuthController],
-  exports: [AuthService, JwtModule, PassportModule, AuthConfigService],
+  exports: [
+    AuthService,
+    JwtModule,
+    PassportModule,
+    AuthConfigService,
+    JwtStrategy,
+    AuthGuard,
+    OptionalAuthGuard,
+  ],
 })
 export class AuthModule {}

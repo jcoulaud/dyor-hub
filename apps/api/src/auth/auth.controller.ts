@@ -127,8 +127,13 @@ export class AuthController {
 
   @Get('logout')
   async logout(@Res() res: Response) {
+    const cookieConfig = this.authConfigService.getCookieConfig(
+      this.authConfigService.isDevelopment,
+    );
+
     res.clearCookie('jwt', {
-      path: '/',
+      ...cookieConfig,
+      maxAge: 0,
     });
     res.json({ success: true });
   }

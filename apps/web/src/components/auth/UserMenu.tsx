@@ -3,10 +3,10 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { auth } from '@/lib/api';
 import { useAuthContext } from '@/providers/auth-provider';
@@ -15,20 +15,20 @@ import { useCallback, useState } from 'react';
 import { TwitterLoginButton } from './TwitterLoginButton';
 
 export function UserMenu() {
-  const { isAuthenticated, user, checkAuth } = useAuthContext();
+  const { isAuthenticated, user, clearAuth } = useAuthContext();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = useCallback(async () => {
     try {
       setIsLoggingOut(true);
       await auth.logout();
-      await checkAuth();
+      clearAuth();
     } catch (error) {
-      // Error is handled by setting isLoggingOut to false
+      console.error('Logout failed:', error);
     } finally {
       setIsLoggingOut(false);
     }
-  }, [checkAuth]);
+  }, [clearAuth]);
 
   if (!isAuthenticated || !user) {
     return <TwitterLoginButton />;

@@ -9,10 +9,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/api';
 import { useAuthContext } from '@/providers/auth-provider';
 import { Twitter } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
 
 interface AuthModalProps {
@@ -23,43 +21,18 @@ interface AuthModalProps {
 
 export function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
   const { toast } = useToast();
-  const router = useRouter();
   const { checkAuth } = useAuthContext();
 
   const handleAuthSuccess = useCallback(async () => {
     try {
-      console.log('Starting auth success handler...');
-
       // Wait a bit to ensure the session is established
-      console.log('Waiting for session establishment...');
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Check auth state
-      console.log('Checking auth state...');
-      const authState = await auth.getProfile();
-      console.log('Auth state received:', authState);
-
-      if (!authState.authenticated) {
-        console.error('Authentication check failed:', authState);
-        throw new Error('Authentication failed - user not authenticated');
-      }
-
-      // Update local auth state
-      console.log('Updating local auth state...');
-      await checkAuth();
-      console.log('Local auth state updated');
+      // Force check auth state to bypass cache
+      await checkAuth(true);
 
       if (onAuthSuccess) {
-        console.log('Executing onAuthSuccess callback...');
-        try {
-          // Wait a bit more before executing the action to ensure everything is synced
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          await onAuthSuccess();
-          console.log('onAuthSuccess callback completed');
-        } catch (callbackError) {
-          console.error('onAuthSuccess callback failed:', callbackError);
-          throw new Error('Failed to complete the post-authentication action');
-        }
+        await onAuthSuccess();
       }
 
       toast({
@@ -71,14 +44,11 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
       console.error('Auth success handler failed:', error);
       toast({
         title: 'Error',
-        description:
-          error instanceof Error
-            ? error.message
-            : 'Failed to complete the action after authentication',
+        description: 'Failed to complete authentication',
         variant: 'destructive',
       });
     }
-  }, [onClose, onAuthSuccess, toast, checkAuth]);
+  }, [checkAuth, onAuthSuccess, onClose]);
 
   const handleTwitterLogin = () => {
     console.log('Starting Twitter login...');

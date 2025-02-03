@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
 import {
+  InvalidTokenException,
   TwitterAuthenticationException,
   TwitterTokenUpdateException,
   UserNotFoundException,
@@ -134,5 +135,14 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  verifyToken(token: string): JwtPayload {
+    try {
+      return this.jwtService.verify<JwtPayload>(token);
+    } catch (error) {
+      this.logger.error('Token verification failed:', error);
+      throw new InvalidTokenException();
+    }
   }
 }

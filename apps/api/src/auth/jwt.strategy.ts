@@ -26,6 +26,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
+  extractJwtPayload(token: string): JwtPayload {
+    try {
+      return this.authService.verifyToken(token);
+    } catch (error) {
+      this.logger.error('Failed to extract JWT payload:', error);
+      throw error;
+    }
+  }
+
   async validate(payload: JwtPayload): Promise<UserEntity | null> {
     try {
       if (!payload?.sub) {
