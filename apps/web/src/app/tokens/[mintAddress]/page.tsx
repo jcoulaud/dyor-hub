@@ -34,7 +34,14 @@ export default async function Page({ params }: PageProps) {
             <div className='flex flex-col sm:flex-row items-start gap-4'>
               {token.imageUrl && (
                 <div className='relative w-16 h-16 rounded-full overflow-hidden flex-shrink-0'>
-                  <Image src={token.imageUrl} alt={token.name} fill className='object-cover' />
+                  <Image
+                    src={token.imageUrl}
+                    alt={token.name}
+                    fill
+                    sizes='(max-width: 768px) 64px, 64px'
+                    priority
+                    className='object-cover'
+                  />
                 </div>
               )}
               <div className='flex-1'>
