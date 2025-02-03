@@ -56,7 +56,7 @@ export const TwitterLoginButton = () => {
 
   return (
     <Button onClick={handleLogin} variant='outline'>
-      Continue with Twitter
+      Login
     </Button>
   );
 };

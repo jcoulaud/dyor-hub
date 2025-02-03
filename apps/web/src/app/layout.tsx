@@ -37,8 +37,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <AuthProvider>
             <Toaster>
-              <Header />
-              {children}
+              <div className='flex min-h-screen flex-col'>
+                <Header />
+                <main className='flex-1 flex flex-col'>{children}</main>
+              </div>
             </Toaster>
           </AuthProvider>
         </ThemeProvider>

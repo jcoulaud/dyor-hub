@@ -236,101 +236,93 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
     return (
       <div
         className={cn(
-          'group/comment rounded-md transition-colors duration-150',
-          depth > 0 && 'border-l-2 pl-4 ml-4',
+          'group/comment rounded-md transition-colors duration-150 w-full pr-2 sm:pr-4',
+          depth > 0 && 'border-l-2 pl-2 sm:pl-4 ml-2 sm:ml-4',
           depth === 1 && 'border-blue-500/20 hover:border-blue-500/40 bg-blue-500/[0.03]',
           depth === 2 && 'border-purple-500/20 hover:border-purple-500/40 bg-purple-500/[0.03]',
           depth === 3 && 'border-pink-500/20 hover:border-pink-500/40 bg-pink-500/[0.03]',
           depth === 4 && 'border-orange-500/20 hover:border-orange-500/40 bg-orange-500/[0.03]',
           depth >= 5 && 'border-gray-500/20 hover:border-gray-500/40 bg-gray-500/[0.03]',
         )}>
-        <div className='py-3'>
-          <div className='flex gap-3'>
-            <Avatar className='h-[28px] w-[28px] flex-shrink-0'>
+        <div className='py-2 sm:py-3'>
+          <div className='flex gap-2 sm:gap-3'>
+            <Avatar className='h-6 w-6 sm:h-[28px] sm:w-[28px] flex-shrink-0'>
               <AvatarImage src={comment.user.avatarUrl} alt={comment.user.displayName} />
-              <AvatarFallback>{comment.user.displayName.charAt(0)}</AvatarFallback>
+              <AvatarFallback>{comment.user.displayName[0]}</AvatarFallback>
             </Avatar>
-
             <div className='flex-1 min-w-0'>
-              <div className='flex items-center gap-2 text-sm'>
-                <span className='font-semibold hover:text-primary cursor-pointer transition-colors'>
-                  {comment.user.displayName}
-                </span>
+              <div className='flex flex-wrap items-center gap-x-2 text-sm'>
+                <span className='font-medium truncate'>{comment.user.displayName}</span>
                 <span className='text-muted-foreground text-xs'>
                   {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
                 </span>
               </div>
-
-              <div className='text-sm mt-2 mb-3 leading-relaxed'>{comment.content}</div>
-
-              <div className='flex items-center gap-4 text-xs text-muted-foreground'>
-                <div className='flex items-center gap-1'>
+              <p className='mt-1 text-sm break-words whitespace-pre-wrap'>{comment.content}</p>
+              <div className='mt-2 flex items-center gap-2 text-sm'>
+                <div className='flex items-center'>
                   <Button
                     variant='ghost'
-                    size='sm'
-                    className={cn(
-                      'h-auto p-0',
-                      'hover:text-emerald-500 transition-colors',
-                      comment.userVoteType === 'upvote' && 'text-emerald-500',
-                    )}
+                    size='icon'
+                    className='h-8 w-8 hover:text-green-500'
                     onClick={() => handleVote(comment.id, 'upvote')}>
-                    <ArrowBigUp className='h-4 w-4' />
+                    <ArrowBigUp
+                      className={cn(
+                        'h-5 w-5',
+                        comment.userVoteType === 'upvote' && 'fill-green-500 text-green-500',
+                      )}
+                    />
                   </Button>
-                  <span className='min-w-[2ch] text-center'>{comment.voteCount}</span>
+                  <span
+                    className={cn(
+                      'min-w-[2ch] text-center',
+                      comment.userVoteType === 'upvote' && 'text-green-500',
+                      comment.userVoteType === 'downvote' && 'text-red-500',
+                    )}>
+                    {comment.voteCount}
+                  </span>
                   <Button
                     variant='ghost'
-                    size='sm'
-                    className={cn(
-                      'h-auto p-0',
-                      'hover:text-red-500 transition-colors',
-                      comment.userVoteType === 'downvote' && 'text-red-500',
-                    )}
+                    size='icon'
+                    className='h-8 w-8 hover:text-red-500'
                     onClick={() => handleVote(comment.id, 'downvote')}>
-                    <ArrowBigDown className='h-4 w-4' />
+                    <ArrowBigDown
+                      className={cn(
+                        'h-5 w-5',
+                        comment.userVoteType === 'downvote' && 'fill-red-500 text-red-500',
+                      )}
+                    />
                   </Button>
                 </div>
-
                 <Button
                   variant='ghost'
                   size='sm'
-                  className='h-auto p-0 hover:text-primary flex items-center gap-1'
+                  className='h-8 px-2 text-xs'
                   onClick={() => setShowReply(!showReply)}>
-                  <MessageSquare className='h-3.5 w-3.5' />
+                  <MessageSquare className='mr-1 h-4 w-4' />
                   Reply
                 </Button>
               </div>
-
               {showReply && (
-                <div className='mt-4'>
+                <div className='mt-3'>
                   <CommentInput
                     onSubmit={handleReply}
                     onCancel={() => setShowReply(false)}
-                    autoFocus
                     submitLabel='Reply'
-                    placeholder='What are your thoughts?'
+                    placeholder='Write a reply...'
+                    autoFocus
                   />
-                </div>
-              )}
-
-              {comment.replies && comment.replies.length > 0 && depth < maxDepth && (
-                <div className='mt-4 space-y-2'>
-                  {comment.replies.map((reply) => (
-                    <Comment key={reply.id} comment={reply} depth={depth + 1} />
-                  ))}
-                  {depth === maxDepth - 1 && comment.replies.length > 0 && (
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      className='text-xs text-muted-foreground hover:text-primary mt-2'
-                      onClick={() => window.open(`/comments/${comment.id}`, '_blank')}>
-                      Continue this thread →
-                    </Button>
-                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
+        {comment.replies && comment.replies.length > 0 && (
+          <div className='space-y-2 sm:space-y-3'>
+            {comment.replies.map((reply) => (
+              <Comment key={reply.id} comment={reply} depth={Math.min(depth + 1, maxDepth)} />
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -367,14 +359,15 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
 
   return (
     <>
-      <div className='space-y-4'>
+      <div className='space-y-4 w-full'>
         <CommentInput
           onSubmit={(content) => handleSubmitComment(undefined, content)}
           onCancel={() => setNewComment('')}
           placeholder='What are your thoughts?'
+          className='w-full'
         />
 
-        <div className='flex items-center pb-2'>
+        <div className='flex items-center pb-2 w-full'>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant='ghost' size='sm' className='text-sm text-gray-500'>
@@ -396,13 +389,13 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
         </div>
 
         {commentsList.length > 0 ? (
-          <div className='space-y-3'>
+          <div className='space-y-3 w-full'>
             {commentsList.map((comment) => (
               <Comment key={comment.id} comment={comment} />
             ))}
           </div>
         ) : (
-          <Card className='p-6 text-center text-gray-500'>
+          <Card className='p-6 text-center text-gray-500 w-full'>
             <MessageSquare className='h-12 w-12 mx-auto mb-3 text-gray-400' />
             <p>No comments yet. Be the first to share your thoughts!</p>
           </Card>

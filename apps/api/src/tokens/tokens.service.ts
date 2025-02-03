@@ -247,11 +247,6 @@ export class TokensService {
                 .replace('https://twitter.com/', '')
                 .replace('@', '');
             }
-
-            // Additional metadata
-            if (ipfsMetadata.createdOn) {
-              this.logger.debug(`Token created on: ${ipfsMetadata.createdOn}`);
-            }
           }
         } catch (error) {
           this.logger.error(

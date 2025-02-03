@@ -52,19 +52,21 @@ export function CommentInput({
           onFocus={() => setIsExpanded(true)}
           placeholder={placeholder}
           className={cn(
-            'resize-none transition-all duration-200 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-3 pb-12',
-            isExpanded ? 'min-h-[120px]' : 'h-[38px] min-h-0 py-2',
+            'resize-none transition-all duration-200 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 sm:p-3 pb-12',
+            isExpanded
+              ? 'min-h-[100px] sm:min-h-[120px]'
+              : 'h-[34px] sm:h-[38px] min-h-0 py-1.5 sm:py-2',
           )}
           autoFocus={autoFocus}
         />
         {isExpanded && (
-          <div className='absolute bottom-0 right-0 p-2 flex justify-end items-center gap-2'>
+          <div className='absolute bottom-0 right-0 p-1.5 sm:p-2 flex justify-end items-center gap-1.5 sm:gap-2'>
             <Button
               variant='ghost'
               size='sm'
               onClick={handleCancel}
               disabled={isSubmitting}
-              className='text-xs font-medium hover:bg-transparent hover:text-muted-foreground'>
+              className='text-xs font-medium hover:bg-transparent hover:text-muted-foreground h-7 sm:h-8 px-2 sm:px-3'>
               Cancel
             </Button>
             <Button
@@ -72,7 +74,7 @@ export function CommentInput({
               onClick={handleSubmit}
               disabled={!content.trim() || isSubmitting}
               className={cn(
-                'rounded-full bg-primary hover:bg-primary/90 text-xs font-bold px-4',
+                'rounded-full bg-primary hover:bg-primary/90 text-xs font-bold h-7 sm:h-8 px-3 sm:px-4',
                 !content.trim() && 'opacity-50 cursor-not-allowed',
               )}>
               {submitLabel}
