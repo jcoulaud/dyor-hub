@@ -16,4 +16,9 @@ export type CommentType = {
     avatarUrl?: string;
   };
   userVoteType: VoteType | null;
+  isRemoved?: boolean;
+  removedBy?: {
+    id: string;
+    isSelf: boolean;
+  } | null;
 };

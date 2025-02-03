@@ -14,28 +14,30 @@ import { UserEntity } from './user.entity';
 @Entity('comment_votes')
 export class CommentVoteEntity {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
-  @Column({ type: 'enum', enum: ['upvote', 'downvote'] })
-  type: VoteType;
+  @Column({ type: 'enum', enum: ['upvote', 'downvote'], enumName: 'vote_type' })
+  type!: VoteType;
 
-  @Column({ name: 'user_id' })
-  userId: string;
+  @Column({ name: 'user_id', type: 'uuid' })
+  userId!: string;
 
-  @Column({ name: 'comment_id' })
-  commentId: string;
+  @Column({ name: 'comment_id', type: 'uuid' })
+  commentId!: string;
 
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
+  createdAt!: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
+  updatedAt!: Date;
 
-  @ManyToOne(() => CommentEntity, (comment) => comment.votes)
+  @ManyToOne(() => CommentEntity, (comment) => comment.votes, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'comment_id' })
-  comment: CommentEntity;
+  comment!: CommentEntity;
 
-  @ManyToOne(() => UserEntity)
+  @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: UserEntity;
+  user!: UserEntity;
 }

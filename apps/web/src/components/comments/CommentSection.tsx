@@ -4,9 +4,16 @@ import { useToast } from '@/hooks/use-toast';
 import { comments } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
-import type { CreateCommentDto, VoteType } from '@dyor-hub/types';
+import type { Comment, CreateCommentDto, VoteType } from '@dyor-hub/types';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowBigDown, ArrowBigUp, ChevronDown, MessageSquare } from 'lucide-react';
+import {
+  ArrowBigDown,
+  ArrowBigUp,
+  ChevronDown,
+  MessageSquare,
+  MoreHorizontal,
+  Trash2,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { AuthModal } from '../auth/AuthModal';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -24,20 +31,9 @@ interface CommentSectionProps {
   tokenMintAddress: string;
 }
 
-interface CommentType {
-  id: string;
-  content: string;
-  createdAt: string;
-  voteCount: number;
-  parentId: string | null;
-  user: {
-    id: string;
-    displayName: string;
-    avatarUrl: string;
-  };
-  userVoteType: VoteType | null;
+type CommentType = Comment & {
   replies?: CommentType[];
-}
+};
 
 type SortOption = 'best' | 'new' | 'old' | 'controversial';
 
@@ -51,8 +47,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated, isLoading: authLoading } = useAuthContext();
-  const [isTextareaExpanded, setIsTextareaExpanded] = useState(false);
+  const { isAuthenticated, isLoading: authLoading, user } = useAuthContext();
 
   const organizeComments = useCallback(
     (comments: CommentType[]) => {
@@ -107,17 +102,8 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
     try {
       const data = await comments.list(tokenMintAddress);
       const processedComments = data.map((comment) => ({
-        id: comment.id,
-        content: comment.content,
-        createdAt: comment.createdAt.toString(),
-        voteCount: comment.voteCount,
-        parentId: comment.parentId || null,
-        user: {
-          id: comment.user.id,
-          displayName: comment.user.displayName,
-          avatarUrl: comment.user.avatarUrl,
-        },
-        userVoteType: comment.userVoteType || null,
+        ...comment,
+        replies: [],
       }));
       setComments(organizeComments(processedComments));
       setError(null);
@@ -224,9 +210,37 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
     setPendingAction(null);
   };
 
+  const handleRemoveComment = useCallback(
+    async (commentId: string) => {
+      if (!isAuthenticated) {
+        setShowAuthModal(true);
+        setPendingAction(() => async () => handleRemoveComment(commentId));
+        return;
+      }
+
+      try {
+        await comments.remove(commentId);
+        await fetchComments();
+        toast({
+          title: 'Comment removed',
+          description: 'The comment has been removed successfully.',
+        });
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to remove the comment. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    },
+    [isAuthenticated, fetchComments, toast],
+  );
+
   const Comment = ({ comment, depth = 0 }: { comment: CommentType; depth?: number }) => {
     const [showReply, setShowReply] = useState(false);
     const maxDepth = 5;
+    const isCommentOwner = user?.id === comment.user.id;
+    const canRemove = (user?.isAdmin ?? false) || isCommentOwner;
 
     const handleReply = async (content: string) => {
       await handleSubmitComment(comment.id, content);
@@ -243,6 +257,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
           depth === 3 && 'border-pink-500/20 hover:border-pink-500/40 bg-pink-500/[0.03]',
           depth === 4 && 'border-orange-500/20 hover:border-orange-500/40 bg-orange-500/[0.03]',
           depth >= 5 && 'border-gray-500/20 hover:border-gray-500/40 bg-gray-500/[0.03]',
+          comment.isRemoved && 'opacity-90',
         )}>
         <div className='py-2 sm:py-3'>
           <div className='flex gap-2 sm:gap-3'>
@@ -252,19 +267,35 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
             </Avatar>
             <div className='flex-1 min-w-0'>
               <div className='flex flex-wrap items-center gap-x-2 text-sm'>
-                <span className='font-medium truncate'>{comment.user.displayName}</span>
+                <span
+                  className={cn(
+                    'font-medium truncate',
+                    comment.isRemoved && 'text-muted-foreground/70',
+                  )}>
+                  {comment.user.displayName}
+                </span>
                 <span className='text-muted-foreground text-xs'>
                   {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
                 </span>
               </div>
-              <p className='mt-1 text-sm break-words whitespace-pre-wrap'>{comment.content}</p>
+              <p
+                className={cn(
+                  'mt-1 text-sm break-words whitespace-pre-wrap',
+                  comment.isRemoved && 'text-muted-foreground/60 italic',
+                )}>
+                {comment.isRemoved ? 'Comment removed by user' : comment.content}
+              </p>
               <div className='mt-2 flex items-center gap-2 text-sm'>
                 <div className='flex items-center'>
                   <Button
                     variant='ghost'
                     size='icon'
-                    className='h-8 w-8 hover:text-green-500'
-                    onClick={() => handleVote(comment.id, 'upvote')}>
+                    className={cn(
+                      'h-8 w-8 hover:text-green-500',
+                      comment.isRemoved && 'opacity-50',
+                    )}
+                    onClick={() => handleVote(comment.id, 'upvote')}
+                    disabled={comment.isRemoved}>
                     <ArrowBigUp
                       className={cn(
                         'h-5 w-5',
@@ -275,16 +306,18 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
                   <span
                     className={cn(
                       'min-w-[2ch] text-center',
-                      comment.userVoteType === 'upvote' && 'text-green-500',
-                      comment.userVoteType === 'downvote' && 'text-red-500',
+                      comment.isRemoved && 'text-muted-foreground/60',
+                      !comment.isRemoved && comment.userVoteType === 'upvote' && 'text-green-500',
+                      !comment.isRemoved && comment.userVoteType === 'downvote' && 'text-red-500',
                     )}>
                     {comment.voteCount}
                   </span>
                   <Button
                     variant='ghost'
                     size='icon'
-                    className='h-8 w-8 hover:text-red-500'
-                    onClick={() => handleVote(comment.id, 'downvote')}>
+                    className={cn('h-8 w-8 hover:text-red-500', comment.isRemoved && 'opacity-50')}
+                    onClick={() => handleVote(comment.id, 'downvote')}
+                    disabled={comment.isRemoved}>
                     <ArrowBigDown
                       className={cn(
                         'h-5 w-5',
@@ -297,10 +330,28 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
                   variant='ghost'
                   size='sm'
                   className='h-8 px-2 text-xs'
-                  onClick={() => setShowReply(!showReply)}>
+                  onClick={() => setShowReply(!showReply)}
+                  disabled={comment.isRemoved}>
                   <MessageSquare className='mr-1 h-4 w-4' />
                   Reply
                 </Button>
+                {canRemove && !comment.isRemoved && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant='ghost' size='sm' className='h-8 w-8 p-0 hover:bg-accent/50'>
+                        <MoreHorizontal className='h-3 w-3 text-muted-foreground/70' />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align='end' className='min-w-[140px]'>
+                      <DropdownMenuItem
+                        className='text-xs text-red-600 hover:text-red-600 hover:bg-accent/50 focus:text-red-600 focus:bg-accent/50 cursor-pointer'
+                        onClick={() => handleRemoveComment(comment.id)}>
+                        <Trash2 className='mr-2 h-4 w-4' />
+                        Remove
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
               {showReply && (
                 <div className='mt-3'>

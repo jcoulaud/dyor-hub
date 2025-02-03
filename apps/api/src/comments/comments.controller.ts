@@ -95,6 +95,22 @@ export class CommentsController {
     });
   }
 
+  @Post(':id/remove')
+  @UseGuards(AuthGuard)
+  async removeComment(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; isAdmin: boolean },
+  ): Promise<CommentResponseDto> {
+    const comment = await this.commentsService.removeComment(
+      id,
+      user.id,
+      user.isAdmin,
+    );
+    return plainToInstance(CommentResponseDto, comment, {
+      excludeExtraneousValues: true,
+    });
+  }
+
   @Post(':id/vote')
   @UseGuards(AuthGuard)
   async vote(

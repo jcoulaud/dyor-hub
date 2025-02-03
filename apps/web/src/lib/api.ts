@@ -1,4 +1,4 @@
-import type { Comment, VoteType } from '@dyor-hub/types';
+import type { Comment, User, VoteType } from '@dyor-hub/types';
 import { Token } from '@dyor-hub/types';
 
 // API base URL
@@ -16,6 +16,11 @@ export class ApiError extends Error {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+interface AuthResponse {
+  authenticated: boolean;
+  user: User | null;
 }
 
 const api = async <T = any>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
@@ -66,21 +71,36 @@ interface VoteResponse {
 
 // Typed API methods
 export const comments = {
-  list: (tokenMintAddress: string) =>
-    api<Comment[]>(`comments?tokenMintAddress=${tokenMintAddress}`),
+  list: async (tokenMintAddress: string): Promise<Comment[]> => {
+    const response = await api<Comment[]>(`comments?tokenMintAddress=${tokenMintAddress}`);
+    return response;
+  },
 
-  create: (data: { content: string; tokenMintAddress: string }) =>
-    api<Comment>('comments', { method: 'POST', body: data }),
+  create: async (data: { content: string; tokenMintAddress: string }): Promise<Comment> => {
+    const response = await api<Comment>('comments', { method: 'POST', body: data });
+    return response;
+  },
 
-  vote: (commentId: string, type: 'upvote' | 'downvote') =>
-    api<VoteResponse>(`comments/${commentId}/vote`, {
-      method: 'POST',
-      body: { type },
-    }),
+  vote: async (
+    commentId: string,
+    type: VoteType,
+  ): Promise<{ upvotes: number; downvotes: number; userVoteType: VoteType | null }> => {
+    const response = await api<{
+      upvotes: number;
+      downvotes: number;
+      userVoteType: VoteType | null;
+    }>(`comments/${commentId}/vote`, { method: 'POST', body: { type } });
+    return response;
+  },
+
+  remove: async (commentId: string): Promise<Comment> => {
+    const response = await api<Comment>(`comments/${commentId}/remove`, { method: 'POST' });
+    return response;
+  },
 };
 
 export const auth = {
-  getProfile: () => api('auth/profile'),
+  getProfile: () => api<AuthResponse>('auth/profile'),
   logout: () => api('auth/logout', { method: 'GET' }),
 };
 

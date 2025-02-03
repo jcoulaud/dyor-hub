@@ -1,6 +1,7 @@
 import { UpdateCommentDto, VoteType } from '@dyor-hub/types';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -31,6 +32,7 @@ export class CommentsService {
     const query = this.commentRepository
       .createQueryBuilder('comment')
       .leftJoinAndSelect('comment.user', 'user')
+      .leftJoinAndSelect('comment.removedBy', 'removedBy')
       .where('comment.token_mint_address = :tokenMintAddress', {
         tokenMintAddress,
       });
@@ -63,7 +65,9 @@ export class CommentsService {
       const userVote = userVotes.find((v) => v.commentId === comment.id);
       return {
         id: comment.id,
-        content: comment.content,
+        content: comment.removedById
+          ? `Comment removed by ${comment.removedBy?.id === comment.userId ? 'user' : 'moderator'}`
+          : comment.content,
         createdAt: comment.createdAt,
         voteCount: comment.upvotes - comment.downvotes,
         parentId: comment.parentId,
@@ -73,6 +77,13 @@ export class CommentsService {
           avatarUrl: comment.user.avatarUrl,
         },
         userVoteType: userVote?.type || null,
+        isRemoved: !!comment.removedById,
+        removedBy: comment.removedById
+          ? {
+              id: comment.removedBy.id,
+              isSelf: comment.removedBy.id === comment.userId,
+            }
+          : null,
       };
     });
   }
@@ -232,5 +243,33 @@ export class CommentsService {
       upvotes: votes.filter((v) => v.type === 'upvote').length,
       downvotes: votes.filter((v) => v.type === 'downvote').length,
     };
+  }
+
+  async removeComment(
+    id: string,
+    userId: string,
+    isAdmin: boolean,
+  ): Promise<CommentEntity> {
+    const comment = await this.commentRepository.findOne({
+      where: { id },
+      relations: ['user'],
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    // Only allow admins or the comment owner to remove comments
+    if (!isAdmin && comment.user.id !== userId) {
+      throw new ForbiddenException('Not authorized to remove this comment');
+    }
+
+    // Update the comment with removal information
+    comment.removedById = userId;
+    comment.removalReason = isAdmin
+      ? 'Removed by moderator'
+      : 'Removed by user';
+
+    return this.commentRepository.save(comment);
   }
 }

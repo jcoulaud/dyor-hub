@@ -1,31 +1,66 @@
 'use client';
 
-import { useAuth } from '@/hooks/use-auth';
-import { createContext, ReactNode, useContext } from 'react';
+import { auth } from '@/lib/api';
+import type { User } from '@dyor-hub/types';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
-  user: {
-    displayName: string;
-    username: string;
-    avatarUrl: string;
-  } | null;
-  checkAuth: () => Promise<void>;
+  user: User | null;
+  checkAuth: (force?: boolean) => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  isAuthenticated: false,
+  isLoading: true,
+  user: null,
+  checkAuth: async () => {},
+});
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const auth = useAuth();
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<{
+    isAuthenticated: boolean;
+    isLoading: boolean;
+    user: User | null;
+  }>({
+    isAuthenticated: false,
+    isLoading: true,
+    user: null,
+  });
 
-  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+  const checkAuth = useCallback(async (force = false) => {
+    try {
+      const response = await auth.getProfile();
+      setState({
+        isAuthenticated: response.authenticated,
+        user: response.user || null,
+        isLoading: false,
+      });
+    } catch (error) {
+      setState({
+        isAuthenticated: false,
+        user: null,
+        isLoading: false,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        ...state,
+        checkAuth,
+      }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuthContext() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 }

@@ -12,6 +12,14 @@ class CommentUserDto {
   avatarUrl: string;
 }
 
+class RemovedByDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  isSelf: boolean;
+}
+
 export class CommentResponseDto {
   @Expose()
   id: string;
@@ -34,4 +42,11 @@ export class CommentResponseDto {
 
   @Expose()
   userVoteType: VoteType | null;
+
+  @Expose()
+  isRemoved: boolean;
+
+  @Expose()
+  @Type(() => RemovedByDto)
+  removedBy: RemovedByDto | null;
 }

@@ -32,6 +32,9 @@ export class UserEntity {
   @Column({ name: 'twitter_refresh_token', nullable: true, type: 'varchar' })
   twitterRefreshToken: string;
 
+  @Column({ name: 'is_admin', type: 'boolean', default: false })
+  isAdmin: boolean;
+
   @OneToMany(() => CommentEntity, (comment) => comment.user)
   comments: CommentEntity[];
 

@@ -36,6 +36,16 @@ export class CommentEntity {
   @Column({ name: 'downvotes_count', type: 'integer', default: 0 })
   downvotes: number;
 
+  @Column({ name: 'removed_by_id', type: 'uuid', nullable: true })
+  removedById: string | null;
+
+  @Column({ name: 'removal_reason', type: 'varchar', nullable: true })
+  removalReason: string | null;
+
+  @ManyToOne(() => UserEntity)
+  @JoinColumn({ name: 'removed_by_id' })
+  removedBy: UserEntity | null;
+
   @ManyToOne(() => UserEntity, (user) => user.comments, {
     onDelete: 'CASCADE',
   })
