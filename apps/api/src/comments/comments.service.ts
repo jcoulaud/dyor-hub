@@ -1,5 +1,6 @@
 import { UpdateCommentDto, VoteType } from '@dyor-hub/types';
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -8,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
+import { PerspectiveService } from '../services/perspective.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { VoteResponseDto } from './dto/vote-response.dto';
@@ -19,6 +21,7 @@ export class CommentsService {
     private readonly commentRepository: Repository<CommentEntity>,
     @InjectRepository(CommentVoteEntity)
     private readonly voteRepository: Repository<CommentVoteEntity>,
+    private readonly perspectiveService: PerspectiveService,
   ) {}
 
   async findByTokenMintAddress(
@@ -80,6 +83,21 @@ export class CommentsService {
   ): Promise<CommentEntity> {
     if (!userId) {
       throw new UnauthorizedException('Invalid user data');
+    }
+
+    // Check content for spam and toxicity
+    const contentAnalysis = await this.perspectiveService.analyzeText(
+      createCommentDto.content,
+    );
+
+    if (contentAnalysis.isSpam) {
+      throw new BadRequestException('This comment has been detected as spam');
+    }
+
+    if (contentAnalysis.isToxic) {
+      throw new BadRequestException(
+        'This comment contains inappropriate content',
+      );
     }
 
     const comment = this.commentRepository.create({
