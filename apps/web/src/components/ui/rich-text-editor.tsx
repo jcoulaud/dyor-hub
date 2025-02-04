@@ -6,7 +6,6 @@ import { Bold, Code, Italic, List, Quote } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from './button';
 
-// Add global styles for the placeholder
 import './rich-text-editor.css';
 
 interface RichTextEditorProps {
@@ -68,7 +67,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
           variant='ghost'
           size='sm'
           onClick={(e) => {
-            e.preventDefault(); // Prevent form submission
+            e.preventDefault();
             action();
           }}
           className={cn('h-8 w-8 p-0', isActive && 'bg-muted')}

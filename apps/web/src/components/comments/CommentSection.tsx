@@ -264,48 +264,71 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
         )}>
         <div className='py-2 sm:py-3'>
           <div className='flex gap-2 sm:gap-3'>
-            <Avatar className='h-6 w-6 sm:h-[28px] sm:w-[28px] flex-shrink-0'>
+            <Avatar
+              className={cn(
+                'h-6 w-6 sm:h-[28px] sm:w-[28px] flex-shrink-0',
+                comment.isRemoved && 'opacity-40',
+              )}>
               <AvatarImage src={comment.user.avatarUrl} alt={comment.user.displayName} />
               <AvatarFallback>{comment.user.displayName[0]}</AvatarFallback>
             </Avatar>
             <div className='flex-1 min-w-0'>
               <div className='flex flex-wrap items-center gap-x-2 text-sm'>
-                <span className='font-medium truncate'>{comment.user.displayName}</span>
-                <span className='text-muted-foreground text-xs'>
+                <span className={cn('font-medium truncate', comment.isRemoved && 'opacity-40')}>
+                  {comment.user.displayName}
+                </span>
+                <span
+                  className={cn(
+                    'text-muted-foreground text-xs',
+                    comment.isRemoved && 'opacity-60',
+                  )}>
                   {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
                 </span>
               </div>
               <div
-                className='prose prose-sm dark:prose-invert mt-1 max-w-none break-words'
+                className={cn(
+                  'prose prose-sm dark:prose-invert mt-1 max-w-none break-words',
+                  comment.isRemoved && 'opacity-40',
+                )}
                 dangerouslySetInnerHTML={{ __html: comment.content }}
               />
-              <div className='mt-2 flex items-center gap-2 text-muted-foreground'>
+              <div className='mt-2 flex items-center text-muted-foreground'>
                 <Button
                   variant='ghost'
                   size='sm'
-                  className='h-8 px-2'
-                  onClick={() => handleVote(comment.id, 'upvote')}>
+                  className='h-8 px-1'
+                  onClick={() => handleVote(comment.id, 'upvote')}
+                  disabled={comment.isRemoved}>
                   <ArrowBigUp
                     className={cn(
-                      'h-5 w-5',
+                      'h-4 w-4',
                       comment.userVoteType === 'upvote' && 'fill-green-500 text-green-500',
+                      comment.isRemoved && 'opacity-40',
                     )}
                   />
                 </Button>
-                <span className='min-w-[2ch] text-center tabular-nums'>{comment.voteCount}</span>
+                <span
+                  className={cn(
+                    'min-w-[2ch] text-center text-sm tabular-nums px-0.5',
+                    comment.isRemoved && 'opacity-40',
+                  )}>
+                  {comment.voteCount}
+                </span>
                 <Button
                   variant='ghost'
                   size='sm'
-                  className='h-8 px-2'
-                  onClick={() => handleVote(comment.id, 'downvote')}>
+                  className='h-8 px-1'
+                  onClick={() => handleVote(comment.id, 'downvote')}
+                  disabled={comment.isRemoved}>
                   <ArrowBigDown
                     className={cn(
-                      'h-5 w-5',
+                      'h-4 w-4',
                       comment.userVoteType === 'downvote' && 'fill-red-500 text-red-500',
+                      comment.isRemoved && 'opacity-40',
                     )}
                   />
                 </Button>
-                {depth < maxDepth && (
+                {depth < maxDepth && !comment.isRemoved && (
                   <Button
                     variant='ghost'
                     size='sm'
@@ -315,7 +338,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
                     <span className='text-xs'>Reply</span>
                   </Button>
                 )}
-                {canRemove && (
+                {canRemove && !comment.isRemoved && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant='ghost' size='sm' className='h-8 px-2'>
@@ -324,7 +347,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align='end'>
                       <DropdownMenuItem
-                        className='text-destructive'
+                        className='text-red-500 hover:text-red-500 data-[highlighted]:text-red-500 hover:bg-transparent cursor-pointer'
                         onClick={() => handleRemoveComment(comment.id)}>
                         <Trash2 className='mr-2 h-4 w-4' />
                         Delete
