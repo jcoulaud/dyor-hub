@@ -24,7 +24,7 @@ export class PerspectiveService {
   private readonly apiEndpoint =
     'https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze';
   private readonly threshold = {
-    spam: 0.7,
+    spam: 0.85,
     toxicity: 0.8,
   };
 
@@ -40,6 +40,62 @@ export class PerspectiveService {
     isToxic: boolean;
     scores: { spam: number; toxicity: number };
   }> {
+    // Allow very short comments (3 characters or less) without spam check
+    if (text.trim().length <= 3) {
+      if (!this.apiKey) {
+        return {
+          isSpam: false,
+          isToxic: false,
+          scores: { spam: 0, toxicity: 0 },
+        };
+      }
+
+      // Only check for toxicity on short comments
+      try {
+        const clientUrl = this.configService.get('CLIENT_URL');
+
+        const response = await fetch(`${this.apiEndpoint}?key=${this.apiKey}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Origin: clientUrl,
+            Referer: clientUrl,
+          },
+          body: JSON.stringify({
+            comment: { text },
+            languages: ['en'],
+            requestedAttributes: {
+              TOXICITY: {},
+            },
+            doNotStore: true,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Perspective API error: ${response.statusText}`);
+        }
+
+        const data = (await response.json()) as AnalyzeResponse;
+        const toxicityScore = data.attributeScores.TOXICITY.summaryScore.value;
+
+        return {
+          isSpam: false, // Short comments are never spam
+          isToxic: toxicityScore > this.threshold.toxicity,
+          scores: {
+            spam: 0,
+            toxicity: toxicityScore,
+          },
+        };
+      } catch (error) {
+        this.logger.error('Error analyzing text with Perspective API', error);
+        return {
+          isSpam: false,
+          isToxic: false,
+          scores: { spam: 0, toxicity: 0 },
+        };
+      }
+    }
+
     if (!this.apiKey) {
       this.logger.warn('Skipping content analysis - API key not configured');
       return {

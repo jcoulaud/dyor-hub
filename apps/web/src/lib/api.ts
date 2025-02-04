@@ -1,4 +1,4 @@
-import type { Comment, User, VoteType } from '@dyor-hub/types';
+import type { Comment, CreateCommentDto, User, VoteType } from '@dyor-hub/types';
 import { Token } from '@dyor-hub/types';
 
 // API base URL
@@ -76,7 +76,7 @@ export const comments = {
     return response;
   },
 
-  create: async (data: { content: string; tokenMintAddress: string }): Promise<Comment> => {
+  create: async (data: CreateCommentDto): Promise<Comment> => {
     const response = await api<Comment>('comments', { method: 'POST', body: data });
     return response;
   },

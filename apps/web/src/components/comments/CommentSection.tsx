@@ -40,6 +40,7 @@ type SortOption = 'best' | 'new' | 'old' | 'controversial';
 export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
   const [commentsList, setComments] = useState<CommentType[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>('best');
+  const [previousSort, setPreviousSort] = useState<SortOption | null>(null);
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -73,26 +74,36 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
       });
 
       // Sort comments based on selected option
-      const sortComments = (commentsToSort: CommentType[]) => {
-        const sortFn = {
-          best: (a: CommentType, b: CommentType) => b.voteCount - a.voteCount,
-          new: (a: CommentType, b: CommentType) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          old: (a: CommentType, b: CommentType) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-          controversial: (a: CommentType, b: CommentType) =>
-            Math.abs(a.voteCount) - Math.abs(b.voteCount),
-        }[sortBy];
+      const sortFn = {
+        best: (a: CommentType, b: CommentType) => b.voteCount - a.voteCount,
+        new: (a: CommentType, b: CommentType) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        old: (a: CommentType, b: CommentType) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        controversial: (a: CommentType, b: CommentType) =>
+          Math.abs(a.voteCount) - Math.abs(b.voteCount),
+      }[sortBy];
 
-        commentsToSort.sort(sortFn);
-        commentsToSort.forEach((comment) => {
+      // Sort root comments
+      rootComments.sort(sortFn);
+
+      // Sort replies recursively using the same sorting function
+      const sortReplies = (comments: CommentType[]) => {
+        comments.sort(sortFn);
+        comments.forEach((comment) => {
           if (comment.replies?.length) {
-            sortComments(comment.replies);
+            sortReplies(comment.replies);
           }
         });
       };
 
-      sortComments(rootComments);
+      // Sort all replies
+      rootComments.forEach((comment) => {
+        if (comment.replies?.length) {
+          sortReplies(comment.replies);
+        }
+      });
+
       return rootComments;
     },
     [sortBy],
@@ -186,10 +197,23 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
           parentId,
         };
 
-        await comments.create(createCommentDto);
+        const newComment = await comments.create(createCommentDto);
         setNewComment('');
         setReplyingTo(null);
-        await fetchComments();
+
+        // If it's a reply, fetch all comments to maintain hierarchy
+        if (parentId) {
+          await fetchComments();
+        } else {
+          // For new top-level comments:
+          // 1. Store current sort if it's not 'new'
+          if (sortBy !== 'new') {
+            setPreviousSort(sortBy);
+            setSortBy('new');
+          }
+          // 2. Fetch all comments to ensure proper sorting
+          await fetchComments();
+        }
 
         toast({
           title: 'Success',
@@ -203,6 +227,17 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
         });
       }
     });
+  };
+
+  // Add handler for sort changes
+  const handleSortChange = (newSort: SortOption) => {
+    // If we have a previous sort and user manually selects a sort
+    if (previousSort && newSort !== 'new') {
+      setSortBy(newSort);
+      setPreviousSort(null);
+    } else {
+      setSortBy(newSort);
+    }
   };
 
   const handleAuthModalClose = () => {
@@ -432,7 +467,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
               {(['best', 'new', 'old', 'controversial'] as const).map((option) => (
                 <DropdownMenuItem
                   key={option}
-                  onClick={() => setSortBy(option)}
+                  onClick={() => handleSortChange(option)}
                   className='capitalize'>
                   {option}
                 </DropdownMenuItem>
