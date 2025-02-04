@@ -237,14 +237,18 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
   );
 
   const Comment = ({ comment, depth = 0 }: { comment: CommentType; depth?: number }) => {
-    const [showReply, setShowReply] = useState(false);
     const maxDepth = 5;
     const isCommentOwner = user?.id === comment.user.id;
     const canRemove = (user?.isAdmin ?? false) || isCommentOwner;
+    const isReplying = replyingTo === comment.id;
 
     const handleReply = async (content: string) => {
       await handleSubmitComment(comment.id, content);
-      setShowReply(false);
+      setReplyingTo(null);
+    };
+
+    const handleReplyClick = () => {
+      setReplyingTo(isReplying ? null : comment.id);
     };
 
     return (
@@ -257,7 +261,6 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
           depth === 3 && 'border-pink-500/20 hover:border-pink-500/40 bg-pink-500/[0.03]',
           depth === 4 && 'border-orange-500/20 hover:border-orange-500/40 bg-orange-500/[0.03]',
           depth >= 5 && 'border-gray-500/20 hover:border-gray-500/40 bg-gray-500/[0.03]',
-          comment.isRemoved && 'opacity-90',
         )}>
         <div className='py-2 sm:py-3'>
           <div className='flex gap-2 sm:gap-3'>
@@ -267,100 +270,76 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
             </Avatar>
             <div className='flex-1 min-w-0'>
               <div className='flex flex-wrap items-center gap-x-2 text-sm'>
-                <span
-                  className={cn(
-                    'font-medium truncate',
-                    comment.isRemoved && 'text-muted-foreground/70',
-                  )}>
-                  {comment.user.displayName}
-                </span>
+                <span className='font-medium truncate'>{comment.user.displayName}</span>
                 <span className='text-muted-foreground text-xs'>
                   {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
                 </span>
               </div>
-              <p
-                className={cn(
-                  'mt-1 text-sm break-words whitespace-pre-wrap',
-                  comment.isRemoved && 'text-muted-foreground/60 italic',
-                )}>
-                {comment.isRemoved ? 'Comment removed by user' : comment.content}
-              </p>
-              <div className='mt-2 flex items-center gap-2 text-sm'>
-                <div className='flex items-center'>
-                  <Button
-                    variant='ghost'
-                    size='icon'
-                    className={cn(
-                      'h-8 w-8 hover:text-green-500',
-                      comment.isRemoved && 'opacity-50',
-                    )}
-                    onClick={() => handleVote(comment.id, 'upvote')}
-                    disabled={comment.isRemoved}>
-                    <ArrowBigUp
-                      className={cn(
-                        'h-5 w-5',
-                        comment.userVoteType === 'upvote' && 'fill-green-500 text-green-500',
-                      )}
-                    />
-                  </Button>
-                  <span
-                    className={cn(
-                      'min-w-[2ch] text-center',
-                      comment.isRemoved && 'text-muted-foreground/60',
-                      !comment.isRemoved && comment.userVoteType === 'upvote' && 'text-green-500',
-                      !comment.isRemoved && comment.userVoteType === 'downvote' && 'text-red-500',
-                    )}>
-                    {comment.voteCount}
-                  </span>
-                  <Button
-                    variant='ghost'
-                    size='icon'
-                    className={cn('h-8 w-8 hover:text-red-500', comment.isRemoved && 'opacity-50')}
-                    onClick={() => handleVote(comment.id, 'downvote')}
-                    disabled={comment.isRemoved}>
-                    <ArrowBigDown
-                      className={cn(
-                        'h-5 w-5',
-                        comment.userVoteType === 'downvote' && 'fill-red-500 text-red-500',
-                      )}
-                    />
-                  </Button>
-                </div>
+              <div
+                className='prose prose-sm dark:prose-invert mt-1 max-w-none break-words'
+                dangerouslySetInnerHTML={{ __html: comment.content }}
+              />
+              <div className='mt-2 flex items-center gap-2 text-muted-foreground'>
                 <Button
                   variant='ghost'
                   size='sm'
-                  className='h-8 px-2 text-xs'
-                  onClick={() => setShowReply(!showReply)}
-                  disabled={comment.isRemoved}>
-                  <MessageSquare className='mr-1 h-4 w-4' />
-                  Reply
+                  className='h-8 px-2'
+                  onClick={() => handleVote(comment.id, 'upvote')}>
+                  <ArrowBigUp
+                    className={cn(
+                      'h-5 w-5',
+                      comment.userVoteType === 'upvote' && 'fill-green-500 text-green-500',
+                    )}
+                  />
                 </Button>
-                {canRemove && !comment.isRemoved && (
+                <span className='min-w-[2ch] text-center tabular-nums'>{comment.voteCount}</span>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='h-8 px-2'
+                  onClick={() => handleVote(comment.id, 'downvote')}>
+                  <ArrowBigDown
+                    className={cn(
+                      'h-5 w-5',
+                      comment.userVoteType === 'downvote' && 'fill-red-500 text-red-500',
+                    )}
+                  />
+                </Button>
+                {depth < maxDepth && (
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='h-8 gap-2 px-2'
+                    onClick={handleReplyClick}>
+                    <MessageSquare className='h-4 w-4' />
+                    <span className='text-xs'>Reply</span>
+                  </Button>
+                )}
+                {canRemove && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant='ghost' size='sm' className='h-8 w-8 p-0 hover:bg-accent/50'>
-                        <MoreHorizontal className='h-3 w-3 text-muted-foreground/70' />
+                      <Button variant='ghost' size='sm' className='h-8 px-2'>
+                        <MoreHorizontal className='h-4 w-4' />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align='end' className='min-w-[140px]'>
+                    <DropdownMenuContent align='end'>
                       <DropdownMenuItem
-                        className='text-xs text-red-600 hover:text-red-600 hover:bg-accent/50 focus:text-red-600 focus:bg-accent/50 cursor-pointer'
+                        className='text-destructive'
                         onClick={() => handleRemoveComment(comment.id)}>
                         <Trash2 className='mr-2 h-4 w-4' />
-                        Remove
+                        Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
               </div>
-              {showReply && (
-                <div className='mt-3'>
+              {isReplying && (
+                <div className='mt-4'>
                   <CommentInput
+                    variant='reply'
                     onSubmit={handleReply}
-                    onCancel={() => setShowReply(false)}
+                    onCancel={() => setReplyingTo(null)}
                     submitLabel='Reply'
-                    placeholder='Write a reply...'
-                    autoFocus
                   />
                 </div>
               )}
@@ -414,7 +393,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
         <CommentInput
           onSubmit={(content) => handleSubmitComment(undefined, content)}
           onCancel={() => setNewComment('')}
-          placeholder='What are your thoughts?'
+          placeholder='Add a comment'
           className='w-full'
         />
 

@@ -1,0 +1,29 @@
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: hsl(var(--muted-foreground));
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Remove default paragraph margin */
+.ProseMirror p {
+  margin: 0;
+}
+
+/* Single-line mode styles */
+.ProseMirror:not(.min-h-[100px]) {
+  display: flex;
+  align-items: center;
+}
+
+.ProseMirror:not(.min-h-[100px]) p,
+.ProseMirror:not(.min-h-[100px]) p.is-editor-empty:first-child::before {
+  line-height: 40px;
+}
+
+/* Expanded mode styles */
+.ProseMirror.min-h-[100px] p,
+.ProseMirror.min-h-[100px] p.is-editor-empty:first-child::before {
+  line-height: 1.5;
+}

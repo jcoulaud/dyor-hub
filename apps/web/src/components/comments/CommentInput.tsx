@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 import { COMMENT_MAX_LENGTH } from '@dyor-hub/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/button';
-import { Textarea } from '../ui/textarea';
+import { RichTextEditor } from '../ui/rich-text-editor';
 
 interface CommentInputProps {
   onSubmit: (content: string) => Promise<void>;
@@ -11,6 +11,7 @@ interface CommentInputProps {
   autoFocus?: boolean;
   submitLabel?: string;
   placeholder?: string;
+  variant?: 'main' | 'reply';
 }
 
 export function CommentInput({
@@ -19,14 +20,17 @@ export function CommentInput({
   className,
   autoFocus = false,
   submitLabel = 'Comment',
-  placeholder = 'What are your thoughts?',
+  placeholder,
+  variant = 'main',
 }: CommentInputProps) {
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isExpanded, setIsExpanded] = useState(variant === 'reply');
   const formRef = useRef<HTMLFormElement>(null);
   const mountedRef = useRef(true);
+
+  const defaultPlaceholder = variant === 'main' ? 'Add a comment' : 'Write a reply...';
+  const actualPlaceholder = placeholder ?? defaultPlaceholder;
 
   // Ensure component is mounted
   useEffect(() => {
@@ -36,21 +40,12 @@ export function CommentInput({
     };
   }, []);
 
-  const expand = useCallback(() => {
-    if (mountedRef.current) {
+  // Update expanded state when variant changes
+  useEffect(() => {
+    if (variant === 'reply') {
       setIsExpanded(true);
-      // Ensure textarea gets focus when expanded
-      requestAnimationFrame(() => {
-        textareaRef.current?.focus();
-      });
     }
-  }, []);
-
-  const collapse = useCallback(() => {
-    if (mountedRef.current) {
-      setIsExpanded(false);
-    }
-  }, []);
+  }, [variant]);
 
   const handleClickOutside = useCallback(
     (event: MouseEvent) => {
@@ -59,27 +54,30 @@ export function CommentInput({
         !formRef.current.contains(event.target as Node) &&
         !content.trim() &&
         !isSubmitting &&
-        mountedRef.current
+        mountedRef.current &&
+        variant === 'main'
       ) {
-        collapse();
+        setIsExpanded(false);
       }
     },
-    [content, isSubmitting, collapse],
+    [content, isSubmitting, variant],
   );
 
   useEffect(() => {
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [handleClickOutside]);
+    if (variant === 'main') {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [handleClickOutside, variant]);
 
   // Keep expanded state in sync with content
   useEffect(() => {
-    if (content.trim() && mountedRef.current) {
-      expand();
+    if (content.trim() && mountedRef.current && variant === 'main') {
+      setIsExpanded(true);
     }
-  }, [content, expand]);
+  }, [content, variant]);
 
   const handleSubmit = async () => {
     if (!content.trim() || isSubmitting) return;
@@ -91,12 +89,8 @@ export function CommentInput({
       // Only proceed if component is still mounted
       if (mountedRef.current) {
         setContent('');
-        // Keep expanded if focused
-        if (document.activeElement !== textareaRef.current) {
-          collapse();
-        } else {
-          // If still focused, ensure we're in expanded state
-          expand();
+        if (variant === 'main') {
+          setIsExpanded(false);
         }
       }
     } catch (error) {
@@ -111,33 +105,12 @@ export function CommentInput({
   const handleCancel = useCallback(() => {
     if (mountedRef.current) {
       setContent('');
-      collapse();
+      if (variant === 'main') {
+        setIsExpanded(false);
+      }
       onCancel?.();
     }
-  }, [collapse, onCancel]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        void handleSubmit();
-      } else if (e.key === 'Escape') {
-        handleCancel();
-      }
-    },
-    [handleSubmit, handleCancel],
-  );
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
-    if (newContent.length <= COMMENT_MAX_LENGTH) {
-      setContent(newContent);
-    }
-  };
-
-  const remainingChars = COMMENT_MAX_LENGTH - content.length;
-  const isNearLimit = remainingChars <= 100;
-  const isAtLimit = remainingChars === 0;
+  }, [onCancel, variant]);
 
   return (
     <form
@@ -146,40 +119,33 @@ export function CommentInput({
         e.preventDefault();
         void handleSubmit();
       }}
-      className={cn('relative rounded-md border bg-background', className)}>
-      <div className='relative flex flex-col'>
-        <Textarea
-          ref={textareaRef}
-          value={content}
-          onChange={handleChange}
-          onFocus={expand}
-          placeholder={placeholder}
-          className={cn(
-            'text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 sm:p-3 w-full',
-            isExpanded
-              ? 'min-h-[60px] max-h-[600px]'
-              : [
-                  'h-[34px] sm:h-[38px] min-h-0 py-1.5 sm:py-2 resize-none',
-                  'transition-[height] duration-200',
-                ],
-          )}
-          style={{
-            resize: isExpanded ? 'vertical' : 'none',
-          }}
-          onKeyDown={handleKeyDown}
-          autoFocus={autoFocus}
+      className={cn('relative', className)}>
+      <div
+        className={cn(
+          'relative flex flex-col border bg-background overflow-hidden',
+          variant === 'main' && !isExpanded ? 'rounded-full' : 'rounded-md',
+        )}>
+        <RichTextEditor
+          content={content}
+          onChange={setContent}
+          placeholder={actualPlaceholder}
           maxLength={COMMENT_MAX_LENGTH}
+          isExpanded={isExpanded}
+          onExpandedChange={setIsExpanded}
+          variant={variant}
+          autoFocus={autoFocus || variant === 'reply'}
+          className={cn(
+            variant === 'main'
+              ? isExpanded
+                ? 'min-h-[60px] max-h-[600px]'
+                : 'h-[34px] sm:h-[38px] min-h-0'
+              : 'min-h-[60px] max-h-[600px]',
+          )}
         />
-        {isExpanded && (
+        {(variant === 'reply' || isExpanded) && (
           <div className='p-1.5 sm:p-2 flex justify-between items-center w-full bg-background'>
-            <div
-              className={cn(
-                'text-[10px] px-2',
-                isNearLimit && 'text-yellow-500',
-                isAtLimit && 'text-red-500',
-                !isNearLimit && 'text-muted-foreground',
-              )}>
-              {remainingChars} characters remaining
+            <div className='text-xs text-muted-foreground'>
+              {content.length}/{COMMENT_MAX_LENGTH} characters
             </div>
             <div className='flex items-center gap-1.5 sm:gap-2'>
               <Button
