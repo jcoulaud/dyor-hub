@@ -57,7 +57,7 @@ export default async function Page({ params }: PageProps) {
                       target='_blank'
                       rel='noopener noreferrer'
                       className='flex items-center text-sm text-muted-foreground hover:text-foreground'
-                      title='Website'>
+                      title={token.websiteUrl}>
                       <Globe className='w-4 h-4' />
                     </Link>
                   )}
@@ -67,7 +67,7 @@ export default async function Page({ params }: PageProps) {
                       target='_blank'
                       rel='noopener noreferrer'
                       className='flex items-center text-sm text-muted-foreground hover:text-foreground'
-                      title={`@${token.twitterHandle}`}>
+                      title={`https://twitter.com/${token.twitterHandle}`}>
                       <Twitter className='w-4 h-4' />
                     </Link>
                   )}
