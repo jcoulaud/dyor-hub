@@ -27,6 +27,7 @@ export class PerspectiveService {
     spam: 0.85,
     toxicity: 0.8,
   };
+  private readonly urlRegex = /https?:\/\/[^\s]+/;
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('PERSPECTIVE_API_KEY') || '';
@@ -40,8 +41,8 @@ export class PerspectiveService {
     isToxic: boolean;
     scores: { spam: number; toxicity: number };
   }> {
-    // Allow very short comments (3 characters or less) without spam check
-    if (text.trim().length <= 3) {
+    // Allow very short comments or comments containing URLs without spam check
+    if (text.trim().length <= 3 || this.urlRegex.test(text)) {
       if (!this.apiKey) {
         return {
           isSpam: false,
@@ -50,7 +51,7 @@ export class PerspectiveService {
         };
       }
 
-      // Only check for toxicity on short comments
+      // Only check for toxicity on short comments or URLs
       try {
         const clientUrl = this.configService.get('CLIENT_URL');
 

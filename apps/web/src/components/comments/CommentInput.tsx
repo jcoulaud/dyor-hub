@@ -32,6 +32,34 @@ export function CommentInput({
   const defaultPlaceholder = variant === 'main' ? 'Add a comment' : 'Write a reply...';
   const actualPlaceholder = placeholder ?? defaultPlaceholder;
 
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle shortcuts if the form is expanded or it's a reply
+      if (!isExpanded && variant !== 'reply') return;
+
+      // Check if the active element is within our form
+      if (!formRef.current?.contains(document.activeElement)) return;
+
+      // Submit on Cmd/Ctrl + Enter
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        if (content.trim() && !isSubmitting) {
+          void handleSubmit();
+        }
+      }
+
+      // Cancel on Escape
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCancel();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [content, isSubmitting, isExpanded, variant]);
+
   // Ensure component is mounted
   useEffect(() => {
     mountedRef.current = true;
