@@ -125,14 +125,18 @@ export class CommentsService {
     // Load the comment with user data
     return this.commentRepository.findOne({
       where: { id: savedComment.id },
-      relations: ['user'],
+      relations: {
+        user: true,
+      },
     });
   }
 
   async update(id: string, dto: UpdateCommentDto, userId: string) {
     const comment = await this.commentRepository.findOne({
       where: { id },
-      relations: ['user'],
+      relations: {
+        user: true,
+      },
     });
 
     if (!comment) {
@@ -150,7 +154,9 @@ export class CommentsService {
   async delete(id: string, userId: string): Promise<void> {
     const comment = await this.commentRepository.findOne({
       where: { id },
-      relations: ['user'],
+      relations: {
+        user: true,
+      },
     });
 
     if (!comment) {
@@ -171,7 +177,9 @@ export class CommentsService {
   ): Promise<VoteResponseDto> {
     const comment = await this.commentRepository.findOne({
       where: { id: commentId },
-      relations: ['votes'],
+      relations: {
+        votes: true,
+      },
     });
 
     if (!comment) {
@@ -236,7 +244,9 @@ export class CommentsService {
       where: {
         comment: { id: commentId },
       },
-      relations: ['comment'],
+      relations: {
+        comment: true,
+      },
     });
 
     return {
@@ -252,7 +262,9 @@ export class CommentsService {
   ): Promise<CommentEntity> {
     const comment = await this.commentRepository.findOne({
       where: { id },
-      relations: ['user'],
+      relations: {
+        user: true,
+      },
     });
 
     if (!comment) {

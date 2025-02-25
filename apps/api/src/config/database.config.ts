@@ -16,11 +16,7 @@ export const databaseConfig: TypeOrmModuleAsyncOptions = {
   ): Promise<TypeOrmModuleOptions> => {
     const config = {
       type: 'postgres' as const,
-      host: configService.get('DB_HOST'),
-      port: configService.get('DB_PORT'),
-      username: configService.get('DB_USERNAME'),
-      password: configService.get('DB_PASSWORD'),
-      database: configService.get('DB_NAME'),
+      url: configService.get('DATABASE_URL'),
       entities: [TokenEntity, CommentEntity, CommentVoteEntity, UserEntity],
       synchronize: configService.get('NODE_ENV') !== 'production',
       logging: false,

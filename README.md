@@ -1,84 +1,172 @@
-# Turborepo starter
+# DYOR Hub
 
-This is an official starter Turborepo.
+DYOR Hub (Do Your Own Research Hub) is a platform for discovering, discussing, and researching tokens in the cryptocurrency space.
 
-## Using this example
+## Architecture Overview
 
-Run the following command:
+In production, the application uses the following architecture:
 
-```sh
-npx create-turbo@latest
+- Frontend: `dyorhub.xyz` (main domain)
+- API: `api.dyorhub.xyz` (subdomain)
+
+This separation provides better organization and security compared to using path-based API routing (`dyorhub.xyz/api`).
+
+## Tech Stack
+
+- **Frontend**: Next.js with TypeScript
+- **Backend**: NestJS with TypeScript
+- **Database**: PostgreSQL
+- **Authentication**: JWT with Twitter OAuth
+- **Monorepo Management**: Turborepo
+
+## Requirements
+
+- **Node.js**: v18.12.0 or higher (v20.18.1 recommended)
+- **pnpm**: v9.0.0 or higher
+- **PostgreSQL**: v14 or higher
+
+> **Note**: If you're using nvm, you can run `nvm use` to automatically use the correct Node.js version specified in the `.nvmrc` file.
+
+## Project Structure
+
+This monorepo includes the following packages/apps:
+
+### Apps
+
+- `apps/web`: Next.js frontend application
+- `apps/api`: NestJS backend API
+
+### Packages
+
+- `packages/types`: Shared TypeScript types and interfaces
+- `packages/eslint-config`: Shared ESLint configurations
+- `packages/typescript-config`: Shared TypeScript configurations
+
+## Development
+
+### Setup
+
+1. Clone the repository
+2. Install dependencies:
+   ```
+   pnpm install
+   ```
+3. Set up environment variables:
+   - Copy `.env.example` to `.env` in both `apps/api` and `apps/web` directories
+   - Configure the environment variables as needed
+
+### Running Locally
+
+To run the entire project in development mode:
+
 ```
-
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm build
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
 pnpm dev
 ```
 
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+To run only specific apps:
 
 ```
-cd my-turborepo
-npx turbo login
+pnpm dev --filter=web  # Run only the web app
+pnpm dev --filter=api  # Run only the API
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+### Building for Production
 
 ```
-npx turbo link
+pnpm build
 ```
 
-## Useful Links
+## Production Deployment
 
-Learn more about the power of Turborepo:
+### Environment Configuration
 
-- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+For production deployment, ensure the following environment variables are set correctly:
+
+#### API Server (.env)
+
+```
+# Environment
+NODE_ENV=production
+PORT=3001
+
+# API Configuration
+USE_API_SUBDOMAIN=true
+
+# Twitter Auth
+TWITTER_CLIENT_ID=your_twitter_key
+TWITTER_CLIENT_SECRET=your_twitter_secret
+TWITTER_CALLBACK_URL=https://api.dyorhub.xyz/auth/twitter/callback
+
+# Auth & Security
+JWT_SECRET=your_secure_jwt_secret
+JWT_EXPIRES_IN=24h
+SESSION_SECRET=your_secure_session_secret
+
+# CORS & Cookies
+ALLOWED_ORIGINS=https://dyorhub.xyz,https://www.dyorhub.xyz
+COOKIE_DOMAIN=.dyorhub.xyz  # Note the leading dot to allow sharing across subdomains
+CLIENT_URL=https://dyorhub.xyz
+
+# Redis Configuration
+REDIS_URL=redis://username:password@your-redis-host:6379
+```
+
+#### Frontend (.env)
+
+```
+NEXT_PUBLIC_API_URL=https://api.dyorhub.xyz
+```
+
+### DNS Configuration
+
+Ensure you have the following DNS records set up:
+
+1. `dyorhub.xyz` - Points to your frontend server
+2. `api.dyorhub.xyz` - Points to your API server
+
+### Session Cookie Configuration
+
+For Twitter OAuth authentication to work correctly across domains:
+
+1. **Cookie Domain**: Always use a leading dot (e.g., `.dyorhub.xyz`) in production to allow cookies to be shared between the main domain and subdomains.
+
+2. **Session Secret**: Use a strong, random value for `SESSION_SECRET`. You can generate one with:
+
+   ```
+   openssl rand -hex 32
+   ```
+
+3. **Cookie Settings**: The application automatically configures cookies with:
+
+   - `secure: true` in production (requires HTTPS)
+   - `sameSite: 'none'` in production (allows cross-domain cookies)
+   - `httpOnly: true` (prevents JavaScript access)
+
+4. **Redis Persistence**: Ensure Redis is properly configured and accessible, as it stores session data.
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Authentication Redirects**: If authentication redirects are not working correctly, ensure:
+
+   - `TWITTER_CALLBACK_URL` is set to the API subdomain without the `/api` prefix
+   - `COOKIE_DOMAIN` is set to `.dyorhub.xyz` (with the leading dot)
+   - Both domains have proper SSL certificates
+
+2. **CORS Issues**: If experiencing CORS issues:
+
+   - Ensure `ALLOWED_ORIGINS` includes the frontend domain
+   - Check that cookies are being properly set with the correct domain
+
+3. **Cookie Sharing**: For cookies to be shared between domains:
+
+   - Use `.dyorhub.xyz` as the cookie domain
+   - Ensure both sites use HTTPS
+   - Set `sameSite: 'none'` and `secure: true` in cookie options
+
+4. **Session Issues**: If sessions are not persisting between requests:
+   - Check Redis connectivity
+   - Verify cookie settings in browser developer tools
+   - Ensure the session cookie is being set with the correct domain
+   - Check for any browser privacy features that might be blocking cookies

@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { TokenEntity } from '../entities/token.entity';
 
 interface DexScreenerResponse {
@@ -85,7 +85,9 @@ export class TokensService {
   async refreshTokenMetadata(mintAddress: string): Promise<TokenEntity> {
     const token = await this.tokenRepository.findOne({
       where: { mintAddress },
-      relations: ['comments', 'comments.votes'],
+      relations: {
+        comments: true,
+      },
     });
 
     if (!token) {
@@ -121,7 +123,9 @@ export class TokensService {
     try {
       let token = await this.tokenRepository.findOne({
         where: { mintAddress },
-        relations: ['comments', 'comments.votes'],
+        relations: {
+          comments: true,
+        },
       });
 
       if (!token) {
@@ -165,7 +169,9 @@ export class TokensService {
         await this.tokenRepository.save(newToken);
         token = await this.tokenRepository.findOne({
           where: { mintAddress },
-          relations: ['comments', 'comments.votes'],
+          relations: {
+            comments: true,
+          },
         });
       } else {
         // Increment view count for existing token
@@ -265,7 +271,18 @@ export class TokensService {
 
   async getAllTokens(): Promise<TokenEntity[]> {
     return this.tokenRepository.find({
-      relations: ['comments', 'comments.votes'],
+      relations: {
+        comments: true,
+      },
+    });
+  }
+
+  async getTokens(mintAddresses: string[]): Promise<TokenEntity[]> {
+    return this.tokenRepository.find({
+      where: { mintAddress: In(mintAddresses) },
+      relations: {
+        comments: true,
+      },
     });
   }
 }

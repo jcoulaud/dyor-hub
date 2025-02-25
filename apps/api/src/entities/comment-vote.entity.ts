@@ -16,7 +16,12 @@ export class CommentVoteEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'enum', enum: ['upvote', 'downvote'], enumName: 'vote_type' })
+  @Column({
+    name: 'vote_type',
+    type: 'enum',
+    enum: ['upvote', 'downvote'],
+    enumName: 'vote_type',
+  })
   type!: VoteType;
 
   @Column({ name: 'user_id', type: 'uuid' })

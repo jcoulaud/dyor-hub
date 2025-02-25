@@ -1,7 +1,8 @@
-import { Controller, Get, Logger, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
+import { Session } from 'express-session';
 import { AuthService } from './auth.service';
 import { AuthConfigService } from './config/auth.config';
 import { UserResponseDto } from './dto/user-response.dto';
@@ -10,6 +11,12 @@ import { TwitterAuthenticationException } from './exceptions/auth.exceptions';
 interface AuthenticatedRequest extends Request {
   user?: any;
   cookies?: { [key: string]: string };
+  query?: { [key: string]: string };
+  session?: Session & {
+    destroy(callback?: (err?: any) => void): void;
+    returnTo?: string;
+    [key: string]: any;
+  };
 }
 
 interface AuthResponse {
@@ -19,18 +26,61 @@ interface AuthResponse {
 
 @Controller('auth')
 export class AuthController {
-  private readonly logger = new Logger(AuthController.name);
-
   constructor(
     private readonly authService: AuthService,
     private readonly authConfigService: AuthConfigService,
     private readonly jwtService: JwtService,
   ) {}
 
+  @Get('twitter-login-url')
+  getTwitterLoginUrl(@Req() req: AuthenticatedRequest): { url: string } {
+    let apiBaseUrl: string;
+
+    if (this.authConfigService.isDevelopment) {
+      apiBaseUrl = new URL(
+        '/api',
+        this.authConfigService.clientUrl.replace('3000', '3001'),
+      ).toString();
+    } else {
+      const clientUrl = new URL(this.authConfigService.clientUrl);
+      const apiHostname = `api.${clientUrl.hostname}`;
+      apiBaseUrl = `${clientUrl.protocol}//${apiHostname}`;
+    }
+
+    const baseUrl = `${apiBaseUrl}/auth/twitter`;
+    const params = [];
+
+    if (req.query?.return_to) {
+      params.push(
+        `return_to=${encodeURIComponent(req.query.return_to as string)}`,
+      );
+    }
+
+    if (req.query?.use_popup) {
+      params.push(`use_popup=${req.query.use_popup}`);
+    }
+
+    const url = params.length > 0 ? `${baseUrl}?${params.join('&')}` : baseUrl;
+    return { url };
+  }
+
   @Get('twitter')
   @UseGuards(AuthGuard('twitter'))
-  async twitterAuth(): Promise<void> {
-    this.logger.log('Starting Twitter auth');
+  async twitterAuth(
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (req.query?.return_to && req.session) {
+      req.session.returnTo = req.query.return_to as string;
+    }
+
+    if (req.user && req.user.redirectUrl) {
+      return res.redirect(req.user.redirectUrl);
+    }
+
+    res.status(500).json({
+      error: 'Twitter authentication failed to generate a redirect URL',
+    });
   }
 
   @Get('twitter/callback')
@@ -41,7 +91,6 @@ export class AuthController {
   ): Promise<void> {
     try {
       if (!req.user) {
-        this.logger.error('No user data in request after Twitter auth');
         throw new TwitterAuthenticationException(
           'No user data received from Twitter',
         );
@@ -54,38 +103,133 @@ export class AuthController {
 
       res.cookie('jwt', token, cookieConfig);
 
-      // Always use popup mode with postMessage
-      const responseHtml = `
-        <html>
-          <body>
-            <script>
-              if (window.opener) {
-                try {
-                  window.opener.postMessage({ 
-                    type: 'AUTH_SUCCESS', 
-                    token: '${token}',
-                    timestamp: ${Date.now()}
-                  }, '*');
-                  window.close();
-                } catch (err) {
-                  console.error('Failed to post message:', err);
-                }
-              } else {
-                window.location.href = '${this.authConfigService.clientUrl}';
-              }
-            </script>
-          </body>
-        </html>
-      `;
+      let redirectUrl: URL;
+      const returnToParam = req.query?.return_to || req.session?.returnTo;
+      const isPopup = req.user.usePopup === true;
 
-      res.send(responseHtml);
+      if (returnToParam) {
+        try {
+          const returnTo = decodeURIComponent(returnToParam as string);
+          const returnToUrl = new URL(returnTo);
+          const clientUrl = new URL(this.authConfigService.clientUrl);
+
+          if (returnToUrl.hostname === clientUrl.hostname) {
+            redirectUrl = returnToUrl;
+            redirectUrl.searchParams.append('auth_success', 'true');
+          } else {
+            redirectUrl = new URL(this.authConfigService.clientUrl);
+            redirectUrl.searchParams.append('auth_success', 'true');
+          }
+        } catch (error) {
+          redirectUrl = new URL(this.authConfigService.clientUrl);
+          redirectUrl.searchParams.append('auth_success', 'true');
+        }
+      } else {
+        redirectUrl = new URL(this.authConfigService.clientUrl);
+        redirectUrl.searchParams.append('auth_success', 'true');
+      }
+
+      if (isPopup) {
+        const html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Authentication Successful</title>
+            <script>
+              window.onload = function() {
+                if (window.opener) {
+                  try {
+                    window.opener.postMessage({ 
+                      type: 'twitter_auth_result', 
+                      success: true 
+                    }, '*');
+                    
+                    setTimeout(function() {
+                      window.close();
+                    }, 500);
+                  } catch(e) {
+                    window.location.href = '${redirectUrl.toString()}';
+                  }
+                } else {
+                  window.location.href = '${redirectUrl.toString()}';
+                }
+              };
+            </script>
+          </head>
+          <body>
+            <h3>Authentication Successful!</h3>
+            <p>This window should close automatically. If it doesn't, you can <a href="${redirectUrl.toString()}">click here</a> to continue.</p>
+          </body>
+          </html>
+        `;
+
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+      } else {
+        res.redirect(redirectUrl.toString());
+      }
     } catch (error) {
-      this.logger.error('Twitter callback error:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-      const errorRedirectUrl = `${this.authConfigService.clientUrl}/auth/error`;
-      res.redirect(errorRedirectUrl);
+      const clientUrl = new URL(this.authConfigService.clientUrl);
+      const isPopup = req.user?.usePopup === true;
+
+      let errorMessage = 'Authentication failed';
+      let errorDetails = '';
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        errorDetails = error.stack || '';
+      }
+
+      clientUrl.searchParams.append(
+        'auth_error',
+        encodeURIComponent(errorMessage),
+      );
+      clientUrl.searchParams.append(
+        'auth_error_details',
+        encodeURIComponent(errorDetails),
+      );
+
+      if (isPopup) {
+        const html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Authentication Failed</title>
+            <script>
+              window.onload = function() {
+                if (window.opener) {
+                  try {
+                    window.opener.postMessage({ 
+                      type: 'twitter_auth_result', 
+                      success: false,
+                      error: '${encodeURIComponent(errorMessage)}'
+                    }, '*');
+                    
+                    setTimeout(function() {
+                      window.close();
+                    }, 500);
+                  } catch(e) {
+                    window.location.href = '${clientUrl.toString()}';
+                  }
+                } else {
+                  window.location.href = '${clientUrl.toString()}';
+                }
+              };
+            </script>
+          </head>
+          <body>
+            <h3>Authentication Failed</h3>
+            <p>${errorMessage}</p>
+            <p>This window should close automatically. If it doesn't, you can <a href="${clientUrl.toString()}">click here</a> to continue.</p>
+          </body>
+          </html>
+        `;
+
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+      } else {
+        res.redirect(clientUrl.toString());
+      }
     }
   }
 
@@ -117,16 +261,12 @@ export class AuthController {
         return { authenticated: false };
       }
     } catch (error) {
-      this.logger.error(
-        'Profile check error:',
-        error instanceof Error ? error.message : error,
-      );
       return { authenticated: false };
     }
   }
 
   @Get('logout')
-  async logout(@Res() res: Response) {
+  async logout(@Req() req: AuthenticatedRequest, @Res() res: Response) {
     const cookieConfig = this.authConfigService.getCookieConfig(
       this.authConfigService.isDevelopment,
     );
@@ -135,6 +275,28 @@ export class AuthController {
       ...cookieConfig,
       maxAge: 0,
     });
+
+    res.clearCookie('dyor.sid', {
+      ...cookieConfig,
+      maxAge: 0,
+    });
+
+    if (req.session) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          req.session.destroy((err) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+      } catch (error) {
+        // Continue with the response even if session destruction fails
+      }
+    }
+
     res.json({ success: true });
   }
 }

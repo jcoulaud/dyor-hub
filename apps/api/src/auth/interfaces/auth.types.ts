@@ -6,10 +6,23 @@ export interface TwitterProfile {
   displayName: string;
   photos?: Array<{ value: string }>;
   _json?: {
+    id_str: string;
+    name: string;
+    screen_name: string;
+    location?: string;
+    description?: string;
+    url?: string;
     verified: boolean;
     profile_image_url?: string;
+    profile_image_url_https?: string;
+    followers_count?: number;
+    friends_count?: number;
+    created_at?: string;
+    email?: string;
   };
   emails?: Array<{ value: string }>;
+  provider: string;
+  _raw?: string;
 }
 
 export interface TwitterTokens {
@@ -31,11 +44,15 @@ export interface AuthResponse {
 }
 
 export interface TwitterAuthConfig {
-  consumerKey: string;
-  consumerSecret: string;
+  clientId: string;
+  clientSecret: string;
   callbackURL: string;
-  includeEmail: boolean;
-  userAuthorizationURL: string;
+  includeEmail?: boolean;
+  userAuthorizationURL?: string;
+  // OAuth 2.0 specific fields
+  scope: string[];
+  state: boolean;
+  pkce: boolean;
 }
 
 export interface CookieConfig {

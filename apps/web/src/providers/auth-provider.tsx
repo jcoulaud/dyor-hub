@@ -1,5 +1,6 @@
 'use client';
 
+import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/api';
 import type { User } from '@dyor-hub/types';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -46,6 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const cacheTimestamp = useRef<number | null>(null);
   const cachedState = useRef<AuthState | null>(null);
 
+  const { toast } = useToast();
+
   const clearAuth = useCallback(() => {
     const newState = {
       isAuthenticated: false,
@@ -91,7 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             cachedState.current = newState;
             cacheTimestamp.current = Date.now();
           } catch (error) {
-            console.error('Auth check failed:', error);
             clearAuth();
           }
         })();
@@ -108,6 +110,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Add this effect to the AuthProvider component to check for auth parameters in the URL
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+
+      // Check for auth_success parameter
+      const authSuccess = url.searchParams.get('auth_success');
+      if (authSuccess === 'true') {
+        toast({
+          title: 'Success',
+          description: 'Successfully signed in with Twitter',
+        });
+
+        // Remove the parameter from URL
+        url.searchParams.delete('auth_success');
+        window.history.replaceState({}, document.title, url.toString());
+
+        // Force refresh auth state
+        checkAuth(true);
+      }
+
+      // Check for auth_error parameter
+      const authError = url.searchParams.get('auth_error');
+      if (authError) {
+        toast({
+          title: 'Authentication Error',
+          description: decodeURIComponent(authError),
+          variant: 'destructive',
+        });
+
+        // Remove the parameter from URL
+        url.searchParams.delete('auth_error');
+        window.history.replaceState({}, document.title, url.toString());
+      }
+    }
+  }, [toast, checkAuth]);
 
   return (
     <AuthContext.Provider

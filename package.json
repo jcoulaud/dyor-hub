@@ -2,10 +2,7 @@
   "name": "dyor-hub",
   "private": true,
   "scripts": {
-    "build": "turbo build",
     "dev": "turbo dev",
-    "dev:web": "cd apps/web && PORT=3022 pnpm dev",
-    "dev:api": "cd apps/api && PORT=4022 pnpm dev",
     "dev:all": "pnpm run dev:api & pnpm run dev:web",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

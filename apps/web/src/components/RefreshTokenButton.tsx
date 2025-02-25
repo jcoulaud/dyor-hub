@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { tokens } from '@/lib/api';
 import { RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 
@@ -16,13 +17,7 @@ export function RefreshTokenButton({ mintAddress }: RefreshTokenButtonProps) {
   const handleRefresh = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/tokens/${mintAddress}/refresh`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to refresh token');
-      }
+      await tokens.refreshToken(mintAddress);
 
       toast({
         title: 'Success',

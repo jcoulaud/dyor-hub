@@ -1,72 +1,50 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
+import { AuthConfigService } from './config/auth.config';
 import {
   InvalidTokenException,
-  TwitterAuthenticationException,
   TwitterTokenUpdateException,
   UserNotFoundException,
 } from './exceptions/auth.exceptions';
-import {
-  JwtPayload,
-  TwitterProfile,
-  TwitterTokens,
-} from './interfaces/auth.types';
+import { JwtPayload } from './interfaces/auth.types';
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     private readonly jwtService: JwtService,
+    private readonly authConfigService: AuthConfigService,
   ) {}
 
-  async validateTwitterUser(profile: TwitterProfile): Promise<UserEntity> {
-    try {
-      if (!profile?.id) {
-        this.logger.error('Invalid Twitter profile - missing ID');
-        throw new TwitterAuthenticationException(
-          'Invalid Twitter profile data',
-        );
-      }
+  async validateTwitterUser(profile: any): Promise<UserEntity> {
+    const { id: twitterId, username, displayName, photos } = profile;
 
-      let user = await this.userRepository.findOne({
-        where: { twitterId: profile.id },
+    const defaultAvatarUrl =
+      'https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png';
+    const profileImageUrl = photos?.[0]?.value || defaultAvatarUrl;
+    const safeDisplayName = displayName || username;
+
+    let user = await this.userRepository.findOne({
+      where: { twitterId },
+    });
+
+    if (!user) {
+      user = this.userRepository.create({
+        twitterId,
+        username,
+        displayName: safeDisplayName,
+        avatarUrl: profileImageUrl,
       });
-
-      const userData = {
-        twitterId: profile.id,
-        username: profile.username || `twitter_${profile.id}`,
-        displayName:
-          profile.displayName ||
-          profile.username ||
-          `Twitter User ${profile.id}`,
-        avatarUrl:
-          profile.photos?.[0]?.value || profile._json?.profile_image_url || '',
-        isVerified: profile._json?.verified || false,
-        email: profile.emails?.[0]?.value,
-      };
-
-      if (!user) {
-        user = this.userRepository.create(userData);
-      } else {
-        Object.assign(user, userData);
-      }
-
-      const savedUser = await this.userRepository.save(user);
-      return savedUser;
-    } catch (error) {
-      this.logger.error('Failed to validate Twitter user:', error);
-      if (error instanceof TwitterAuthenticationException) {
-        throw error;
-      }
-      throw new TwitterAuthenticationException(
-        'Failed to validate or create user from Twitter profile',
-      );
+      return await this.userRepository.save(user);
+    } else {
+      user.username = username;
+      user.displayName = safeDisplayName;
+      user.avatarUrl = profileImageUrl;
+      return await this.userRepository.save(user);
     }
   }
 
@@ -76,72 +54,51 @@ export class AuthService {
     refreshToken?: string,
   ): Promise<void> {
     try {
-      const tokens: TwitterTokens = {
-        accessToken,
-        ...(refreshToken && { refreshToken }),
-      };
-
       await this.userRepository.update(userId, {
-        twitterAccessToken: tokens.accessToken,
-        twitterRefreshToken: tokens.refreshToken,
+        twitterAccessToken: accessToken,
+        twitterRefreshToken: refreshToken || null,
       });
     } catch (error) {
-      this.logger.error(
-        `Failed to update Twitter tokens for user ${userId}:`,
-        error,
+      throw new TwitterTokenUpdateException(
+        'Failed to update Twitter authentication tokens',
       );
-      throw new TwitterTokenUpdateException();
     }
   }
 
   async login(user: UserEntity): Promise<string> {
-    if (!user) {
-      this.logger.error('Login attempt with no user data');
-      throw new UserNotFoundException();
-    }
-
-    const payload: JwtPayload = {
+    const payload = {
       sub: user.id,
       username: user.username,
-      displayName: user.displayName,
     };
 
-    return this.jwtService.sign(payload);
+    return this.jwtService.sign(payload, {
+      secret: this.authConfigService.jwtSecret,
+      expiresIn: this.authConfigService.jwtExpiresIn,
+    });
   }
 
-  async validateJwtPayload(payload: JwtPayload): Promise<UserEntity> {
+  async validateJwtPayload(payload: JwtPayload): Promise<UserEntity | null> {
     if (!payload?.sub) {
-      this.logger.error('Invalid JWT payload - missing sub claim');
       throw new UserNotFoundException();
     }
 
-    const user = await this.userRepository.findOne({
+    return this.userRepository.findOne({
       where: { id: payload.sub },
     });
-
-    if (!user) {
-      this.logger.error('User not found for JWT payload', { sub: payload.sub });
-      throw new UserNotFoundException();
-    }
-
-    return user;
   }
 
-  async findUserById(id: string): Promise<UserEntity> {
-    const user = await this.userRepository.findOne({ where: { id } });
-
-    if (!user) {
-      throw new UserNotFoundException();
-    }
-
-    return user;
+  async findUserById(id: string): Promise<UserEntity | null> {
+    return this.userRepository.findOne({
+      where: { id },
+    });
   }
 
   verifyToken(token: string): JwtPayload {
     try {
-      return this.jwtService.verify<JwtPayload>(token);
+      return this.jwtService.verify<JwtPayload>(token, {
+        secret: this.authConfigService.jwtSecret,
+      });
     } catch (error) {
-      this.logger.error('Token verification failed:', error);
       throw new InvalidTokenException();
     }
   }

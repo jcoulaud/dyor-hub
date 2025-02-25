@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CookieConfig, TwitterAuthConfig } from '../interfaces/auth.types';
 
 @Injectable()
 export class AuthConfigService {
+  private readonly logger = new Logger(AuthConfigService.name);
+
   constructor(private readonly configService: ConfigService) {}
 
   get jwtSecret(): string {
@@ -19,22 +21,72 @@ export class AuthConfigService {
   }
 
   get twitterConfig(): TwitterAuthConfig {
-    const consumerKey = this.configService.get<string>('TWITTER_CONSUMER_KEY');
-    const consumerSecret = this.configService.get<string>(
-      'TWITTER_CONSUMER_SECRET',
-    );
-    const callbackURL = this.configService.get<string>('TWITTER_CALLBACK_URL');
+    const clientId = this.configService
+      .get<string>('TWITTER_CLIENT_ID')
+      ?.trim();
+    const clientSecret = this.configService
+      .get<string>('TWITTER_CLIENT_SECRET')
+      ?.trim();
 
-    if (!consumerKey || !consumerSecret || !callbackURL) {
-      throw new Error('Twitter configuration is incomplete');
+    // Get the callback URL from environment or generate it dynamically
+    let callbackURL = this.configService
+      .get<string>('TWITTER_CALLBACK_URL')
+      ?.trim();
+
+    // In production, if the callback URL contains the main domain with /api,
+    // replace it with the API subdomain
+    if (!this.isDevelopment && callbackURL) {
+      try {
+        const url = new URL(callbackURL);
+        // Check if the URL contains /api in the path
+        if (url.pathname.includes('/api/')) {
+          // Get the client URL to extract the main domain
+          const clientUrl = new URL(this.clientUrl);
+          // Create a new URL with api subdomain
+          const apiHostname = `api.${clientUrl.hostname}`;
+          // Reconstruct the URL with the API subdomain and without /api in the path
+          const pathWithoutApi = url.pathname.replace('/api', '');
+          callbackURL = `${url.protocol}//${apiHostname}${pathWithoutApi}`;
+          this.logger.log(
+            `Using dynamically generated callback URL: ${callbackURL}`,
+          );
+        }
+      } catch (error) {
+        // If URL parsing fails, keep the original callback URL
+        this.logger.warn(`Failed to parse callback URL: ${error.message}`);
+      }
+    }
+
+    // Validate required configuration
+    const missingFields = [
+      !clientId && 'TWITTER_CLIENT_ID',
+      !clientSecret && 'TWITTER_CLIENT_SECRET',
+      !callbackURL && 'TWITTER_CALLBACK_URL',
+    ].filter(Boolean);
+
+    if (missingFields.length > 0) {
+      const errorMessage = `Twitter configuration is incomplete. Missing: ${missingFields.join(', ')}`;
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    // Validate callback URL format
+    try {
+      new URL(callbackURL);
+    } catch (error) {
+      const errorMessage = `Invalid Twitter callback URL: ${callbackURL}`;
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
     }
 
     return {
-      consumerKey,
-      consumerSecret,
+      clientId,
+      clientSecret,
       callbackURL,
-      includeEmail: true,
-      userAuthorizationURL: 'https://api.twitter.com/oauth/authorize',
+      // OAuth 2.0 specific settings
+      scope: ['tweet.read', 'users.read', 'offline.access'],
+      state: true,
+      pkce: true,
     };
   }
 
@@ -44,7 +96,7 @@ export class AuthConfigService {
     return {
       httpOnly: true,
       secure: !isDevelopment,
-      sameSite: isDevelopment ? 'lax' : 'strict',
+      sameSite: isDevelopment ? 'lax' : 'none',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       path: '/',
       domain: isDevelopment ? undefined : domain || undefined,

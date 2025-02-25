@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CommentsModule } from './comments/comments.module';
 import { databaseConfig } from './config/database.config';
+import { SessionModule } from './session/session.module';
 import { TokensModule } from './tokens/tokens.module';
 
 @Module({
@@ -21,6 +22,7 @@ import { TokensModule } from './tokens/tokens.module';
     AuthModule,
     TokensModule,
     CommentsModule,
+    SessionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,7 +1,6 @@
 import { CommentSection } from '@/components/comments/CommentSection';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
 import { tokens } from '@/lib/api';
 import { isValidSolanaAddress } from '@/lib/utils';
 import { Globe, Twitter } from 'lucide-react';
@@ -82,29 +81,6 @@ export default async function Page({ params }: PageProps) {
           <Separator />
           <CommentSection tokenMintAddress={token.mintAddress} />
         </div>
-      </div>
-    </div>
-  );
-}
-
-export function TokenPageSkeleton() {
-  return (
-    <div className='flex-1 flex flex-col'>
-      <div className='flex-1 flex flex-col gap-8 p-4 sm:p-8'>
-        <Card className='w-full'>
-          <div className='flex items-start gap-6 p-6'>
-            <Skeleton className='w-32 h-32 rounded-lg' />
-            <div className='flex-1'>
-              <Skeleton className='w-48 h-8' />
-              <Skeleton className='w-24 h-4 mt-1' />
-              <Skeleton className='w-full h-16 mt-4' />
-              <div className='flex items-center gap-4 mt-6'>
-                <Skeleton className='w-24 h-6' />
-                <Skeleton className='w-24 h-6' />
-              </div>
-            </div>
-          </div>
-        </Card>
       </div>
     </div>
   );
