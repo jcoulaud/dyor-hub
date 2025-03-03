@@ -49,16 +49,6 @@ const nextConfig = {
       ];
     }
 
-    // Check if we're using an API subdomain in production
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    const isApiSubdomain = apiUrl && apiUrl.includes('://api.');
-
-    if (isApiSubdomain) {
-      console.log('Using API subdomain in production, no rewrites needed');
-    } else {
-      console.log('Not using API subdomain, but in production so no rewrites needed');
-    }
-
     // In production with api.domain, we don't need rewrites
     return [];
   },

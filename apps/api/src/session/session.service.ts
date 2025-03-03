@@ -1,14 +1,15 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import RedisStore from 'connect-redis';
+import { RedisStore } from 'connect-redis';
 import * as session from 'express-session';
+import { Store } from 'express-session';
 import Redis from 'ioredis';
 
 @Injectable()
 export class SessionService implements OnModuleInit, OnModuleDestroy {
   private redisClient: Redis;
   private readonly ttl = 24 * 60 * 60; // 24 hours in seconds
-  private redisStore: RedisStore;
+  private redisStore: Store;
   private initialized = false;
   private initializationPromise: Promise<void> | null = null;
 
@@ -39,12 +40,18 @@ export class SessionService implements OnModuleInit, OnModuleDestroy {
     });
 
     // Initialize Redis store after client is created
-    this.redisStore = new RedisStore({
-      client: this.redisClient,
-      prefix: 'sess:',
-    });
+    try {
+      // For connect-redis 8.0.1
+      this.redisStore = new RedisStore({
+        client: this.redisClient,
+        prefix: 'sess:',
+      });
 
-    this.initialized = true;
+      this.initialized = true;
+    } catch (error) {
+      console.error('Failed to initialize Redis store:', error);
+      throw error;
+    }
   }
 
   async ensureInitialized(): Promise<void> {
