@@ -1,9 +1,9 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { MessageSquare } from 'lucide-react';
+import { BarChart3, MessageSquare, Search, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -36,52 +36,125 @@ export default function Home() {
   };
 
   return (
-    <main className='flex min-h-screen flex-col items-center justify-center space-y-8 px-4'>
-      <div className='flex max-w-[980px] flex-col items-center gap-2 text-center'>
-        <h1 className='text-5xl font-semibold leading-tight tracking-tight text-white'>DYOR Hub</h1>
-        <p className='text-xl font-light text-zinc-300'>
-          Research and analyze Solana tokens with comprehensive data and security insights
-        </p>
-      </div>
+    <div className='flex flex-col min-h-screen'>
+      {/* Hero Section */}
+      <section className='relative w-full py-20 md:py-32 overflow-hidden'>
+        <div className='absolute inset-0 bg-linear-to-br from-blue-900/20 to-purple-900/20 z-0' />
+        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-10 z-0" />
 
-      <Card className='w-full max-w-[640px] border-zinc-800 bg-zinc-950/50 shadow-md'>
-        <CardContent className='pt-6'>
-          <form onSubmit={handleSubmit} className='flex flex-col gap-6'>
-            <div className='flex flex-col gap-2'>
-              <div className='relative flex h-12 items-center gap-2'>
-                <Input
-                  type='text'
-                  value={address}
-                  onChange={(e) => {
-                    setAddress(e.target.value);
-                    setError('');
-                  }}
-                  placeholder='Enter the contract address'
-                  className='h-12 border-zinc-800 bg-black text-base placeholder:text-zinc-500'
-                />
-                <Button
-                  type='submit'
-                  className='h-12 bg-white px-8 text-base font-medium text-black hover:bg-zinc-200'>
-                  Search
-                </Button>
-              </div>
-              {error && (
-                <p className='text-sm font-medium text-red-500' role='alert'>
-                  {error}
-                </p>
-              )}
-              <div className='mt-2 rounded-lg bg-zinc-900 px-4 py-3 border-0'>
-                <div className='flex items-center gap-2.5 text-zinc-500'>
-                  <MessageSquare className='h-4 w-4 flex-shrink-0' />
-                  <p className='text-sm font-light leading-tight'>
-                    Each token page includes a comment section for community insights
-                  </p>
-                </div>
-              </div>
+        <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8'>
+          <div className='flex flex-col items-center text-center max-w-3xl mx-auto space-y-8'>
+            <div className='space-y-4'>
+              <h1 className='text-4xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent bg-linear-to-r from-blue-400 to-purple-500'>
+                DYOR Hub
+              </h1>
+              <p className='text-xl md:text-2xl text-zinc-300 max-w-2xl'>
+                Your comprehensive due diligence platform for token analysis with on-chain and
+                off-chain data
+              </p>
             </div>
-          </form>
-        </CardContent>
-      </Card>
-    </main>
+
+            <Card className='w-full max-w-2xl border-zinc-800 bg-zinc-950/70 backdrop-blur-xs shadow-xl'>
+              <CardContent className='pt-6'>
+                <form onSubmit={handleSubmit} className='space-y-4'>
+                  <div className='relative'>
+                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                      <Search className='h-5 w-5 text-zinc-500' />
+                    </div>
+                    <Input
+                      type='text'
+                      value={address}
+                      onChange={(e) => {
+                        setAddress(e.target.value);
+                        setError('');
+                      }}
+                      placeholder='Enter token contract address'
+                      className='h-12 pl-10 border-zinc-800 bg-black/50 text-base placeholder:text-zinc-500 rounded-lg'
+                    />
+                    <Button
+                      type='submit'
+                      className='absolute right-0 top-0 h-12 bg-linear-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 px-6 text-base font-medium text-white rounded-r-lg'>
+                      Analyze
+                    </Button>
+                  </div>
+                  {error && (
+                    <p className='text-sm font-medium text-red-500' role='alert'>
+                      {error}
+                    </p>
+                  )}
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className='py-16 bg-black'>
+        <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
+          <div className='text-center mb-12'>
+            <h2 className='text-3xl font-bold text-white'>Complete Token Intelligence</h2>
+            <p className='mt-4 text-zinc-400 max-w-2xl mx-auto'>
+              Get comprehensive insights and community discussions for informed investment decisions
+            </p>
+          </div>
+
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-8'>
+            {/* Feature 1 */}
+            <Card className='bg-zinc-900/50 border-zinc-800 hover:border-blue-500/50 transition-all duration-300'>
+              <CardHeader className='pb-2'>
+                <div className='h-12 w-12 rounded-lg bg-blue-500/20 flex items-center justify-center mb-4'>
+                  <Shield className='h-6 w-6 text-blue-400' />
+                </div>
+                <CardTitle className='text-xl font-semibold text-white'>
+                  On-Chain Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className='text-zinc-400'>
+                  Verify contract security, token distribution, and transaction patterns with
+                  real-time blockchain data
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            {/* Feature 2 */}
+            <Card className='bg-zinc-900/50 border-zinc-800 hover:border-purple-500/50 transition-all duration-300'>
+              <CardHeader className='pb-2'>
+                <div className='h-12 w-12 rounded-lg bg-purple-500/20 flex items-center justify-center mb-4'>
+                  <BarChart3 className='h-6 w-6 text-purple-400' />
+                </div>
+                <CardTitle className='text-xl font-semibold text-white'>
+                  Off-Chain Intelligence
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className='text-zinc-400'>
+                  Access team information, social metrics, market data, and development activity
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            {/* Feature 3 */}
+            <Card className='bg-zinc-900/50 border-zinc-800 hover:border-green-500/50 transition-all duration-300'>
+              <CardHeader className='pb-2'>
+                <div className='h-12 w-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-4'>
+                  <MessageSquare className='h-6 w-6 text-green-400' />
+                </div>
+                <CardTitle className='text-xl font-semibold text-white'>
+                  Community Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className='text-zinc-400'>
+                  Engage in Reddit-like discussions for each token, sharing insights and due
+                  diligence with the community
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

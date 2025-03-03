@@ -252,7 +252,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class: cn(
-          'prose prose-sm dark:prose-invert max-w-none focus:outline-none transition-[height] duration-200',
+          'prose prose-sm dark:prose-invert max-w-none focus:outline-hidden transition-[height] duration-200',
           variant === 'main'
             ? isExpanded
               ? 'min-h-[100px] p-3'

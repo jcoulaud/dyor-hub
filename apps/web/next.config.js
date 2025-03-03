@@ -40,8 +40,6 @@ const nextConfig = {
       // Remove any trailing /api from the API URL for cleaner destination URLs
       const baseApiUrl = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;
 
-      console.log(`Setting up API rewrites for development: /api/* -> ${baseApiUrl}/api/*`);
-
       return [
         // Proxy /api/* requests to the API server
         {

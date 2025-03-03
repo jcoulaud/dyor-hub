@@ -301,7 +301,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
           <div className='flex gap-2 sm:gap-3'>
             <Avatar
               className={cn(
-                'h-6 w-6 sm:h-[28px] sm:w-[28px] flex-shrink-0',
+                'h-6 w-6 sm:h-[28px] sm:w-[28px] shrink-0',
                 comment.isRemoved && 'opacity-40',
               )}>
               <AvatarImage src={comment.user.avatarUrl} alt={comment.user.displayName} />
@@ -382,7 +382,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align='end'>
                       <DropdownMenuItem
-                        className='text-red-500 hover:text-red-500 data-[highlighted]:text-red-500 hover:bg-transparent cursor-pointer'
+                        className='text-red-500 hover:text-red-500 data-highlighted:text-red-500 hover:bg-transparent cursor-pointer'
                         onClick={() => handleRemoveComment(comment.id)}>
                         <Trash2 className='mr-2 h-4 w-4' />
                         Delete

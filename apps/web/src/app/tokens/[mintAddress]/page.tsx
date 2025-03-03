@@ -32,7 +32,7 @@ export default async function Page({ params }: PageProps) {
           <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-4 sm:p-6'>
             <div className='flex flex-col sm:flex-row items-start gap-4'>
               {token.imageUrl && (
-                <div className='relative w-16 h-16 rounded-full overflow-hidden flex-shrink-0'>
+                <div className='relative w-16 h-16 rounded-full overflow-hidden shrink-0'>
                   <Image
                     src={token.imageUrl}
                     alt={token.name}

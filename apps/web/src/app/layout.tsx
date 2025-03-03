@@ -14,8 +14,9 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'DYOR Hub - Solana Token Research Platform',
-  description: 'Research and analyze Solana tokens with comprehensive data and security insights',
+  title: 'DYOR Hub - Token Due Diligence Platform',
+  description:
+    'Comprehensive due diligence platform for token analysis with on-chain and off-chain data, featuring community discussions for each token',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
