@@ -73,7 +73,7 @@ export default function Home() {
                     />
                     <Button
                       type='submit'
-                      className='absolute right-0 top-0 h-12 bg-linear-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 px-6 text-base font-medium text-white rounded-r-lg'>
+                      className='absolute right-0 top-0 h-12 bg-linear-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 px-6 text-base font-medium text-white rounded-r-lg cursor-pointer'>
                       Analyze
                     </Button>
                   </div>
