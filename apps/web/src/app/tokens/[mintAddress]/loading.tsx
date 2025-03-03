@@ -4,19 +4,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Loading() {
   return (
     <div className='flex-1 flex flex-col'>
-      <div className='flex-1 p-4 sm:p-8 container mx-auto max-w-7xl'>
+      <div className='container mx-auto px-4 sm:px-6 lg:px-8 py-8'>
         {/* Token Header Card Loading */}
         <Card className='w-full mb-8 border-zinc-800 bg-zinc-950/70'>
           <CardContent className='p-6'>
             <div className='flex flex-col sm:flex-row items-start gap-6'>
               <Skeleton className='w-20 h-20 rounded-full' />
-              <div className='flex-1 space-y-4'>
+              <div className='flex-1 min-w-0 space-y-4'>
                 <div>
                   <div className='flex items-center gap-2 flex-wrap'>
                     <Skeleton className='w-48 h-8' />
                     <Skeleton className='w-16 h-6 rounded-md' />
                   </div>
-                  <Skeleton className='w-full h-16 mt-2' />
+                  <div className='mt-2 max-w-full overflow-hidden'>
+                    <Skeleton className='w-full h-16' />
+                  </div>
                 </div>
 
                 <div className='flex flex-wrap items-center gap-4'>

@@ -34,7 +34,7 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <div className='flex-1 flex flex-col'>
-      <div className='flex-1 p-4 sm:p-8 container mx-auto max-w-7xl'>
+      <div className='container mx-auto px-4 sm:px-6 lg:px-8 py-8'>
         {/* Token Header Card */}
         <Card className='w-full mb-8 border-zinc-800 bg-zinc-950/70'>
           <CardContent className='p-6'>
@@ -51,7 +51,7 @@ export default async function Page({ params }: PageProps) {
                   />
                 </div>
               )}
-              <div className='flex-1 space-y-4'>
+              <div className='flex-1 min-w-0 space-y-4'>
                 <div>
                   <div className='flex items-center gap-2 flex-wrap'>
                     <h1 className='text-2xl sm:text-3xl font-bold'>{token.name}</h1>
@@ -59,7 +59,18 @@ export default async function Page({ params }: PageProps) {
                       ${token.symbol}
                     </span>
                   </div>
-                  <p className='text-zinc-400 mt-2'>{token.description}</p>
+                  <div className='mt-2 max-w-full overflow-hidden'>
+                    <p
+                      className='text-zinc-400 text-sm sm:text-base break-all hyphens-auto overflow-wrap-anywhere'
+                      style={{
+                        wordBreak: 'break-word',
+                        overflowWrap: 'break-word',
+                        msWordBreak: 'break-all',
+                        wordWrap: 'break-word',
+                      }}>
+                      {token.description}
+                    </p>
+                  </div>
                 </div>
 
                 <div className='flex flex-wrap items-center gap-4'>

@@ -36,7 +36,7 @@ export default function Home() {
   };
 
   return (
-    <div className='flex flex-col min-h-screen'>
+    <div className='flex flex-col'>
       {/* Hero Section */}
       <section className='relative w-full py-20 md:py-32 overflow-hidden'>
         <div className='absolute inset-0 bg-linear-to-br from-blue-900/20 to-purple-900/20 z-0' />
@@ -55,25 +55,27 @@ export default function Home() {
             </div>
 
             <Card className='w-full max-w-2xl border-zinc-800 bg-zinc-950/70 backdrop-blur-xs shadow-xl'>
-              <CardContent className='pt-6'>
+              <CardContent className='pt-6 pb-6'>
                 <form onSubmit={handleSubmit} className='space-y-4'>
-                  <div className='relative'>
-                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-                      <Search className='h-5 w-5 text-zinc-500' />
+                  <div className='flex flex-col sm:flex-row gap-2 sm:gap-0'>
+                    <div className='relative flex-grow'>
+                      <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                        <Search className='h-5 w-5 text-zinc-500' />
+                      </div>
+                      <Input
+                        type='text'
+                        value={address}
+                        onChange={(e) => {
+                          setAddress(e.target.value);
+                          setError('');
+                        }}
+                        placeholder='Enter token contract address'
+                        className='h-12 pl-10 w-full border-zinc-800 bg-black/50 text-base placeholder:text-zinc-500 rounded-lg sm:rounded-r-none'
+                      />
                     </div>
-                    <Input
-                      type='text'
-                      value={address}
-                      onChange={(e) => {
-                        setAddress(e.target.value);
-                        setError('');
-                      }}
-                      placeholder='Enter token contract address'
-                      className='h-12 pl-10 border-zinc-800 bg-black/50 text-base placeholder:text-zinc-500 rounded-lg'
-                    />
                     <Button
                       type='submit'
-                      className='absolute right-0 top-0 h-12 bg-linear-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 px-6 text-base font-medium text-white rounded-r-lg cursor-pointer'>
+                      className='h-12 bg-linear-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 px-6 text-base font-medium text-white rounded-lg sm:rounded-l-none cursor-pointer'>
                       Analyze
                     </Button>
                   </div>
