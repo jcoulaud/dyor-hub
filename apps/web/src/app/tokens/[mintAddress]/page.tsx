@@ -74,16 +74,22 @@ export default async function Page({ params }: PageProps) {
                     </div>
 
                     <div className='max-w-full'>
-                      <p
-                        className='text-zinc-300 text-sm sm:text-base break-all hyphens-auto overflow-wrap-anywhere leading-relaxed'
-                        style={{
-                          wordBreak: 'break-word',
-                          overflowWrap: 'break-word',
-                          msWordBreak: 'break-all',
-                          wordWrap: 'break-word',
-                        }}>
-                        {token.description}
-                      </p>
+                      {token.description ? (
+                        <p
+                          className='text-zinc-300 text-sm sm:text-base break-all hyphens-auto overflow-wrap-anywhere leading-relaxed'
+                          style={{
+                            wordBreak: 'break-word',
+                            overflowWrap: 'break-word',
+                            msWordBreak: 'break-all',
+                            wordWrap: 'break-word',
+                          }}>
+                          {token.description}
+                        </p>
+                      ) : (
+                        <p className='text-zinc-500 text-sm italic'>
+                          No description available for this token.
+                        </p>
+                      )}
                     </div>
 
                     <div className='flex flex-wrap items-center gap-4 pt-2'>
