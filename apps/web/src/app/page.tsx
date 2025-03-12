@@ -1,9 +1,16 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { MessageSquare, Newspaper, Search, Users } from 'lucide-react';
+import {
+  MessageSquare,
+  Newspaper,
+  Search,
+  Shield,
+  Sparkles,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -36,27 +43,45 @@ export default function Home() {
   };
 
   return (
-    <div className='flex flex-col'>
+    <main className='flex-1 flex flex-col'>
       {/* Hero Section */}
-      <section className='relative w-full py-20 md:py-32 overflow-hidden'>
-        <div className='absolute inset-0 bg-linear-to-br from-blue-900/20 to-purple-900/20 z-0' />
-        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-10 z-0" />
+      <section className='relative w-full py-16 md:py-20 overflow-hidden'>
+        {/* Background elements */}
+        <div className='absolute inset-0 bg-gradient-to-br from-blue-950/30 to-purple-950/30 z-0' />
+        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
+
+        {/* Animated gradient orbs */}
+        <div className='absolute top-20 left-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-pulse' />
+        <div
+          className='absolute bottom-20 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse'
+          style={{ animationDelay: '1s' }}
+        />
 
         <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8'>
           <div className='flex flex-col items-center text-center max-w-3xl mx-auto space-y-8'>
-            <div className='space-y-4'>
-              <h1 className='text-4xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent bg-linear-to-r from-blue-400 to-purple-500'>
-                DYOR Hub
+            <div className='space-y-5'>
+              <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+                <Sparkles className='h-4 w-4 text-blue-400 mr-2' />
+                <span className='text-sm font-medium text-zinc-300'>
+                  Community-Driven Memecoin Platform
+                </span>
+              </div>
+
+              <h1 className='text-5xl md:text-7xl font-bold tracking-tight'>
+                <span className='bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500'>
+                  DYOR Hub
+                </span>
               </h1>
-              <p className='text-xl md:text-2xl text-zinc-300 max-w-2xl'>
-                A central place for reliable Solana memecoin discussions
+
+              <p className='text-xl md:text-2xl text-zinc-300 max-w-2xl mx-auto leading-relaxed'>
+                Your trusted platform for Solana memecoin discussions and research
               </p>
             </div>
 
-            <Card className='w-full max-w-2xl border-zinc-800 bg-zinc-950/70 backdrop-blur-xs shadow-xl'>
+            <Card className='w-full max-w-2xl border border-white/5 bg-black/40 backdrop-blur-md shadow-xl'>
               <CardContent className='pt-6 pb-6'>
                 <form onSubmit={handleSubmit} className='space-y-4'>
-                  <div className='flex flex-col sm:flex-row gap-2 sm:gap-0'>
+                  <div className='flex flex-col sm:flex-row gap-3'>
                     <div className='relative flex-grow'>
                       <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
                         <Search className='h-5 w-5 text-zinc-500' />
@@ -69,14 +94,14 @@ export default function Home() {
                           setError('');
                         }}
                         placeholder='Enter token contract address'
-                        className='h-12 pl-10 w-full border-zinc-800 bg-black/50 text-base placeholder:text-zinc-500 rounded-lg sm:rounded-r-none'
+                        className='h-12 pl-10 w-full border-zinc-800/50 bg-zinc-900/30 text-base placeholder:text-zinc-500 rounded-lg'
                       />
                     </div>
-                    <Button
+                    <button
                       type='submit'
-                      className='h-12 bg-linear-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 px-6 text-base font-medium text-white rounded-lg sm:rounded-l-none cursor-pointer'>
+                      className='h-12 bg-gradient-to-r from-blue-500 to-purple-500 hover:brightness-110 px-6 text-base font-medium text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl shadow-blue-500/20 hover:shadow-blue-500/30 cursor-pointer'>
                       Find Token
-                    </Button>
+                    </button>
                   </div>
                   {error && (
                     <p className='text-sm font-medium text-red-500' role='alert'>
@@ -86,68 +111,104 @@ export default function Home() {
                 </form>
               </CardContent>
             </Card>
+
+            <div className='flex flex-col sm:flex-row items-center justify-center sm:space-x-4 space-y-3 sm:space-y-0 text-sm text-zinc-500'>
+              <div className='flex items-center'>
+                <Shield className='h-4 w-4 mr-1 text-green-500' />
+                <span>Real Twitter Users Discussions</span>
+              </div>
+              <div className='h-1 w-1 rounded-full bg-zinc-700 hidden sm:block' />
+              <div className='flex items-center'>
+                <TrendingUp className='h-4 w-4 mr-1 text-blue-500' />
+                <span>Real-time News</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className='py-16 bg-black'>
-        <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
-          <div className='text-center mb-12'>
-            <h2 className='text-3xl font-bold text-white'>Features</h2>
-            <p className='mt-4 text-zinc-400 max-w-2xl mx-auto'>
-              Get reliable information and avoid scams through community verification
-            </p>
-          </div>
+      <section className='py-12 bg-gradient-to-b from-black to-zinc-950 relative overflow-hidden flex-grow'>
+        {/* Background elements */}
+        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
+        <div className='absolute -top-40 -right-40 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl' />
+        <div className='absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
 
-          <div className='grid grid-cols-1 md:grid-cols-3 gap-8'>
+        <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8'>
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10'>
             {/* Feature 1 */}
-            <Card className='bg-zinc-900/50 border-zinc-800 hover:border-blue-500/50 transition-all duration-300'>
-              <CardHeader className='pb-2'>
-                <div className='h-12 w-12 rounded-lg bg-blue-500/20 flex items-center justify-center mb-4'>
-                  <Users className='h-6 w-6 text-blue-400' />
-                </div>
-                <CardTitle className='text-xl font-semibold text-white'>Discuss</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className='text-zinc-400'>
-                  Join conversations about memecoins with Twitter-verified users
-                </CardDescription>
-              </CardContent>
-            </Card>
+            <div className='relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-4 relative'>
+                  <div className='flex items-center mb-4'>
+                    <div className='h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
+                      <Users className='h-6 w-6 text-blue-400' />
+                    </div>
+                    <CardTitle className='text-xl font-semibold text-white'>Discuss</CardTitle>
+                  </div>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
+                </CardHeader>
+                <CardContent className='relative pt-4'>
+                  <CardDescription className='text-zinc-300 text-base'>
+                    Join conversations about memecoins with Twitter-verified users and build a
+                    trusted network of reliable sources.
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Feature 2 */}
-            <Card className='bg-zinc-900/50 border-zinc-800 hover:border-purple-500/50 transition-all duration-300'>
-              <CardHeader className='pb-2'>
-                <div className='h-12 w-12 rounded-lg bg-purple-500/20 flex items-center justify-center mb-4'>
-                  <Newspaper className='h-6 w-6 text-purple-400' />
-                </div>
-                <CardTitle className='text-xl font-semibold text-white'>Get Updates</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className='text-zinc-400'>
-                  Find memecoin news and updates from verified sources
-                </CardDescription>
-              </CardContent>
-            </Card>
+            <div className='relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-purple-600/5 to-purple-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-4 relative'>
+                  <div className='flex items-center mb-4'>
+                    <div className='h-12 w-12 rounded-xl bg-purple-500/10 flex items-center justify-center mr-4 group-hover:bg-purple-500/20 transition-colors duration-300'>
+                      <Newspaper className='h-6 w-6 text-purple-400' />
+                    </div>
+                    <CardTitle className='text-xl font-semibold text-white'>Get Updates</CardTitle>
+                  </div>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent'></div>
+                </CardHeader>
+                <CardContent className='relative pt-4'>
+                  <CardDescription className='text-zinc-300 text-base'>
+                    Find memecoin news and updates from verified sources with real-time
+                    notifications and alerts about important developments.
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Feature 3 */}
-            <Card className='bg-zinc-900/50 border-zinc-800 hover:border-green-500/50 transition-all duration-300'>
-              <CardHeader className='pb-2'>
-                <div className='h-12 w-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-4'>
-                  <MessageSquare className='h-6 w-6 text-green-400' />
-                </div>
-                <CardTitle className='text-xl font-semibold text-white'>Share Knowledge</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className='text-zinc-400'>
-                  Help others avoid scams by sharing your memecoin research
-                </CardDescription>
-              </CardContent>
-            </Card>
+            <div className='relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-green-600/5 to-green-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-4 relative'>
+                  <div className='flex items-center mb-4'>
+                    <div className='h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center mr-4 group-hover:bg-green-500/20 transition-colors duration-300'>
+                      <MessageSquare className='h-6 w-6 text-green-400' />
+                    </div>
+                    <CardTitle className='text-xl font-semibold text-white'>
+                      Share Knowledge
+                    </CardTitle>
+                  </div>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-green-500/20 to-transparent'></div>
+                </CardHeader>
+                <CardContent className='relative pt-4'>
+                  <CardDescription className='text-zinc-300 text-base'>
+                    Help others avoid scams by sharing your memecoin research and due diligence with
+                    the community of verified users.
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </section>
-    </div>
+    </main>
   );
 }

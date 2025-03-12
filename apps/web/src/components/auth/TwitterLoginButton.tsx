@@ -1,6 +1,5 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/api';
 import { Twitter } from 'lucide-react';
@@ -63,7 +62,8 @@ export const TwitterLoginButton = () => {
       window.location.replace(loginUrl);
 
       // Note: We don't need to reset isLoading since we're navigating away
-    } catch (error) {
+    } catch (err) {
+      console.error('Twitter login error:', err);
       toast({
         title: 'Error',
         description: 'Failed to start authentication process. Please try again.',
@@ -78,13 +78,14 @@ export const TwitterLoginButton = () => {
       <Suspense fallback={null}>
         <AuthParamsHandler />
       </Suspense>
-      <Button
+      <button
         onClick={handleLogin}
-        variant='outline'
         disabled={isLoading}
-        aria-label='Sign in with Twitter'>
+        className='h-10 bg-gradient-to-r from-blue-600/90 to-purple-600/90 text-white rounded-lg px-5 py-2 flex items-center justify-center gap-2.5 transition-shadow duration-200 shadow-lg hover:shadow-blue-500/30 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed'
+        aria-label='Sign in with Twitter'
+        type='button'>
         {isLoading ? (
-          <span className='flex items-center gap-2'>
+          <span className='flex items-center gap-2.5'>
             <svg className='animate-spin h-4 w-4' viewBox='0 0 24 24'>
               <circle
                 className='opacity-25'
@@ -101,15 +102,15 @@ export const TwitterLoginButton = () => {
                 d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
               />
             </svg>
-            Signing in...
+            <span>Signing in...</span>
           </span>
         ) : (
-          <span className='flex items-center gap-2'>
+          <span className='flex items-center gap-2.5'>
             <Twitter className='h-4 w-4' />
-            Sign in
+            <span>Sign in</span>
           </span>
         )}
-      </Button>
+      </button>
     </>
   );
 };

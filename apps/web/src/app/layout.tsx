@@ -1,3 +1,4 @@
+import { Footer } from '@/components/Footer';
 import { Header } from '@/components/layout/Header';
 import { Toaster } from '@/components/ui/toast';
 import { AuthProvider } from '@/providers/auth-provider';
@@ -20,14 +21,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang='en' suppressHydrationWarning className={poppins.variable}>
-      <body className='min-h-screen bg-black font-sans antialiased'>
+    <html lang='en' suppressHydrationWarning className={`${poppins.variable}`}>
+      <body className='bg-black font-sans antialiased'>
         <ThemeProvider>
           <AuthProvider>
             <Toaster>
-              <div className='flex flex-col'>
+              <div className='flex flex-col min-h-screen'>
                 <Header />
-                <main className='flex-1 flex flex-col'>{children}</main>
+                {children}
+                <Footer />
               </div>
             </Toaster>
           </AuthProvider>
