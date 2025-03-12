@@ -135,14 +135,24 @@ export function TokenStats({ stats }: TokenStatsProps) {
           </h3>
           <div className='space-y-2'>
             {stats.topHolders.map((holder: TokenHolder, index: number) => (
-              <div key={index} className='flex justify-between items-center'>
+              <div key={index} className='flex items-center justify-between'>
                 <SolscanButton
                   address={holder.address}
                   type='account'
                   className='text-xs font-mono text-blue-400 hover:text-blue-300 transition-colors cursor-pointer'>
                   {truncateAddress(holder.address)}
                 </SolscanButton>
-                <span className='text-xs font-medium'>{formatPercentage(holder.percentage)}%</span>
+                <div className='flex items-center'>
+                  <span className='text-xs font-medium whitespace-nowrap mr-2'>
+                    {formatPercentage(holder.percentage)}%
+                  </span>
+                  <div className='w-[69px] bg-zinc-800 rounded-full h-1.5 overflow-hidden'>
+                    <div
+                      className='bg-blue-500 h-1.5 rounded-full'
+                      style={{ width: `${Math.min(holder.percentage, 100)}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             ))}
           </div>
