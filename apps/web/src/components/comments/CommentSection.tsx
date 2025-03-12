@@ -55,12 +55,12 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
       const commentMap = new Map<string, CommentType>();
       const rootComments: CommentType[] = [];
 
-      // Build comment map for O(1) lookups
+      // Create lookup map
       comments.forEach((comment) => {
         commentMap.set(comment.id, { ...comment, replies: [] });
       });
 
-      // Build comment tree hierarchy
+      // Organize into tree structure
       comments.forEach((comment) => {
         const processedComment = commentMap.get(comment.id)!;
         if (comment.parentId) {
@@ -73,7 +73,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
         }
       });
 
-      // Apply sorting based on selected option
+      // Sort function based on selected option
       const sortFn = {
         best: (a: CommentType, b: CommentType) => b.voteCount - a.voteCount,
         new: (a: CommentType, b: CommentType) =>
@@ -87,7 +87,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
       // Sort root comments
       rootComments.sort(sortFn);
 
-      // Recursively sort all nested replies
+      // Sort replies recursively
       const sortReplies = (comments: CommentType[]) => {
         comments.sort(sortFn);
         comments.forEach((comment) => {
@@ -97,7 +97,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
         });
       };
 
-      // Apply sorting to all reply chains
+      // Apply sorting to replies
       rootComments.forEach((comment) => {
         if (comment.replies?.length) {
           sortReplies(comment.replies);
@@ -197,7 +197,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
           parentId,
         };
 
-        const newComment = await comments.create(createCommentDto);
+        await comments.create(createCommentDto);
         setNewComment('');
         setReplyingTo(null);
 
@@ -220,9 +220,10 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
           description: 'Comment posted successfully',
         });
       } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to post comment';
         toast({
           title: 'Error',
-          description: err instanceof Error ? err.message : 'Failed to post comment',
+          description: errorMessage,
           variant: 'destructive',
         });
       }
@@ -261,9 +262,13 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
           description: 'The comment has been removed successfully.',
         });
       } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : 'Failed to remove the comment. Please try again.';
         toast({
           title: 'Error',
-          description: 'Failed to remove the comment. Please try again.',
+          description: errorMessage,
           variant: 'destructive',
         });
       }

@@ -35,7 +35,6 @@ interface DexScreenerResponse {
 export class TokensService {
   private readonly logger = new Logger(TokensService.name);
   private readonly HELIUS_RPC_URL: string;
-  // Cache for API data with 1-minute TTL
   private readonly assetDataCache: Map<string, any> = new Map();
   private readonly dexScreenerCache: Map<string, any> = new Map();
   private readonly topHoldersCache: Map<string, any> = new Map();
@@ -54,7 +53,7 @@ export class TokensService {
   }
 
   /**
-   * Fetches DexScreener data with caching to reduce API calls
+   * Fetches DexScreener data with caching
    */
   private async fetchDexScreenerData(mintAddress: string) {
     const cacheKey = `dex_${mintAddress}`;
@@ -69,7 +68,6 @@ export class TokensService {
       return cachedData;
     }
 
-    // Deduplicate in-flight requests
     if (this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey);
     }
@@ -112,7 +110,6 @@ export class TokensService {
           volume24h: pair.volume?.h24,
         };
 
-        // Store in cache
         this.dexScreenerCache.set(cacheKey, result);
         this.cacheTimestamps.set(cacheKey, Date.now());
 
@@ -264,11 +261,9 @@ export class TokensService {
 
   /**
    * Fetches asset data from Helius with request deduplication and caching
-   * to minimize API calls during page loads
    */
   private async fetchAssetData(mintAddress: string) {
     const cacheKey = `asset_${mintAddress}`;
-    // Return cached data if valid
     const cachedData = this.assetDataCache.get(cacheKey);
     const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
 
@@ -280,12 +275,10 @@ export class TokensService {
       return cachedData;
     }
 
-    // Deduplicate in-flight requests
     if (this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey);
     }
 
-    // Make the actual API call
     const requestPromise = (async () => {
       try {
         const response = await fetch(this.HELIUS_RPC_URL, {
@@ -311,7 +304,6 @@ export class TokensService {
         const data = await response.json();
         const result = data.result;
 
-        // Store in cache
         this.assetDataCache.set(cacheKey, result);
         this.cacheTimestamps.set(cacheKey, Date.now());
 
@@ -477,11 +469,9 @@ export class TokensService {
 
     const requestPromise = (async () => {
       try {
-        // First, get the token data to access the correct total supply
         const assetData = await this.fetchAssetData(mintAddress);
         const tokenData = this.extractTokenData(assetData);
 
-        // Get the total supply and decimals from token data
         const totalSupply = Number(tokenData.supply || 0);
         const decimals = tokenData.decimals || 0;
 
@@ -492,7 +482,6 @@ export class TokensService {
           return [];
         }
 
-        // Use getTokenLargestAccounts endpoint to get the largest token accounts
         const response = await fetch(this.HELIUS_RPC_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -515,7 +504,6 @@ export class TokensService {
           return [];
         }
 
-        // Map to TokenHolder format with accurate percentages
         const result = accounts.slice(0, 10).map((account) => {
           const rawAmount = Number(account.amount || 0);
           const percentage = (rawAmount / totalSupply) * 100;
@@ -527,7 +515,6 @@ export class TokensService {
           };
         });
 
-        // Store in cache
         this.topHoldersCache.set(cacheKey, result);
         this.cacheTimestamps.set(cacheKey, Date.now());
 
@@ -576,7 +563,6 @@ export class TokensService {
 
         const ipfsMetadata = await ipfsResponse.json();
 
-        // Create enhanced metadata
         const enhancedMetadata: any = {
           name: ipfsMetadata.name,
           symbol: ipfsMetadata.symbol,
@@ -588,7 +574,6 @@ export class TokensService {
           twitterHandle: null,
         };
 
-        // Handle different Twitter URL formats
         if (ipfsMetadata.twitter) {
           enhancedMetadata.twitterHandle = ipfsMetadata.twitter
             .replace('https://x.com/', '')
@@ -596,7 +581,6 @@ export class TokensService {
             .replace('@', '');
         }
 
-        // Store in cache
         this.ipfsCache.set(cacheKey, enhancedMetadata);
         this.cacheTimestamps.set(cacheKey, Date.now());
 

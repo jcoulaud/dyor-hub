@@ -9,8 +9,8 @@ const isApiSubdomain = (() => {
   try {
     const url = new URL(API_BASE_URL);
     return url.hostname.startsWith('api.');
-  } catch (error) {
-    console.error('Error parsing API_BASE_URL:', error);
+  } catch {
+    // Silent fail in production, default to path-based routing
     return false;
   }
 })();
@@ -119,7 +119,6 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
 
     // Connection issues
     if (error instanceof Error) {
-      console.error('API request failed:', error);
       throw new ApiError(0, `Network error: ${error.message}`);
     }
 
