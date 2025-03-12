@@ -35,6 +35,14 @@ interface DexScreenerResponse {
 export class TokensService {
   private readonly logger = new Logger(TokensService.name);
   private readonly HELIUS_RPC_URL: string;
+  // Cache for API data with 1-minute TTL
+  private readonly assetDataCache: Map<string, any> = new Map();
+  private readonly dexScreenerCache: Map<string, any> = new Map();
+  private readonly topHoldersCache: Map<string, any> = new Map();
+  private readonly ipfsCache: Map<string, any> = new Map();
+  private readonly pendingRequests: Map<string, Promise<any>> = new Map();
+  private readonly CACHE_TTL = 60 * 1000;
+  private readonly cacheTimestamps: Map<string, number> = new Map();
 
   constructor(
     @InjectRepository(TokenEntity)
@@ -45,50 +53,83 @@ export class TokensService {
     this.HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`;
   }
 
+  /**
+   * Fetches DexScreener data with caching to reduce API calls
+   */
   private async fetchDexScreenerData(mintAddress: string) {
-    try {
-      const response = await fetch(
-        `https://api.dexscreener.com/latest/dex/tokens/${mintAddress}`,
-      );
+    const cacheKey = `dex_${mintAddress}`;
+    const cachedData = this.dexScreenerCache.get(cacheKey);
+    const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
 
-      if (!response.ok) {
-        throw new Error(`DexScreener API error: ${response.statusText}`);
-      }
-
-      const data: DexScreenerResponse = await response.json();
-      const pair = data.pairs?.[0];
-
-      if (!pair) {
-        return null;
-      }
-
-      const websiteUrl = pair.info?.websites?.find(
-        (w) => w.label === 'Website',
-      )?.url;
-
-      const telegramUrl = pair.info?.socials?.find(
-        (s) => s.type === 'telegram',
-      )?.url;
-
-      const twitterUrl = pair.info?.socials?.find(
-        (s) => s.type === 'twitter',
-      )?.url;
-
-      return {
-        websiteUrl,
-        telegramUrl,
-        twitterHandle: twitterUrl?.replace('https://twitter.com/', ''),
-        price: pair.priceUsd,
-        marketCap: pair.fdv,
-        volume24h: pair.volume?.h24,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Error fetching DexScreener data for ${mintAddress}:`,
-        error,
-      );
-      return null;
+    if (
+      cachedData &&
+      cachedTimestamp &&
+      Date.now() - cachedTimestamp < this.CACHE_TTL
+    ) {
+      return cachedData;
     }
+
+    // Deduplicate in-flight requests
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
+    }
+
+    const requestPromise = (async () => {
+      try {
+        const response = await fetch(
+          `https://api.dexscreener.com/latest/dex/tokens/${mintAddress}`,
+        );
+
+        if (!response.ok) {
+          throw new Error(`DexScreener API error: ${response.statusText}`);
+        }
+
+        const data: DexScreenerResponse = await response.json();
+        const pair = data.pairs?.[0];
+
+        if (!pair) {
+          return null;
+        }
+
+        const websiteUrl = pair.info?.websites?.find(
+          (w) => w.label === 'Website',
+        )?.url;
+
+        const telegramUrl = pair.info?.socials?.find(
+          (s) => s.type === 'telegram',
+        )?.url;
+
+        const twitterUrl = pair.info?.socials?.find(
+          (s) => s.type === 'twitter',
+        )?.url;
+
+        const result = {
+          websiteUrl,
+          telegramUrl,
+          twitterHandle: twitterUrl?.replace('https://twitter.com/', ''),
+          price: pair.priceUsd,
+          marketCap: pair.fdv,
+          volume24h: pair.volume?.h24,
+        };
+
+        // Store in cache
+        this.dexScreenerCache.set(cacheKey, result);
+        this.cacheTimestamps.set(cacheKey, Date.now());
+
+        return result;
+      } catch (error) {
+        this.logger.error(
+          `Error fetching DexScreener data for ${mintAddress}:`,
+          error,
+        );
+        return null;
+      } finally {
+        this.pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
   }
 
   async refreshTokenMetadata(mintAddress: string): Promise<TokenEntity> {
@@ -221,35 +262,85 @@ export class TokensService {
     }
   }
 
-  // Shared method to fetch asset data from Helius
+  /**
+   * Fetches asset data from Helius with request deduplication and caching
+   * to minimize API calls during page loads
+   */
   private async fetchAssetData(mintAddress: string) {
-    try {
-      const response = await fetch(this.HELIUS_RPC_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'asset-data',
-          method: 'getAsset',
-          params: {
-            id: mintAddress,
-            displayOptions: {
-              showFungible: true,
-            },
-          },
-        }),
-      });
+    const cacheKey = `asset_${mintAddress}`;
+    // Return cached data if valid
+    const cachedData = this.assetDataCache.get(cacheKey);
+    const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
 
-      if (!response.ok) {
-        throw new Error(`Helius API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.result;
-    } catch (error) {
-      this.logger.error(`Error fetching asset data for ${mintAddress}:`, error);
-      return null;
+    if (
+      cachedData &&
+      cachedTimestamp &&
+      Date.now() - cachedTimestamp < this.CACHE_TTL
+    ) {
+      return cachedData;
     }
+
+    // Deduplicate in-flight requests
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
+    }
+
+    // Make the actual API call
+    const requestPromise = (async () => {
+      try {
+        const response = await fetch(this.HELIUS_RPC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'asset-data',
+            method: 'getAsset',
+            params: {
+              id: mintAddress,
+              displayOptions: {
+                showFungible: true,
+              },
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Helius API error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const result = data.result;
+
+        // Store in cache
+        this.assetDataCache.set(cacheKey, result);
+        this.cacheTimestamps.set(cacheKey, Date.now());
+
+        return result;
+      } catch (error) {
+        this.logger.error(
+          `Error fetching asset data for ${mintAddress}:`,
+          error,
+        );
+        return null;
+      } finally {
+        this.pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
+  }
+
+  /**
+   * Clears all API data caches
+   */
+  public clearCaches() {
+    this.assetDataCache.clear();
+    this.dexScreenerCache.clear();
+    this.topHoldersCache.clear();
+    this.ipfsCache.clear();
+    this.cacheTimestamps.clear();
+    this.pendingRequests.clear();
   }
 
   // Process token metadata from asset data
@@ -364,100 +455,164 @@ export class TokensService {
     }
   }
 
+  /**
+   * Fetches top token holders with caching
+   */
   private async fetchTopHolders(mintAddress: string): Promise<TokenHolder[]> {
-    try {
-      // First, get the token data to access the correct total supply
-      const assetData = await this.fetchAssetData(mintAddress);
-      const tokenData = this.extractTokenData(assetData);
+    const cacheKey = `holders_${mintAddress}`;
+    const cachedData = this.topHoldersCache.get(cacheKey);
+    const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
 
-      // Get the total supply and decimals from token data
-      const totalSupply = Number(tokenData.supply || 0);
-      const decimals = tokenData.decimals || 0;
+    if (
+      cachedData &&
+      cachedTimestamp &&
+      Date.now() - cachedTimestamp < this.CACHE_TTL
+    ) {
+      return cachedData;
+    }
 
-      if (totalSupply <= 0) {
-        this.logger.warn(
-          `Invalid total supply for token ${mintAddress}: ${totalSupply}`,
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
+    }
+
+    const requestPromise = (async () => {
+      try {
+        // First, get the token data to access the correct total supply
+        const assetData = await this.fetchAssetData(mintAddress);
+        const tokenData = this.extractTokenData(assetData);
+
+        // Get the total supply and decimals from token data
+        const totalSupply = Number(tokenData.supply || 0);
+        const decimals = tokenData.decimals || 0;
+
+        if (totalSupply <= 0) {
+          this.logger.warn(
+            `Invalid total supply for token ${mintAddress}: ${totalSupply}`,
+          );
+          return [];
+        }
+
+        // Use getTokenLargestAccounts endpoint to get the largest token accounts
+        const response = await fetch(this.HELIUS_RPC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'token-largest-accounts',
+            method: 'getTokenLargestAccounts',
+            params: [mintAddress],
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Helius API error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const accounts = data.result?.value || [];
+
+        if (accounts.length === 0) {
+          return [];
+        }
+
+        // Map to TokenHolder format with accurate percentages
+        const result = accounts.slice(0, 10).map((account) => {
+          const rawAmount = Number(account.amount || 0);
+          const percentage = (rawAmount / totalSupply) * 100;
+
+          return {
+            address: account.address,
+            amount: rawAmount,
+            percentage,
+          };
+        });
+
+        // Store in cache
+        this.topHoldersCache.set(cacheKey, result);
+        this.cacheTimestamps.set(cacheKey, Date.now());
+
+        return result;
+      } catch (error) {
+        this.logger.error(
+          `Error fetching top holders for ${mintAddress}:`,
+          error,
         );
         return [];
+      } finally {
+        this.pendingRequests.delete(cacheKey);
       }
+    })();
 
-      // Use getTokenLargestAccounts endpoint to get the largest token accounts
-      const response = await fetch(this.HELIUS_RPC_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'token-largest-accounts',
-          method: 'getTokenLargestAccounts',
-          params: [mintAddress],
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Helius API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const accounts = data.result?.value || [];
-
-      if (accounts.length === 0) {
-        return [];
-      }
-
-      // Map to TokenHolder format with accurate percentages based on the actual total supply
-      return accounts.slice(0, 10).map((account) => {
-        const rawAmount = Number(account.amount || 0);
-        // Calculate percentage based on the actual total supply
-        const percentage = (rawAmount / totalSupply) * 100;
-
-        return {
-          address: account.address,
-          amount: rawAmount,
-          percentage,
-        };
-      });
-    } catch (error) {
-      this.logger.error(
-        `Error fetching top holders for ${mintAddress}:`,
-        error,
-      );
-      return [];
-    }
+    this.pendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
   }
 
-  // Fetch IPFS metadata
+  /**
+   * Fetches IPFS metadata with caching
+   */
   private async fetchIpfsMetadata(jsonUri: string, assetData: any) {
-    try {
-      const ipfsResponse = await fetch(jsonUri);
-      if (!ipfsResponse.ok) {
-        return null;
-      }
+    const cacheKey = `ipfs_${jsonUri}`;
+    const cachedData = this.ipfsCache.get(cacheKey);
+    const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
 
-      const ipfsMetadata = await ipfsResponse.json();
-
-      // Create enhanced metadata
-      const enhancedMetadata: any = {
-        name: ipfsMetadata.name,
-        symbol: ipfsMetadata.symbol,
-        description: ipfsMetadata.description || null,
-        imageUrl: ipfsMetadata.image || assetData.content?.links?.image || null,
-        websiteUrl: ipfsMetadata.website || ipfsMetadata.external_url || null,
-        telegramUrl: ipfsMetadata.telegram || null,
-        twitterHandle: null,
-      };
-
-      // Handle different Twitter URL formats
-      if (ipfsMetadata.twitter) {
-        enhancedMetadata.twitterHandle = ipfsMetadata.twitter
-          .replace('https://x.com/', '')
-          .replace('https://twitter.com/', '')
-          .replace('@', '');
-      }
-
-      return enhancedMetadata;
-    } catch (error) {
-      this.logger.error(`Error fetching IPFS metadata from ${jsonUri}:`, error);
-      return null;
+    if (
+      cachedData &&
+      cachedTimestamp &&
+      Date.now() - cachedTimestamp < this.CACHE_TTL
+    ) {
+      return cachedData;
     }
+
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
+    }
+
+    const requestPromise = (async () => {
+      try {
+        const ipfsResponse = await fetch(jsonUri);
+        if (!ipfsResponse.ok) {
+          return null;
+        }
+
+        const ipfsMetadata = await ipfsResponse.json();
+
+        // Create enhanced metadata
+        const enhancedMetadata: any = {
+          name: ipfsMetadata.name,
+          symbol: ipfsMetadata.symbol,
+          description: ipfsMetadata.description || null,
+          imageUrl:
+            ipfsMetadata.image || assetData.content?.links?.image || null,
+          websiteUrl: ipfsMetadata.website || ipfsMetadata.external_url || null,
+          telegramUrl: ipfsMetadata.telegram || null,
+          twitterHandle: null,
+        };
+
+        // Handle different Twitter URL formats
+        if (ipfsMetadata.twitter) {
+          enhancedMetadata.twitterHandle = ipfsMetadata.twitter
+            .replace('https://x.com/', '')
+            .replace('https://twitter.com/', '')
+            .replace('@', '');
+        }
+
+        // Store in cache
+        this.ipfsCache.set(cacheKey, enhancedMetadata);
+        this.cacheTimestamps.set(cacheKey, Date.now());
+
+        return enhancedMetadata;
+      } catch (error) {
+        this.logger.error(
+          `Error fetching IPFS metadata from ${jsonUri}:`,
+          error,
+        );
+        return null;
+      } finally {
+        this.pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
   }
 }
