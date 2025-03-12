@@ -55,12 +55,12 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
       const commentMap = new Map<string, CommentType>();
       const rootComments: CommentType[] = [];
 
-      // First pass: Create a map of all comments
+      // Build comment map for O(1) lookups
       comments.forEach((comment) => {
         commentMap.set(comment.id, { ...comment, replies: [] });
       });
 
-      // Second pass: Organize into tree structure
+      // Build comment tree hierarchy
       comments.forEach((comment) => {
         const processedComment = commentMap.get(comment.id)!;
         if (comment.parentId) {
@@ -73,7 +73,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
         }
       });
 
-      // Sort comments based on selected option
+      // Apply sorting based on selected option
       const sortFn = {
         best: (a: CommentType, b: CommentType) => b.voteCount - a.voteCount,
         new: (a: CommentType, b: CommentType) =>
@@ -87,7 +87,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
       // Sort root comments
       rootComments.sort(sortFn);
 
-      // Sort replies recursively using the same sorting function
+      // Recursively sort all nested replies
       const sortReplies = (comments: CommentType[]) => {
         comments.sort(sortFn);
         comments.forEach((comment) => {
@@ -97,7 +97,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
         });
       };
 
-      // Sort all replies
+      // Apply sorting to all reply chains
       rootComments.forEach((comment) => {
         if (comment.replies?.length) {
           sortReplies(comment.replies);

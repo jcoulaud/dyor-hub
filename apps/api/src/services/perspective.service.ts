@@ -41,7 +41,7 @@ export class PerspectiveService {
     isToxic: boolean;
     scores: { spam: number; toxicity: number };
   }> {
-    // Allow very short comments or comments containing URLs without spam check
+    // Skip spam check for short comments or URLs
     if (text.trim().length <= 3 || this.urlRegex.test(text)) {
       if (!this.apiKey) {
         return {
@@ -51,7 +51,7 @@ export class PerspectiveService {
         };
       }
 
-      // Only check for toxicity on short comments or URLs
+      // For short comments, only check toxicity
       try {
         const clientUrl = this.configService.get('CLIENT_URL');
 
@@ -80,7 +80,7 @@ export class PerspectiveService {
         const toxicityScore = data.attributeScores.TOXICITY.summaryScore.value;
 
         return {
-          isSpam: false, // Short comments are never spam
+          isSpam: false, // URLs/short texts exempt from spam check
           isToxic: toxicityScore > this.threshold.toxicity,
           scores: {
             spam: 0,
@@ -161,7 +161,7 @@ export class PerspectiveService {
       };
     } catch (error) {
       this.logger.error('Error analyzing text with Perspective API', error);
-      // Fail open - if the API fails, we'll let the comment through
+      // Graceful degradation - allow content if API fails
       return {
         isSpam: false,
         isToxic: false,

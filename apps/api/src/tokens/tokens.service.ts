@@ -134,7 +134,7 @@ export class TokensService {
           this.fetchDexScreenerData(mintAddress),
         ]);
 
-        // Create base token data from metadata
+        // Initialize token with metadata
         const baseTokenData = {
           mintAddress,
           name: metadata?.name,
@@ -144,10 +144,10 @@ export class TokensService {
           websiteUrl: metadata?.websiteUrl,
           telegramUrl: metadata?.telegramUrl,
           twitterHandle: metadata?.twitterHandle,
-          viewsCount: 1, // Initialize with 1 view
+          viewsCount: 1, // First view
         };
 
-        // If we have dexData, use its values when metadata values are undefined
+        // Merge with DEX data when primary source is missing info
         if (dexData) {
           baseTokenData.websiteUrl =
             baseTokenData.websiteUrl || dexData.websiteUrl;
@@ -158,7 +158,7 @@ export class TokensService {
             dexData.twitterHandle?.replace('https://x.com/', '');
         }
 
-        // Only throw not found if we have no meaningful data at all
+        // Validate token exists
         if (!metadata?.name && !metadata?.symbol) {
           throw new NotFoundException(
             `Token with address ${mintAddress} not found`,
@@ -174,7 +174,7 @@ export class TokensService {
           },
         });
       } else {
-        // Increment view count for existing token
+        // Track view count
         token.viewsCount = (token.viewsCount || 0) + 1;
         await this.tokenRepository.save(token);
       }

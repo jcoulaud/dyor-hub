@@ -38,7 +38,7 @@ export class CommentsService {
       });
 
     if (currentUserId) {
-      // Join with votes table to get current user's vote
+      // Include user's vote data in query
       query
         .leftJoin('comment.votes', 'vote', 'vote.user_id = :currentUserId', {
           currentUserId,
@@ -50,7 +50,7 @@ export class CommentsService {
       .orderBy('comment.created_at', 'DESC')
       .getMany();
 
-    // Get all votes for the current user
+    // Fetch user votes in bulk for performance
     let userVotes = [];
     if (currentUserId) {
       userVotes = await this.voteRepository.find({
@@ -96,7 +96,7 @@ export class CommentsService {
       throw new UnauthorizedException('Invalid user data');
     }
 
-    // Check content for spam and toxicity
+    // Validate content with content moderation API
     const contentAnalysis = await this.perspectiveService.analyzeText(
       createCommentDto.content,
     );
@@ -122,7 +122,7 @@ export class CommentsService {
 
     const savedComment = await this.commentRepository.save(comment);
 
-    // Load the comment with user data
+    // Return with user relationship populated
     return this.commentRepository.findOne({
       where: { id: savedComment.id },
       relations: {

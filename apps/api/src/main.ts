@@ -23,12 +23,12 @@ async function bootstrap() {
   const clientUrl = configService.get('CLIENT_URL') || 'http://localhost:3000';
   const isDevelopment = configService.get('NODE_ENV') !== 'production';
 
-  // Parse allowed origins from environment variables
+  // Load origins from env vars
   const allowedOriginsStr = configService.get('ALLOWED_ORIGINS') || '';
   const additionalOriginsStr =
     configService.get('ADDITIONAL_ALLOWED_ORIGINS') || '';
 
-  // Combine all origins
+  // Merge origin lists
   let originsArray = [];
   if (allowedOriginsStr) {
     originsArray = originsArray.concat(allowedOriginsStr.split(','));
@@ -37,7 +37,7 @@ async function bootstrap() {
     originsArray = originsArray.concat(additionalOriginsStr.split(','));
   }
 
-  // Add development origins if in development mode
+  // Add dev environment defaults
   if (isDevelopment) {
     originsArray.push(
       clientUrl,
@@ -46,48 +46,48 @@ async function bootstrap() {
     );
   }
 
-  // Remove any empty strings
+  // Clean up origin list
   const finalOrigins = originsArray.filter((origin) => origin.trim() !== '');
 
-  // Configure cookie parser with session secret
+  // Set up cookie parsing
   const sessionSecret = configService.get('SESSION_SECRET');
   if (!sessionSecret) {
     console.error(
       'SESSION_SECRET environment variable is required but not set',
     );
-    process.exit(1); // Exit with error code
+    process.exit(1);
   }
   app.use(cookieParser(sessionSecret));
 
-  // Set global prefix for all routes
+  // Configure API routing
   const useApiSubdomain =
     !isDevelopment && configService.get('USE_API_SUBDOMAIN') === 'true';
   if (!useApiSubdomain) {
     app.setGlobalPrefix('api');
   }
 
-  // Configure CORS with proper cookie handling
+  // Set up CORS
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, etc)
+      // Allow null origins (mobile apps, curl)
       if (!origin) {
         callback(null, true);
         return;
       }
 
-      // Check if the origin is in our allowed list
+      // Allow whitelisted origins
       if (finalOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
 
-      // For production, if we have specific origins and this one isn't allowed
+      // Strict origin checking in production
       if (!isDevelopment && finalOrigins.length > 0) {
         callback(null, false);
         return;
       }
 
-      // Default to allowing the origin in development or if no origins specified
+      // Permissive defaults for dev or empty origin list
       callback(null, true);
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -103,13 +103,11 @@ async function bootstrap() {
     exposedHeaders: ['Set-Cookie'],
   });
 
-  // Get session configuration from our service
+  // Initialize session middleware
   const sessionOptions = await sessionService.getSessionConfig();
-
-  // Apply session middleware
   app.use(session(sessionOptions));
 
-  // Add global validation pipe
+  // Configure validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

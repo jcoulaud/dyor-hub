@@ -1,14 +1,12 @@
 import type { Comment, CreateCommentDto, User, VoteType } from '@dyor-hub/types';
 import { Token } from '@dyor-hub/types';
 
-// Since frontend and API are now on different domains, use the configured API URL
+// Use configured API URL for cross-domain requests
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-// Determine if we're using an API subdomain (api.domain.com) or a path-based API (/api)
-// Improved detection logic that works in both browser and server environments
+// Detect if we're using subdomain (api.domain.com) or path-based (/api) routing
 const isApiSubdomain = (() => {
   try {
-    // Check if the API URL contains an 'api.' subdomain
     const url = new URL(API_BASE_URL);
     return url.hostname.startsWith('api.');
   } catch (error) {
@@ -17,7 +15,7 @@ const isApiSubdomain = (() => {
   }
 })();
 
-// Custom API error class for better error handling
+// API error with HTTP status code
 export class ApiError extends Error {
   status: number;
 
@@ -39,36 +37,35 @@ interface AuthResponse {
 }
 
 const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
-  // Handle API endpoint formatting based on whether we're using an API subdomain
+  // Format endpoint based on API routing strategy
   let apiEndpoint = endpoint;
 
-  // If using path-based API or in development, ensure /api prefix
+  // Path-based: ensure /api prefix
   if (!isApiSubdomain) {
     apiEndpoint = endpoint.startsWith('/api/') ? endpoint : `/api/${endpoint.replace(/^\//, '')}`;
   } else {
-    // If using API subdomain, remove /api prefix if it exists
+    // Subdomain-based: remove /api prefix if present
     apiEndpoint = endpoint.startsWith('/api/') ? endpoint.substring(5) : endpoint;
   }
 
-  // Ensure the endpoint starts with a slash
+  // Ensure leading slash
   if (!apiEndpoint.startsWith('/')) {
     apiEndpoint = `/${apiEndpoint}`;
   }
 
-  // Construct the full URL
+  // Build full request URL
   const url = `${API_BASE_URL}${apiEndpoint}`;
 
-  // Create an AbortController to handle timeouts
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
   try {
     const config: RequestInit = {
       ...options,
-      credentials: 'include', // Always include credentials (cookies)
+      credentials: 'include', // Send cookies with cross-origin requests
       headers: {
         'Content-Type': 'application/json',
-        // Add origin header to help with CORS debugging
+        // Help debug CORS issues
         ...(typeof window !== 'undefined' && { Origin: window.location.origin }),
         ...options.headers,
       },
@@ -80,11 +77,11 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
     }
 
     const response = await fetch(url, config);
-    clearTimeout(timeoutId); // Clear the timeout if the request completes
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       if (response.status === 401) {
-        // Don't throw for profile check when not authenticated
+        // Special case for auth check endpoints
         if (endpoint === 'auth/profile') {
           throw new ApiError(401, 'Unauthorized');
         }
@@ -95,13 +92,13 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
         const errorData = await response.json();
         errorMessage = errorData.message || errorMessage;
       } catch {
-        // Ignore parse errors
+        // JSON parse failed, use default message
       }
 
       throw new ApiError(response.status, errorMessage);
     }
 
-    // Return null for 204 No Content
+    // Empty response
     if (response.status === 204) {
       return null as T;
     }
@@ -110,23 +107,23 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
   } catch (error) {
     clearTimeout(timeoutId);
 
-    // Handle AbortError specifically
+    // Request timed out
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new ApiError(408, 'Request timeout');
     }
 
-    // Rethrow ApiErrors
+    // Pass through API errors
     if (error instanceof ApiError) {
       throw error;
     }
 
-    // Handle network errors
+    // Connection issues
     if (error instanceof Error) {
       console.error('API request failed:', error);
       throw new ApiError(0, `Network error: ${error.message}`);
     }
 
-    // Fallback for unknown errors
+    // Unexpected errors
     throw new ApiError(500, 'Unknown error occurred');
   }
 };

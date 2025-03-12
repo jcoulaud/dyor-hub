@@ -16,7 +16,10 @@ This separation provides better organization and security compared to using path
 - **Frontend**: Next.js with TypeScript
 - **Backend**: NestJS with TypeScript
 - **Database**: PostgreSQL
-- **Authentication**: JWT with Twitter OAuth
+- **Authentication**: Twitter OAuth with session management
+- **Session Storage**: Redis
+- **Content Moderation**: Google Perspective API
+- **Token Data**: Helius API and DexScreener
 - **Monorepo Management**: Turborepo
 
 ## Requirements
@@ -24,6 +27,7 @@ This separation provides better organization and security compared to using path
 - **Node.js**: v18.12.0 or higher (v20.18.1 recommended)
 - **pnpm**: v9.0.0 or higher
 - **PostgreSQL**: v14 or higher
+- **Redis**: v6 or higher
 
 > **Note**: If you're using nvm, you can run `nvm use` to automatically use the correct Node.js version specified in the `.nvmrc` file.
 
@@ -39,8 +43,31 @@ This monorepo includes the following packages/apps:
 ### Packages
 
 - `packages/types`: Shared TypeScript types and interfaces
-- `packages/eslint-config`: Shared ESLint configurations
-- `packages/typescript-config`: Shared TypeScript configurations
+- `packages/config`: Shared configuration files
+- `packages/ui`: Shared UI components
+
+## Features
+
+### Token Data Integration
+
+The platform integrates with multiple data sources to provide comprehensive token information:
+
+- **Helius API**: Fetches on-chain token metadata
+- **DexScreener**: Provides market data and additional token information
+- **IPFS**: Retrieves extended metadata when available
+
+### Content Moderation
+
+Comments are automatically moderated using:
+
+- **Google Perspective API**: Detects toxic content and spam
+- **Custom Filtering**: Additional rules for short comments and URLs
+
+### User Interaction
+
+- **Comment System**: Threaded discussions with voting
+- **Vote System**: Upvote/downvote functionality for comments
+- **Moderation Tools**: Comment removal for admins and comment owners
 
 ## Development
 
@@ -92,9 +119,15 @@ PORT=3001
 # API Configuration
 USE_API_SUBDOMAIN=true
 
+# Database Configuration
+DATABASE_URL=postgres://dyor_hub_user:your_secure_password_here@postgres:5432/dyor_hub
+
+# Redis Configuration
+REDIS_URL=redis://username:password@your-redis-host:6379
+
 # Twitter Auth
-TWITTER_CLIENT_ID=your_twitter_key
-TWITTER_CLIENT_SECRET=your_twitter_secret
+TWITTER_CLIENT_ID=your_twitter_client_id
+TWITTER_CLIENT_SECRET=your_twitter_client_secret
 TWITTER_CALLBACK_URL=https://api.dyorhub.xyz/auth/twitter/callback
 
 # Auth & Security
@@ -104,17 +137,27 @@ SESSION_SECRET=your_secure_session_secret
 
 # CORS & Cookies
 ALLOWED_ORIGINS=https://dyorhub.xyz,https://www.dyorhub.xyz
+ADDITIONAL_ALLOWED_ORIGINS=
 COOKIE_DOMAIN=.dyorhub.xyz  # Note the leading dot to allow sharing across subdomains
 CLIENT_URL=https://dyorhub.xyz
 
-# Redis Configuration
-REDIS_URL=redis://username:password@your-redis-host:6379
+# External APIs
+HELIUS_API_KEY=your_helius_api_key
+PERSPECTIVE_API_KEY=your_perspective_api_key
 ```
 
 #### Frontend (.env)
 
 ```
+# Environment
+NODE_ENV=production
+
+# URL Configuration
+NEXT_PUBLIC_URL=https://dyorhub.xyz
 NEXT_PUBLIC_API_URL=https://api.dyorhub.xyz
+
+# Authentication
+NEXT_PUBLIC_COOKIE_DOMAIN=.dyorhub.xyz
 ```
 
 ### DNS Configuration
@@ -166,7 +209,19 @@ For Twitter OAuth authentication to work correctly across domains:
    - Set `sameSite: 'none'` and `secure: true` in cookie options
 
 4. **Session Issues**: If sessions are not persisting between requests:
+
    - Check Redis connectivity
    - Verify cookie settings in browser developer tools
    - Ensure the session cookie is being set with the correct domain
    - Check for any browser privacy features that might be blocking cookies
+
+5. **Content Moderation**: If content moderation is not working:
+
+   - Verify your `PERSPECTIVE_API_KEY` is valid and active
+   - Check API quotas and limits
+   - Review logs for any API errors
+
+6. **Token Data**: If token data is incomplete or missing:
+   - Verify your `HELIUS_API_KEY` is valid
+   - Check if the token exists on-chain
+   - Ensure proper network connectivity to external APIs
