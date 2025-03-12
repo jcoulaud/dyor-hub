@@ -11,3 +11,9 @@ export interface Token {
   createdAt: Date;
   lastRefreshedAt?: Date;
 }
+
+export interface TokenHolder {
+  address: string;
+  amount: number;
+  percentage: number;
+}

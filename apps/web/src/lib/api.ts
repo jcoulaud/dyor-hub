@@ -94,7 +94,7 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
       try {
         const errorData = await response.json();
         errorMessage = errorData.message || errorMessage;
-      } catch (parseError) {
+      } catch {
         // Ignore parse errors
       }
 

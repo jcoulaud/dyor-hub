@@ -1,8 +1,8 @@
 import { CommentSection } from '@/components/comments/CommentSection';
-import { CopyButton } from '@/components/CopyButton';
+import { SolscanButton } from '@/components/SolscanButton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { tokens } from '@/lib/api';
-import { isValidSolanaAddress } from '@/lib/utils';
+import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { Globe, MessageSquare, Twitter } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -10,13 +10,6 @@ import { notFound } from 'next/navigation';
 
 interface PageProps {
   params: Promise<{ mintAddress: string }>;
-}
-
-// Function to truncate address for display
-function truncateAddress(address: string): string {
-  if (!address) return '';
-  if (address.length <= 16) return address;
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 export default async function Page({ params }: PageProps) {
@@ -74,8 +67,9 @@ export default async function Page({ params }: PageProps) {
                 </div>
 
                 <div className='flex flex-wrap items-center gap-4'>
-                  <CopyButton
-                    textToCopy={token.mintAddress}
+                  <SolscanButton
+                    address={token.mintAddress}
+                    type='token'
                     className='relative flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-md text-sm hover:bg-zinc-800 transition-colors cursor-pointer'>
                     <span className='font-mono'>{truncateAddress(token.mintAddress)}</span>
                     <svg
@@ -89,10 +83,11 @@ export default async function Page({ params }: PageProps) {
                       strokeLinecap='round'
                       strokeLinejoin='round'
                       className='text-zinc-400'>
-                      <rect width='14' height='14' x='8' y='8' rx='2' ry='2' />
-                      <path d='M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' />
+                      <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
+                      <polyline points='15 3 21 3 21 9' />
+                      <line x1='10' y1='14' x2='21' y2='3' />
                     </svg>
-                  </CopyButton>
+                  </SolscanButton>
 
                   <div className='flex items-center gap-3'>
                     {token.websiteUrl && (

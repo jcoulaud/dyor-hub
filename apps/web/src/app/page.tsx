@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { BarChart3, MessageSquare, Search, Shield } from 'lucide-react';
+import { MessageSquare, Newspaper, Search, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -49,8 +49,7 @@ export default function Home() {
                 DYOR Hub
               </h1>
               <p className='text-xl md:text-2xl text-zinc-300 max-w-2xl'>
-                Your comprehensive due diligence platform for token analysis with on-chain and
-                off-chain data
+                A central place for reliable Solana memecoin discussions
               </p>
             </div>
 
@@ -76,7 +75,7 @@ export default function Home() {
                     <Button
                       type='submit'
                       className='h-12 bg-linear-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 px-6 text-base font-medium text-white rounded-lg sm:rounded-l-none cursor-pointer'>
-                      Analyze
+                      Find Token
                     </Button>
                   </div>
                   {error && (
@@ -95,9 +94,9 @@ export default function Home() {
       <section className='py-16 bg-black'>
         <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
           <div className='text-center mb-12'>
-            <h2 className='text-3xl font-bold text-white'>Complete Token Intelligence</h2>
+            <h2 className='text-3xl font-bold text-white'>Features</h2>
             <p className='mt-4 text-zinc-400 max-w-2xl mx-auto'>
-              Get comprehensive insights and community discussions for informed investment decisions
+              Get reliable information and avoid scams through community verification
             </p>
           </div>
 
@@ -106,16 +105,13 @@ export default function Home() {
             <Card className='bg-zinc-900/50 border-zinc-800 hover:border-blue-500/50 transition-all duration-300'>
               <CardHeader className='pb-2'>
                 <div className='h-12 w-12 rounded-lg bg-blue-500/20 flex items-center justify-center mb-4'>
-                  <Shield className='h-6 w-6 text-blue-400' />
+                  <Users className='h-6 w-6 text-blue-400' />
                 </div>
-                <CardTitle className='text-xl font-semibold text-white'>
-                  On-Chain Analysis
-                </CardTitle>
+                <CardTitle className='text-xl font-semibold text-white'>Discuss</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className='text-zinc-400'>
-                  Verify contract security, token distribution, and transaction patterns with
-                  real-time blockchain data
+                  Join conversations about memecoins with Twitter-verified users
                 </CardDescription>
               </CardContent>
             </Card>
@@ -124,15 +120,13 @@ export default function Home() {
             <Card className='bg-zinc-900/50 border-zinc-800 hover:border-purple-500/50 transition-all duration-300'>
               <CardHeader className='pb-2'>
                 <div className='h-12 w-12 rounded-lg bg-purple-500/20 flex items-center justify-center mb-4'>
-                  <BarChart3 className='h-6 w-6 text-purple-400' />
+                  <Newspaper className='h-6 w-6 text-purple-400' />
                 </div>
-                <CardTitle className='text-xl font-semibold text-white'>
-                  Off-Chain Intelligence
-                </CardTitle>
+                <CardTitle className='text-xl font-semibold text-white'>Get Updates</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className='text-zinc-400'>
-                  Access team information, social metrics, market data, and development activity
+                  Find memecoin news and updates from verified sources
                 </CardDescription>
               </CardContent>
             </Card>
@@ -143,14 +137,11 @@ export default function Home() {
                 <div className='h-12 w-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-4'>
                   <MessageSquare className='h-6 w-6 text-green-400' />
                 </div>
-                <CardTitle className='text-xl font-semibold text-white'>
-                  Community Insights
-                </CardTitle>
+                <CardTitle className='text-xl font-semibold text-white'>Share Knowledge</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className='text-zinc-400'>
-                  Engage in Reddit-like discussions for each token, sharing insights and due
-                  diligence with the community
+                  Help others avoid scams by sharing your memecoin research
                 </CardDescription>
               </CardContent>
             </Card>

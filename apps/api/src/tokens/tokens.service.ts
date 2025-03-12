@@ -35,8 +35,8 @@ export class TokensService {
     private readonly tokenRepository: Repository<TokenEntity>,
     private readonly configService: ConfigService,
   ) {
-    const HELIUS_API_KEY = this.configService.get<string>('HELIUS_API_KEY');
-    this.HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+    const heliusApiKey = this.configService.get<string>('HELIUS_API_KEY');
+    this.HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`;
   }
 
   private async fetchDexScreenerData(mintAddress: string) {
@@ -270,19 +270,12 @@ export class TokensService {
   }
 
   async getAllTokens(): Promise<TokenEntity[]> {
-    return this.tokenRepository.find({
-      relations: {
-        comments: true,
-      },
-    });
+    return this.tokenRepository.find();
   }
 
   async getTokens(mintAddresses: string[]): Promise<TokenEntity[]> {
     return this.tokenRepository.find({
       where: { mintAddress: In(mintAddresses) },
-      relations: {
-        comments: true,
-      },
     });
   }
 }
