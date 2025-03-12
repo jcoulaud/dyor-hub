@@ -1,3 +1,4 @@
+import { TokenStats } from '@dyor-hub/types';
 import { Controller, Get, Param, Post } from '@nestjs/common';
 import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
 import { TokenEntity } from '../entities/token.entity';
@@ -12,6 +13,13 @@ export class TokensController {
     @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
   ): Promise<TokenEntity> {
     return this.tokensService.getTokenData(mintAddress);
+  }
+
+  @Get(':mintAddress/stats')
+  async getTokenStats(
+    @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
+  ): Promise<TokenStats> {
+    return this.tokensService.getTokenStats(mintAddress);
   }
 
   @Post(':mintAddress/refresh')

@@ -17,3 +17,20 @@ export interface TokenHolder {
   amount: number;
   percentage: number;
 }
+
+export interface TokenStats {
+  // Market data
+  price?: number;
+  marketCap?: number;
+  volume24h?: number;
+
+  // Supply information
+  totalSupply: string;
+  circulatingSupply?: string;
+
+  // Holder information
+  topHolders?: TokenHolder[];
+
+  // Last updated timestamp
+  lastUpdated: Date;
+}

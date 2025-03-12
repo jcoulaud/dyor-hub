@@ -1,5 +1,6 @@
 import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
+import { TokenStats } from '@/components/tokens/TokenStats';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { tokens } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
@@ -24,6 +25,9 @@ export default async function Page({ params }: PageProps) {
   if (!token) {
     notFound();
   }
+
+  // Fetch token stats
+  const tokenStats = await tokens.getTokenStats(mintAddress).catch(() => null);
 
   return (
     <div className='flex-1 flex flex-col'>
@@ -179,17 +183,20 @@ export default async function Page({ params }: PageProps) {
                   <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
                 </CardHeader>
                 <CardContent className='relative pt-4'>
-                  <div className='space-y-4 text-zinc-300'>
-                    {/* Add any additional token information here if needed */}
-                    <div className='flex items-center justify-center py-8'>
-                      <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
-                        <Shield className='h-4 w-4 text-green-500 mr-2' />
-                        <span className='text-sm font-medium text-zinc-300'>
-                          More data coming soon
-                        </span>
+                  {tokenStats ? (
+                    <TokenStats stats={tokenStats} />
+                  ) : (
+                    <div className='space-y-4 text-zinc-300'>
+                      <div className='flex items-center justify-center py-8'>
+                        <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+                          <Shield className='h-4 w-4 text-green-500 mr-2' />
+                          <span className='text-sm font-medium text-zinc-300'>
+                            More data coming soon
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

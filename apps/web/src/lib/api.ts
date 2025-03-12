@@ -1,5 +1,5 @@
 import type { Comment, CreateCommentDto, User, VoteType } from '@dyor-hub/types';
-import { Token } from '@dyor-hub/types';
+import { Token, TokenStats } from '@dyor-hub/types';
 
 // Use configured API URL for cross-domain requests
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -186,6 +186,14 @@ export const tokens = {
     try {
       const endpoint = `tokens/${mintAddress}`;
       return await api<Token>(endpoint);
+    } catch (error) {
+      throw error;
+    }
+  },
+  getTokenStats: async (mintAddress: string): Promise<TokenStats> => {
+    try {
+      const endpoint = `tokens/${mintAddress}/stats`;
+      return await api<TokenStats>(endpoint);
     } catch (error) {
       throw error;
     }
