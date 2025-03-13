@@ -8,23 +8,25 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # Prevent infinite runs
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
           version: latest
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build packages
         run: |
@@ -49,7 +51,7 @@ jobs:
       - name: Add host key
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.DROPLET_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -t rsa,ecdsa,ed25519 ${{ secrets.DROPLET_IP }} >> ~/.ssh/known_hosts
 
       - name: Deploy to DigitalOcean
         env:
@@ -58,82 +60,8 @@ jobs:
           APP_DIR: /var/www/dyor-hub
           GITHUB_REPO: ${{ github.repository }}
         run: |
-          # Create a deployment script
-          cat > deploy-script.sh << 'EOF'
-          #!/bin/bash
-          set -e
+          # Copy the blue-green deployment script
+          scp scripts/blue-green-deploy.sh $DEPLOY_USER@$DROPLET_IP:/tmp/blue-green-deploy.sh
 
-          # Set up proper app directory
-          echo "Setting up proper app directory at $APP_DIR..."
-
-          # Create the directory if it doesn't exist
-          sudo mkdir -p $APP_DIR
-
-          # Make sure we have ownership of the directory
-          sudo chown -R $(whoami):$(whoami) $APP_DIR
-
-          # Backup existing environment files
-          echo "Backing up existing environment files..."
-          BACKUP_DIR="/tmp/dyor-hub-env-backup"
-          mkdir -p $BACKUP_DIR/apps/api
-          mkdir -p $BACKUP_DIR/apps/web
-
-          if [ -d "$APP_DIR/apps/api" ] && [ -f "$APP_DIR/apps/api/.env" ]; then
-            echo "Backing up API .env file"
-            cp "$APP_DIR/apps/api/.env" "$BACKUP_DIR/apps/api/.env"
-          fi
-
-          if [ -d "$APP_DIR/apps/web" ] && [ -f "$APP_DIR/apps/web/.env" ]; then
-            echo "Backing up Web .env file"
-            cp "$APP_DIR/apps/web/.env" "$BACKUP_DIR/apps/web/.env"
-          fi
-
-          # Update the repository
-          echo "Updating the repository..."
-          cd $APP_DIR
-          git fetch --all
-          git reset --hard origin/main
-
-          # Restore environment files
-          echo "Restoring environment files..."
-          mkdir -p apps/api
-          mkdir -p apps/web
-
-          if [ -f "$BACKUP_DIR/apps/api/.env" ]; then
-            echo "Restoring API .env file"
-            cp "$BACKUP_DIR/apps/api/.env" "apps/api/.env"
-          fi
-
-          if [ -f "$BACKUP_DIR/apps/web/.env" ]; then
-            echo "Restoring Web .env file"
-            cp "$BACKUP_DIR/apps/web/.env" "apps/web/.env"
-          fi
-
-          # Rebuild and restart containers
-          echo "Building and starting Docker containers..."
-          if command -v docker-compose &> /dev/null; then
-            docker-compose down || true
-            docker-compose build
-            docker-compose up -d
-          else
-            echo "docker-compose not found, trying with docker compose..."
-            docker compose down || true
-            docker compose build
-            docker compose up -d
-          fi
-
-          # Targeted cleanup - remove dangling images and containers
-          echo "Cleaning up images..."
-          docker image prune -f
-          docker container prune -f
-
-          # Remove build cache
-          docker builder prune -f --filter until=24h
-
-          echo "Deployment completed successfully!"
-          EOF
-
-          # Copy and execute the deployment script
-          chmod +x deploy-script.sh
-          scp deploy-script.sh $DEPLOY_USER@$DROPLET_IP:/tmp/deploy-script.sh
-          ssh $DEPLOY_USER@$DROPLET_IP "chmod +x /tmp/deploy-script.sh && sudo GITHUB_REPO=$GITHUB_REPO APP_DIR=$APP_DIR /tmp/deploy-script.sh"
+          # Make the script executable and run it
+          ssh $DEPLOY_USER@$DROPLET_IP "chmod +x /tmp/blue-green-deploy.sh && sudo GITHUB_REPO=$GITHUB_REPO APP_DIR=$APP_DIR /tmp/blue-green-deploy.sh"
