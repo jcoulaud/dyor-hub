@@ -225,3 +225,11 @@ For Twitter OAuth authentication to work correctly across domains:
    - Verify your `HELIUS_API_KEY` is valid
    - Check if the token exists on-chain
    - Ensure proper network connectivity to external APIs
+
+## Contributing
+
+We welcome contributions to DYOR Hub! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+## License
+
+DYOR Hub is open-sourced software licensed under the [MIT license](LICENSE).

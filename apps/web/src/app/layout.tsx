@@ -14,9 +14,23 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'DYOR Hub - A central hub for Solana memecoins',
+  title: 'DYOR Hub | Trusted Solana Memecoin Research & Community Platform',
   description:
-    'A central hub for Solana memecoin discussions with verified users. Get reliable information and help others avoid scams.',
+    'Your trusted platform for Solana memecoin discussions, research, and real-time updates. Connect with verified Twitter users, discover trending tokens, and make informed decisions.',
+  keywords:
+    'Solana, memecoin, cryptocurrency, token research, crypto community, DYOR, blockchain, token discussions',
+  openGraph: {
+    title: 'DYOR Hub | Trusted Solana Memecoin Research & Community Platform',
+    description:
+      'Your trusted platform for Solana memecoin discussions, research, and real-time updates with verified Twitter users.',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'DYOR Hub | Trusted Solana Memecoin Research & Community Platform',
+    description:
+      'Your trusted platform for Solana memecoin discussions, research, and real-time updates with verified Twitter users.',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
