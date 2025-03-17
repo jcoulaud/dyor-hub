@@ -25,6 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
+import { AdminModeration } from './AdminModeration';
 import { CommentInput } from './CommentInput';
 
 interface CommentSectionProps {
@@ -280,6 +281,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
     const maxDepth = 5;
     const isCommentOwner = user?.id === comment.user.id;
     const canRemove = (user?.isAdmin ?? false) || isCommentOwner;
+    const isAdmin = user?.isAdmin ?? false;
     const isReplying = replyingTo === comment.id;
 
     const handleReply = async (content: string) => {
@@ -336,7 +338,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
                 <Button
                   variant='ghost'
                   size='sm'
-                  className='h-8 px-1'
+                  className='h-8 px-1 cursor-pointer'
                   onClick={() => handleVote(comment.id, 'upvote')}
                   disabled={comment.isRemoved}>
                   <ArrowBigUp
@@ -357,7 +359,7 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
                 <Button
                   variant='ghost'
                   size='sm'
-                  className='h-8 px-1'
+                  className='h-8 px-1 cursor-pointer'
                   onClick={() => handleVote(comment.id, 'downvote')}
                   disabled={comment.isRemoved}>
                   <ArrowBigDown
@@ -372,16 +374,19 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
                   <Button
                     variant='ghost'
                     size='sm'
-                    className='h-8 gap-2 px-2'
+                    className='h-8 gap-2 px-2 cursor-pointer'
                     onClick={handleReplyClick}>
                     <MessageSquare className='h-4 w-4' />
                     <span className='text-xs'>Reply</span>
                   </Button>
                 )}
+                {isAdmin && !isCommentOwner && !comment.isRemoved && (
+                  <AdminModeration comment={comment} onCommentUpdated={fetchComments} />
+                )}
                 {canRemove && !comment.isRemoved && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant='ghost' size='sm' className='h-8 px-2'>
+                      <Button variant='ghost' size='sm' className='h-8 px-2 cursor-pointer'>
                         <MoreHorizontal className='h-4 w-4' />
                       </Button>
                     </DropdownMenuTrigger>
