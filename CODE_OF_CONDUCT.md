@@ -1,6 +1,6 @@
 # Code of Conduct
 
-## Our Standards
+## Standards
 
 - Be respectful and inclusive
 - No harassment or discrimination

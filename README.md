@@ -228,7 +228,7 @@ For Twitter OAuth authentication to work correctly across domains:
 
 ## Contributing
 
-We welcome contributions to DYOR Hub! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+I welcome contributions to DYOR Hub! Please read my [Contributing Guide](CONTRIBUTING.md) for details on my code of conduct and the process for submitting pull requests.
 
 ## License
 

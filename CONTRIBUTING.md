@@ -2,7 +2,7 @@
 
 ## Code of Conduct
 
-Follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+Follow my [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## How to Contribute
 
