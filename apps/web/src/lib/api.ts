@@ -181,6 +181,14 @@ export const auth = {
 };
 
 export const tokens = {
+  list: async (): Promise<Token[]> => {
+    try {
+      const endpoint = 'tokens';
+      return await api<Token[]>(endpoint);
+    } catch (error) {
+      throw error;
+    }
+  },
   getByMintAddress: async (mintAddress: string): Promise<Token> => {
     try {
       const endpoint = `tokens/${mintAddress}`;

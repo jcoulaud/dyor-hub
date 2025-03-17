@@ -1,7 +1,10 @@
 'use client';
 
+import { TokenList } from '@/components/tokens/TokenList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { tokens } from '@/lib/api';
+import { Token } from '@dyor-hub/types';
 import {
   MessageSquare,
   Newspaper,
@@ -12,7 +15,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // Validate Solana address format
 function isValidSolanaAddress(address: string): boolean {
@@ -23,6 +26,23 @@ export default function Home() {
   const router = useRouter();
   const [address, setAddress] = useState('');
   const [error, setError] = useState('');
+  const [tokenList, setTokenList] = useState<Token[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTokens = async () => {
+      try {
+        const data = await tokens.list();
+        setTokenList(data);
+      } catch (error) {
+        console.error('Failed to fetch tokens:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTokens();
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,11 +147,41 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className='py-12 bg-gradient-to-b from-black to-zinc-950 relative overflow-hidden flex-grow'>
-        {/* Background elements */}
+      {/* Token List Section */}
+      <section className='relative'>
         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
         <div className='absolute -top-40 -right-40 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl' />
+        <div className='absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
+
+        <div className='relative z-10'>
+          {isLoading ? (
+            <div className='w-full overflow-x-hidden -mt-8 mb-12'>
+              <div className='flex justify-center'>
+                <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+                  <Sparkles className='h-4 w-4 text-blue-400 mr-2 animate-pulse' />
+                  <span className='text-sm font-medium text-zinc-300'>Loading tokens...</span>
+                </div>
+              </div>
+            </div>
+          ) : tokenList.length > 0 ? (
+            <TokenList tokens={tokenList} />
+          ) : (
+            <div className='w-full overflow-x-hidden -mt-8 mb-12'>
+              <div className='flex justify-center'>
+                <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+                  <Sparkles className='h-4 w-4 text-blue-400 mr-2' />
+                  <span className='text-sm font-medium text-zinc-300'>No tokens found</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className='py-12 relative overflow-hidden flex-grow'>
+        {/* Background elements */}
+        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
         <div className='absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
 
         <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8'>
