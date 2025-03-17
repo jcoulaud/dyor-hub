@@ -2,17 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // Image configuration using remotePatterns (recommended approach)
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'ipfs.io',
-        pathname: '**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'arweave.net',
+        hostname: '**',
         pathname: '**',
       },
     ],
