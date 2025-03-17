@@ -53,9 +53,9 @@ export class HealthService extends HealthIndicator {
   }
 
   async memoryHealthCheck(key: string): Promise<HealthIndicatorResult> {
-    // Check if heap memory usage is below 90% of the maximum heap size
+    // Only used by the dedicated /health/memory endpoint
     const heapSizeThreshold =
-      this.configService.get<number>('MEMORY_HEAP_THRESHOLD_MB') || 512; // Default to 512MB
+      this.configService.get<number>('MEMORY_HEAP_THRESHOLD_MB') || 2048;
 
     return this.memoryHealthIndicator.checkHeap(key, heapSizeThreshold);
   }

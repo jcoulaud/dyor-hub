@@ -4,15 +4,23 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force a complete rebuild'
+        required: false
+        default: 'false'
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # Prevent infinite runs
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
@@ -53,15 +61,87 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -t rsa,ecdsa,ed25519 ${{ secrets.DROPLET_IP }} >> ~/.ssh/known_hosts
 
+      - name: Copy blue-green-deploy.sh to server
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          # Use the root version of the script
+          scp blue-green-deploy.sh $DEPLOY_USER@$DROPLET_IP:/tmp/blue-green-deploy.sh
+
+      - name: Verify Nginx Configuration
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          # Check if the nginx config exists and is valid
+          ssh $DEPLOY_USER@$DROPLET_IP "sudo test -f /etc/nginx/sites-enabled/dyor-hub && sudo nginx -t" || {
+            echo "Nginx configuration issue detected. Please check manually."
+            exit 1
+          }
+
       - name: Deploy to DigitalOcean
         env:
           DROPLET_IP: ${{ secrets.DROPLET_IP }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           APP_DIR: /var/www/dyor-hub
           GITHUB_REPO: ${{ github.repository }}
+          FORCE_REBUILD: ${{ github.event.inputs.force_rebuild || 'false' }}
         run: |
-          # Copy the blue-green deployment script
-          scp scripts/blue-green-deploy.sh $DEPLOY_USER@$DROPLET_IP:/tmp/blue-green-deploy.sh
+          # Make the script executable and run it with proper permissions
+          ssh $DEPLOY_USER@$DROPLET_IP "chmod +x /tmp/blue-green-deploy.sh && sudo GITHUB_REPO=$GITHUB_REPO APP_DIR=$APP_DIR FORCE_REBUILD=$FORCE_REBUILD /tmp/blue-green-deploy.sh"
 
-          # Make the script executable and run it
-          ssh $DEPLOY_USER@$DROPLET_IP "chmod +x /tmp/blue-green-deploy.sh && sudo GITHUB_REPO=$GITHUB_REPO APP_DIR=$APP_DIR /tmp/blue-green-deploy.sh"
+      - name: Wait for services to stabilize
+        run: sleep 30
+
+      - name: Verify Deployment
+        if: always()
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          APP_DIR: /var/www/dyor-hub
+        run: |
+          echo "Checking container status..."
+          ssh $DEPLOY_USER@$DROPLET_IP "docker ps -a"
+
+          echo "Determining active environment..."
+          ACTIVE_ENV=$(ssh $DEPLOY_USER@$DROPLET_IP "grep -l '3100' /etc/nginx/sites-enabled/dyor-hub >/dev/null && echo 'blue' || echo 'green'")
+          echo "Active environment is: $ACTIVE_ENV"
+
+          echo "Checking if containers are running..."
+          if ! ssh $DEPLOY_USER@$DROPLET_IP "docker ps | grep 'dyor-hub-$ACTIVE_ENV'"; then
+            echo "ERROR: No containers for the active environment ($ACTIVE_ENV) are running!"
+            
+            echo "Trying to start the containers..."
+            ssh $DEPLOY_USER@$DROPLET_IP "cd $APP_DIR && docker-compose -f docker-compose.$ACTIVE_ENV.yml up -d || true"
+            sleep 20
+            
+            # Check again after trying to start them
+            if ! ssh $DEPLOY_USER@$DROPLET_IP "docker ps | grep 'dyor-hub-$ACTIVE_ENV'"; then
+              echo "ERROR: Still no running containers after restart attempt!"
+              
+              echo "Getting deployment logs..."
+              ssh $DEPLOY_USER@$DROPLET_IP "cd $APP_DIR && cat /tmp/deployment.log 2>/dev/null || echo 'No deployment log file found'"
+              
+              echo "Checking Docker logs for containers..."
+              ssh $DEPLOY_USER@$DROPLET_IP "docker logs dyor-hub-$ACTIVE_ENV-web 2>&1 || echo 'No web container logs available'"
+              ssh $DEPLOY_USER@$DROPLET_IP "docker logs dyor-hub-$ACTIVE_ENV-api 2>&1 || echo 'No API container logs available'"
+              
+              exit 1
+            else
+              echo "Containers successfully restarted!"
+            fi
+          fi
+
+          echo "Checking if the web service is responding..."
+          RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dyorhub.xyz/)
+          echo "Response code: $RESPONSE_CODE"
+
+          if [[ "$RESPONSE_CODE" != "200" ]]; then
+            echo "ERROR: Website not responding with 200 status (got $RESPONSE_CODE)!"
+            echo "Checking Nginx configuration and logs..."
+            ssh $DEPLOY_USER@$DROPLET_IP "sudo nginx -t && sudo cat /var/log/nginx/error.log | tail -50"
+            exit 1
+          fi
+
+          echo "Deployment verification successful!"

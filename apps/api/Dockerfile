@@ -31,6 +31,8 @@ WORKDIR /app
 
 # Set environment variables
 ENV NODE_ENV production
+# Configure Node.js memory settings
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 
 # Copy necessary files from builder
 COPY --from=builder /app/package.json ./
