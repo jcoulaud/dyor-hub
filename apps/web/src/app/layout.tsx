@@ -14,22 +14,58 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'DYOR Hub | Trusted Solana Memecoin Research & Community Platform',
+  title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
   description:
     'Your trusted platform for Solana memecoin discussions, research, and real-time updates. Connect with verified Twitter users, discover trending tokens, and make informed decisions.',
   keywords:
     'Solana, memecoin, cryptocurrency, token research, crypto community, DYOR, blockchain, token discussions',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'),
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon-16x16.png',
+    apple: '/apple-touch-icon.png',
+    other: [
+      {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '32x32',
+        url: '/favicon-32x32.png',
+      },
+      {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '16x16',
+        url: '/favicon-16x16.png',
+      },
+      {
+        rel: 'mask-icon',
+        url: '/safari-pinned-tab.svg',
+        color: '#5bbad5',
+      },
+    ],
+  },
   openGraph: {
-    title: 'DYOR Hub | Trusted Solana Memecoin Research & Community Platform',
+    title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
     description:
-      'Your trusted platform for Solana memecoin discussions, research, and real-time updates with verified Twitter users.',
+      'Your trusted platform for Solana memecoin discussions, research, and real-time updates. Connect with verified Twitter users, discover trending tokens, and make informed decisions.',
     type: 'website',
+    images: [
+      {
+        url: '/opengraph-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'DYOR hub - Solana Memecoin Research Platform',
+      },
+    ],
+    siteName: 'DYOR hub',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'DYOR Hub | Trusted Solana Memecoin Research & Community Platform',
+    title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
     description:
-      'Your trusted platform for Solana memecoin discussions, research, and real-time updates with verified Twitter users.',
+      'Your trusted platform for Solana memecoin discussions, research, and real-time updates. Connect with verified Twitter users, discover trending tokens, and make informed decisions.',
+    images: ['/twitter-image.png'],
+    creator: '@JulienCoulaud',
   },
 };
 

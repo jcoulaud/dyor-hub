@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { UserMenu } from '../auth/UserMenu';
 
@@ -11,7 +12,14 @@ export function Header() {
           <div>
             <Link href='/'>
               <div className='flex items-center'>
-                <span className='text-2xl font-bold text-white'>DYOR hub</span>
+                <Image
+                  src='/logo.png'
+                  alt='DYOR Hub'
+                  width={140}
+                  height={40}
+                  className='h-auto w-auto'
+                  priority
+                />
               </div>
             </Link>
           </div>
