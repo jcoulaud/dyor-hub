@@ -1,4 +1,4 @@
-name: Deploy to DigitalOcean
+name: Deploy to Production
 
 on:
   push:
@@ -7,9 +7,10 @@ on:
   workflow_dispatch:
     inputs:
       force_rebuild:
-        description: 'Force a complete rebuild'
+        description: 'Force rebuild of the current environment'
         required: false
-        default: 'false'
+        default: false
+        type: boolean
 
 jobs:
   build-and-deploy:
@@ -61,20 +62,51 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -t rsa,ecdsa,ed25519 ${{ secrets.DROPLET_IP }} >> ~/.ssh/known_hosts
 
-      - name: Copy blue-green-deploy.sh to server
+      - name: Copy deployment script
         env:
           DROPLET_IP: ${{ secrets.DROPLET_IP }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          # Use the root version of the script
-          scp blue-green-deploy.sh $DEPLOY_USER@$DROPLET_IP:/tmp/blue-green-deploy.sh
+          scp scripts/blue-green-deploy.sh $DEPLOY_USER@$DROPLET_IP:/tmp/blue-green-deploy.sh
+
+      - name: Clean up disk space
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            echo "=== Cleaning up disk space before deployment ==="
+            echo "Current disk usage:"
+            df -h /
+
+            echo "Removing stopped containers..."
+            sudo docker container prune -f
+
+            echo "Removing unused Docker images..."
+            sudo docker image prune -a -f --filter "until=24h"
+
+            echo "Removing Docker build cache..."
+            sudo docker builder prune -f
+
+            echo "Removing unused Docker volumes..."
+            sudo docker volume prune -f
+
+            echo "Removing old log files..."
+            sudo find /var/log -type f -name "*.gz" -delete 2>/dev/null || true
+
+            echo "Cleaning apt cache..."
+            sudo apt-get clean -y 2>/dev/null || true
+
+            echo "Disk usage after cleanup:"
+            df -h /
 
       - name: Verify Nginx Configuration
         env:
           DROPLET_IP: ${{ secrets.DROPLET_IP }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          # Check if the nginx config exists and is valid
           ssh $DEPLOY_USER@$DROPLET_IP "sudo test -f /etc/nginx/sites-enabled/dyor-hub && sudo nginx -t" || {
             echo "Nginx configuration issue detected. Please check manually."
             exit 1
@@ -88,11 +120,15 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
           FORCE_REBUILD: ${{ github.event.inputs.force_rebuild || 'false' }}
         run: |
-          # Make the script executable and run it with proper permissions
+          echo "Starting blue-green deployment - Note: The site will remain available during deployment"
+          echo "This is a zero-downtime deployment, but you might temporarily see a 'Deploying' message"
           ssh $DEPLOY_USER@$DROPLET_IP "chmod +x /tmp/blue-green-deploy.sh && sudo GITHUB_REPO=$GITHUB_REPO APP_DIR=$APP_DIR FORCE_REBUILD=$FORCE_REBUILD /tmp/blue-green-deploy.sh"
+          echo "Deployment command executed successfully"
 
       - name: Wait for services to stabilize
-        run: sleep 30
+        run: |
+          echo "Waiting for services to stabilize (60 seconds)..."
+          sleep 60
 
       - name: Verify Deployment
         if: always()
@@ -116,7 +152,6 @@ jobs:
             ssh $DEPLOY_USER@$DROPLET_IP "cd $APP_DIR && docker-compose -f docker-compose.$ACTIVE_ENV.yml up -d || true"
             sleep 20
             
-            # Check again after trying to start them
             if ! ssh $DEPLOY_USER@$DROPLET_IP "docker ps | grep 'dyor-hub-$ACTIVE_ENV'"; then
               echo "ERROR: Still no running containers after restart attempt!"
               

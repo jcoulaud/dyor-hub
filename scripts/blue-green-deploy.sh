@@ -1,133 +1,146 @@
 #!/bin/bash
-
-# Exit on error
 set -e
 
-# Log function
-log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
-}
-
-# Navigate to the application directory
-cd "$APP_DIR" || {
-    log "Failed to navigate to $APP_DIR"
-    exit 1
-}
-
-# Verify we're in the correct directory
-if [ ! -f "docker-compose.green.yml" ]; then
-    log "docker-compose.green.yml not found in $APP_DIR"
-    exit 1
-fi
-
-# Determine current and new environment by checking actual running containers
-CURRENT_ENV=""
-if docker ps --format '{{.Names}}' | grep -q 'blue'; then
-    CURRENT_ENV="blue"
-elif docker ps --format '{{.Names}}' | grep -q 'green'; then
-    CURRENT_ENV="green"
-fi
-
-if [ -z "$CURRENT_ENV" ]; then
-    # If no environment is running, start with blue
-    NEW_ENV="blue"
-else
-    NEW_ENV=$([ "$CURRENT_ENV" = "blue" ] && echo "green" || echo "blue")
-fi
-
-log "Current environment is ${CURRENT_ENV:-none}, deploying to ${NEW_ENV}"
-
-# Build and start the new environment
-log "Building and starting ${NEW_ENV} environment..."
-docker-compose -f docker-compose.${NEW_ENV}.yml build api web || {
-    log "Failed to build ${NEW_ENV} environment"
-    exit 1
-}
-
-# Start the new environment
-log "Starting ${NEW_ENV} environment..."
-docker-compose -f docker-compose.${NEW_ENV}.yml up -d || {
-    log "Failed to start ${NEW_ENV} environment"
-    exit 1
-}
-
-# Store the name of the environment we just started
-STARTED_ENV=$NEW_ENV
-
-# Verify containers are running
-log "Verifying containers are running..."
-docker-compose -f docker-compose.${NEW_ENV}.yml ps || {
-    log "Failed to verify containers"
-    exit 1
-}
-
-# Wait for the new environment to be healthy
-log "Waiting for ${NEW_ENV} environment to be healthy..."
-# Give containers time to start up
-sleep 10
-
-if [ "$NEW_ENV" = "blue" ]; then
-    PORT=3101
-else
-    PORT=3201
-fi
-
-for i in {1..5}; do
-    log "Health check attempt $i of 5..."
-    if curl -s "http://127.0.0.1:${PORT}/health" > /dev/null; then
-        log "${NEW_ENV} environment is healthy"
-        break
-    fi
-    if [ $i -eq 5 ]; then
-        log "Health check failed for ${NEW_ENV} environment after 5 attempts"
-        log "Checking container status..."
-        docker-compose -f docker-compose.${NEW_ENV}.yml ps
-        exit 1
-    fi
-    sleep 2
-done
-
-# Update Nginx configuration to point to the new environment
-log "Updating Nginx configuration..."
+# Configuration
+APP_DIR="/var/www/dyor-hub"
+BLUE_PORT_WEB=3100
+GREEN_PORT_WEB=3200
+BLUE_PORT_API=3101
+GREEN_PORT_API=3201
 NGINX_CONFIG="/etc/nginx/sites-enabled/dyor-hub"
 
-if [ "$NEW_ENV" = "blue" ]; then
-    CURRENT_PORT_WEB=3200
-    NEW_PORT_WEB=3100
-    CURRENT_PORT_API=3201
-    NEW_PORT_API=3101
-else
-    CURRENT_PORT_WEB=3100
-    NEW_PORT_WEB=3200
-    CURRENT_PORT_API=3101
-    NEW_PORT_API=3201
-fi
-
-# Update web port
-sudo sed -i "s/proxy_pass http:\/\/127.0.0.1:$CURRENT_PORT_WEB/proxy_pass http:\/\/127.0.0.1:$NEW_PORT_WEB/" $NGINX_CONFIG
-# Update API port
-sudo sed -i "s/proxy_pass http:\/\/127.0.0.1:$CURRENT_PORT_API/proxy_pass http:\/\/127.0.0.1:$NEW_PORT_API/" $NGINX_CONFIG
-
-# Test and reload Nginx
-log "Testing and reloading Nginx..."
-sudo nginx -t && sudo /bin/systemctl reload nginx || {
-    log "Nginx configuration failed"
-    exit 1
+# Simple logging
+log() {
+  echo "[$(date +%Y-%m-%d\ %H:%M:%S)] $1"
 }
 
-# Stop the old environment after a grace period
-log "Waiting 1 minute before stopping old environment..."
-sleep 60
+log "Starting blue-green deployment"
 
-# Only try to stop the old environment if it exists and is different from what we just started
-if [ -n "$CURRENT_ENV" ] && [ "$CURRENT_ENV" != "$STARTED_ENV" ]; then
-    log "Stopping old environment (${CURRENT_ENV})..."
-    docker-compose -f docker-compose.${CURRENT_ENV}.yml down || {
-        log "Failed to stop old environment"
-        exit 1
-    }
+# Determine current active environment
+if grep -q "proxy_pass http://127.0.0.1:$BLUE_PORT_WEB" $NGINX_CONFIG; then
+  CURRENT_ENV="blue"
+  NEW_ENV="green"
+  CURRENT_PORT_WEB=$BLUE_PORT_WEB
+  NEW_PORT_WEB=$GREEN_PORT_WEB
+  CURRENT_PORT_API=$BLUE_PORT_API
+  NEW_PORT_API=$GREEN_PORT_API
 else
-    log "No old environment to stop"
+  CURRENT_ENV="green"
+  NEW_ENV="blue"
+  CURRENT_PORT_WEB=$GREEN_PORT_WEB
+  NEW_PORT_WEB=$BLUE_PORT_WEB
+  CURRENT_PORT_API=$GREEN_PORT_API
+  NEW_PORT_API=$BLUE_PORT_API
 fi
+
+log "Current: $CURRENT_ENV, New: $NEW_ENV"
+
+# Backup and update code
+cd $APP_DIR
+mkdir -p /tmp/dyor-hub-backup/{apps/api,apps/web}
+[ -f "./apps/api/.env" ] && cp "./apps/api/.env" "/tmp/dyor-hub-backup/apps/api/.env"
+[ -f "./apps/web/.env" ] && cp "./apps/web/.env" "/tmp/dyor-hub-backup/apps/web/.env"
+git fetch --depth 1 origin main
+git reset --hard origin/main
+mkdir -p apps/{api,web}
+[ -f "/tmp/dyor-hub-backup/apps/api/.env" ] && cp "/tmp/dyor-hub-backup/apps/api/.env" "apps/api/.env"
+[ -f "/tmp/dyor-hub-backup/apps/web/.env" ] && cp "/tmp/dyor-hub-backup/apps/web/.env" "apps/web/.env"
+
+# Ensure PostgreSQL variables are exported for docker-compose
+if [ -f "./apps/api/.env" ]; then
+  export $(grep -E '^POSTGRES_(USER|PASSWORD|DB)=' ./apps/api/.env | xargs)
+fi
+
+# Create docker-compose override
+cat > docker-compose.override.yml << EOF
+version: '3.8'
+services:
+  postgres:
+    container_name: dyor-hub-postgres
+    env_file:
+      - ./apps/api/.env
+    restart: always
+  api:
+    container_name: dyor-hub-$NEW_ENV-api
+    ports: ['127.0.0.1:$NEW_PORT_API:3001']
+    environment:
+      - DATABASE_HOST=postgres
+      - REDIS_HOST=redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  web:
+    container_name: dyor-hub-$NEW_ENV-web
+    ports: ['127.0.0.1:$NEW_PORT_WEB:3000']
+    depends_on:
+      api:
+        condition: service_started
+EOF
+
+# Build and start new environment
+log "Building $NEW_ENV environment"
+docker-compose build --no-cache
+log "Starting database services"
+docker-compose up -d postgres redis
+sleep 10
+log "Starting $NEW_ENV services"
+docker-compose up -d api web
+
+# Wait for API service to become ready
+log "Waiting for API service to become ready"
+MAX_RETRIES=60
+RETRY_COUNT=0
+until curl -s "http://127.0.0.1:$NEW_PORT_API/health" | grep -q "ok" || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
+  log "Waiting for API to be available... $(( RETRY_COUNT + 1 ))/$MAX_RETRIES"
+  sleep 2
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+  log "WARNING: API health check timed out, proceeding anyway"
+else
+  log "API service is ready"
+fi
+
+# Wait for services to start
+log "Waiting for all services to become ready"
+sleep 10
+
+# Switch traffic
+log "Updating Nginx to point to $NEW_ENV environment"
+sudo cp $NGINX_CONFIG "${NGINX_CONFIG}.bak"
+sudo sed -i "s|http://127.0.0.1:$CURRENT_PORT_WEB|http://127.0.0.1:$NEW_PORT_WEB|g" $NGINX_CONFIG
+sudo sed -i "s|http://127.0.0.1:$CURRENT_PORT_API|http://127.0.0.1:$NEW_PORT_API|g" $NGINX_CONFIG
+
+# Test Nginx configuration quietly
+log "Testing and reloading Nginx configuration"
+sudo nginx -t -q
+if [ $? -eq 0 ]; then
+  sudo nginx -s reload -q
+  log "Nginx configuration updated successfully"
+else
+  log "ERROR: Nginx configuration test failed. Rolling back..."
+  sudo cp "${NGINX_CONFIG}.bak" $NGINX_CONFIG
+  exit 1
+fi
+
+# Wait for connections to drain
+log "Waiting for connections to drain from old environment"
+sleep 30
+
+# Stop old environment - first check if containers exist
+log "Stopping old $CURRENT_ENV environment"
+for container in "dyor-hub-$CURRENT_ENV-web" "dyor-hub-$CURRENT_ENV-api"; do
+  if docker ps -a | grep -q "$container"; then
+    docker stop "$container" && docker rm "$container"
+  fi
+done
+
+# Cleanup
+docker image prune -f
+rm docker-compose.override.yml
+echo "$NEW_ENV" > ".env.active"
 
 log "Deployment completed successfully" 

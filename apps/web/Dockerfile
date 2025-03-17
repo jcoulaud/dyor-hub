@@ -1,6 +1,14 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+# Use tmpfs for npm/pnpm cache to save disk space
+RUN mkdir -p /tmp/pnpm-store && \
+    chmod 777 /tmp/pnpm-store
+
+# Set environment variables to use tmpfs
+ENV PNPM_HOME=/tmp/pnpm-store
+ENV npm_config_cache=/tmp/npm-cache
+
 # Create app directory
 WORKDIR /app
 
