@@ -28,6 +28,7 @@ export default function Home() {
   const [error, setError] = useState('');
   const [tokenList, setTokenList] = useState<Token[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Use useCallback to prevent recreation of this function on re-renders
   const fetchTokens = useCallback(async () => {
@@ -47,7 +48,7 @@ export default function Home() {
 
   // Use useCallback for event handlers
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
       setError('');
 
@@ -62,7 +63,13 @@ export default function Home() {
         return;
       }
 
-      router.push(`/tokens/${trimmedAddress}`);
+      setIsSearching(true);
+
+      try {
+        router.push(`/tokens/${trimmedAddress}`);
+      } finally {
+        setIsSearching(false);
+      }
     },
     [address, router],
   );
@@ -127,8 +134,18 @@ export default function Home() {
                     </div>
                     <button
                       type='submit'
-                      className='h-12 bg-gradient-to-r from-blue-500 to-purple-500 hover:brightness-110 px-6 text-base font-medium text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl shadow-blue-500/20 hover:shadow-blue-500/30 cursor-pointer'>
-                      Find Token
+                      className={`h-12 bg-gradient-to-r from-blue-500 to-purple-500 px-6 text-base font-medium text-white rounded-lg transition-all duration-200 shadow-lg shadow-blue-500/20 flex items-center justify-center min-w-[120px] ${
+                        isSearching
+                          ? 'opacity-90 cursor-not-allowed'
+                          : 'hover:brightness-110 hover:shadow-xl hover:shadow-blue-500/30 cursor-pointer'
+                      }`}
+                      disabled={isSearching}
+                      aria-label={isSearching ? 'Searching...' : 'Find Token'}>
+                      {isSearching ? (
+                        <div className='animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white'></div>
+                      ) : (
+                        'Find Token'
+                      )}
                     </button>
                   </div>
                   {error && (
