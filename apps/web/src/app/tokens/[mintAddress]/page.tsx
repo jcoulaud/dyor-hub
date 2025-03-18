@@ -26,6 +26,11 @@ export default async function Page({ params }: PageProps) {
     notFound();
   }
 
+  // Replace cf-ipfs.com with ipfs.io in image URL
+  if (token.imageUrl && token.imageUrl.includes('cf-ipfs.com/ipfs/')) {
+    token.imageUrl = token.imageUrl.replace('cf-ipfs.com/ipfs/', 'ipfs.io/ipfs/');
+  }
+
   // Fetch token stats
   const tokenStats = await tokens.getTokenStats(mintAddress).catch(() => null);
 

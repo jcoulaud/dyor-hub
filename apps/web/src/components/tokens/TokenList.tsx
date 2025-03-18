@@ -13,8 +13,16 @@ export function TokenList({ tokens }: TokenListProps) {
   // Limit to 50 most viewed tokens
   const sortedTokens = [...tokens].sort((a, b) => b.viewsCount - a.viewsCount).slice(0, 50);
 
+  // Process image URLs - replace cf-ipfs.com with ipfs.io
+  const processedTokens = sortedTokens.map((token) => ({
+    ...token,
+    imageUrl: token.imageUrl?.includes('cf-ipfs.com/ipfs/')
+      ? token.imageUrl.replace('cf-ipfs.com/ipfs/', 'ipfs.io/ipfs/')
+      : token.imageUrl,
+  }));
+
   // Duplicate the tokens once to ensure seamless scrolling
-  const displayTokens = [...sortedTokens, ...sortedTokens];
+  const displayTokens = [...processedTokens, ...processedTokens];
 
   return (
     <div className='w-full overflow-x-hidden -mt-8 mb-12'>
