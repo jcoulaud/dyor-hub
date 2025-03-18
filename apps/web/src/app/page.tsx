@@ -15,7 +15,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 // Validate Solana address format
 function isValidSolanaAddress(address: string): boolean {
@@ -29,38 +29,46 @@ export default function Home() {
   const [tokenList, setTokenList] = useState<Token[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchTokens = async () => {
-      try {
-        const data = await tokens.list();
-        setTokenList(data);
-      } catch (error) {
-        console.error('Failed to fetch tokens:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTokens();
+  // Use useCallback to prevent recreation of this function on re-renders
+  const fetchTokens = useCallback(async () => {
+    try {
+      const data = await tokens.list();
+      setTokenList(data);
+    } catch (error) {
+      console.error('Failed to fetch tokens:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  useEffect(() => {
+    fetchTokens();
+  }, [fetchTokens]);
 
-    const trimmedAddress = address.trim();
-    if (!trimmedAddress) {
-      setError('Please enter a token address');
-      return;
-    }
+  // Use useCallback for event handlers
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      setError('');
 
-    if (!isValidSolanaAddress(trimmedAddress)) {
-      setError('Please enter a valid Solana address');
-      return;
-    }
+      const trimmedAddress = address.trim();
+      if (!trimmedAddress) {
+        setError('Please enter a token address');
+        return;
+      }
 
-    router.push(`/tokens/${trimmedAddress}`);
-  };
+      if (!isValidSolanaAddress(trimmedAddress)) {
+        setError('Please enter a valid Solana address');
+        return;
+      }
+
+      router.push(`/tokens/${trimmedAddress}`);
+    },
+    [address, router],
+  );
+
+  // Use useMemo for the tokenList
+  const memoizedTokenList = useMemo(() => tokenList, [tokenList]);
 
   return (
     <main className='flex-1 flex flex-col'>
@@ -163,8 +171,8 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          ) : tokenList.length > 0 ? (
-            <TokenList tokens={tokenList} />
+          ) : memoizedTokenList.length > 0 ? (
+            <TokenList tokens={memoizedTokenList} />
           ) : (
             <div className='w-full overflow-x-hidden -mt-8 mb-12'>
               <div className='flex justify-center'>

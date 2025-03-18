@@ -36,6 +36,35 @@ interface AuthResponse {
   user: User | null;
 }
 
+// Simple in-memory cache for API responses
+interface CacheItem<T> {
+  data: T;
+  timestamp: number;
+}
+
+const apiCache = new Map<string, CacheItem<unknown>>();
+const CACHE_TTL = 60 * 1000; // 1 minute TTL
+
+const getCache = <T>(key: string): T | null => {
+  const cached = apiCache.get(key);
+  if (!cached) return null;
+
+  // Check if cache is expired
+  if (Date.now() - cached.timestamp > CACHE_TTL) {
+    apiCache.delete(key);
+    return null;
+  }
+
+  return cached.data as T;
+};
+
+const setCache = <T>(key: string, data: T): void => {
+  apiCache.set(key, {
+    data,
+    timestamp: Date.now(),
+  });
+};
+
 const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
   // Format endpoint based on API routing strategy
   let apiEndpoint = endpoint;
@@ -184,27 +213,79 @@ export const tokens = {
   list: async (): Promise<Token[]> => {
     try {
       const endpoint = 'tokens';
-      return await api<Token[]>(endpoint);
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first
+      const cachedData = getCache<Token[]>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Fetch fresh data
+      const data = await api<Token[]>(endpoint);
+
+      // Update cache
+      setCache(cacheKey, data);
+
+      return data;
     } catch (error) {
       throw error;
     }
   },
+
   getByMintAddress: async (mintAddress: string): Promise<Token> => {
     try {
       const endpoint = `tokens/${mintAddress}`;
-      return await api<Token>(endpoint);
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first
+      const cachedData = getCache<Token>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Fetch fresh data
+      const data = await api<Token>(endpoint);
+
+      // Update cache
+      setCache(cacheKey, data);
+
+      return data;
     } catch (error) {
       throw error;
     }
   },
+
   getTokenStats: async (mintAddress: string): Promise<TokenStats> => {
     try {
       const endpoint = `tokens/${mintAddress}/stats`;
-      return await api<TokenStats>(endpoint);
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first
+      const cachedData = getCache<TokenStats>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Fetch fresh data
+      const data = await api<TokenStats>(endpoint);
+
+      // Update cache
+      setCache(cacheKey, data);
+
+      return data;
     } catch (error) {
       throw error;
     }
   },
-  refreshToken: (mintAddress: string) =>
-    api<void>(`tokens/${mintAddress}/refresh`, { method: 'POST' }),
+
+  refreshToken: (mintAddress: string) => {
+    // Clear cache for this token
+    const tokenCacheKey = `api:tokens/${mintAddress}`;
+    const statsCacheKey = `api:tokens/${mintAddress}/stats`;
+    apiCache.delete(tokenCacheKey);
+    apiCache.delete(statsCacheKey);
+
+    return api<void>(`tokens/${mintAddress}/refresh`, { method: 'POST' });
+  },
 };

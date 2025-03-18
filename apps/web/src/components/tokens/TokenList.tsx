@@ -21,9 +21,6 @@ export function TokenList({ tokens }: TokenListProps) {
       : token.imageUrl,
   }));
 
-  // Duplicate the tokens once to ensure seamless scrolling
-  const displayTokens = [...processedTokens, ...processedTokens];
-
   return (
     <div className='w-full overflow-x-hidden -mt-8 mb-12'>
       <div
@@ -31,9 +28,9 @@ export function TokenList({ tokens }: TokenListProps) {
         style={{ animationPlayState: isHovered ? 'paused' : 'running' }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}>
-        {displayTokens.map((token, index) => (
+        {processedTokens.map((token) => (
           <Link
-            key={`${token.mintAddress}-${index}`}
+            key={token.mintAddress}
             href={`/tokens/${token.mintAddress}`}
             className='group flex-shrink-0'>
             <div className='flex items-center gap-2 px-3 py-1 rounded-lg bg-zinc-900/50 hover:bg-zinc-800/50 transition-colors duration-200'>
