@@ -1,7 +1,7 @@
 import { Token } from '@dyor-hub/types';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
+import { TokenImage } from './TokenImage';
 
 interface TokenListProps {
   tokens: Token[];
@@ -37,16 +37,12 @@ export function TokenList({ tokens }: TokenListProps) {
             href={`/tokens/${token.mintAddress}`}
             className='group flex-shrink-0'>
             <div className='flex items-center gap-2 px-3 py-1 rounded-lg bg-zinc-900/50 hover:bg-zinc-800/50 transition-colors duration-200'>
-              {token.imageUrl && (
-                <div className='relative w-5 h-5 rounded overflow-hidden shrink-0'>
-                  <Image
-                    src={token.imageUrl}
-                    alt={token.symbol}
-                    fill
-                    className='object-cover group-hover:scale-105 transition-transform duration-200'
-                  />
-                </div>
-              )}
+              <TokenImage
+                imageUrl={token.imageUrl}
+                name={token.name}
+                symbol={token.symbol}
+                size='small'
+              />
               <span className='text-xs font-medium text-white'>${token.symbol}</span>
             </div>
           </Link>

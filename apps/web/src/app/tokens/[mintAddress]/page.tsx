@@ -1,11 +1,11 @@
 import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
+import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { tokens } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { Globe, MessageSquare, Shield, Sparkles, Twitter } from 'lucide-react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -55,19 +55,7 @@ export default async function Page({ params }: PageProps) {
             <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-purple-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
             <CardContent className='p-6 sm:p-8'>
               <div className='flex flex-col sm:flex-row items-start gap-6'>
-                {token.imageUrl && (
-                  <div className='relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0 border border-zinc-800/50 shadow-lg group-hover:shadow-blue-500/10 transition-all duration-300'>
-                    <div className='absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10' />
-                    <Image
-                      src={token.imageUrl}
-                      alt={token.name}
-                      fill
-                      sizes='(max-width: 768px) 80px, 96px'
-                      priority
-                      className='object-cover group-hover:scale-105 transition-transform duration-500'
-                    />
-                  </div>
-                )}
+                <TokenImage imageUrl={token.imageUrl} name={token.name} symbol={token.symbol} />
                 <div className='flex-1 min-w-0'>
                   <div className='flex flex-col gap-4'>
                     <div className='flex items-center flex-wrap'>
