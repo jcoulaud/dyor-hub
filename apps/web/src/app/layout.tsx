@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toast';
 import { AuthProvider } from '@/providers/auth-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
 import type { Metadata } from 'next';
+import PlausibleProvider from 'next-plausible';
 import { Poppins } from 'next/font/google';
 import './globals.css';
 
@@ -73,17 +74,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang='en' suppressHydrationWarning className={`${poppins.variable}`}>
       <body className='bg-black font-sans antialiased'>
-        <ThemeProvider>
-          <AuthProvider>
-            <Toaster>
-              <div className='flex flex-col min-h-screen'>
-                <Header />
-                {children}
-                <Footer />
-              </div>
-            </Toaster>
-          </AuthProvider>
-        </ThemeProvider>
+        <PlausibleProvider domain='dyorhub.xyz'>
+          <ThemeProvider>
+            <AuthProvider>
+              <Toaster>
+                <div className='flex flex-col min-h-screen'>
+                  <Header />
+                  {children}
+                  <Footer />
+                </div>
+              </Toaster>
+            </AuthProvider>
+          </ThemeProvider>
+        </PlausibleProvider>
       </body>
     </html>
   );
