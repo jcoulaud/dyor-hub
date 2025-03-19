@@ -1,6 +1,6 @@
 'use client';
 
-import { Check } from 'lucide-react';
+import { Check, Github } from 'lucide-react';
 import { useState } from 'react';
 
 export const Footer = () => {
@@ -24,7 +24,7 @@ export const Footer = () => {
                 </span>
               </p>
               <p className='text-zinc-400 text-sm flex items-center justify-center md:justify-start'>
-                <span className='inline-block text-zinc-500'>Donations 💙: </span>
+                <span className='inline-block text-zinc-500'>Donations 💙 </span>
                 <span
                   className='font-mono text-sm bg-zinc-800 px-2 py-0.5 rounded hover:bg-zinc-700 transition-colors cursor-pointer flex items-center ml-1'
                   onClick={handleCopyAddress}>
@@ -34,16 +34,26 @@ export const Footer = () => {
               </p>
             </div>
           </div>
-          <div className='text-zinc-500 text-sm py-2 md:py-0'>
-            Made by a{' '}
+          <div className='text-zinc-500 text-sm py-2 md:py-0 flex flex-col items-center md:items-end'>
+            <div>
+              Made by a{' '}
+              <a
+                href='https://x.com/JulienCoulaud'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-blue-400 hover:text-blue-300 transition-colors'>
+                degen
+              </a>{' '}
+              for degens
+            </div>
             <a
-              href='https://twitter.com/JulienCoulaud'
+              href='https://github.com/jcoulaud/dyor-hub'
               target='_blank'
               rel='noopener noreferrer'
-              className='text-blue-400 hover:text-blue-300 transition-colors'>
-              degen
-            </a>{' '}
-            for degens
+              className='inline-flex items-center text-zinc-500 hover:text-blue-300 transition-colors mt-1'>
+              <Github className='h-3.5 w-3.5 mr-1' />
+              Open Source
+            </a>
           </div>
         </div>
       </div>
