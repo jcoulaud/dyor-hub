@@ -10,11 +10,13 @@ import {
   ArrowBigDown,
   ArrowBigUp,
   ChevronDown,
+  Link as LinkIcon,
   MessageSquare,
   MoreHorizontal,
   Trash2,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AuthModal } from '../auth/AuthModal';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
@@ -30,6 +32,7 @@ import { CommentInput } from './CommentInput';
 
 interface CommentSectionProps {
   tokenMintAddress: string;
+  commentId?: string;
 }
 
 type CommentType = Comment & {
@@ -38,7 +41,7 @@ type CommentType = Comment & {
 
 type SortOption = 'best' | 'new' | 'old' | 'controversial';
 
-export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
+export function CommentSection({ tokenMintAddress, commentId }: CommentSectionProps) {
   const [commentsList, setComments] = useState<CommentType[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>('best');
   const [previousSort, setPreviousSort] = useState<SortOption | null>(null);
@@ -50,6 +53,9 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { isAuthenticated, isLoading: authLoading, user } = useAuthContext();
+  const commentRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const hasScrolled = useRef(false);
+  const pathname = usePathname();
 
   const organizeComments = useCallback(
     (comments: CommentType[]) => {
@@ -132,6 +138,25 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
       fetchComments();
     }
   }, [authLoading, isAuthenticated, fetchComments]);
+
+  // Add effect to scroll to comment when commentId is provided and comments are loaded
+  useEffect(() => {
+    if (commentId && !isLoading && commentsList.length > 0 && !hasScrolled.current) {
+      const timer = setTimeout(() => {
+        const commentElement = commentRefs.current.get(commentId);
+
+        if (commentElement) {
+          commentElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+          hasScrolled.current = true;
+        }
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [commentId, isLoading, commentsList]);
 
   const withAuth = async (action: () => Promise<void>) => {
     if (authLoading) {
@@ -277,6 +302,29 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
     [isAuthenticated, fetchComments, toast],
   );
 
+  const copyCommentLinkToClipboard = useCallback(
+    (comment: CommentType) => {
+      const shareUrl = `${window.location.origin}${pathname}?comment=${comment.id}`;
+
+      navigator.clipboard
+        .writeText(shareUrl)
+        .then(() => {
+          toast({
+            title: 'Link copied',
+            description: 'Comment link copied to clipboard',
+          });
+        })
+        .catch(() => {
+          toast({
+            title: 'Failed to copy',
+            description: 'Could not copy the link. Please try again.',
+            variant: 'destructive',
+          });
+        });
+    },
+    [pathname, toast],
+  );
+
   const Comment = ({ comment, depth = 0 }: { comment: CommentType; depth?: number }) => {
     const maxDepth = 5;
     const isCommentOwner = user?.id === comment.user.id;
@@ -293,8 +341,18 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
       setReplyingTo(isReplying ? null : comment.id);
     };
 
+    // Collect comment ref for scrolling
+    const setCommentRef = (el: HTMLDivElement | null) => {
+      if (el) {
+        commentRefs.current.set(comment.id, el);
+      } else {
+        commentRefs.current.delete(comment.id);
+      }
+    };
+
     return (
       <div
+        ref={setCommentRef}
         className={cn(
           'group/comment rounded-md transition-colors duration-150 w-full pr-2 sm:pr-4',
           depth > 0 && 'border-l-2 pl-2 sm:pl-4 ml-2 sm:ml-4',
@@ -378,6 +436,15 @@ export function CommentSection({ tokenMintAddress }: CommentSectionProps) {
                     onClick={handleReplyClick}>
                     <MessageSquare className='h-4 w-4' />
                     <span className='text-xs'>Reply</span>
+                  </Button>
+                )}
+                {!comment.isRemoved && (
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='h-8 px-2 cursor-pointer'
+                    onClick={() => copyCommentLinkToClipboard(comment)}>
+                    <LinkIcon className='h-4 w-4' />
                   </Button>
                 )}
                 {isAdmin && !isCommentOwner && !comment.isRemoved && (

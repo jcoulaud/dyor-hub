@@ -11,10 +11,14 @@ import { notFound } from 'next/navigation';
 
 interface PageProps {
   params: Promise<{ mintAddress: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
   const { mintAddress } = await params;
+  const searchParamsResolved = await searchParams;
+  const commentId =
+    typeof searchParamsResolved.comment === 'string' ? searchParamsResolved.comment : undefined;
 
   if (!mintAddress || !isValidSolanaAddress(mintAddress)) {
     notFound();
@@ -216,7 +220,7 @@ export default async function Page({ params }: PageProps) {
                   <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent mt-4'></div>
                 </CardHeader>
                 <CardContent className='relative pt-4'>
-                  <CommentSection tokenMintAddress={token.mintAddress} />
+                  <CommentSection tokenMintAddress={token.mintAddress} commentId={commentId} />
                 </CardContent>
               </Card>
             </div>
