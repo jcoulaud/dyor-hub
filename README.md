@@ -1,6 +1,6 @@
-# DYOR Hub
+# DYOR hub
 
-DYOR Hub (Do Your Own Research Hub) is a platform for discovering, discussing, and researching tokens in the cryptocurrency space.
+DYOR hub (Do Your Own Research Hub) is a platform for discovering, discussing, and researching tokens in the cryptocurrency space.
 
 ## Architecture Overview
 
@@ -270,11 +270,11 @@ Once configured, you'll receive notifications with user info, token address, com
 
 ## Contributing
 
-I welcome contributions to DYOR Hub! Please read my [Contributing Guide](CONTRIBUTING.md) for details on my code of conduct and the process for submitting pull requests.
+I welcome contributions to DYOR hub! Please read my [Contributing Guide](CONTRIBUTING.md) for details on my code of conduct and the process for submitting pull requests.
 
 ## Donations
 
-If you find DYOR Hub useful and would like to support its development, you can send donations to my Solana wallet:
+If you find DYOR hub useful and would like to support its development, you can send donations to my Solana wallet:
 
 ```
 AGAuBEwae93RJaocTE43mvYz72Ay4cqWzc28RNa1XXMi
@@ -284,4 +284,4 @@ Thank you for your support!
 
 ## License
 
-DYOR Hub is open-sourced software licensed under the [MIT license](LICENSE).
+DYOR hub is open-sourced software licensed under the [MIT license](LICENSE).

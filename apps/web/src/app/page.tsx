@@ -104,7 +104,7 @@ export default function Home() {
 
               <h1 className='text-5xl md:text-7xl font-bold tracking-tight'>
                 <span className='bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500'>
-                  DYOR Hub
+                  DYOR hub
                 </span>
               </h1>
 

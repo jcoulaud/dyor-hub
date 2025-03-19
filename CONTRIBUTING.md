@@ -1,4 +1,4 @@
-# Contributing to DYOR Hub
+# Contributing to DYOR hub
 
 ## Code of Conduct
 
