@@ -63,6 +63,12 @@ Comments are automatically moderated using:
 - **Google Perspective API**: Detects toxic content and spam
 - **Custom Filtering**: Additional rules for short comments and URLs
 
+### Admin Notifications
+
+- **Telegram Notifications**: Receive alerts when new comments are posted
+  - Optional integration - requires Telegram bot token and chat ID
+  - See the [Admin Notifications](#admin-notifications-1) section for setup instructions
+
 ### User Interaction
 
 - **Comment System**: Threaded discussions with voting
@@ -118,6 +124,7 @@ PORT=3001
 
 # API Configuration
 USE_API_SUBDOMAIN=true
+DEFAULT_APP_URL=https://dyorhub.xyz
 
 # Database Configuration
 DATABASE_URL=postgres://dyor_hub_user:your_secure_password_here@postgres:5432/dyor_hub
@@ -144,6 +151,10 @@ CLIENT_URL=https://dyorhub.xyz
 # External APIs
 HELIUS_API_KEY=your_helius_api_key
 PERSPECTIVE_API_KEY=your_perspective_api_key
+
+# Admin Notifications (Optional)
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_CHAT_ID=your_chat_id_here
 ```
 
 #### Frontend (.env)
@@ -186,6 +197,37 @@ For Twitter OAuth authentication to work correctly across domains:
    - `httpOnly: true` (prevents JavaScript access)
 
 4. **Redis Persistence**: Ensure Redis is properly configured and accessible, as it stores session data.
+
+## Admin Notifications
+
+### Telegram Notifications Setup
+
+The application can send notifications to a Telegram channel when new comments are posted. This feature is optional and requires:
+
+1. **Create a Telegram Bot**:
+
+   - Contact [@BotFather](https://t.me/botfather) on Telegram
+   - Send the command `/newbot` and follow the instructions
+   - Save the API token you receive
+
+2. **Create a Telegram Channel**:
+
+   - Create a channel for admin notifications
+   - Add your bot as an administrator
+
+3. **Get the Chat ID**:
+
+   - For a channel: Send a message and visit `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
+   - The chat ID for a channel typically starts with `-100`
+
+4. **Configure Environment Variables**:
+   - Add the following to your API server's `.env` file:
+     ```
+     TELEGRAM_BOT_TOKEN=your_bot_token_here
+     TELEGRAM_CHAT_ID=your_chat_id_here
+     ```
+
+Once configured, you'll receive notifications with user info, token address, comment content, and a direct link to view the comment.
 
 ## Troubleshooting
 

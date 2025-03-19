@@ -4,6 +4,8 @@ import { AuthModule } from '../auth/auth.module';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
 import { PerspectiveModule } from '../services/perspective.module';
+import { PerspectiveService } from '../services/perspective.service';
+import { TelegramNotificationService } from '../services/telegram-notification.service';
 import { CommentsController } from './comments.controller';
 import { CommentsService } from './comments.service';
 
@@ -14,7 +16,7 @@ import { CommentsService } from './comments.service';
     PerspectiveModule,
   ],
   controllers: [CommentsController],
-  providers: [CommentsService],
+  providers: [CommentsService, PerspectiveService, TelegramNotificationService],
   exports: [CommentsService],
 })
 export class CommentsModule {}

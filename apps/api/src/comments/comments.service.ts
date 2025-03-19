@@ -11,6 +11,7 @@ import { In, Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
 import { PerspectiveService } from '../services/perspective.service';
+import { TelegramNotificationService } from '../services/telegram-notification.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { VoteResponseDto } from './dto/vote-response.dto';
@@ -23,6 +24,7 @@ export class CommentsService {
     @InjectRepository(CommentVoteEntity)
     private readonly voteRepository: Repository<CommentVoteEntity>,
     private readonly perspectiveService: PerspectiveService,
+    private readonly telegramService: TelegramNotificationService,
   ) {}
 
   async findByTokenMintAddress(
@@ -122,13 +124,18 @@ export class CommentsService {
 
     const savedComment = await this.commentRepository.save(comment);
 
-    // Return with user relationship populated
-    return this.commentRepository.findOne({
+    // Get comment with user relationship populated
+    const populatedComment = await this.commentRepository.findOne({
       where: { id: savedComment.id },
       relations: {
         user: true,
       },
     });
+
+    // Notify admins via Telegram about the new comment
+    this.telegramService.notifyNewComment(populatedComment);
+
+    return populatedComment;
   }
 
   async update(id: string, dto: UpdateCommentDto, userId: string) {

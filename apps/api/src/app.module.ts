@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { CommentsModule } from './comments/comments.module';
 import { databaseConfig } from './config/database.config';
 import { HealthModule } from './health/health.module';
+import { TelegramNotificationService } from './services/telegram-notification.service';
 import { SessionModule } from './session/session.module';
 import { TokensModule } from './tokens/tokens.module';
 
@@ -26,6 +27,6 @@ import { TokensModule } from './tokens/tokens.module';
     HealthModule,
   ],
   controllers: [AppController],
-  providers: [],
+  providers: [TelegramNotificationService],
 })
 export class AppModule {}
