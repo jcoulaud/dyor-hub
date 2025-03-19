@@ -24,7 +24,7 @@ export function TokenList({ tokens }: TokenListProps) {
   return (
     <div className='w-full overflow-x-hidden -mt-8 mb-12'>
       <div
-        className='flex gap-4 px-4 sm:px-6 lg:px-8 animate-scroll'
+        className='flex gap-4 px-4 sm:px-6 lg:px-8 sm:animate-scroll max-sm:animate-scroll-mobile'
         style={{ animationPlayState: isHovered ? 'paused' : 'running' }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}>

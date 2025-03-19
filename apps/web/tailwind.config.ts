@@ -15,9 +15,8 @@ const config: Config = {
         },
       },
       animation: {
-        scroll: 'scroll 15s linear infinite',
-        'scroll-slow': 'scroll 40s linear infinite',
-        'scroll-paused': 'scroll 15s linear infinite paused',
+        scroll: 'scroll 20s linear infinite',
+        'scroll-mobile': 'scroll 5s linear infinite',
       },
     },
   },
