@@ -1,5 +1,6 @@
 'use client';
 
+import { FeedbackModal } from '@/components/feedback/FeedbackModal';
 import { TokenList } from '@/components/tokens/TokenList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,8 +30,8 @@ export default function Home() {
   const [tokenList, setTokenList] = useState<Token[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
-  // Use useCallback to prevent recreation of this function on re-renders
   const fetchTokens = useCallback(async () => {
     try {
       const data = await tokens.list();
@@ -46,7 +47,6 @@ export default function Home() {
     fetchTokens();
   }, [fetchTokens]);
 
-  // Use useCallback for event handlers
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -74,7 +74,14 @@ export default function Home() {
     [address, router],
   );
 
-  // Use useMemo for the tokenList
+  const handleOpenFeedbackModal = useCallback(() => {
+    setIsFeedbackModalOpen(true);
+  }, []);
+
+  const handleCloseFeedbackModal = useCallback(() => {
+    setIsFeedbackModalOpen(false);
+  }, []);
+
   const memoizedTokenList = useMemo(() => tokenList, [tokenList]);
 
   return (
@@ -97,9 +104,15 @@ export default function Home() {
             <div className='space-y-5'>
               <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
                 <Sparkles className='h-4 w-4 text-blue-400 mr-2' />
-                <span className='text-sm font-medium text-zinc-300'>
-                  Community-Driven Memecoin Platform
-                </span>
+                <span className='text-sm font-medium text-zinc-300'>Beta</span>
+                <span className='mx-2 text-sm text-zinc-300/70'>•</span>
+                <button
+                  className='text-sm font-medium text-zinc-300 hover:text-zinc-100 cursor-pointer'
+                  type='button'
+                  onClick={handleOpenFeedbackModal}
+                  aria-label='Open feedback form'>
+                  Give Feedback
+                </button>
               </div>
 
               <h1 className='text-5xl md:text-7xl font-bold tracking-tight'>
@@ -284,6 +297,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Feedback Modal */}
+      <FeedbackModal isOpen={isFeedbackModalOpen} onClose={handleCloseFeedbackModal} />
     </main>
   );
 }
