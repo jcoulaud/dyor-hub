@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     'Your trusted platform for Solana memecoin discussions, research, and real-time updates. Connect with verified Twitter users, discover trending tokens, and make informed decisions.',
   keywords:
     'Solana, memecoin, cryptocurrency, token research, crypto community, DYOR, blockchain, token discussions',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_URL || 'https://dyorhub.xyz'),
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon-16x16.png',
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/opengraph-image.png',
+        url: `${process.env.NEXT_PUBLIC_URL || 'https://dyorhub.xyz'}/opengraph-image.png`,
         width: 1200,
         height: 630,
         alt: 'DYOR hub - Solana Memecoin Research Platform',
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
     description:
       'Your trusted platform for Solana memecoin discussions, research, and real-time updates. Connect with verified Twitter users, discover trending tokens, and make informed decisions.',
-    images: ['/twitter-image.png'],
+    images: [`${process.env.NEXT_PUBLIC_URL || 'https://dyorhub.xyz'}/twitter-image.png`],
     creator: '@JulienCoulaud',
   },
 };
