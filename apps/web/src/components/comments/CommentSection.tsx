@@ -338,6 +338,11 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     };
 
     const handleReplyClick = () => {
+      if (!isAuthenticated) {
+        setShowAuthModal(true);
+        setPendingAction(null);
+        return;
+      }
       setReplyingTo(isReplying ? null : comment.id);
     };
 
@@ -475,6 +480,10 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
                     onSubmit={handleReply}
                     onCancel={() => setReplyingTo(null)}
                     submitLabel='Reply'
+                    onAuthRequired={() => {
+                      setPendingAction(null);
+                      setShowAuthModal(true);
+                    }}
                   />
                 </div>
               )}
@@ -530,6 +539,10 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
           onCancel={() => setNewComment('')}
           placeholder='Add a comment'
           className='w-full'
+          onAuthRequired={() => {
+            setPendingAction(null);
+            setShowAuthModal(true);
+          }}
         />
 
         <div className='flex items-center pb-2 w-full'>

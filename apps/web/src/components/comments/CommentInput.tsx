@@ -1,4 +1,7 @@
+'use client';
+
 import { cn } from '@/lib/utils';
+import { useAuthContext } from '@/providers/auth-provider';
 import { COMMENT_MAX_LENGTH } from '@dyor-hub/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/button';
@@ -12,6 +15,7 @@ interface CommentInputProps {
   submitLabel?: string;
   placeholder?: string;
   variant?: 'main' | 'reply';
+  onAuthRequired?: () => void;
 }
 
 export function CommentInput({
@@ -22,7 +26,9 @@ export function CommentInput({
   submitLabel = 'Comment',
   placeholder,
   variant = 'main',
+  onAuthRequired,
 }: CommentInputProps) {
+  const { isAuthenticated } = useAuthContext();
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExpanded, setIsExpanded] = useState(variant === 'reply');
@@ -32,16 +38,49 @@ export function CommentInput({
   const defaultPlaceholder = variant === 'main' ? 'Add a comment' : 'Write a reply...';
   const actualPlaceholder = placeholder ?? defaultPlaceholder;
 
-  // Handle keyboard shortcuts
+  const handleSubmit = useCallback(async () => {
+    if (!isAuthenticated) {
+      onAuthRequired?.();
+      return;
+    }
+
+    if (!content.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      await onSubmit(content);
+
+      if (mountedRef.current) {
+        setContent('');
+        if (variant === 'main') {
+          setIsExpanded(false);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to submit comment:', error);
+    } finally {
+      if (mountedRef.current) {
+        setIsSubmitting(false);
+      }
+    }
+  }, [content, isAuthenticated, isSubmitting, onAuthRequired, onSubmit, variant]);
+
+  const handleCancel = useCallback(() => {
+    if (mountedRef.current) {
+      setContent('');
+      if (variant === 'main') {
+        setIsExpanded(false);
+      }
+      onCancel?.();
+    }
+  }, [onCancel, variant]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle shortcuts if the form is expanded or it's a reply
       if (!isExpanded && variant !== 'reply') return;
 
-      // Check if the active element is within our form
       if (!formRef.current?.contains(document.activeElement)) return;
 
-      // Submit on Cmd/Ctrl + Enter
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         if (content.trim() && !isSubmitting) {
@@ -49,7 +88,6 @@ export function CommentInput({
         }
       }
 
-      // Cancel on Escape
       if (e.key === 'Escape') {
         e.preventDefault();
         handleCancel();
@@ -58,9 +96,8 @@ export function CommentInput({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [content, isSubmitting, isExpanded, variant]);
+  }, [content, isSubmitting, isExpanded, variant, handleCancel, handleSubmit]);
 
-  // Ensure component is mounted
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -68,7 +105,6 @@ export function CommentInput({
     };
   }, []);
 
-  // Update expanded state when variant changes
   useEffect(() => {
     if (variant === 'reply') {
       setIsExpanded(true);
@@ -100,45 +136,17 @@ export function CommentInput({
     }
   }, [handleClickOutside, variant]);
 
-  // Keep expanded state in sync with content
   useEffect(() => {
     if (content.trim() && mountedRef.current && variant === 'main') {
       setIsExpanded(true);
     }
   }, [content, variant]);
 
-  const handleSubmit = async () => {
-    if (!content.trim() || isSubmitting) return;
-
-    setIsSubmitting(true);
-    try {
-      await onSubmit(content);
-
-      // Only proceed if component is still mounted
-      if (mountedRef.current) {
-        setContent('');
-        if (variant === 'main') {
-          setIsExpanded(false);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to submit comment:', error);
-    } finally {
-      if (mountedRef.current) {
-        setIsSubmitting(false);
-      }
+  const handleInputClick = () => {
+    if (!isAuthenticated) {
+      onAuthRequired?.();
     }
   };
-
-  const handleCancel = useCallback(() => {
-    if (mountedRef.current) {
-      setContent('');
-      if (variant === 'main') {
-        setIsExpanded(false);
-      }
-      onCancel?.();
-    }
-  }, [onCancel, variant]);
 
   return (
     <form
@@ -152,7 +160,8 @@ export function CommentInput({
         className={cn(
           'relative flex flex-col border bg-background overflow-hidden',
           variant === 'main' && !isExpanded ? 'rounded-full' : 'rounded-md',
-        )}>
+        )}
+        onClick={handleInputClick}>
         <RichTextEditor
           content={content}
           onChange={setContent}
@@ -162,12 +171,14 @@ export function CommentInput({
           onExpandedChange={setIsExpanded}
           variant={variant}
           autoFocus={autoFocus || variant === 'reply'}
+          readOnly={!isAuthenticated}
           className={cn(
             variant === 'main'
               ? isExpanded
                 ? 'min-h-[60px] max-h-[600px]'
                 : 'h-[34px] sm:h-[38px] min-h-0'
               : 'min-h-[60px] max-h-[600px]',
+            !isAuthenticated && 'cursor-pointer',
           )}
         />
         {(variant === 'reply' || isExpanded) && (
@@ -188,10 +199,10 @@ export function CommentInput({
               <Button
                 type='submit'
                 size='sm'
-                disabled={!content.trim() || isSubmitting}
+                disabled={!isAuthenticated || !content.trim() || isSubmitting}
                 className={cn(
                   'rounded-full bg-primary hover:bg-primary/90 text-xs font-bold h-7 sm:h-8 px-3 sm:px-4',
-                  !content.trim() && 'opacity-50 cursor-not-allowed',
+                  (!isAuthenticated || !content.trim()) && 'opacity-50 cursor-not-allowed',
                 )}>
                 {submitLabel}
               </Button>

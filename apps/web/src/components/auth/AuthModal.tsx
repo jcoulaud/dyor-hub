@@ -1,6 +1,5 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -37,7 +36,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
         description: 'Successfully signed in with Twitter',
       });
       onClose();
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to complete authentication',
@@ -54,7 +53,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
       try {
         await handleAuthSuccess();
         clearInterval(checkAuthTimer);
-      } catch (error) {
+      } catch {
         // Silently fail - will retry on next interval
       }
     }, 3000);
@@ -71,13 +70,16 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
           <DialogDescription>Please sign in with Twitter to continue</DialogDescription>
         </DialogHeader>
         <div className='flex flex-col items-center space-y-4 py-4'>
-          <Button
+          <button
             onClick={handleTwitterLogin}
-            className='flex items-center space-x-2'
-            variant='outline'>
-            <Twitter className='h-5 w-5' />
-            <span>Sign in with Twitter</span>
-          </Button>
+            className='h-10 bg-gradient-to-r from-blue-600/90 to-purple-600/90 text-white rounded-lg px-5 py-2 flex items-center justify-center gap-2.5 transition-shadow duration-200 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed'
+            aria-label='Sign in with Twitter'
+            type='button'>
+            <span className='flex items-center gap-2.5'>
+              <Twitter className='h-4 w-4' />
+              <span>Sign in with Twitter</span>
+            </span>
+          </button>
         </div>
       </DialogContent>
     </Dialog>

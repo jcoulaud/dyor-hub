@@ -238,7 +238,7 @@ export function RichTextEditor({
       }),
       Placeholder.configure({
         placeholder,
-        showOnlyWhenEditable: true,
+        showOnlyWhenEditable: false,
         emptyEditorClass: 'is-editor-empty',
       }),
       Link.configure({

@@ -81,7 +81,7 @@ export const TwitterLoginButton = () => {
       <button
         onClick={handleLogin}
         disabled={isLoading}
-        className='h-10 bg-gradient-to-r from-blue-600/90 to-purple-600/90 text-white rounded-lg px-5 py-2 flex items-center justify-center gap-2.5 transition-shadow duration-200 shadow-lg hover:shadow-blue-500/30 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed'
+        className='h-10 bg-gradient-to-r from-blue-600/90 to-purple-600/90 text-white rounded-lg px-5 py-2 flex items-center justify-center gap-2.5 transition-shadow duration-200 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed'
         aria-label='Sign in with Twitter'
         type='button'>
         {isLoading ? (
