@@ -33,14 +33,16 @@ export function TokenList({ tokens }: TokenListProps) {
             key={token.mintAddress}
             href={`/tokens/${token.mintAddress}`}
             className='group flex-shrink-0'>
-            <div className='flex items-center gap-2 px-3 py-1 rounded-lg bg-zinc-900/50 hover:bg-zinc-800/50 transition-colors duration-200'>
+            <div className='flex items-center gap-2 px-3 py-1 rounded-lg bg-zinc-900/50 transition-colors duration-200 border border-zinc-700/50 hover:border-blue-500'>
               <TokenImage
                 imageUrl={token.imageUrl}
                 name={token.name}
                 symbol={token.symbol}
                 size='small'
               />
-              <span className='text-xs font-medium text-white'>${token.symbol}</span>
+              <span className='text-xs font-medium text-white group-hover:text-zinc-200'>
+                ${token.symbol}
+              </span>
             </div>
           </Link>
         ))}
