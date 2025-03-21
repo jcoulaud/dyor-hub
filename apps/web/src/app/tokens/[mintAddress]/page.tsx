@@ -45,88 +45,73 @@ export default async function Page({ params, searchParams }: PageProps) {
       <div className="fixed inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
 
       {/* Animated gradient orbs */}
-      <div className='fixed top-20 left-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-pulse z-0' />
+      <div className='fixed top-20 left-1/4 w-72 h-64 bg-blue-500/10 rounded-full blur-3xl animate-pulse z-0' />
       <div
         className='fixed bottom-20 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse z-0'
         style={{ animationDelay: '1s' }}
       />
 
-      <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+      <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 py-6'>
         {/* Token Header Card */}
-        <div className='relative group mb-8'>
+        <div className='relative group mb-6'>
           <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-300'></div>
           <Card className='relative w-full border-0 bg-black/60 backdrop-blur-md shadow-xl rounded-xl overflow-hidden'>
             <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-purple-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
-            <CardContent className='p-6 sm:p-8'>
-              <div className='flex flex-col sm:flex-row items-start gap-6'>
+            <CardContent className='p-4'>
+              <div className='flex items-start gap-4'>
                 <TokenImage imageUrl={token.imageUrl} name={token.name} symbol={token.symbol} />
                 <div className='flex-1 min-w-0'>
-                  <div className='flex flex-col gap-4'>
-                    <div className='flex items-center flex-wrap'>
-                      <div className='relative'>
-                        <h1 className='text-2xl sm:text-3xl font-bold text-white py-1.5 pr-4 rounded-lg shadow-lg'>
-                          <span className='absolute inset-0 bg-gradient-to-r from-blue-600/80 to-purple-600/80 backdrop-blur-sm rounded-lg -z-10'></span>
-                          {token.name}
-                        </h1>
+                  <div className='flex flex-col gap-2'>
+                    <div className='flex justify-between items-center flex-wrap'>
+                      <div className='flex items-center flex-wrap gap-2'>
+                        <div className='relative mr-2'>
+                          <h1 className='text-xl sm:text-2xl font-bold text-white py-1 pr-3 rounded-lg shadow-lg'>
+                            <span className='absolute inset-0 bg-gradient-to-r from-blue-600/80 to-purple-600/80 backdrop-blur-sm rounded-lg -z-10'></span>
+                            {token.name}
+                          </h1>
+                        </div>
+
+                        <div className='hidden sm:flex items-center gap-2'>
+                          <span className='text-sm font-medium px-2 py-1 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg text-zinc-200'>
+                            ${token.symbol}
+                          </span>
+                        </div>
                       </div>
-                      <span className='ml-3 text-sm font-medium px-3 py-1.5 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg text-zinc-200'>
-                        ${token.symbol}
-                      </span>
-                    </div>
 
-                    <div className='max-w-full'>
-                      {token.description ? (
-                        <p
-                          className='text-zinc-300 text-sm sm:text-base break-all hyphens-auto overflow-wrap-anywhere leading-relaxed'
-                          style={{
-                            wordBreak: 'break-word',
-                            overflowWrap: 'break-word',
-                            msWordBreak: 'break-all',
-                            wordWrap: 'break-word',
-                          }}>
-                          {token.description}
-                        </p>
-                      ) : (
-                        <p className='text-zinc-500 text-sm italic'>
-                          No description available for this token.
-                        </p>
-                      )}
-                    </div>
+                      <div className='hidden sm:flex items-center gap-2 flex-shrink-0'>
+                        <SolscanButton
+                          address={token.mintAddress}
+                          type='token'
+                          className='relative flex items-center gap-1 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 h-8 px-2 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'>
+                          <span className='font-mono text-zinc-200 text-xs'>
+                            {truncateAddress(token.mintAddress)}
+                          </span>
+                          <svg
+                            xmlns='http://www.w3.org/2000/svg'
+                            width='12'
+                            height='12'
+                            viewBox='0 0 24 24'
+                            fill='none'
+                            stroke='currentColor'
+                            strokeWidth='2'
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            className='text-blue-400 transition-colors'>
+                            <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
+                            <polyline points='15 3 21 3 21 9' />
+                            <line x1='10' y1='14' x2='21' y2='3' />
+                          </svg>
+                        </SolscanButton>
 
-                    <div className='flex flex-wrap items-center gap-4 pt-2'>
-                      <SolscanButton
-                        address={token.mintAddress}
-                        type='token'
-                        className='relative flex items-center gap-2 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 px-4 py-2 rounded-lg text-sm hover:bg-zinc-700/50 transition-all duration-200 cursor-pointer group/button'>
-                        <span className='font-mono text-zinc-200'>
-                          {truncateAddress(token.mintAddress)}
-                        </span>
-                        <svg
-                          xmlns='http://www.w3.org/2000/svg'
-                          width='14'
-                          height='14'
-                          viewBox='0 0 24 24'
-                          fill='none'
-                          stroke='currentColor'
-                          strokeWidth='2'
-                          strokeLinecap='round'
-                          strokeLinejoin='round'
-                          className='text-blue-400 group-hover/button:text-blue-300 transition-colors'>
-                          <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
-                          <polyline points='15 3 21 3 21 9' />
-                          <line x1='10' y1='14' x2='21' y2='3' />
-                        </svg>
-                      </SolscanButton>
-
-                      <div className='flex items-center gap-3'>
+                        {/* Desktop Social buttons */}
                         {token.websiteUrl && (
                           <Link
                             href={token.websiteUrl}
                             target='_blank'
                             rel='noopener noreferrer'
-                            className='flex items-center justify-center w-10 h-10 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 hover:shadow-sm hover:shadow-blue-500/20 transition-all duration-200'
+                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
                             title='Website'>
-                            <Globe className='w-5 h-5 text-blue-400' />
+                            <Globe className='w-4 h-4 text-blue-400' />
                           </Link>
                         )}
 
@@ -135,9 +120,9 @@ export default async function Page({ params, searchParams }: PageProps) {
                             href={`https://twitter.com/${token.twitterHandle}`}
                             target='_blank'
                             rel='noopener noreferrer'
-                            className='flex items-center justify-center w-10 h-10 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 hover:shadow-sm hover:shadow-blue-500/20 transition-all duration-200'
+                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
                             title='Twitter'>
-                            <Twitter className='w-5 h-5 text-blue-400' />
+                            <Twitter className='w-4 h-4 text-blue-400' />
                           </Link>
                         )}
 
@@ -146,12 +131,80 @@ export default async function Page({ params, searchParams }: PageProps) {
                             href={token.telegramUrl}
                             target='_blank'
                             rel='noopener noreferrer'
-                            className='flex items-center justify-center w-10 h-10 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 hover:shadow-sm hover:shadow-blue-500/20 transition-all duration-200'
+                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
                             title='Telegram'>
-                            <MessageSquare className='w-5 h-5 text-blue-400' />
+                            <MessageSquare className='w-4 h-4 text-blue-400' />
                           </Link>
                         )}
                       </div>
+                    </div>
+
+                    {/* Token description */}
+                    {token.description && (
+                      <p className='text-zinc-300 text-sm leading-snug line-clamp-4 sm:line-clamp-none transition-all duration-200 cursor-pointer md:max-w-[75%]'>
+                        {token.description}
+                      </p>
+                    )}
+
+                    {/* Mobile ticker and buttons - shown below description */}
+                    <div className='flex sm:hidden items-center gap-2 mt-3'>
+                      <span className='text-sm font-medium px-2 py-1 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg text-zinc-200'>
+                        ${token.symbol}
+                      </span>
+
+                      <SolscanButton
+                        address={token.mintAddress}
+                        type='token'
+                        className='flex items-center justify-center w-7 h-7 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'>
+                        <svg
+                          xmlns='http://www.w3.org/2000/svg'
+                          width='12'
+                          height='12'
+                          viewBox='0 0 24 24'
+                          fill='none'
+                          stroke='currentColor'
+                          strokeWidth='2'
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          className='text-blue-400 transition-colors'>
+                          <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
+                          <polyline points='15 3 21 3 21 9' />
+                          <line x1='10' y1='14' x2='21' y2='3' />
+                        </svg>
+                      </SolscanButton>
+
+                      {token.websiteUrl && (
+                        <Link
+                          href={token.websiteUrl}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='flex items-center justify-center w-7 h-7 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                          title='Website'>
+                          <Globe className='w-3.5 h-3.5 text-blue-400' />
+                        </Link>
+                      )}
+
+                      {token.twitterHandle && (
+                        <Link
+                          href={`https://twitter.com/${token.twitterHandle}`}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='flex items-center justify-center w-7 h-7 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                          title='Twitter'>
+                          <Twitter className='w-3.5 h-3.5 text-blue-400' />
+                        </Link>
+                      )}
+
+                      {token.telegramUrl && (
+                        <Link
+                          href={token.telegramUrl}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='flex items-center justify-center w-7 h-7 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                          title='Telegram'>
+                          <MessageSquare className='w-3.5 h-3.5 text-blue-400' />
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>
