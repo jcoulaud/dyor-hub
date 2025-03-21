@@ -31,6 +31,9 @@ export class CommentResponseDto {
   createdAt: Date;
 
   @Expose()
+  updatedAt?: Date;
+
+  @Expose()
   voteCount: number;
 
   @Expose()
@@ -41,6 +44,9 @@ export class CommentResponseDto {
 
   @Expose()
   isRemoved: boolean;
+
+  @Expose()
+  isEdited: boolean;
 
   @Expose()
   @Type(() => RemovedByDto)

@@ -1,4 +1,5 @@
 export class UserResponseDto {
+  id: string;
   displayName: string;
   username: string;
   avatarUrl: string;
@@ -10,6 +11,7 @@ export class UserResponseDto {
 
   static fromEntity(user: any): UserResponseDto {
     return new UserResponseDto({
+      id: user.id,
       displayName: user.displayName,
       username: user.username,
       avatarUrl: user.avatarUrl,

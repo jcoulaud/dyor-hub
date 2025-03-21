@@ -75,6 +75,9 @@ export class CommentEntity {
   @OneToMany(() => CommentVoteEntity, (vote) => vote.comment)
   votes: CommentVoteEntity[];
 
+  @Column({ name: 'is_edited', type: 'boolean', default: false })
+  isEdited: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

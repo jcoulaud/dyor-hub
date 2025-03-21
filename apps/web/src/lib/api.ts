@@ -173,6 +173,14 @@ export const comments = {
     return response;
   },
 
+  update: async (commentId: string, content: string): Promise<Comment> => {
+    const response = await api<Comment>(`comments/${commentId}`, {
+      method: 'PUT',
+      body: { content },
+    });
+    return response;
+  },
+
   vote: async (
     commentId: string,
     type: VoteType,

@@ -16,6 +16,7 @@ interface CommentInputProps {
   placeholder?: string;
   variant?: 'main' | 'reply';
   onAuthRequired?: () => void;
+  content?: string;
 }
 
 export function CommentInput({
@@ -27,9 +28,10 @@ export function CommentInput({
   placeholder,
   variant = 'main',
   onAuthRequired,
+  content: initialContent = '',
 }: CommentInputProps) {
   const { isAuthenticated } = useAuthContext();
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(initialContent);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExpanded, setIsExpanded] = useState(variant === 'reply');
   const formRef = useRef<HTMLFormElement>(null);

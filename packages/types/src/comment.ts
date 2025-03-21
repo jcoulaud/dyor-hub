@@ -16,6 +16,7 @@ export interface Comment {
   user: Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl'>;
   userVoteType: VoteType | null;
   isRemoved: boolean;
+  isEdited: boolean;
   removedBy: {
     id: string;
     isSelf: boolean;

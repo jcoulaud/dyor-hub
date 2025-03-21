@@ -13,6 +13,7 @@ import {
   Link as LinkIcon,
   MessageSquare,
   MoreHorizontal,
+  Pencil,
   Trash2,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
@@ -47,6 +48,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   const [previousSort, setPreviousSort] = useState<SortOption | null>(null);
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [editingComment, setEditingComment] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
   const { toast } = useToast();
@@ -331,6 +333,16 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     const canRemove = (user?.isAdmin ?? false) || isCommentOwner;
     const isAdmin = user?.isAdmin ?? false;
     const isReplying = replyingTo === comment.id;
+    const isEditing = editingComment === comment.id;
+
+    // Check if comment is less than 15 minutes old
+    const commentDate = new Date(comment.createdAt);
+    const currentTime = new Date();
+    const fifteenMinutesMs = 15 * 60 * 1000;
+    const isEditable =
+      isCommentOwner &&
+      !comment.isRemoved &&
+      currentTime.getTime() - commentDate.getTime() < fifteenMinutesMs;
 
     const handleReply = async (content: string) => {
       await handleSubmitComment(comment.id, content);
@@ -344,6 +356,33 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         return;
       }
       setReplyingTo(isReplying ? null : comment.id);
+    };
+
+    const handleEditClick = () => {
+      setEditingComment(comment.id);
+    };
+
+    const handleCancelEdit = () => {
+      setEditingComment(null);
+    };
+
+    const handleSubmitEdit = async (content: string) => {
+      try {
+        await comments.update(comment.id, content);
+        await fetchComments();
+        toast({
+          title: 'Success',
+          description: 'Comment updated successfully',
+        });
+        setEditingComment(null);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to update comment';
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
     };
 
     // Collect comment ref for scrolling
@@ -388,91 +427,118 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
                     comment.isRemoved && 'opacity-60',
                   )}>
                   {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                  {comment.isEdited && <span className='ml-1 italic'>(edited)</span>}
                 </span>
               </div>
-              <div
-                className={cn(
-                  'prose prose-sm dark:prose-invert mt-1 max-w-none break-words',
-                  comment.isRemoved && 'opacity-40',
-                )}
-                dangerouslySetInnerHTML={{ __html: comment.content }}
-              />
-              <div className='mt-2 flex items-center text-muted-foreground'>
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  className='h-8 px-1 cursor-pointer'
-                  onClick={() => handleVote(comment.id, 'upvote')}
-                  disabled={comment.isRemoved}>
-                  <ArrowBigUp
-                    className={cn(
-                      'h-4 w-4',
-                      comment.userVoteType === 'upvote' && 'fill-green-500 text-green-500',
-                      comment.isRemoved && 'opacity-40',
-                    )}
+              {isEditing ? (
+                <div className='mt-2'>
+                  <CommentInput
+                    variant='reply'
+                    onSubmit={handleSubmitEdit}
+                    onCancel={handleCancelEdit}
+                    submitLabel='Save'
+                    autoFocus
+                    placeholder='Edit your comment...'
+                    content={comment.content}
+                    onAuthRequired={() => {
+                      setPendingAction(null);
+                      setShowAuthModal(true);
+                    }}
                   />
-                </Button>
-                <span
+                </div>
+              ) : (
+                <div
                   className={cn(
-                    'min-w-[2ch] text-center text-sm tabular-nums px-0.5',
+                    'prose prose-sm dark:prose-invert mt-1 max-w-none break-words',
                     comment.isRemoved && 'opacity-40',
-                  )}>
-                  {comment.voteCount}
-                </span>
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  className='h-8 px-1 cursor-pointer'
-                  onClick={() => handleVote(comment.id, 'downvote')}
-                  disabled={comment.isRemoved}>
-                  <ArrowBigDown
+                  )}
+                  dangerouslySetInnerHTML={{ __html: comment.content }}
+                />
+              )}
+              {!isEditing && (
+                <div className='mt-2 flex items-center text-muted-foreground'>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='h-8 px-1 cursor-pointer'
+                    onClick={() => handleVote(comment.id, 'upvote')}
+                    disabled={comment.isRemoved}>
+                    <ArrowBigUp
+                      className={cn(
+                        'h-4 w-4',
+                        comment.userVoteType === 'upvote' && 'fill-green-500 text-green-500',
+                        comment.isRemoved && 'opacity-40',
+                      )}
+                    />
+                  </Button>
+                  <span
                     className={cn(
-                      'h-4 w-4',
-                      comment.userVoteType === 'downvote' && 'fill-red-500 text-red-500',
+                      'min-w-[2ch] text-center text-sm tabular-nums px-0.5',
                       comment.isRemoved && 'opacity-40',
-                    )}
-                  />
-                </Button>
-                {depth < maxDepth && !comment.isRemoved && (
+                    )}>
+                    {comment.voteCount}
+                  </span>
                   <Button
                     variant='ghost'
                     size='sm'
-                    className='h-8 gap-2 px-2 cursor-pointer'
-                    onClick={handleReplyClick}>
-                    <MessageSquare className='h-4 w-4' />
-                    <span className='text-xs'>Reply</span>
+                    className='h-8 px-1 cursor-pointer'
+                    onClick={() => handleVote(comment.id, 'downvote')}
+                    disabled={comment.isRemoved}>
+                    <ArrowBigDown
+                      className={cn(
+                        'h-4 w-4',
+                        comment.userVoteType === 'downvote' && 'fill-red-500 text-red-500',
+                        comment.isRemoved && 'opacity-40',
+                      )}
+                    />
                   </Button>
-                )}
-                {!comment.isRemoved && (
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    className='h-8 px-2 cursor-pointer'
-                    onClick={() => copyCommentLinkToClipboard(comment)}>
-                    <LinkIcon className='h-4 w-4' />
-                  </Button>
-                )}
-                {isAdmin && !isCommentOwner && !comment.isRemoved && (
-                  <AdminModeration comment={comment} onCommentUpdated={fetchComments} />
-                )}
-                {canRemove && !comment.isRemoved && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant='ghost' size='sm' className='h-8 px-2 cursor-pointer'>
-                        <MoreHorizontal className='h-4 w-4' />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align='end'>
-                      <DropdownMenuItem
-                        className='text-red-500 hover:text-red-500 data-highlighted:text-red-500 hover:bg-transparent cursor-pointer'
-                        onClick={() => handleRemoveComment(comment.id)}>
-                        <Trash2 className='mr-2 h-4 w-4' />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
+                  {depth < maxDepth && !comment.isRemoved && (
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      className='h-8 gap-2 px-2 cursor-pointer'
+                      onClick={handleReplyClick}>
+                      <MessageSquare className='h-4 w-4' />
+                      <span className='text-xs'>Reply</span>
+                    </Button>
+                  )}
+                  {!comment.isRemoved && (
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      className='h-8 px-2 cursor-pointer'
+                      onClick={() => copyCommentLinkToClipboard(comment)}>
+                      <LinkIcon className='h-4 w-4' />
+                    </Button>
+                  )}
+                  {isAdmin && !isCommentOwner && !comment.isRemoved && (
+                    <AdminModeration comment={comment} onCommentUpdated={fetchComments} />
+                  )}
+                  {canRemove && !comment.isRemoved && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant='ghost' size='sm' className='h-8 px-2 cursor-pointer'>
+                          <MoreHorizontal className='h-4 w-4' />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align='end'>
+                        {isEditable && (
+                          <DropdownMenuItem className='cursor-pointer' onClick={handleEditClick}>
+                            <Pencil className='mr-2 h-4 w-4' />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          className='text-red-500 hover:text-red-500 data-highlighted:text-red-500 hover:bg-transparent cursor-pointer'
+                          onClick={() => handleRemoveComment(comment.id)}>
+                          <Trash2 className='mr-2 h-4 w-4' />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+              )}
               {isReplying && (
                 <div className='mt-4'>
                   <CommentInput

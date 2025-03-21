@@ -19,6 +19,9 @@ import { VoteResponseDto } from './dto/vote-response.dto';
 
 @Injectable()
 export class CommentsService {
+  // Edit window duration for a comment
+  private readonly EDIT_WINDOW_MS = 15 * 60 * 1000;
+
   constructor(
     @InjectRepository(CommentEntity)
     private readonly commentRepository: Repository<CommentEntity>,
@@ -66,12 +69,14 @@ export class CommentsService {
 
     return comments.map((comment) => {
       const userVote = userVotes.find((v) => v.commentId === comment.id);
+
       return {
         id: comment.id,
         content: comment.removedById
           ? `Comment removed by ${comment.removedBy?.id === comment.userId ? 'user' : 'moderator'}`
           : comment.content,
         createdAt: comment.createdAt,
+        updatedAt: comment.updatedAt,
         voteCount: comment.upvotes - comment.downvotes,
         parentId: comment.parentId,
         user: {
@@ -81,6 +86,7 @@ export class CommentsService {
         },
         userVoteType: userVote?.type || null,
         isRemoved: !!comment.removedById,
+        isEdited: comment.isEdited,
         removedBy: comment.removedById
           ? {
               id: comment.removedBy.id,
@@ -155,7 +161,19 @@ export class CommentsService {
       throw new UnauthorizedException('Not authorized to update this comment');
     }
 
+    const currentTime = new Date();
+    const commentAge =
+      currentTime.getTime() - new Date(comment.createdAt).getTime();
+
+    if (commentAge > this.EDIT_WINDOW_MS) {
+      throw new ForbiddenException(
+        'Comments can only be edited within 15 minutes of posting',
+      );
+    }
+
     comment.content = dto.content;
+    comment.updatedAt = currentTime;
+    comment.isEdited = true;
     return this.commentRepository.save(comment);
   }
 
