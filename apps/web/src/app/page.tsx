@@ -1,6 +1,7 @@
 'use client';
 
 import { FeedbackModal } from '@/components/feedback/FeedbackModal';
+import { LatestComments } from '@/components/home/LatestComments';
 import { TokenList } from '@/components/tokens/TokenList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -213,6 +214,17 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          {/* Inline Latest Comments */}
+          <div className='container mx-auto mt-24 mb-12 px-4 sm:px-6 lg:px-8 max-w-lg'>
+            <div className='mb-5 flex items-center justify-center'>
+              <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+                <MessageSquare className='h-4 w-4 text-blue-400 mr-2' />
+                <span className='text-sm font-medium text-zinc-300'>Latest Comments</span>
+              </div>
+            </div>
+            <LatestComments limit={5} rotationSpeed={4500} />
+          </div>
         </div>
       </section>
 

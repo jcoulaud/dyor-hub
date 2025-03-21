@@ -20,6 +20,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import { CommentsService } from './comments.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
+import { LatestCommentResponseDto } from './dto/latest-comment-response.dto';
 import { VoteResponseDto } from './dto/vote-response.dto';
 
 @Controller('comments')
@@ -46,28 +47,36 @@ export class CommentsController {
     );
   }
 
+  @Get('latest')
+  @UseGuards(OptionalAuthGuard)
+  async getLatestComments(
+    @Query('limit') limit = '5',
+  ): Promise<LatestCommentResponseDto[]> {
+    const comments = await this.commentsService.findLatestComments(
+      parseInt(limit, 10),
+    );
+
+    return comments.map((comment) =>
+      plainToInstance(LatestCommentResponseDto, comment, {
+        excludeExtraneousValues: true,
+      }),
+    );
+  }
+
   @Post()
   @UseGuards(AuthGuard)
   async createComment(
     @Body() createCommentDto: CreateCommentDto,
     @CurrentUser() user: { id: string },
   ): Promise<CommentResponseDto> {
-    try {
-      const comment = await this.commentsService.create(
-        createCommentDto,
-        user.id,
-      );
+    const comment = await this.commentsService.create(
+      createCommentDto,
+      user.id,
+    );
 
-      return plainToInstance(CommentResponseDto, comment, {
-        excludeExtraneousValues: true,
-      });
-    } catch (error) {
-      this.logger.error('Failed to create comment', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        userId: user.id,
-      });
-      throw error;
-    }
+    return plainToInstance(CommentResponseDto, comment, {
+      excludeExtraneousValues: true,
+    });
   }
 
   @Put(':id')

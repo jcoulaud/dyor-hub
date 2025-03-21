@@ -37,10 +37,6 @@ export class CommentResponseDto {
   parentId: string | null;
 
   @Expose()
-  @Type(() => CommentUserDto)
-  user: CommentUserDto;
-
-  @Expose()
   userVoteType: VoteType | null;
 
   @Expose()
@@ -49,4 +45,8 @@ export class CommentResponseDto {
   @Expose()
   @Type(() => RemovedByDto)
   removedBy: RemovedByDto | null;
+
+  @Expose()
+  @Type(() => CommentUserDto)
+  user: CommentUserDto;
 }

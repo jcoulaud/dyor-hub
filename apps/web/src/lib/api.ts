@@ -1,4 +1,4 @@
-import type { Comment, CreateCommentDto, User, VoteType } from '@dyor-hub/types';
+import type { Comment, CreateCommentDto, LatestComment, User, VoteType } from '@dyor-hub/types';
 import { Token, TokenStats } from '@dyor-hub/types';
 
 // Use configured API URL for cross-domain requests
@@ -160,6 +160,11 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
 export const comments = {
   list: async (tokenMintAddress: string): Promise<Comment[]> => {
     const response = await api<Comment[]>(`comments?tokenMintAddress=${tokenMintAddress}`);
+    return response;
+  },
+
+  latest: async (limit: number = 5): Promise<LatestComment[]> => {
+    const response = await api<LatestComment[]>(`comments/latest?limit=${limit}`);
     return response;
   },
 

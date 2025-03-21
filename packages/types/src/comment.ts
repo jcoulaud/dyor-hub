@@ -23,6 +23,22 @@ export interface Comment {
   replies?: Comment[];
 }
 
+export interface LatestComment {
+  id: string;
+  content: string;
+  createdAt: string;
+  token: {
+    tokenMintAddress: string;
+    symbol: string;
+  };
+  user: {
+    id: string;
+    displayName: string;
+    avatarUrl: string;
+    username?: string;
+  };
+}
+
 export interface CreateCommentDto {
   /** @maxLength {COMMENT_MAX_LENGTH} The content of the comment */
   content: string;
