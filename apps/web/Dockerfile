@@ -54,6 +54,12 @@ COPY --from=builder /app/apps/web/.next ./apps/web/.next
 COPY --from=builder /app/packages/types/package.json ./packages/types/
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
 
+# Create complete node_modules structure first
+RUN mkdir -p /app/node_modules/@dyor-hub && \
+    ln -s /app/packages/types /app/node_modules/@dyor-hub/types && \
+    mkdir -p /app/apps/web/node_modules/@dyor-hub && \
+    ln -s /app/packages/types /app/apps/web/node_modules/@dyor-hub/types
+
 # Install production dependencies
 RUN npm install -g pnpm && \
     pnpm install --prod --no-frozen-lockfile
