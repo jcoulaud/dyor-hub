@@ -20,7 +20,7 @@ export const Footer = () => {
             <div className='mt-1 space-y-1'>
               <p className='text-zinc-400 text-sm flex items-center justify-center md:justify-start'>
                 <span className='inline-block text-zinc-500'>
-                  CA: Might drop one if I can&apos;t monetize this project
+                  CA: Updating CA in progress (proof of time: 03/24/2025 7:48pm UTC)
                 </span>
               </p>
               <p className='text-zinc-400 text-sm flex items-center justify-center md:justify-start'>
