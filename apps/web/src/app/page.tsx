@@ -101,28 +101,34 @@ export default function Home() {
         />
 
         <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8'>
-          <div className='flex flex-col items-center text-center max-w-3xl mx-auto space-y-8'>
-            <div className='space-y-5'>
-              <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
-                <Sparkles className='h-4 w-4 text-blue-400 mr-2' />
-                <span className='text-sm font-medium text-zinc-300'>Beta</span>
-                <span className='mx-2 text-sm text-zinc-300/70'>•</span>
-                <button
-                  className='text-sm font-medium text-zinc-300 hover:text-zinc-100 cursor-pointer'
-                  type='button'
-                  onClick={handleOpenFeedbackModal}
-                  aria-label='Open feedback form'>
-                  Give Feedback
-                </button>
+          <div className='flex flex-col items-center text-center max-w-4xl mx-auto space-y-8'>
+            <div className='space-y-6'>
+              <div className='w-full flex justify-center'>
+                <div className='flex flex-col sm:flex-row items-center justify-center gap-2'>
+                  <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-white/10 transition-colors'>
+                    <button
+                      className='flex items-center text-sm font-medium text-zinc-300 hover:text-zinc-100'
+                      type='button'
+                      onClick={handleOpenFeedbackModal}
+                      aria-label='Open feedback form'>
+                      <Sparkles className='h-4 w-4 text-blue-400 mr-2' />
+                      <span>Beta</span>
+                      <span className='mx-2 text-zinc-300/70'>•</span>
+                      <span>Give Feedback</span>
+                    </button>
+                  </div>
+                  <a
+                    href='https://discord.gg/GW8t7pFZ'
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-white/10 transition-colors text-sm font-medium text-zinc-300 hover:text-zinc-100'>
+                    <MessageSquare className='h-4 w-4 text-purple-400 mr-2' />
+                    <span>Join Discord</span>
+                  </a>
+                </div>
               </div>
 
-              <h1 className='text-5xl md:text-7xl font-bold tracking-tight'>
-                <span className='bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500'>
-                  DYOR hub
-                </span>
-              </h1>
-
-              <p className='text-xl md:text-2xl text-zinc-300 max-w-2xl mx-auto leading-relaxed'>
+              <p className='text-2xl md:text-3xl text-zinc-300 max-w-2xl mx-auto leading-relaxed'>
                 Your trusted platform for Solana memecoin discussions and research
               </p>
             </div>
@@ -171,15 +177,17 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <div className='flex flex-col sm:flex-row items-center justify-center sm:space-x-4 space-y-3 sm:space-y-0 text-sm text-zinc-500'>
-              <div className='flex items-center'>
-                <Shield className='h-4 w-4 mr-1 text-green-500' />
-                <span>Real Twitter Users Discussions</span>
-              </div>
-              <div className='h-1 w-1 rounded-full bg-zinc-700 hidden sm:block' />
-              <div className='flex items-center'>
-                <TrendingUp className='h-4 w-4 mr-1 text-blue-500' />
-                <span>Real-time News</span>
+            <div className='space-y-5'>
+              <div className='flex flex-col sm:flex-row items-center justify-center gap-2'>
+                <div className='flex items-center'>
+                  <Shield className='h-4 w-4 mr-1 text-green-500' />
+                  <span>Real Twitter Users Discussions</span>
+                </div>
+                <div className='h-1 w-1 rounded-full bg-zinc-700 hidden sm:block' />
+                <div className='flex items-center'>
+                  <TrendingUp className='h-4 w-4 mr-1 text-blue-500' />
+                  <span>Real-time News</span>
+                </div>
               </div>
             </div>
           </div>
