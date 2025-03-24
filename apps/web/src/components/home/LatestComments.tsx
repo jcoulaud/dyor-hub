@@ -132,7 +132,7 @@ export function LatestComments({
                   <Badge
                     variant='outline'
                     className='text-xs px-2 py-0 h-5 border-blue-500/20 text-blue-400'>
-                    {currentComment.token.symbol}
+                    ${currentComment.token.symbol}
                   </Badge>
                 </div>
                 <span className='text-xs text-zinc-500 flex-shrink-0 ml-2 min-w-[70px] text-right'>
