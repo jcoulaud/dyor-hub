@@ -9,9 +9,14 @@ export const Footer = () => {
     <footer className='py-4 bg-zinc-950/70 backdrop-blur-sm border-t border-zinc-900 mt-auto'>
       <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
         <div className='flex flex-col md:flex-row justify-between items-center'>
-          <div className='flex items-center justify-center md:justify-start mb-2 md:mb-0 text-sm text-zinc-400'>
-            <span className='text-zinc-500'>CA:&nbsp;</span>
-            <CopyButton textToCopy={CONTRACT_ADDRESS} />
+          <div className='flex flex-col items-center md:items-start mb-2 md:mb-0 text-sm text-zinc-400'>
+            <div className='flex items-center justify-center md:justify-start'>
+              <span className='text-zinc-500'>CA:&nbsp;</span>
+              <CopyButton textToCopy={CONTRACT_ADDRESS} />
+            </div>
+            <a href='/links' className='text-zinc-500 hover:text-blue-300 transition-colors mt-1'>
+              Official Links
+            </a>
           </div>
           <div className='text-zinc-500 text-sm py-2 md:py-0 flex flex-col items-center md:items-end'>
             <div>
