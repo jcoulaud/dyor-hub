@@ -8,7 +8,7 @@
   "scripts": {
     "build": "nest build",
     "start": "nest start",
-    "start:dev": "nest start --watch",
+    "dev": "nest start --watch",
     "start:prod": "node dist/main.js",
     "db:init": "node -r ts-node/register src/scripts/init-database.ts",
     "db:seed": "node -r ts-node/register src/scripts/seed-database.ts",
