@@ -93,32 +93,26 @@ Comments are automatically moderated using:
 
 ### Running Locally
 
-##### Start the database
-1. Start only the databases:
+1. Start everything (database, API, and frontend):
    ```bash
-   docker compose -f docker-compose.dev.yml up -d
+   pnpm dev
+   ```
+   This will:
+   - Start PostgreSQL and Redis in Docker if not running
+   - Start the API server (port 3001)
+   - Start the frontend (port 3000)
+
+2. Seed the database with initial data:
+   ```bash
+   pnpm db:seed
    ```
 
-2. Access the databases:
-   - PostgreSQL: localhost:5433
-   - Redis: localhost:6380
-
-4. View logs:
+3. Stop all services:
    ```bash
-   docker compose logs -f
+   pnpm stop
    ```
 
-5. Stop services:
-   ```bash
-   docker compose down
-   ```
-
-6. Clean up volumes (if needed):
-   ```bash
-   docker compose down -v
-   ```
-
-#### Development Environment Variables
+### Development Environment Variables
 
 For local development, use these environment variables:
 
@@ -169,24 +163,6 @@ NEXT_PUBLIC_API_URL=http://localhost:3101
 
 # Authentication
 NEXT_PUBLIC_COOKIE_DOMAIN=localhost
-```
-
-### Start the api
-
-Start the backend
-```
-cd apps/api && pnpm start:dev
-```
-
-Seed the db (after start to make sure all migration have been applied)
-```
-cd apps/api && pnpm db:init && pnpm db:seed
-```
-
-### Start the webapp
-
-```
-cd apps/web && pnpm dev
 ```
 
 ### Building for Production
