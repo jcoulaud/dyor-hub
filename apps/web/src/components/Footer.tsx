@@ -1,38 +1,17 @@
 'use client';
 
-import { Check, Github } from 'lucide-react';
-import { useState } from 'react';
+import { CONTRACT_ADDRESS } from '@/lib/constants';
+import { Github } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 export const Footer = () => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyAddress = () => {
-    navigator.clipboard.writeText('AGAuBEwae93RJaocTE43mvYz72Ay4cqWzc28RNa1XXMi');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <footer className='py-4 bg-zinc-950/70 backdrop-blur-sm border-t border-zinc-900 mt-auto'>
       <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
-        <div className='flex flex-col md:flex-row justify-between items-center text-center md:text-left'>
-          <div className='mb-2 md:mb-0'>
-            <div className='mt-1 space-y-1'>
-              <p className='text-zinc-400 text-sm flex items-center justify-center md:justify-start'>
-                <span className='inline-block text-zinc-500'>
-                  CA: 2MCmXsjSXHoQYR6ckg6Af4mhQKDMJMGy6JKh8C4Qpump
-                </span>
-              </p>
-              <p className='text-zinc-400 text-sm flex items-center justify-center md:justify-start'>
-                <span className='inline-block text-zinc-500'>Donations 💙 </span>
-                <span
-                  className='font-mono text-sm bg-zinc-800 px-2 py-0.5 rounded hover:bg-zinc-700 transition-colors cursor-pointer flex items-center ml-1'
-                  onClick={handleCopyAddress}>
-                  AGAuBE...XXMi
-                  {copied && <Check className='ml-1.5 h-3.5 w-3.5 text-green-500' />}
-                </span>
-              </p>
-            </div>
+        <div className='flex flex-col md:flex-row justify-between items-center'>
+          <div className='flex items-center justify-center md:justify-start mb-2 md:mb-0 text-sm text-zinc-400'>
+            <span className='text-zinc-500'>CA:&nbsp;</span>
+            <CopyButton textToCopy={CONTRACT_ADDRESS} />
           </div>
           <div className='text-zinc-500 text-sm py-2 md:py-0 flex flex-col items-center md:items-end'>
             <div>
