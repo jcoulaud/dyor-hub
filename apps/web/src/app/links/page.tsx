@@ -1,6 +1,6 @@
 import { CopyButton } from '@/components/CopyButton';
 import { CONTRACT_ADDRESS } from '@/lib/constants';
-import { Globe, LineChart, MessageSquare, Twitter } from 'lucide-react';
+import { Github, Globe, LineChart, MessageSquare, Twitter } from 'lucide-react';
 import { Metadata } from 'next';
 
 interface Link {
@@ -46,6 +46,12 @@ export default function LinksPage() {
       url: 'https://dexscreener.com/solana/2MCmXsjSXHoQYR6ckg6Af4mhQKDMJMGy6JKh8C4Qpump',
       icon: <LineChart className='h-4 w-4' />,
       description: 'Live price chart and info',
+    },
+    {
+      title: 'GitHub',
+      url: 'https://github.com/jcoulaud/dyor-hub',
+      icon: <Github className='h-4 w-4' />,
+      description: 'Open source code repository',
     },
   ];
 
