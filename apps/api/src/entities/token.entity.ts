@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { CommentEntity } from './comment.entity';
+import { TwitterUsernameHistoryEntity } from './twitter-username-history.entity';
 
 @Entity('tokens')
 export class TokenEntity {
@@ -46,4 +47,7 @@ export class TokenEntity {
   // Relationships
   @OneToMany(() => CommentEntity, (comment) => comment.token)
   comments: CommentEntity[];
+
+  @OneToMany(() => TwitterUsernameHistoryEntity, (history) => history.token)
+  twitterUsernameHistory: TwitterUsernameHistoryEntity[];
 }
