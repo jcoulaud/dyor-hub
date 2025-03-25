@@ -1,5 +1,13 @@
-import type { Comment, CreateCommentDto, LatestComment, User, VoteType } from '@dyor-hub/types';
-import { Token, TokenStats } from '@dyor-hub/types';
+import type {
+  Comment,
+  CreateCommentDto,
+  LatestComment,
+  Token,
+  TokenStats,
+  TwitterUsernameHistoryEntity,
+  User,
+  VoteType,
+} from '@dyor-hub/types';
 
 // Use configured API URL for cross-domain requests
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -292,12 +300,37 @@ export const tokens = {
     }
   },
 
+  getTwitterHistory: async (mintAddress: string): Promise<TwitterUsernameHistoryEntity | null> => {
+    try {
+      const endpoint = `tokens/${mintAddress}/twitter-history`;
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first
+      const cachedData = getCache<TwitterUsernameHistoryEntity>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Fetch fresh data
+      const data = await api<TwitterUsernameHistoryEntity>(endpoint);
+
+      // Update cache
+      setCache(cacheKey, data);
+
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   refreshToken: (mintAddress: string) => {
     // Clear cache for this token
     const tokenCacheKey = `api:tokens/${mintAddress}`;
     const statsCacheKey = `api:tokens/${mintAddress}/stats`;
+    const twitterHistoryCacheKey = `api:tokens/${mintAddress}/twitter-history`;
     apiCache.delete(tokenCacheKey);
     apiCache.delete(statsCacheKey);
+    apiCache.delete(twitterHistoryCacheKey);
 
     return api<void>(`tokens/${mintAddress}/refresh`, { method: 'POST' });
   },

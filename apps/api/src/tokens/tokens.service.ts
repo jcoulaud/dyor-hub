@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { TokenEntity } from '../entities/token.entity';
+import { TwitterHistoryService } from './twitter-history.service';
 
 interface DexScreenerResponse {
   pairs?: Array<{
@@ -47,6 +48,7 @@ export class TokensService {
     @InjectRepository(TokenEntity)
     private readonly tokenRepository: Repository<TokenEntity>,
     private readonly configService: ConfigService,
+    private readonly twitterHistoryService: TwitterHistoryService,
   ) {
     const heliusApiKey = this.configService.get<string>('HELIUS_API_KEY');
     this.HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`;
@@ -173,6 +175,14 @@ export class TokensService {
       };
 
       await this.tokenRepository.save(updatedToken);
+
+      // Fetch Twitter username history if available
+      if (updatedToken.twitterHandle) {
+        await this.twitterHistoryService.fetchAndStoreUsernameHistory(
+          updatedToken,
+        );
+      }
+
       return updatedToken;
     }
 
@@ -246,10 +256,26 @@ export class TokensService {
             comments: true,
           },
         });
+
+        // Fetch Twitter username history if available
+        if (token.twitterHandle) {
+          await this.twitterHistoryService.fetchAndStoreUsernameHistory(token);
+        }
       } else {
         // Track view count
         token.viewsCount = (token.viewsCount || 0) + 1;
         await this.tokenRepository.save(token);
+
+        // Check if we need to fetch Twitter history
+        if (token.twitterHandle) {
+          const existingHistory =
+            await this.twitterHistoryService.getUsernameHistory(mintAddress);
+          if (!existingHistory) {
+            await this.twitterHistoryService.fetchAndStoreUsernameHistory(
+              token,
+            );
+          }
+        }
       }
 
       return token;
