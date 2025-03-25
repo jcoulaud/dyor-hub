@@ -1,6 +1,7 @@
 'use client';
 
 import { LatestComments } from '@/components/home/LatestComments';
+import { Testimonials } from '@/components/home/Testimonials';
 import { TokenList } from '@/components/tokens/TokenList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,44 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+
+const testimonials = [
+  {
+    id: 1,
+    name: 'Yung Bucket',
+    role: 'Trencher',
+    initials: 'YB',
+    message:
+      'I f***ing hate using X, i hate looking up tickers and CAs on X, i hate pruning through the bots, this website is sick',
+    channel: 'general',
+    color: 'blue',
+    avatar:
+      'https://cdn.discordapp.com/avatars/206489977305956353/bda68dac192a895da439abd9a11f974f.webp?size=240',
+  },
+  {
+    id: 2,
+    name: 'SlippinJimmy',
+    role: 'Trencher',
+    initials: 'SJ',
+    message:
+      "Anyway your product solves a really big problem for me - so often I see the price dumping down, or the developers delete their tg/X and at that point there's no place to go or discuss the token or what happened. Sometimes I want to read what's going on after a rug similarly to how you'd go and read reviews after watching a movie lmao, but on Solana there's just no space for that. Sounds silly but I go looking a dozen times a day.",
+    channel: 'general',
+    color: 'purple',
+    avatar: 'https://cdn.discordapp.com/embed/avatars/1.png',
+  },
+  {
+    id: 3,
+    name: 'heavylift.eth',
+    role: 'Trencher',
+    initials: 'HL',
+    message:
+      'Building while listening to community requests is fucking alpha. Made by a trencher, with trenchers, for trenchers Epic',
+    channel: 'general',
+    color: 'green',
+    avatar:
+      'https://cdn.discordapp.com/avatars/830218085549998111/126af4d63964ce8b4a2ee30ed709e77d.webp?size=160',
+  },
+];
 
 // Validate Solana address format
 function isValidSolanaAddress(address: string): boolean {
@@ -76,7 +115,7 @@ export default function Home() {
   const memoizedTokenList = useMemo(() => tokenList, [tokenList]);
 
   return (
-    <main className='flex-1 flex flex-col'>
+    <main className='flex-1 flex flex-col overflow-x-hidden'>
       {/* Hero Section */}
       <section className='relative w-full py-16 md:py-20 overflow-hidden'>
         {/* Background elements */}
@@ -94,16 +133,14 @@ export default function Home() {
           <div className='flex flex-col items-center text-center max-w-4xl mx-auto space-y-8'>
             <div className='space-y-6'>
               <div className='w-full flex justify-center'>
-                <div className='flex flex-col sm:flex-row items-center justify-center gap-2'>
-                  <a
-                    href='https://discord.gg/GW8t7pFZ'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-white/10 transition-colors text-sm font-medium text-zinc-300 hover:text-zinc-100'>
-                    <MessageSquare className='h-4 w-4 text-purple-400 mr-2' />
-                    <span>Join Discord</span>
-                  </a>
-                </div>
+                <a
+                  href='https://discord.gg/GW8t7pFZ'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='inline-flex items-center px-4 py-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 hover:border-purple-500/50 transition-all duration-200 cursor-pointer text-sm font-medium text-white shadow-sm shadow-purple-500/10 hover:shadow-purple-500/20'>
+                  <MessageSquare className='h-4 w-4 text-purple-400 mr-1.5' />
+                  <span>Join Discord</span>
+                </a>
               </div>
 
               <p className='text-2xl md:text-3xl text-zinc-300 max-w-2xl mx-auto leading-relaxed'>
@@ -178,44 +215,46 @@ export default function Home() {
         <div className='absolute -top-40 -right-40 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl' />
         <div className='absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
 
-        <div className='relative z-10'>
-          {isLoading ? (
-            <div className='w-full overflow-x-hidden -mt-8 mb-12'>
-              <div className='flex justify-center'>
-                <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
-                  <Sparkles className='h-4 w-4 text-blue-400 mr-2 animate-pulse' />
-                  <span className='text-sm font-medium text-zinc-300'>Loading tokens...</span>
-                </div>
-              </div>
+        {isLoading ? (
+          <div className='container relative z-10 mx-auto flex justify-center'>
+            <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+              <Sparkles className='h-4 w-4 text-blue-400 mr-2 animate-pulse' />
+              <span className='text-sm font-medium text-zinc-300'>Loading tokens...</span>
             </div>
-          ) : memoizedTokenList.length > 0 ? (
-            <TokenList tokens={memoizedTokenList} />
-          ) : (
-            <div className='w-full overflow-x-hidden -mt-8 mb-12'>
-              <div className='flex justify-center'>
-                <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
-                  <Sparkles className='h-4 w-4 text-blue-400 mr-2' />
-                  <span className='text-sm font-medium text-zinc-300'>No tokens found</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Inline Latest Comments */}
-          <div className='container mx-auto mt-24 mb-12 px-4 sm:px-6 lg:px-8 max-w-lg'>
-            <div className='mb-5 flex items-center justify-center'>
-              <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
-                <MessageSquare className='h-4 w-4 text-blue-400 mr-2' />
-                <span className='text-sm font-medium text-zinc-300'>Latest Comments</span>
-              </div>
-            </div>
-            <LatestComments limit={5} rotationSpeed={4500} />
           </div>
+        ) : memoizedTokenList.length > 0 ? (
+          <div className='relative z-10'>
+            <TokenList tokens={memoizedTokenList} />
+          </div>
+        ) : (
+          <div className='container relative z-10 mx-auto flex justify-center'>
+            <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+              <Sparkles className='h-4 w-4 text-blue-400 mr-2' />
+              <span className='text-sm font-medium text-zinc-300'>No tokens found</span>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Latest Comments Section */}
+      <section className='relative py-12'>
+        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
+        <div className='absolute -top-40 -right-40 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl' />
+        <div className='absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
+
+        <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 max-w-lg'>
+          <div className='mb-5 flex items-center justify-center'>
+            <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+              <MessageSquare className='h-4 w-4 text-blue-400 mr-2' />
+              <span className='text-sm font-medium text-zinc-300'>Latest Comments</span>
+            </div>
+          </div>
+          <LatestComments limit={5} rotationSpeed={4500} />
         </div>
       </section>
 
       {/* Features Section */}
-      <section className='py-12 relative overflow-hidden flex-grow'>
+      <section className='py-12 relative overflow-hidden'>
         {/* Background elements */}
         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
         <div className='absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
@@ -295,6 +334,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Testimonials Section */}
+      <Testimonials testimonials={testimonials} />
     </main>
   );
 }

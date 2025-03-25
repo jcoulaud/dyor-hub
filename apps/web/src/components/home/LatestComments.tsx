@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { comments } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { LatestComment } from '@dyor-hub/types';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
@@ -86,7 +87,7 @@ export function LatestComments({
 
   if (isLoading) {
     return (
-      <div className='relative h-18 w-full overflow-hidden bg-black/10 rounded-lg'>
+      <div className='relative h-[72px] w-full bg-black/10 rounded-lg'>
         <div className='flex items-center gap-4 p-4 h-full'>
           <Skeleton className='h-10 w-10 rounded-full flex-shrink-0' />
           <div className='flex-1'>
@@ -106,9 +107,12 @@ export function LatestComments({
 
   return (
     <div className='relative'>
-      <div className='overflow-hidden h-18 rounded-lg bg-black/10 hover:bg-black/15 transition-colors'>
+      <div className='h-[72px] rounded-lg bg-black/10 hover:bg-black/15 transition-colors'>
         <div
-          className={`transition-opacity duration-300 h-full ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+          className={cn(
+            'transition-opacity duration-300 h-full',
+            isTransitioning ? 'opacity-0' : 'opacity-100',
+          )}>
           <Link
             href={`/tokens/${currentComment.token.tokenMintAddress}?comment=${currentComment.id}`}
             className='flex items-center gap-4 h-full p-4 transition-colors'>
@@ -123,7 +127,7 @@ export function LatestComments({
                   '??'}
               </AvatarFallback>
             </Avatar>
-            <div className='flex-1'>
+            <div className='flex-1 min-w-0'>
               <div className='flex items-center justify-between mb-1'>
                 <div className='flex items-center gap-2 overflow-hidden'>
                   <span className='text-sm font-medium text-zinc-200 truncate max-w-[150px]'>
@@ -139,7 +143,7 @@ export function LatestComments({
                   {formatDistanceToNow(new Date(currentComment.createdAt), { addSuffix: true })}
                 </span>
               </div>
-              <p className='text-sm text-zinc-400 line-clamp-2 pr-2'>{currentComment.content}</p>
+              <p className='text-sm text-zinc-400 line-clamp-2'>{currentComment.content}</p>
             </div>
           </Link>
         </div>
@@ -152,14 +156,16 @@ export function LatestComments({
             <button
               key={i}
               onClick={() => handleNavigate(i)}
-              className={`w-5 h-5 flex items-center justify-center cursor-pointer group`}
+              className='w-5 h-5 flex items-center justify-center cursor-pointer group'
               aria-label={`Go to comment ${i + 1}`}>
               <span
-                className={`w-1.5 h-1.5 rounded-full transition-all duration-200 group-hover:scale-125 group-focus:scale-125 ${
+                className={cn(
+                  'w-1.5 h-1.5 rounded-full transition-all duration-200',
+                  'group-hover:scale-125 group-focus:scale-125',
                   i === currentIndex
                     ? 'bg-blue-400'
-                    : 'bg-zinc-700 group-hover:bg-zinc-500 group-focus:bg-zinc-500'
-                }`}
+                    : 'bg-zinc-700 group-hover:bg-zinc-500 group-focus:bg-zinc-500',
+                )}
               />
             </button>
           ))}
