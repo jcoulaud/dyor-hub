@@ -1,6 +1,5 @@
 'use client';
 
-import { FeedbackModal } from '@/components/feedback/FeedbackModal';
 import { LatestComments } from '@/components/home/LatestComments';
 import { TokenList } from '@/components/tokens/TokenList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,7 +30,6 @@ export default function Home() {
   const [tokenList, setTokenList] = useState<Token[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
-  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
   const fetchTokens = useCallback(async () => {
     try {
@@ -74,14 +72,6 @@ export default function Home() {
     },
     [address, router],
   );
-
-  const handleOpenFeedbackModal = useCallback(() => {
-    setIsFeedbackModalOpen(true);
-  }, []);
-
-  const handleCloseFeedbackModal = useCallback(() => {
-    setIsFeedbackModalOpen(false);
-  }, []);
 
   const memoizedTokenList = useMemo(() => tokenList, [tokenList]);
 
@@ -305,9 +295,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Feedback Modal */}
-      <FeedbackModal isOpen={isFeedbackModalOpen} onClose={handleCloseFeedbackModal} />
     </main>
   );
 }
