@@ -1,17 +1,10 @@
 'use client';
 
-import { Check, Github } from 'lucide-react';
-import { useState } from 'react';
+import { CONTRACT_ADDRESS } from '@/lib/constants';
+import { Github } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 export const Footer = () => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyAddress = () => {
-    navigator.clipboard.writeText('AGAuBEwae93RJaocTE43mvYz72Ay4cqWzc28RNa1XXMi');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <footer className='py-4 bg-zinc-950/70 backdrop-blur-sm border-t border-zinc-900 mt-auto'>
       <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
@@ -33,6 +26,9 @@ export const Footer = () => {
                 </span>
               </p>
             </div>
+            <a href='/links' className='text-zinc-500 hover:text-blue-300 transition-colors mt-1'>
+              Official Links
+            </a>
           </div>
           <div className='text-zinc-500 text-sm py-2 md:py-0 flex flex-col items-center md:items-end'>
             <div>
