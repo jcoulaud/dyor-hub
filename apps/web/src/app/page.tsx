@@ -105,18 +105,6 @@ export default function Home() {
             <div className='space-y-6'>
               <div className='w-full flex justify-center'>
                 <div className='flex flex-col sm:flex-row items-center justify-center gap-2'>
-                  <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-white/10 transition-colors'>
-                    <button
-                      className='flex items-center text-sm font-medium text-zinc-300 hover:text-zinc-100'
-                      type='button'
-                      onClick={handleOpenFeedbackModal}
-                      aria-label='Open feedback form'>
-                      <Sparkles className='h-4 w-4 text-blue-400 mr-2' />
-                      <span>Beta</span>
-                      <span className='mx-2 text-zinc-300/70'>•</span>
-                      <span>Give Feedback</span>
-                    </button>
-                  </div>
                   <a
                     href='https://discord.gg/GW8t7pFZ'
                     target='_blank'
