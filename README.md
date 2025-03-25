@@ -85,10 +85,103 @@ Comments are automatically moderated using:
    pnpm install
    ```
 3. Set up environment variables:
-   - Copy `.env.example` to `.env` in both `apps/api` and `apps/web` directories
-   - Configure the environment variables as needed
+   ```bash
+   # Copy development environment files
+   cp apps/api/.env.example apps/api/.env
+   cp apps/web/.env.example apps/web/.env
+   ```
 
 ### Running Locally
+
+You can run the project either with Docker or directly with pnpm.
+
+#### Using Docker (Recommended)
+
+1. Build the containers:
+   ```bash
+   docker compose build
+   ```
+
+2. Start all services:
+   ```bash
+   docker compose up -d
+   ```
+
+3. Access the applications:
+   - Frontend: http://localhost:3100
+   - API: http://localhost:3101
+   - PostgreSQL: localhost:5433
+   - Redis: localhost:6380
+
+4. View logs:
+   ```bash
+   docker compose logs -f
+   ```
+
+5. Stop all services:
+   ```bash
+   docker compose down
+   ```
+
+6. Clean up volumes (if needed):
+   ```bash
+   docker compose down -v
+   ```
+
+#### Development Environment Variables
+
+For local development, use these environment variables:
+
+##### API Server (apps/api/.env)
+```
+# Environment
+NODE_ENV=development
+PORT=3001
+
+# API Configuration
+USE_API_SUBDOMAIN=false
+DEFAULT_APP_URL=http://localhost:3100
+
+# Database Configuration
+DATABASE_URL=postgres://postgres:postgres@localhost:5433/dyor_hub
+
+# Redis Configuration
+REDIS_URL=redis://localhost:6380
+
+# Twitter Auth
+TWITTER_CLIENT_ID=your_twitter_client_id
+TWITTER_CLIENT_SECRET=your_twitter_client_secret
+TWITTER_CALLBACK_URL=http://localhost:3101/auth/twitter/callback
+
+# Auth & Security
+JWT_SECRET=dev_jwt_secret
+JWT_EXPIRES_IN=24h
+SESSION_SECRET=dev_session_secret
+
+# CORS & Cookies
+ALLOWED_ORIGINS=http://localhost:3100
+COOKIE_DOMAIN=localhost
+CLIENT_URL=http://localhost:3100
+
+# External APIs
+HELIUS_API_KEY=your_helius_api_key
+PERSPECTIVE_API_KEY=your_perspective_api_key
+```
+
+##### Frontend (apps/web/.env)
+```
+# Environment
+NODE_ENV=development
+
+# URL Configuration
+NEXT_PUBLIC_URL=http://localhost:3100
+NEXT_PUBLIC_API_URL=http://localhost:3101
+
+# Authentication
+NEXT_PUBLIC_COOKIE_DOMAIN=localhost
+```
+
+#### Using pnpm (Alternative)
 
 To run the entire project in development mode:
 
