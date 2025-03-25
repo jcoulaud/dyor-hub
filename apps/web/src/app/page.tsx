@@ -133,16 +133,14 @@ export default function Home() {
           <div className='flex flex-col items-center text-center max-w-4xl mx-auto space-y-8'>
             <div className='space-y-6'>
               <div className='w-full flex justify-center'>
-                <div className='flex flex-col sm:flex-row items-center justify-center gap-2'>
-                  <a
-                    href='https://discord.gg/GW8t7pFZ'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-white/10 transition-colors text-sm font-medium text-zinc-300 hover:text-zinc-100'>
-                    <MessageSquare className='h-4 w-4 text-purple-400 mr-2' />
-                    <span>Join Discord</span>
-                  </a>
-                </div>
+                <a
+                  href='https://discord.gg/GW8t7pFZ'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='inline-flex items-center px-4 py-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 hover:border-purple-500/50 transition-all duration-200 cursor-pointer text-sm font-medium text-white shadow-sm shadow-purple-500/10 hover:shadow-purple-500/20'>
+                  <MessageSquare className='h-4 w-4 text-purple-400 mr-1.5' />
+                  <span>Join Discord</span>
+                </a>
               </div>
 
               <p className='text-2xl md:text-3xl text-zinc-300 max-w-2xl mx-auto leading-relaxed'>
