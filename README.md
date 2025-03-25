@@ -93,23 +93,13 @@ Comments are automatically moderated using:
 
 ### Running Locally
 
-You can run the project either with Docker or directly with pnpm.
-
-#### Using Docker (Recommended)
-
-1. Build the containers:
+##### Start the database
+1. Start only the databases:
    ```bash
-   docker compose build
+   docker compose -f docker-compose.dev.yml up -d
    ```
 
-2. Start all services:
-   ```bash
-   docker compose up -d
-   ```
-
-3. Access the applications:
-   - Frontend: http://localhost:3100
-   - API: http://localhost:3101
+2. Access the databases:
    - PostgreSQL: localhost:5433
    - Redis: localhost:6380
 
@@ -118,7 +108,7 @@ You can run the project either with Docker or directly with pnpm.
    docker compose logs -f
    ```
 
-5. Stop all services:
+5. Stop services:
    ```bash
    docker compose down
    ```
@@ -181,19 +171,22 @@ NEXT_PUBLIC_API_URL=http://localhost:3101
 NEXT_PUBLIC_COOKIE_DOMAIN=localhost
 ```
 
-#### Using pnpm (Alternative)
+### Start the api
 
-To run the entire project in development mode:
+Start the backend
+```
+cd apps/api && pnpm start:dev
+```
+
+Seed the db (after start to make sure all migration have been applied)
+```
+cd apps/api && pnpm db:init && pnpm db:seed
+```
+
+### Start the webapp
 
 ```
-pnpm dev
-```
-
-To run only specific apps:
-
-```
-pnpm dev --filter=web  # Run only the web app
-pnpm dev --filter=api  # Run only the API
+cd apps/web && pnpm dev
 ```
 
 ### Building for Production

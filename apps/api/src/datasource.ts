@@ -13,8 +13,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 // Set the migrations path based on environment
 const migrationsPath = isProduction
-  ? [path.join(__dirname, 'migrations', '*.js')] // For production (compiled JS)
-  : ['src/migrations/*.{js,ts}']; // For development (both JS and TS files)
+  ? [path.join(__dirname, 'migrations', '*.js')]
+  : [path.join(__dirname, 'migrations', '*.{js,ts}')];
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -23,7 +23,7 @@ export const dataSourceOptions: DataSourceOptions = {
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',
   migrationsRun: isProduction, // Automatically run migrations in production
-  synchronize: !isProduction, // Enable synchronize in development mode only
+  synchronize: !isProduction, 
   logging: isProduction ? ['error', 'warn'] : true, // Only log errors and warnings in production
   logger: 'advanced-console',
 };
