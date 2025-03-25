@@ -82,6 +82,17 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
       req.session.returnTo = req.query.return_to as string;
     }
 
+    if (req.query.error === 'access_denied' || req.query.denied) {
+      const state = req.query.state as string;
+      if (state) {
+        await this.deleteAuthStateData(state);
+      }
+      return {
+        redirectUrl: `${this.clientUrl}?auth_error=${encodeURIComponent('Authentication cancelled by user')}`,
+        cancelled: true,
+      };
+    }
+
     if (!req.query.code) {
       const authLink = await this.getAuthLink(req);
       return { redirectUrl: authLink };
