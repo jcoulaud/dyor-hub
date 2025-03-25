@@ -18,6 +18,39 @@ import {
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+const testimonials = [
+  {
+    id: 1,
+    name: 'Yung Bucket',
+    role: 'Community Member',
+    initials: 'YB',
+    message: 'I f***ing hate using X, i hate looking up tickers and CAs on X, i hate pruning through the bots, this website is sick',
+    channel: 'general',
+    color: 'blue',
+    avatar: 'https://cdn.discordapp.com/avatars/206489977305956353/bda68dac192a895da439abd9a11f974f.webp?size=240',
+  },
+  {
+    id: 2,
+    name: 'SlippinJimmy',
+    role: 'Community Member',
+    initials: 'SJ',
+    message: "Anyway your product solves a really big problem for me - so often I see the price dumping down, or the developers delete their tg/X and at that point there's no place to go or discuss the token or what happened. Sometimes I want to read what's going on after a rug similarly to how you'd go and read reviews after watching a movie lmao, but on Solana there's just no space for that. Sounds silly but I go looking a dozen times a day.",
+    channel: 'general',
+    color: 'purple',
+    avatar: 'https://cdn.discordapp.com/embed/avatars/1.png',
+  },
+  {
+    id: 3,
+    name: 'heavylift.eth',
+    role: 'Community Member',
+    initials: 'HL',
+    message: 'Building while listening to community requests is fucking alpha. Made by a trencher, with trenchers, for trenchers Epic',
+    channel: 'general',
+    color: 'green',
+    avatar: 'https://cdn.discordapp.com/avatars/830218085549998111/126af4d63964ce8b4a2ee30ed709e77d.webp?size=160',
+  },
+];
+
 // Validate Solana address format
 function isValidSolanaAddress(address: string): boolean {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
@@ -292,6 +325,53 @@ export default function Home() {
                 </CardContent>
               </Card>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className='py-12 relative overflow-hidden'>
+        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
+        <div className='absolute -top-40 -right-40 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl' />
+
+        <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8'>
+          <div className='text-center mb-12'>
+            <h2 className='text-3xl font-bold text-white mb-4'>What Our Community Says</h2>
+            <p className='text-zinc-400 max-w-2xl mx-auto'>
+              Join thousands of traders who trust our platform for memecoin research and discussions
+            </p>
+          </div>
+
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+            {testimonials.map((testimonial) => (
+              <div
+                key={testimonial.id}
+                className='group relative bg-blue-950/30 backdrop-blur-sm rounded-xl overflow-hidden border border-blue-600/30 hover:border-blue-600/50 transition-all duration-300 h-fit shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_30px_rgba(0,0,0,0.2)] hover:-translate-y-1'>
+                <div className='relative p-6'>
+                  <div className='flex items-center mb-4'>
+                    <div className='relative w-12 h-12 rounded-full overflow-hidden mr-4 ring-2 ring-blue-500/20 group-hover:ring-blue-500/30 transition-all duration-300 shadow-lg'>
+                      <img
+                        src={testimonial.avatar}
+                        alt={testimonial.name}
+                        className='w-full h-full object-cover'
+                      />
+                    </div>
+                    <div>
+                      <div className='text-white font-medium'>{testimonial.name}</div>
+                      <div className='text-sm text-zinc-400'>{testimonial.role}</div>
+                    </div>
+                  </div>
+                  <div className='relative'>
+                    <div className='absolute -left-4 top-0 w-1 h-full' />
+                    <p className='text-zinc-300 pl-4 italic whitespace-pre-wrap'>&ldquo;{testimonial.message}&rdquo;</p>
+                  </div>
+                  <div className='mt-4 flex items-center text-sm text-zinc-500'>
+                    <MessageSquare className='w-4 h-4 mr-1' />
+                    <span>#{testimonial.channel}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
