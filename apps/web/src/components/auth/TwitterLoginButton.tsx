@@ -24,10 +24,15 @@ const AuthParamsHandler = () => {
       hasHandledParams.current = true;
 
       if (authError) {
+        const errorMessage = decodeURIComponent(authError);
+        const isUserCancelled = errorMessage.includes('cancelled');
+
         toast({
-          title: 'Authentication Failed',
-          description: `${decodeURIComponent(authError)}. Please try again or contact support if the problem persists.`,
-          variant: 'destructive',
+          title: isUserCancelled ? 'Authentication Cancelled' : 'Authentication Failed',
+          description: isUserCancelled
+            ? 'You cancelled the Twitter login process.'
+            : `${errorMessage}. Please try again or contact support if the problem persists.`,
+          variant: isUserCancelled ? 'default' : 'destructive',
         });
       } else if (authSuccess) {
         toast({
@@ -36,10 +41,11 @@ const AuthParamsHandler = () => {
         });
       }
 
-      // Use setTimeout to ensure this happens after the current render cycle
-      setTimeout(() => {
-        router.replace(window.location.pathname);
-      }, 0);
+      // Clean up URL parameters
+      const url = new URL(window.location.href);
+      url.searchParams.delete('auth_error');
+      url.searchParams.delete('auth_success');
+      router.replace(url.pathname + url.search);
     }
   }, [searchParams, router, toast]);
 

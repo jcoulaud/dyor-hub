@@ -154,12 +154,17 @@
   }
   html,
   body {
-    @apply h-full;
-    overflow-x: hidden;
+    height: 100%;
+    margin: 0;
+    padding: 0;
   }
   body {
     @apply bg-background text-foreground;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
     overflow-y: auto;
+    overflow-x: hidden;
   }
 }
 

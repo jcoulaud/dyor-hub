@@ -1,0 +1,62 @@
+name: 🐞 Bug Report
+description: File a bug report
+title: "🐞 "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you see!
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. See error
+    validations:
+      required: true
+
+  - type: dropdown
+    id: browsers
+    attributes:
+      label: Browser
+      description: What browser are you using?
+      options:
+        - Chrome
+        - Firefox
+        - Safari
+        - Edge
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: What device are you using? (e.g. iPhone 14, MacBook Pro, etc.)
+      placeholder: MacBook Pro M1
+    validations:
+      required: true
+
+  - type: input
+    id: discord
+    attributes:
+      label: Discord Username
+      description: Share your Discord username for a shoutout when this gets fixed!
+      placeholder: e.g. username#1234
+    validations:
+      required: true 

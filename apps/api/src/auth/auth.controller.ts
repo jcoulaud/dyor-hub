@@ -96,6 +96,10 @@ export class AuthController {
         );
       }
 
+      if (req.user.cancelled) {
+        return res.redirect(req.user.redirectUrl);
+      }
+
       const token = await this.authService.login(req.user);
       const cookieConfig = this.authConfigService.getCookieConfig(
         this.authConfigService.isDevelopment,
