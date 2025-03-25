@@ -19,7 +19,7 @@ export const Footer = () => {
           <div className='mb-2 md:mb-0'>
             <div className='mt-1 space-y-1'>
               <p className='text-zinc-400 text-sm flex items-center justify-center md:justify-start'>
-                <span className='inline-block text-zinc-500'>
+                <span className='inline-block text-zinc-500 break-all'>
                   CA: 2MCmXsjSXHoQYR6ckg6Af4mhQKDMJMGy6JKh8C4Qpump
                 </span>
               </p>

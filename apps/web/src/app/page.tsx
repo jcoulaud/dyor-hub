@@ -109,7 +109,7 @@ export default function Home() {
   const memoizedTokenList = useMemo(() => tokenList, [tokenList]);
 
   return (
-    <main className='flex-1 flex flex-col'>
+    <main className='flex-1 flex flex-col overflow-x-hidden'>
       {/* Hero Section */}
       <section className='relative w-full py-16 md:py-20 overflow-hidden'>
         {/* Background elements */}
@@ -206,7 +206,7 @@ export default function Home() {
       </section>
 
       {/* Token List Section */}
-      <section className='relative'>
+      <section className='relative overflow-x-hidden'>
         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
         <div className='absolute -top-40 -right-40 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl' />
         <div className='absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
@@ -347,9 +347,9 @@ export default function Home() {
               <div
                 key={testimonial.id}
                 className='group relative bg-blue-950/30 backdrop-blur-sm rounded-xl overflow-hidden border border-blue-600/30 hover:border-blue-600/50 transition-all duration-300 h-fit shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_30px_rgba(0,0,0,0.2)] hover:-translate-y-1'>
-                <div className='relative p-6'>
+                <div className='relative p-4 sm:p-6'>
                   <div className='flex items-center mb-4'>
-                    <div className='relative w-12 h-12 rounded-full overflow-hidden mr-4 ring-2 ring-blue-500/20 group-hover:ring-blue-500/30 transition-all duration-300 shadow-lg'>
+                    <div className='relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden mr-3 sm:mr-4 ring-2 ring-blue-500/20 group-hover:ring-blue-500/30 transition-all duration-300 shadow-lg'>
                       <img
                         src={testimonial.avatar}
                         alt={testimonial.name}
@@ -357,16 +357,16 @@ export default function Home() {
                       />
                     </div>
                     <div>
-                      <div className='text-white font-medium'>{testimonial.name}</div>
-                      <div className='text-sm text-zinc-400'>{testimonial.role}</div>
+                      <div className='text-white font-medium text-sm sm:text-base'>{testimonial.name}</div>
+                      <div className='text-xs sm:text-sm text-zinc-400'>{testimonial.role}</div>
                     </div>
                   </div>
                   <div className='relative'>
-                    <div className='absolute -left-4 top-0 w-1 h-full' />
-                    <p className='text-zinc-300 pl-4 italic whitespace-pre-wrap'>&ldquo;{testimonial.message}&rdquo;</p>
+                    <div className='absolute -left-3 sm:-left-4 top-0 w-1 h-full' />
+                    <p className='text-zinc-300 pl-3 sm:pl-4 italic whitespace-pre-wrap text-sm sm:text-base'>&ldquo;{testimonial.message}&rdquo;</p>
                   </div>
-                  <div className='mt-4 flex items-center text-sm text-zinc-500'>
-                    <MessageSquare className='w-4 h-4 mr-1' />
+                  <div className='mt-4 flex items-center text-xs sm:text-sm text-zinc-500'>
+                    <MessageSquare className='w-3 h-3 sm:w-4 sm:h-4 mr-1' />
                     <span>#{testimonial.channel}</span>
                   </div>
                 </div>
