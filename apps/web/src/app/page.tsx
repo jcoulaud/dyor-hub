@@ -1,6 +1,7 @@
 'use client';
 
 import { LatestComments } from '@/components/home/LatestComments';
+import { Testimonials } from '@/components/home/Testimonials';
 import { TokenList } from '@/components/tokens/TokenList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,19 +23,22 @@ const testimonials = [
   {
     id: 1,
     name: 'Yung Bucket',
-    role: 'Community Member',
+    role: 'Trencher',
     initials: 'YB',
-    message: 'I f***ing hate using X, i hate looking up tickers and CAs on X, i hate pruning through the bots, this website is sick',
+    message:
+      'I f***ing hate using X, i hate looking up tickers and CAs on X, i hate pruning through the bots, this website is sick',
     channel: 'general',
     color: 'blue',
-    avatar: 'https://cdn.discordapp.com/avatars/206489977305956353/bda68dac192a895da439abd9a11f974f.webp?size=240',
+    avatar:
+      'https://cdn.discordapp.com/avatars/206489977305956353/bda68dac192a895da439abd9a11f974f.webp?size=240',
   },
   {
     id: 2,
     name: 'SlippinJimmy',
-    role: 'Community Member',
+    role: 'Trencher',
     initials: 'SJ',
-    message: "Anyway your product solves a really big problem for me - so often I see the price dumping down, or the developers delete their tg/X and at that point there's no place to go or discuss the token or what happened. Sometimes I want to read what's going on after a rug similarly to how you'd go and read reviews after watching a movie lmao, but on Solana there's just no space for that. Sounds silly but I go looking a dozen times a day.",
+    message:
+      "Anyway your product solves a really big problem for me - so often I see the price dumping down, or the developers delete their tg/X and at that point there's no place to go or discuss the token or what happened. Sometimes I want to read what's going on after a rug similarly to how you'd go and read reviews after watching a movie lmao, but on Solana there's just no space for that. Sounds silly but I go looking a dozen times a day.",
     channel: 'general',
     color: 'purple',
     avatar: 'https://cdn.discordapp.com/embed/avatars/1.png',
@@ -42,12 +46,14 @@ const testimonials = [
   {
     id: 3,
     name: 'heavylift.eth',
-    role: 'Community Member',
+    role: 'Trencher',
     initials: 'HL',
-    message: 'Building while listening to community requests is fucking alpha. Made by a trencher, with trenchers, for trenchers Epic',
+    message:
+      'Building while listening to community requests is fucking alpha. Made by a trencher, with trenchers, for trenchers Epic',
     channel: 'general',
     color: 'green',
-    avatar: 'https://cdn.discordapp.com/avatars/830218085549998111/126af4d63964ce8b4a2ee30ed709e77d.webp?size=160',
+    avatar:
+      'https://cdn.discordapp.com/avatars/830218085549998111/126af4d63964ce8b4a2ee30ed709e77d.webp?size=160',
   },
 ];
 
@@ -206,49 +212,51 @@ export default function Home() {
       </section>
 
       {/* Token List Section */}
-      <section className='relative overflow-x-hidden'>
+      <section className='relative'>
         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
         <div className='absolute -top-40 -right-40 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl' />
         <div className='absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
 
-        <div className='relative z-10'>
-          {isLoading ? (
-            <div className='w-full overflow-x-hidden -mt-8 mb-12'>
-              <div className='flex justify-center'>
-                <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
-                  <Sparkles className='h-4 w-4 text-blue-400 mr-2 animate-pulse' />
-                  <span className='text-sm font-medium text-zinc-300'>Loading tokens...</span>
-                </div>
-              </div>
+        {isLoading ? (
+          <div className='container relative z-10 mx-auto flex justify-center'>
+            <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+              <Sparkles className='h-4 w-4 text-blue-400 mr-2 animate-pulse' />
+              <span className='text-sm font-medium text-zinc-300'>Loading tokens...</span>
             </div>
-          ) : memoizedTokenList.length > 0 ? (
-            <TokenList tokens={memoizedTokenList} />
-          ) : (
-            <div className='w-full overflow-x-hidden -mt-8 mb-12'>
-              <div className='flex justify-center'>
-                <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
-                  <Sparkles className='h-4 w-4 text-blue-400 mr-2' />
-                  <span className='text-sm font-medium text-zinc-300'>No tokens found</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Inline Latest Comments */}
-          <div className='container mx-auto mt-24 mb-12 px-4 sm:px-6 lg:px-8 max-w-lg'>
-            <div className='mb-5 flex items-center justify-center'>
-              <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
-                <MessageSquare className='h-4 w-4 text-blue-400 mr-2' />
-                <span className='text-sm font-medium text-zinc-300'>Latest Comments</span>
-              </div>
-            </div>
-            <LatestComments limit={5} rotationSpeed={4500} />
           </div>
+        ) : memoizedTokenList.length > 0 ? (
+          <div className='relative z-10'>
+            <TokenList tokens={memoizedTokenList} />
+          </div>
+        ) : (
+          <div className='container relative z-10 mx-auto flex justify-center'>
+            <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+              <Sparkles className='h-4 w-4 text-blue-400 mr-2' />
+              <span className='text-sm font-medium text-zinc-300'>No tokens found</span>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Latest Comments Section */}
+      <section className='relative py-12'>
+        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
+        <div className='absolute -top-40 -right-40 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl' />
+        <div className='absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
+
+        <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 max-w-lg'>
+          <div className='mb-5 flex items-center justify-center'>
+            <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+              <MessageSquare className='h-4 w-4 text-blue-400 mr-2' />
+              <span className='text-sm font-medium text-zinc-300'>Latest Comments</span>
+            </div>
+          </div>
+          <LatestComments limit={5} rotationSpeed={4500} />
         </div>
       </section>
 
       {/* Features Section */}
-      <section className='py-12 relative overflow-hidden flex-grow'>
+      <section className='py-12 relative overflow-hidden'>
         {/* Background elements */}
         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
         <div className='absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
@@ -330,51 +338,7 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section className='py-12 relative overflow-hidden'>
-        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-repeat opacity-5 z-0" />
-        <div className='absolute -top-40 -right-40 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl' />
-
-        <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8'>
-          <div className='text-center mb-12'>
-            <h2 className='text-3xl font-bold text-white mb-4'>What Our Community Says</h2>
-            <p className='text-zinc-400 max-w-2xl mx-auto'>
-              Join thousands of traders who trust our platform for memecoin research and discussions
-            </p>
-          </div>
-
-          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-            {testimonials.map((testimonial) => (
-              <div
-                key={testimonial.id}
-                className='group relative bg-blue-950/30 backdrop-blur-sm rounded-xl overflow-hidden border border-blue-600/30 hover:border-blue-600/50 transition-all duration-300 h-fit shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_30px_rgba(0,0,0,0.2)] hover:-translate-y-1'>
-                <div className='relative p-4 sm:p-6'>
-                  <div className='flex items-center mb-4'>
-                    <div className='relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden mr-3 sm:mr-4 ring-2 ring-blue-500/20 group-hover:ring-blue-500/30 transition-all duration-300 shadow-lg'>
-                      <img
-                        src={testimonial.avatar}
-                        alt={testimonial.name}
-                        className='w-full h-full object-cover'
-                      />
-                    </div>
-                    <div>
-                      <div className='text-white font-medium text-sm sm:text-base'>{testimonial.name}</div>
-                      <div className='text-xs sm:text-sm text-zinc-400'>{testimonial.role}</div>
-                    </div>
-                  </div>
-                  <div className='relative'>
-                    <div className='absolute -left-3 sm:-left-4 top-0 w-1 h-full' />
-                    <p className='text-zinc-300 pl-3 sm:pl-4 italic whitespace-pre-wrap text-sm sm:text-base'>&ldquo;{testimonial.message}&rdquo;</p>
-                  </div>
-                  <div className='mt-4 flex items-center text-xs sm:text-sm text-zinc-500'>
-                    <MessageSquare className='w-3 h-3 sm:w-4 sm:h-4 mr-1' />
-                    <span>#{testimonial.channel}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <Testimonials testimonials={testimonials} />
     </main>
   );
 }
