@@ -8,8 +8,8 @@ export function Header() {
   return (
     <header className='sticky top-0 z-50 w-full border-b border-white/5 bg-black/80 backdrop-blur-xl'>
       <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
-        <div className='flex h-16 items-center justify-between'>
-          <div>
+        <div className='flex h-16 items-center'>
+          <div className='w-[140px]'>
             <Link href='/'>
               <div className='flex items-center'>
                 <Image
@@ -23,7 +23,16 @@ export function Header() {
               </div>
             </Link>
           </div>
-          <div className='flex items-center space-x-4'>
+          <div className='flex-1 flex items-center justify-center'>
+            <nav>
+              <Link
+                href='/links'
+                className='px-3 py-1.5 text-[13px] text-zinc-400 hover:text-white transition-colors rounded-md bg-zinc-800/40'>
+                Official Links
+              </Link>
+            </nav>
+          </div>
+          <div className='w-[140px] flex justify-end'>
             <UserMenu />
           </div>
         </div>
