@@ -30,7 +30,7 @@ const links = [
     color: 'white',
   },
   {
-    title: 'LinkedIn',
+    title: 'FounderLinkedIn',
     url: 'https://www.linkedin.com/in/juliencoulaud/',
     icon: Linkedin,
     color: 'blue',
