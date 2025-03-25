@@ -1,0 +1,45 @@
+name: 💡 Feature Idea
+description: Suggest an idea for this project
+title: "💡 "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to share your idea!
+        
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a problem? Please describe.
+      placeholder: I'm always frustrated when [...]
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see
+      placeholder: It would be great if [...]
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions you've considered
+      placeholder: I thought about [...]
+    validations:
+      required: false
+
+  - type: input
+    id: discord
+    attributes:
+      label: Discord Username
+      description: Share your Discord username for a shoutout when this gets implemented!
+      placeholder: e.g. username#1234
+    validations:
+      required: true 
