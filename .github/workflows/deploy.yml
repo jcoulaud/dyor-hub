@@ -180,3 +180,43 @@ jobs:
           fi
 
           echo "Deployment verification successful!"
+
+      - name: Post Deployment to Discord
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commit = context.payload.head_commit;
+            const sender = context.payload.sender;
+            const environment = 'Production';
+
+            const message = {
+              embeds: [{
+                title: `🚀 Deployment Successful`,
+                description: `A new version has been deployed to ${environment}`,
+                color: 0x00ff00,
+                fields: [
+                  {
+                    name: 'Commit Message',
+                    value: commit.message,
+                    inline: false
+                  },
+                  {
+                    name: 'Deployed By',
+                    value: sender.login,
+                    inline: true
+                  }
+                ],
+                timestamp: new Date().toISOString()
+              }]
+            };
+
+            await fetch(process.env.DISCORD_WEBHOOK_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(message)
+            });
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
