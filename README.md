@@ -94,15 +94,19 @@ Comments are automatically moderated using:
 ### Running Locally
 
 1. Start everything (database, API, and frontend):
+
    ```bash
    pnpm dev
    ```
+
    This will:
+
    - Start PostgreSQL and Redis in Docker if not running
    - Start the API server (port 3001)
    - Start the frontend (port 3000)
 
 2. Seed the database with initial data:
+
    ```bash
    pnpm db:seed
    ```
@@ -114,58 +118,9 @@ Comments are automatically moderated using:
 
 ### Development Environment Variables
 
-For local development, use these environment variables:
+For local development, refer to the `.env.example` files in both the API and web applications. These files contain all the necessary environment variables with appropriate default values for development.
 
-##### API Server (apps/api/.env)
-```
-# Environment
-NODE_ENV=development
-PORT=3001
-
-# API Configuration
-USE_API_SUBDOMAIN=false
-DEFAULT_APP_URL=http://localhost:3100
-
-# Database Configuration
-DATABASE_URL=postgres://postgres:postgres@localhost:5433/dyor_hub
-
-# Redis Configuration
-REDIS_URL=redis://localhost:6380
-
-# Twitter Auth
-TWITTER_CLIENT_ID=your_twitter_client_id
-TWITTER_CLIENT_SECRET=your_twitter_client_secret
-TWITTER_CALLBACK_URL=http://localhost:3101/auth/twitter/callback
-
-# Auth & Security
-JWT_SECRET=dev_jwt_secret
-JWT_EXPIRES_IN=24h
-SESSION_SECRET=dev_session_secret
-
-# CORS & Cookies
-ALLOWED_ORIGINS=http://localhost:3100
-COOKIE_DOMAIN=localhost
-CLIENT_URL=http://localhost:3100
-
-# External APIs
-HELIUS_API_KEY=your_helius_api_key
-PERSPECTIVE_API_KEY=your_perspective_api_key
-```
-
-##### Frontend (apps/web/.env)
-```
-# Environment
-NODE_ENV=development
-
-# URL Configuration
-NEXT_PUBLIC_URL=http://localhost:3100
-NEXT_PUBLIC_API_URL=http://localhost:3101
-
-# Authentication
-NEXT_PUBLIC_COOKIE_DOMAIN=localhost
-```
-
-### Building for Production
+## Building for Production
 
 ```
 pnpm build
@@ -175,63 +130,16 @@ pnpm build
 
 ### Environment Configuration
 
-For production deployment, ensure the following environment variables are set correctly:
+For production deployment, configure your environment variables by using the `.env.example` files as templates. Make sure to update the following key areas:
 
-#### API Server (.env)
+1. Set `NODE_ENV=production`
+2. Enable API subdomain with `USE_API_SUBDOMAIN=true`
+3. Update all URLs to use your production domains
+4. Set strong, secure values for all secrets
+5. Configure proper CORS and cookie settings for cross-domain auth
+6. Add valid API keys for external services
 
-```
-# Environment
-NODE_ENV=production
-PORT=3001
-
-# API Configuration
-USE_API_SUBDOMAIN=true
-DEFAULT_APP_URL=https://dyorhub.xyz
-
-# Database Configuration
-DATABASE_URL=postgres://dyor_hub_user:your_secure_password_here@postgres:5432/dyor_hub
-
-# Redis Configuration
-REDIS_URL=redis://username:password@your-redis-host:6379
-
-# Twitter Auth
-TWITTER_CLIENT_ID=your_twitter_client_id
-TWITTER_CLIENT_SECRET=your_twitter_client_secret
-TWITTER_CALLBACK_URL=https://api.dyorhub.xyz/auth/twitter/callback
-
-# Auth & Security
-JWT_SECRET=your_secure_jwt_secret
-JWT_EXPIRES_IN=24h
-SESSION_SECRET=your_secure_session_secret
-
-# CORS & Cookies
-ALLOWED_ORIGINS=https://dyorhub.xyz,https://www.dyorhub.xyz
-ADDITIONAL_ALLOWED_ORIGINS=
-COOKIE_DOMAIN=.dyorhub.xyz  # Note the leading dot to allow sharing across subdomains
-CLIENT_URL=https://dyorhub.xyz
-
-# External APIs
-HELIUS_API_KEY=your_helius_api_key
-PERSPECTIVE_API_KEY=your_perspective_api_key
-
-# Admin Notifications (Optional)
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-TELEGRAM_CHAT_ID=your_chat_id_here
-```
-
-#### Frontend (.env)
-
-```
-# Environment
-NODE_ENV=production
-
-# URL Configuration
-NEXT_PUBLIC_URL=https://dyorhub.xyz
-NEXT_PUBLIC_API_URL=https://api.dyorhub.xyz
-
-# Authentication
-NEXT_PUBLIC_COOKIE_DOMAIN=.dyorhub.xyz
-```
+Refer to the production notes in `apps/api/.env.example` for specific guidance on production settings.
 
 ### DNS Configuration
 
@@ -283,11 +191,7 @@ The application can send notifications to a Telegram channel when new comments a
    - The chat ID for a channel typically starts with `-100`
 
 4. **Configure Environment Variables**:
-   - Add the following to your API server's `.env` file:
-     ```
-     TELEGRAM_BOT_TOKEN=your_bot_token_here
-     TELEGRAM_CHAT_ID=your_chat_id_here
-     ```
+   - Add the Telegram bot token and chat ID to your API server's `.env` file (see `apps/api/.env.example`)
 
 Once configured, you'll receive notifications with user info, token address, comment content, and a direct link to view the comment.
 

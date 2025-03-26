@@ -5,6 +5,10 @@ services:
     image: postgres:16-alpine
     container_name: dyor-hub-postgres-dev
     restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dyor_hub
     env_file:
       - ./apps/api/.env
     volumes:
@@ -43,4 +47,4 @@ networks:
 
 volumes:
   postgres-data:
-  redis-data: 
+  redis-data:
