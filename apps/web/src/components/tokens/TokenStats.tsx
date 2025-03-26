@@ -1,6 +1,7 @@
 import { truncateAddress } from '@/lib/utils';
 import type { TokenStats as TokenStatsType, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
 import { TokenHolder } from '@dyor-hub/types';
+import { formatDistanceToNow } from 'date-fns';
 import { BarChart2, DollarSign, History, Users } from 'lucide-react';
 import { SolscanButton } from '../SolscanButton';
 
@@ -172,7 +173,7 @@ export function TokenStats({ stats, twitterHistory }: TokenStatsProps) {
               <div key={index} className='flex items-center justify-between py-1'>
                 <span className='text-sm font-medium text-purple-300'>@{entry.username}</span>
                 <span className='text-xs text-zinc-500'>
-                  {new Date(entry.last_checked).toLocaleDateString()}
+                  {formatDistanceToNow(new Date(entry.last_checked), { addSuffix: true })}
                 </span>
               </div>
             ))}
