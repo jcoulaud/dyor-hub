@@ -9,8 +9,10 @@
     "url": "https://github.com/jcoulaud/dyor-hub"
   },
   "scripts": {
-    "dev": "turbo dev",
-    "dev:all": "pnpm run dev:api & pnpm run dev:web",
+    "dev": "docker compose -f docker-compose.dev.yml ps | grep -q 'Up' || docker compose -f docker-compose.dev.yml up -d && turbo dev",
+    "stop": "docker compose -f docker-compose.dev.yml down",
+    "db:seed": "cd apps/api && pnpm db:seed",
+    "build": "turbo build",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "clean": "turbo clean && rm -rf node_modules"

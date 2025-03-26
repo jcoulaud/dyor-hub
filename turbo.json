@@ -15,7 +15,24 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": ["^build", "db:check"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*", "docker-compose.dev.yml"]
+    },
+    "db:check": {
+      "cache": false,
+      "persistent": true,
+      "inputs": ["docker-compose.dev.yml"]
+    },
+    "dev:api": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build"]
+    },
+    "dev:web": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build"]
     }
   }
 }

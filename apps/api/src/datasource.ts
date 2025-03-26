@@ -14,7 +14,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 // Set the migrations path based on environment
 const migrationsPath = isProduction
   ? [path.join(__dirname, 'migrations', '*.js')] // For production (compiled JS)
-  : ['src/migrations/*.{js,ts}']; // For development (both JS and TS files)
+  : [path.join(__dirname, 'migrations', '*.{js,ts}')]; // For development (both JS and TS files)
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',

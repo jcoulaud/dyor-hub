@@ -1,8 +1,8 @@
-name: Post Closed Issues to Discord
+name: Post Issues to Discord
 
 on:
   issues:
-    types: [closed]
+    types: [opened, closed]
 
 jobs:
   post-to-discord:
@@ -14,66 +14,92 @@ jobs:
           script: |
             const issue = context.payload.issue;
             const sender = context.payload.sender;
+            const action = context.payload.action;
 
-            let closingComment = 'No closing comment';
-            if (issue.state_reason === 'completed' && issue.state === 'closed') {
-              const comments = await github.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                per_page: 100,
-                sort: 'created',
-                direction: 'asc'
-              });
-              
-              const closerComments = comments.data
-                .filter(comment => comment.user.login === sender.login)
-                .reverse();
-              
-              if (closerComments.length > 0) {
-                closingComment = closerComments[0].body;
-                if (closingComment.length > 1000) {
-                  closingComment = closingComment.substring(0, 997) + '...';
+            let message;
+            if (action === 'opened') {
+              message = {
+                embeds: [{
+                  title: `New Issue: ${issue.title}`,
+                  url: issue.html_url,
+                  description: `${issue.body || 'No description provided'}`,
+                  color: 0x3498db,
+                  fields: [
+                    {
+                      name: 'Issue Number',
+                      value: `#${issue.number}`,
+                      inline: true
+                    },
+                    {
+                      name: 'Created By',
+                      value: sender.login,
+                      inline: true
+                    }
+                  ],
+                  timestamp: new Date().toISOString()
+                }]
+              };
+            } else {
+              let closingComment = 'No closing comment';
+              if (issue.state_reason === 'completed' && issue.state === 'closed') {
+                const comments = await github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  per_page: 100,
+                  sort: 'created',
+                  direction: 'asc'
+                });
+                
+                const closerComments = comments.data
+                  .filter(comment => comment.user.login === sender.login)
+                  .reverse();
+                
+                if (closerComments.length > 0) {
+                  closingComment = closerComments[0].body;
+                  if (closingComment.length > 1000) {
+                    closingComment = closingComment.substring(0, 997) + '...';
+                  }
                 }
               }
-            }
 
-            const message = {
-              embeds: [{
-                title: `Task Closed: ${issue.title}`,
-                url: issue.html_url,
-                description: `${issue.body || 'No description provided'}`,
-                color: 0x00ff00,
-                fields: [
-                  {
-                    name: '\u200B',
-                    value: '\u200B',
-                    inline: false
-                  },
-                  {
-                    name: 'Issue Number',
-                    value: `#${issue.number}`,
-                    inline: true
-                  },
-                  {
-                    name: 'Done By',
-                    value: sender.login,
-                    inline: true
-                  },
-                  {
-                    name: '\u200B',
-                    value: '\u200B',
-                    inline: true
-                  },
-                  {
-                    name: 'Closing Comment',
-                    value: closingComment,
-                    inline: false
-                  }
-                ],
-                timestamp: new Date().toISOString()
-              }]
-            };
+              message = {
+                embeds: [{
+                  title: `Task Closed: ${issue.title}`,
+                  url: issue.html_url,
+                  description: `${issue.body || 'No description provided'}`,
+                  color: 0x00ff00,
+                  fields: [
+                    {
+                      name: '\u200B',
+                      value: '\u200B',
+                      inline: false
+                    },
+                    {
+                      name: 'Issue Number',
+                      value: `#${issue.number}`,
+                      inline: true
+                    },
+                    {
+                      name: 'Done By',
+                      value: sender.login,
+                      inline: true
+                    },
+                    {
+                      name: '\u200B',
+                      value: '\u200B',
+                      inline: true
+                    },
+                    {
+                      name: 'Closing Comment',
+                      value: closingComment,
+                      inline: false
+                    }
+                  ],
+                  timestamp: new Date().toISOString()
+                }]
+              };
+            }
 
             await fetch(process.env.DISCORD_WEBHOOK_URL, {
               method: 'POST',
