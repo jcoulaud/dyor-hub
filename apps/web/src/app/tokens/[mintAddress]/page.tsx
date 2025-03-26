@@ -35,8 +35,11 @@ export default async function Page({ params, searchParams }: PageProps) {
     token.imageUrl = token.imageUrl.replace('cf-ipfs.com/ipfs/', 'ipfs.io/ipfs/');
   }
 
-  // Fetch token stats
-  const tokenStats = await tokens.getTokenStats(mintAddress).catch(() => null);
+  // Fetch token stats and Twitter history
+  const [tokenStats, twitterHistory] = await Promise.all([
+    tokens.getTokenStats(mintAddress).catch(() => null),
+    tokens.getTwitterHistory(mintAddress).catch(() => null),
+  ]);
 
   return (
     <div className='flex-1 flex flex-col'>
@@ -234,7 +237,7 @@ export default async function Page({ params, searchParams }: PageProps) {
                 </CardHeader>
                 <CardContent className='relative pt-4'>
                   {tokenStats ? (
-                    <TokenStats stats={tokenStats} />
+                    <TokenStats stats={tokenStats} twitterHistory={twitterHistory} />
                   ) : (
                     <div className='space-y-4 text-zinc-300'>
                       <div className='flex items-center justify-center py-8'>
