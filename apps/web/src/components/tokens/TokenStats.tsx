@@ -4,9 +4,11 @@ import { TokenHolder } from '@dyor-hub/types';
 import { formatDistanceToNow } from 'date-fns';
 import { BarChart2, DollarSign, History, Users } from 'lucide-react';
 import { SolscanButton } from '../SolscanButton';
+import { PriceChartWidget } from './PriceWidget';
 
 interface TokenStatsProps {
   stats: TokenStatsType;
+  tokenMintAddress: string;
   twitterHistory?: TwitterUsernameHistoryEntity | null;
 }
 
@@ -75,7 +77,7 @@ const formatPercentage = (percentage: number | string | undefined | null): strin
   }
 };
 
-export function TokenStats({ stats, twitterHistory }: TokenStatsProps) {
+export function TokenStats({ stats, twitterHistory, tokenMintAddress }: TokenStatsProps) {
   return (
     <div className='space-y-6 text-zinc-300'>
       {/* Market Data */}
@@ -105,6 +107,14 @@ export function TokenStats({ stats, twitterHistory }: TokenStatsProps) {
               </div>
             )}
           </div>
+          <PriceChartWidget 
+                tokenAddress={tokenMintAddress}
+                chainId="solana"
+                locale="en"
+                defaultInterval="5"
+                width="100%"
+                height="400px"
+              />
         </div>
       )}
 
