@@ -34,6 +34,15 @@ export class TwitterHistoryService {
       return;
     }
 
+    // Check if API key is available
+    const apiKey = this.configService.get('TOTO_API_KEY');
+    if (!apiKey) {
+      this.logger.warn(
+        'TOTO_API_KEY is not configured, skipping Twitter history fetch',
+      );
+      return;
+    }
+
     const existingHistory = await this.twitterHistoryRepository.findOne({
       where: { tokenMintAddress: token.mintAddress },
     });
@@ -47,7 +56,7 @@ export class TwitterHistoryService {
         method: 'POST',
         headers: {
           accept: 'application/json',
-          'x-api-key': this.configService.get('TOTO_API_KEY')!,
+          'x-api-key': apiKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -58,7 +67,10 @@ export class TwitterHistoryService {
       });
 
       if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`);
+        this.logger.warn(
+          `API request failed with status ${response.status} for token ${token.mintAddress}`,
+        );
+        return;
       }
 
       const data: TwitterApiResponse = await response.json();
@@ -83,17 +95,25 @@ export class TwitterHistoryService {
         `Failed to fetch Twitter username history for token ${token.mintAddress}:`,
         error,
       );
-      throw error;
+      // Don't rethrow - just log the error and continue
     }
   }
 
   async getUsernameHistory(
     tokenMintAddress: string,
   ): Promise<TwitterUsernameHistoryEntity | null> {
-    const history = await this.twitterHistoryRepository.findOne({
-      where: { tokenMintAddress },
-    });
+    try {
+      const history = await this.twitterHistoryRepository.findOne({
+        where: { tokenMintAddress },
+      });
 
-    return history;
+      return history;
+    } catch (error) {
+      this.logger.error(
+        `Error fetching Twitter history for ${tokenMintAddress}:`,
+        error,
+      );
+      return null;
+    }
   }
 }
