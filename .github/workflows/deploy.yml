@@ -34,38 +34,23 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
 
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Cache build artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            packages/types/dist
-            apps/api/dist
-            apps/web/dist
-          key: ${{ runner.os }}-build-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-build-
 
       - name: Build packages
         run: |
           cd packages/types
           pnpm build
 
-      - name: Build API and Web in parallel
+      - name: Build API
         run: |
-          cd apps/api && pnpm build &
-          cd apps/web && pnpm build &
-          wait
+          cd apps/api
+          pnpm build
+
+      - name: Build Web
+        run: |
+          cd apps/web
+          pnpm build
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -84,7 +69,7 @@ jobs:
         run: |
           scp scripts/blue-green-deploy.sh $DEPLOY_USER@$DROPLET_IP:/tmp/blue-green-deploy.sh
 
-      - name: Smart Cleanup
+      - name: Clean up disk space
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.DROPLET_IP }}
@@ -92,24 +77,30 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            echo "=== Smart cleanup to prevent disk bloat ==="
-            
-            # Remove stopped containers older than 24h
-            docker container prune -f --filter "until=24h"
-            
-            # Remove dangling images (not used by any container)
-            docker image prune -f
-            
-            # Remove unused volumes older than 7 days
-            docker volume prune -f --filter "until=168h"
-            
-            # Clean old log files
-            find /var/log -type f -name "*.gz" -delete 2>/dev/null || true
-            
-            # Clean apt cache only if disk usage is above 80%
-            if [ $(df -h / | awk 'NR==2 {print $5}' | sed 's/%//') -gt 80 ]; then
-              apt-get clean -y 2>/dev/null || true
-            fi
+            echo "=== Cleaning up disk space before deployment ==="
+            echo "Current disk usage:"
+            df -h /
+
+            echo "Removing stopped containers..."
+            sudo docker container prune -f
+
+            echo "Removing unused Docker images..."
+            sudo docker image prune -a -f --filter "until=24h"
+
+            echo "Removing Docker build cache..."
+            sudo docker builder prune -f
+
+            echo "Removing unused Docker volumes..."
+            sudo docker volume prune -f
+
+            echo "Removing old log files..."
+            sudo find /var/log -type f -name "*.gz" -delete 2>/dev/null || true
+
+            echo "Cleaning apt cache..."
+            sudo apt-get clean -y 2>/dev/null || true
+
+            echo "Disk usage after cleanup:"
+            df -h /
 
       - name: Verify Nginx Configuration
         env:
@@ -178,26 +169,11 @@ jobs:
           fi
 
           echo "Checking if the web service is responding..."
-          MAX_RETRIES=5
-          RETRY_COUNT=0
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dyorhub.xyz/)
-            echo "Response code: $RESPONSE_CODE"
-            
-            if [[ "$RESPONSE_CODE" == "200" ]]; then
-              echo "Website is responding successfully!"
-              break
-            fi
-            
-            RETRY_COUNT=$((RETRY_COUNT + 1))
-            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-              echo "Retrying in 10 seconds... ($RETRY_COUNT/$MAX_RETRIES)"
-              sleep 10
-            fi
-          done
+          RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dyorhub.xyz/)
+          echo "Response code: $RESPONSE_CODE"
 
           if [[ "$RESPONSE_CODE" != "200" ]]; then
-            echo "ERROR: Website not responding with 200 status after $MAX_RETRIES attempts!"
+            echo "ERROR: Website not responding with 200 status (got $RESPONSE_CODE)!"
             echo "Checking Nginx configuration and logs..."
             ssh $DEPLOY_USER@$DROPLET_IP "sudo nginx -t && sudo cat /var/log/nginx/error.log | tail -50"
             exit 1
