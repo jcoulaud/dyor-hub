@@ -27,7 +27,7 @@ export function Header() {
             <nav>
               <Link
                 href='/links'
-                className='px-3 py-1.5 text-[13px] text-zinc-400 hover:text-white transition-colors rounded-md bg-zinc-800/40'>
+                className='px-2 sm:px-3 py-1.5 text-[13px] text-zinc-400 hover:text-white transition-colors rounded-md bg-zinc-800/40 whitespace-nowrap'>
                 Official Links
               </Link>
             </nav>
