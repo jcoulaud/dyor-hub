@@ -165,13 +165,13 @@ export function TokenStats({ stats, twitterHistory }: TokenStatsProps) {
       {twitterHistory?.history && twitterHistory.history.length > 0 && (
         <div className='space-y-3 mt-8'>
           <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
-            <History className='h-4 w-4 mr-2 text-purple-400' />
+            <History className='h-4 w-4 mr-2 text-red-400' />
             Twitter History
           </h3>
           <div className='space-y-2'>
             {[...twitterHistory.history].reverse().map((entry, index) => (
               <div key={index} className='flex items-center justify-between py-1'>
-                <span className='text-sm font-medium text-purple-300'>@{entry.username}</span>
+                <span className='text-sm font-medium text-red-400'>@{entry.username}</span>
                 <span className='text-xs text-zinc-500'>
                   {formatDistanceToNow(new Date(entry.last_checked), { addSuffix: true })}
                 </span>
