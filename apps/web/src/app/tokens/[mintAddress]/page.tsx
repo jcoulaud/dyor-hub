@@ -356,7 +356,7 @@ export default function Page({ params }: PageProps) {
                 </CardHeader>
                 <CardContent className='relative pt-0'>
                   {tokenStats ? (
-                    <TokenStats stats={tokenStats} twitterHistory={twitterHistory} />
+                    <TokenStats stats={tokenStats} twitterHistory={twitterHistory} tokenMintAddress={token.mintAddress} />
                   ) : (
                     <div className='space-y-4 text-zinc-300'>
                       <div className='flex items-center justify-center py-8'>
