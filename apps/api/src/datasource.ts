@@ -30,7 +30,6 @@ export const dataSourceOptions: DataSourceOptions = {
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',
   migrationsRun: isProduction, // Automatically run migrations in production
-  synchronize: !isProduction, // Enable synchronize in development mode only
   logging: isProduction ? ['error', 'warn'] : true, // Only log errors and warnings in production
   logger: 'advanced-console',
 };

@@ -116,6 +116,29 @@ Comments are automatically moderated using:
    pnpm stop
    ```
 
+### Database Migrations
+
+The project uses TypeORM for database migrations. Here are the available commands:
+
+```bash
+# Generate a new migration based on entity changes
+pnpm db:migration:generate
+
+# Run pending migrations
+pnpm db:migration:run
+
+# Reset database (useful in development)
+pnpm db:reset
+```
+
+When you make changes to your entities in `apps/api/src/entities/`, you should:
+
+1. Run `pnpm db:migration:generate` to create a migration file
+2. Review the generated migration in `apps/api/src/migrations/`
+3. Run `pnpm db:migration:run` to apply the changes
+
+> **Note**: Never use `synchronize: true` in production as it can lead to data loss. Always use migrations for schema changes.
+
 ### Development Environment Variables
 
 For local development, refer to the `.env.example` files in both the API and web applications. These files contain all the necessary environment variables with appropriate default values for development.

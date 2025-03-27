@@ -15,6 +15,7 @@
     "db:migrate": "node -r ts-node/register src/scripts/run-migrations.ts",
     "db:reset": "node -r ts-node/register src/scripts/reset-database.ts",
     "db:drop": "node -r ts-node/register src/scripts/drop-database.ts",
+    "db:migration:generate": "node -r ts-node/register src/scripts/generate-migration.ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs}/**/*.ts\" --fix"
   },
