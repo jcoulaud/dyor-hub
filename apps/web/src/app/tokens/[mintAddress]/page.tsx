@@ -4,6 +4,7 @@ import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
+import TokenShareLink from '@/components/tokens/TokenShareLink';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { tokens } from '@/lib/api';
@@ -455,6 +456,22 @@ export default function Page({ params }: PageProps) {
                       </p>
                     )}
                   </form>
+                </CardContent>
+              </Card>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-green-600/5 to-green-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-2 relative'>
+                  <div className='flex items-center'>
+                    <div className='h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center mr-4 group-hover:bg-green-500/20 transition-colors duration-300'>
+                      <Search className='h-5 w-5 text-green-400' />
+                    </div>
+                    <CardTitle className='text-xl font-semibold text-white'>Embedding link</CardTitle>
+                  </div>
+                  <CardDescription className='text-zinc-400'></CardDescription>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-green-500/20 to-transparent mt-3'></div>
+                </CardHeader>
+                <CardContent className='relative pt-0'>
+                  <TokenShareLink address={token.mintAddress} />
                 </CardContent>
               </Card>
             </div>
