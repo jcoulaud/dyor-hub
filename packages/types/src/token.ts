@@ -34,3 +34,16 @@ export interface TokenStats {
   // Last updated timestamp
   lastUpdated: Date;
 }
+
+export interface TwitterUsernameHistory {
+  last_checked: string;
+  username: string;
+}
+
+export interface TwitterUsernameHistoryEntity {
+  id: string;
+  tokenMintAddress: string;
+  twitterUsername: string;
+  history: TwitterUsernameHistory[] | null;
+  createdAt: Date;
+}

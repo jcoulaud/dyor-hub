@@ -4,6 +4,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { CommentVoteEntity } from './entities/comment-vote.entity';
 import { CommentEntity } from './entities/comment.entity';
 import { TokenEntity } from './entities/token.entity';
+import { TwitterUsernameHistoryEntity } from './entities/twitter-username-history.entity';
 import { UserEntity } from './entities/user.entity';
 
 config(); // Load .env file
@@ -14,12 +15,18 @@ const isProduction = process.env.NODE_ENV === 'production';
 // Set the migrations path based on environment
 const migrationsPath = isProduction
   ? [path.join(__dirname, 'migrations', '*.js')] // For production (compiled JS)
-  : [path.join(__dirname, 'migrations', '*.{js,ts}')]; // For development (both JS and TS files)
+  : [path.join(__dirname, 'migrations', '*.ts')]; // For development (TypeScript files)
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   url: process.env.DATABASE_URL,
-  entities: [TokenEntity, CommentEntity, CommentVoteEntity, UserEntity],
+  entities: [
+    TokenEntity,
+    CommentEntity,
+    CommentVoteEntity,
+    UserEntity,
+    TwitterUsernameHistoryEntity,
+  ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',
   migrationsRun: isProduction, // Automatically run migrations in production

@@ -1,42 +1,111 @@
+'use client';
+
 import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { tokens } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
-import { Globe, MessageSquare, Shield, Sparkles, Twitter } from 'lucide-react';
+import type { TokenStats as TokenStatsType } from '@dyor-hub/types';
+import { Token, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
+import { Globe, MessageSquare, Search, Shield, Sparkles, Twitter } from 'lucide-react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 
 interface PageProps {
   params: Promise<{ mintAddress: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function Page({ params, searchParams }: PageProps) {
-  const { mintAddress } = await params;
-  const searchParamsResolved = await searchParams;
-  const commentId =
-    typeof searchParamsResolved.comment === 'string' ? searchParamsResolved.comment : undefined;
+export default function Page({ params }: PageProps) {
+  const router = useRouter();
+  const [address, setAddress] = useState('');
+  const [error, setError] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [tokenData, setTokenData] = useState<Token | null>(null);
+  const [tokenHistoryData, setTokenHistoryData] = useState<TwitterUsernameHistoryEntity | null>(
+    null,
+  );
+  const [tokenStatsData, setTokenStatsData] = useState<TokenStatsType | null>(null);
 
-  if (!mintAddress || !isValidSolanaAddress(mintAddress)) {
-    notFound();
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setError('');
+
+      const trimmedAddress = address.trim();
+      if (!trimmedAddress) {
+        setError('Please enter a token address');
+        return;
+      }
+
+      if (!isValidSolanaAddress(trimmedAddress)) {
+        setError('Please enter a valid Solana address');
+        return;
+      }
+
+      setIsSearching(true);
+
+      try {
+        router.push(`/tokens/${trimmedAddress}`);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [address, router],
+  );
+
+  // Use useEffect to fetch data after component mounts
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const { mintAddress } = await params;
+
+        if (!mintAddress || !isValidSolanaAddress(mintAddress)) {
+          notFound();
+        }
+
+        const token = await tokens.getByMintAddress(mintAddress).catch(() => null);
+
+        if (!token) {
+          notFound();
+        }
+
+        // Replace cf-ipfs.com with ipfs.io in image URL
+        if (token.imageUrl && token.imageUrl.includes('cf-ipfs.com/ipfs/')) {
+          token.imageUrl = token.imageUrl.replace('cf-ipfs.com/ipfs/', 'ipfs.io/ipfs/');
+        }
+
+        // Fetch token stats and Twitter history
+        const [tokenStats, twitterHistory] = await Promise.all([
+          tokens.getTokenStats(mintAddress).catch(() => null),
+          tokens.getTwitterHistory(mintAddress).catch(() => null),
+        ]);
+
+        setTokenData(token);
+        setTokenStatsData(tokenStats);
+        setTokenHistoryData(twitterHistory);
+      } catch (error) {
+        console.error('Error fetching token data:', error);
+      }
+    };
+
+    fetchData();
+  }, [params]);
+
+  if (!tokenData) {
+    return (
+      <div className='flex-1 flex items-center justify-center'>
+        <div className='animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500'></div>
+      </div>
+    );
   }
 
-  const token = await tokens.getByMintAddress(mintAddress).catch(() => null);
-
-  if (!token) {
-    notFound();
-  }
-
-  // Replace cf-ipfs.com with ipfs.io in image URL
-  if (token.imageUrl && token.imageUrl.includes('cf-ipfs.com/ipfs/')) {
-    token.imageUrl = token.imageUrl.replace('cf-ipfs.com/ipfs/', 'ipfs.io/ipfs/');
-  }
-
-  // Fetch token stats
-  const tokenStats = await tokens.getTokenStats(mintAddress).catch(() => null);
+  const token = tokenData;
+  const tokenStats = tokenStatsData;
+  const twitterHistory = tokenHistoryData;
 
   return (
     <div className='flex-1 flex flex-col'>
@@ -52,6 +121,55 @@ export default async function Page({ params, searchParams }: PageProps) {
       />
 
       <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 py-6'>
+        {/* Search Token Card */}
+        <div className='xl:hidden relative group mb-6'>
+          <div className='absolute -inset-0.5 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+          <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+            <div className='absolute inset-0 bg-gradient-to-br from-green-600/5 to-green-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+            <CardContent className='relative py-3 px-3'>
+              <form onSubmit={handleSubmit} className='space-y-3'>
+                <div className='flex flex-col gap-3'>
+                  <div className='relative flex-grow'>
+                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                      <Search className='h-5 w-5 text-zinc-500' />
+                    </div>
+                    <Input
+                      type='text'
+                      value={address}
+                      onChange={(e) => {
+                        setAddress(e.target.value);
+                        setError('');
+                      }}
+                      placeholder='Enter token contract address'
+                      className='h-10 pl-10 w-full border-zinc-800/50 bg-zinc-900/30 text-sm placeholder:text-zinc-500 rounded-lg'
+                    />
+                  </div>
+                  <button
+                    type='submit'
+                    className={`h-10 bg-gradient-to-r from-blue-500 to-blue-600 px-4 text-sm font-medium text-white rounded-lg transition-all duration-200 shadow-lg shadow-blue-500/20 flex items-center justify-center ${
+                      isSearching
+                        ? 'opacity-90 cursor-not-allowed'
+                        : 'hover:brightness-110 hover:shadow-xl hover:shadow-blue-500/30 cursor-pointer'
+                    }`}
+                    disabled={isSearching}
+                    aria-label={isSearching ? 'Searching...' : 'Find Token'}>
+                    {isSearching ? (
+                      <div className='animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white'></div>
+                    ) : (
+                      'Find Token'
+                    )}
+                  </button>
+                </div>
+                {error && (
+                  <p className='text-xs font-medium text-red-500' role='alert'>
+                    {error}
+                  </p>
+                )}
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Token Header Card */}
         <div className='relative group mb-6'>
           <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-300'></div>
@@ -122,7 +240,9 @@ export default async function Page({ params, searchParams }: PageProps) {
                             rel='noopener noreferrer'
                             className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
                             title='Twitter'>
-                            <Twitter className='w-4 h-4 text-blue-400' />
+                            <Twitter
+                              className={`w-4 h-4 ${twitterHistory?.history && twitterHistory.history.length > 0 ? 'text-red-400' : 'text-blue-400'}`}
+                            />
                           </Link>
                         )}
 
@@ -191,7 +311,9 @@ export default async function Page({ params, searchParams }: PageProps) {
                           rel='noopener noreferrer'
                           className='flex items-center justify-center w-7 h-7 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
                           title='Twitter'>
-                          <Twitter className='w-3.5 h-3.5 text-blue-400' />
+                          <Twitter
+                            className={`w-3.5 h-3.5 ${twitterHistory?.history && twitterHistory.history.length > 0 ? 'text-red-400' : 'text-blue-400'}`}
+                          />
                         </Link>
                       )}
 
@@ -213,15 +335,15 @@ export default async function Page({ params, searchParams }: PageProps) {
           </Card>
         </div>
 
-        {/* Main Content - Two Column Layout */}
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
+        {/* Main Content - Three Column Layout */}
+        <div className='grid grid-cols-1 xxs:grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 xl:grid-cols-12 gap-4 sm:gap-6 xl:gap-8'>
           {/* Left Column - Token Data */}
-          <div className='lg:col-span-1 space-y-8'>
+          <div className='col-span-1 xxs:col-span-2 xs:col-span-2 sm:col-span-2 xl:col-span-3 space-y-4 sm:space-y-6 xl:space-y-8 order-1 xxs:order-none xs:order-none sm:order-none'>
             <div className='relative group'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
               <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
                 <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
-                <CardHeader className='pb-4 relative'>
+                <CardHeader className='pb-2 relative'>
                   <div className='flex items-center mb-4'>
                     <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
                       <Sparkles className='h-5 w-5 text-blue-400' />
@@ -232,9 +354,9 @@ export default async function Page({ params, searchParams }: PageProps) {
                   </div>
                   <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
                 </CardHeader>
-                <CardContent className='relative pt-4'>
+                <CardContent className='relative pt-0'>
                   {tokenStats ? (
-                    <TokenStats stats={tokenStats} />
+                    <TokenStats stats={tokenStats} twitterHistory={twitterHistory} />
                   ) : (
                     <div className='space-y-4 text-zinc-300'>
                       <div className='flex items-center justify-center py-8'>
@@ -252,14 +374,14 @@ export default async function Page({ params, searchParams }: PageProps) {
             </div>
           </div>
 
-          {/* Right Column - Community Discussion */}
-          <div className='lg:col-span-2 space-y-8'>
+          {/* Middle Column - Community Discussion */}
+          <div className='col-span-1 xxs:col-span-4 xs:col-span-4 sm:col-span-4 xl:col-span-6 space-y-4 sm:space-y-6 xl:space-y-8 order-3 xxs:order-none xs:order-none sm:order-none'>
             <div className='relative group'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
               <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
                 <div className='absolute inset-0 bg-gradient-to-br from-purple-600/5 to-purple-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
-                <CardHeader className='pb-4 relative'>
-                  <div className='flex items-center mb-4'>
+                <CardHeader className='pb-2 relative'>
+                  <div className='flex items-center'>
                     <div className='h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center mr-4 group-hover:bg-purple-500/20 transition-colors duration-300'>
                       <MessageSquare className='h-5 w-5 text-purple-400' />
                     </div>
@@ -267,13 +389,72 @@ export default async function Page({ params, searchParams }: PageProps) {
                       Community Discussion
                     </CardTitle>
                   </div>
-                  <CardDescription className='text-zinc-400'>
-                    Share your thoughts and analysis
-                  </CardDescription>
-                  <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent mt-4'></div>
+                  <CardDescription className='text-zinc-400'></CardDescription>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent mt-3'></div>
                 </CardHeader>
-                <CardContent className='relative pt-4'>
-                  <CommentSection tokenMintAddress={token.mintAddress} commentId={commentId} />
+                <CardContent className='relative pt-0'>
+                  <CommentSection tokenMintAddress={token.mintAddress} commentId={undefined} />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Right Column - Search Token */}
+          <div className='hidden xl:block col-span-1 xxs:col-span-2 xs:col-span-2 sm:col-span-2 xl:col-span-3 space-y-4 sm:space-y-6 xl:space-y-8 order-2 xxs:order-none xs:order-none sm:order-none'>
+            <div className='relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-green-600/5 to-green-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-2 relative'>
+                  <div className='flex items-center'>
+                    <div className='h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center mr-4 group-hover:bg-green-500/20 transition-colors duration-300'>
+                      <Search className='h-5 w-5 text-green-400' />
+                    </div>
+                    <CardTitle className='text-xl font-semibold text-white'>Search Token</CardTitle>
+                  </div>
+                  <CardDescription className='text-zinc-400'></CardDescription>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-green-500/20 to-transparent mt-3'></div>
+                </CardHeader>
+                <CardContent className='relative pt-0'>
+                  <form onSubmit={handleSubmit} className='space-y-3'>
+                    <div className='flex flex-col gap-3'>
+                      <div className='relative flex-grow'>
+                        <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                          <Search className='h-5 w-5 text-zinc-500' />
+                        </div>
+                        <Input
+                          type='text'
+                          value={address}
+                          onChange={(e) => {
+                            setAddress(e.target.value);
+                            setError('');
+                          }}
+                          placeholder='Enter token contract address'
+                          className='h-10 pl-10 w-full border-zinc-800/50 bg-zinc-900/30 text-sm placeholder:text-zinc-500 rounded-lg'
+                        />
+                      </div>
+                      <button
+                        type='submit'
+                        className={`h-10 bg-gradient-to-r from-blue-500 to-blue-600 px-4 text-sm font-medium text-white rounded-lg transition-all duration-200 shadow-lg shadow-blue-500/20 flex items-center justify-center ${
+                          isSearching
+                            ? 'opacity-90 cursor-not-allowed'
+                            : 'hover:brightness-110 hover:shadow-xl hover:shadow-blue-500/30 cursor-pointer'
+                        }`}
+                        disabled={isSearching}
+                        aria-label={isSearching ? 'Searching...' : 'Find Token'}>
+                        {isSearching ? (
+                          <div className='animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white'></div>
+                        ) : (
+                          'Find Token'
+                        )}
+                      </button>
+                    </div>
+                    {error && (
+                      <p className='text-xs font-medium text-red-500' role='alert'>
+                        {error}
+                      </p>
+                    )}
+                  </form>
                 </CardContent>
               </Card>
             </div>

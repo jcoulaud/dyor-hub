@@ -1,11 +1,13 @@
 import { truncateAddress } from '@/lib/utils';
-import type { TokenStats as TokenStatsType } from '@dyor-hub/types';
+import type { TokenStats as TokenStatsType, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
 import { TokenHolder } from '@dyor-hub/types';
-import { BarChart2, DollarSign, Users } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { BarChart2, DollarSign, History, Users } from 'lucide-react';
 import { SolscanButton } from '../SolscanButton';
 
 interface TokenStatsProps {
   stats: TokenStatsType;
+  twitterHistory?: TwitterUsernameHistoryEntity | null;
 }
 
 // Helper function to safely format a price with 6 decimal places
@@ -73,7 +75,7 @@ const formatPercentage = (percentage: number | string | undefined | null): strin
   }
 };
 
-export function TokenStats({ stats }: TokenStatsProps) {
+export function TokenStats({ stats, twitterHistory }: TokenStatsProps) {
   return (
     <div className='space-y-6 text-zinc-300'>
       {/* Market Data */}
@@ -153,6 +155,26 @@ export function TokenStats({ stats }: TokenStatsProps) {
                     />
                   </div>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Twitter History */}
+      {twitterHistory?.history && twitterHistory.history.length > 0 && (
+        <div className='space-y-3 mt-8'>
+          <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
+            <History className='h-4 w-4 mr-2 text-red-400' />
+            Twitter History
+          </h3>
+          <div className='space-y-2'>
+            {[...twitterHistory.history].reverse().map((entry, index) => (
+              <div key={index} className='flex items-center justify-between py-1'>
+                <span className='text-sm font-medium text-red-400'>@{entry.username}</span>
+                <span className='text-xs text-zinc-500'>
+                  {formatDistanceToNow(new Date(entry.last_checked), { addSuffix: true })}
+                </span>
               </div>
             ))}
           </div>
