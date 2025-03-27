@@ -6,6 +6,9 @@ class CommentUserDto {
   id: string;
 
   @Expose()
+  username: string;
+
+  @Expose()
   displayName: string;
 
   @Expose()

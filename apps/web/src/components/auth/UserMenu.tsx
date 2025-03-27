@@ -10,7 +10,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { auth } from '@/lib/api';
 import { useAuthContext } from '@/providers/auth-provider';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, UserCircle } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { TwitterLoginButton } from './TwitterLoginButton';
 
@@ -67,6 +68,13 @@ export function UserMenu() {
         </div>
 
         <div className='p-1'>
+          <Link href={`/users/${user.username}`}>
+            <DropdownMenuItem className='flex items-center gap-2 px-3 py-2.5 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
+              <UserCircle className='h-4 w-4' />
+              <span>Profile</span>
+            </DropdownMenuItem>
+          </Link>
+
           <DropdownMenuItem
             onClick={handleLogout}
             disabled={isLoggingOut}

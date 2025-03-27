@@ -10,6 +10,7 @@ import { HealthModule } from './health/health.module';
 import { TelegramNotificationService } from './services/telegram-notification.service';
 import { SessionModule } from './session/session.module';
 import { TokensModule } from './tokens/tokens.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { TokensModule } from './tokens/tokens.module';
     CommentsModule,
     SessionModule,
     HealthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [TelegramNotificationService],

@@ -372,3 +372,28 @@ export const tokens = {
     }
   },
 };
+
+export const users = {
+  getByUsername: async (username: string): Promise<User> => {
+    try {
+      const endpoint = `users/${username}`;
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first
+      const cachedData = getCache<User>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Fetch fresh data
+      const data = await api<User>(endpoint);
+
+      // Update cache
+      setCache(cacheKey, data);
+
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  },
+};

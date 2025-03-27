@@ -41,7 +41,6 @@ export class AuthService {
       });
       return await this.userRepository.save(user);
     } else {
-      user.username = username;
       user.displayName = safeDisplayName;
       user.avatarUrl = profileImageUrl;
       return await this.userRepository.save(user);

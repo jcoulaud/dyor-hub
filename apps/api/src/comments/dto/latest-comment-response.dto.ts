@@ -13,6 +13,9 @@ class LatestCommentUserDto {
   id: string;
 
   @Expose()
+  username?: string;
+
+  @Expose()
   displayName: string;
 
   @Expose()

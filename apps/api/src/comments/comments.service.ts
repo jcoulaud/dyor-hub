@@ -81,6 +81,7 @@ export class CommentsService {
         parentId: comment.parentId,
         user: {
           id: comment.user.id,
+          username: comment.user.username,
           displayName: comment.user.displayName,
           avatarUrl: comment.user.avatarUrl,
         },
