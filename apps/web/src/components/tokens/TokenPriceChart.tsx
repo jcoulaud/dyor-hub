@@ -56,8 +56,12 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
   const abortControllerRef = useRef<AbortController | null>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
   const fetchData = useCallback(
     async (retryCount = 0) => {
+      if (isDevelopment) return;
+
       try {
         // Check cache first
         const cached = priceHistoryCache.get(tokenAddress);
@@ -133,10 +137,12 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
         setIsLoading(false);
       }
     },
-    [tokenAddress, totalSupply],
+    [tokenAddress, totalSupply, isDevelopment],
   );
 
   useEffect(() => {
+    if (isDevelopment) return; // Skip effect in development mode
+
     // Clear any pending timeouts
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
@@ -158,7 +164,16 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
         clearTimeout(fetchTimeoutRef.current);
       }
     };
-  }, [tokenAddress, fetchData]);
+  }, [tokenAddress, fetchData, isDevelopment]);
+
+  // If in development mode, show placeholder
+  if (isDevelopment) {
+    return (
+      <div className='w-full h-[120px] p-4 bg-zinc-900 rounded-xl shadow flex items-center justify-center'>
+        <p className='text-sm text-zinc-400'>Price chart not shown in development mode</p>
+      </div>
+    );
+  }
 
   if (isLoading && !data.length) {
     return (
