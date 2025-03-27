@@ -5,16 +5,9 @@ import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import 'reflect-metadata';
 import { AppModule } from './app.module';
-import { initializeDatabase } from './datasource';
 import { SessionService } from './session/session.service';
 
 async function bootstrap() {
-  try {
-    await initializeDatabase();
-  } catch (error) {
-    console.error('Failed to initialize database:', error);
-  }
-
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   const sessionService = app.get(SessionService);

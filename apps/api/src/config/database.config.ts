@@ -25,7 +25,6 @@ export const databaseConfig: TypeOrmModuleAsyncOptions = {
         UserEntity,
         TwitterUsernameHistoryEntity,
       ],
-      synchronize: configService.get('NODE_ENV') !== 'production',
       logging: false,
       ssl: false,
     };
