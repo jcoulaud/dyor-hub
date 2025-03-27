@@ -87,7 +87,7 @@ export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenSta
       )}
 
       {/* Price Chart */}
-      <TokenPriceChart tokenAddress={tokenMintAddress} />
+      <TokenPriceChart tokenAddress={tokenMintAddress} totalSupply={stats.totalSupply} />
 
       {/* Supply Information */}
       <div className='space-y-3'>

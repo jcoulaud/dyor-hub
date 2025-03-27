@@ -1,4 +1,6 @@
 'use client';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { ApiError, tokens } from '@/lib/api';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
@@ -6,10 +8,12 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
 interface ChartPoint {
   time: string;
   price: number;
+  marketCap?: number;
 }
 
 interface TokenPriceChartProps {
   tokenAddress: string;
+  totalSupply: string;
 }
 
 const formatPrice = (value: number) => {
@@ -18,6 +22,15 @@ const formatPrice = (value: number) => {
     currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 6,
+  }).format(value);
+};
+
+const formatMarketCap = (value: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    notation: 'compact',
+    maximumFractionDigits: 2,
   }).format(value);
 };
 
@@ -33,11 +46,12 @@ const formatTime = (unixTime: number) => {
 const priceHistoryCache = new Map<string, { data: ChartPoint[]; timestamp: number }>();
 const CACHE_TTL = 30000; // 30 seconds
 
-const TokenPriceChartComponent = memo(({ tokenAddress }: TokenPriceChartProps) => {
+const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPriceChartProps) => {
   const [data, setData] = useState<ChartPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPriceUp, setIsPriceUp] = useState<boolean>(false);
+  const [showMarketCap, setShowMarketCap] = useState(false);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -71,9 +85,11 @@ const TokenPriceChartComponent = memo(({ tokenAddress }: TokenPriceChartProps) =
         );
 
         if (priceHistory.items.length > 0) {
+          const supply = parseFloat(totalSupply);
           const formatted = priceHistory.items.map((item) => ({
             time: formatTime(item.unixTime),
             price: item.value,
+            marketCap: item.value * supply,
           }));
 
           const firstPrice = formatted[0]?.price;
@@ -117,7 +133,7 @@ const TokenPriceChartComponent = memo(({ tokenAddress }: TokenPriceChartProps) =
         setIsLoading(false);
       }
     },
-    [tokenAddress],
+    [tokenAddress, totalSupply],
   );
 
   useEffect(() => {
@@ -168,11 +184,25 @@ const TokenPriceChartComponent = memo(({ tokenAddress }: TokenPriceChartProps) =
     );
   }
 
+  const dataKey = showMarketCap ? 'marketCap' : 'price';
+  const formatValue = showMarketCap ? formatMarketCap : formatPrice;
+
   return (
     <div className='relative w-full h-[120px] bg-zinc-900 rounded-xl shadow'>
       <div className='absolute top-2 left-3 text-xs text-zinc-400'>24h</div>
+      <div className='absolute top-2 right-3 flex items-center gap-2 z-10'>
+        <Label htmlFor='chart-toggle' className='text-xs text-zinc-400 cursor-pointer'>
+          {showMarketCap ? 'Market Cap' : 'Price'}
+        </Label>
+        <Switch
+          id='chart-toggle'
+          checked={showMarketCap}
+          onCheckedChange={setShowMarketCap}
+          className='data-[state=checked]:bg-blue-500 cursor-pointer'
+        />
+      </div>
       <ResponsiveContainer width='100%' height='100%'>
-        <LineChart data={data} margin={{ top: 20, right: 10, bottom: 10, left: 10 }}>
+        <LineChart data={data} margin={{ top: 35, right: 10, bottom: 10, left: 10 }}>
           <YAxis domain={['dataMin', 'dataMax']} hide={true} />
           <Tooltip
             content={({ active, payload }) => {
@@ -181,7 +211,7 @@ const TokenPriceChartComponent = memo(({ tokenAddress }: TokenPriceChartProps) =
                   <div className='bg-zinc-800/90 px-3 py-2 rounded-lg border border-zinc-700/50 shadow-lg backdrop-blur-sm'>
                     <p className='text-xs text-zinc-400'>{payload[0].payload.time}</p>
                     <p className='text-sm font-medium text-white'>
-                      {formatPrice(payload[0].value as number)}
+                      {formatValue(payload[0].value as number)}
                     </p>
                   </div>
                 );
@@ -192,7 +222,7 @@ const TokenPriceChartComponent = memo(({ tokenAddress }: TokenPriceChartProps) =
           />
           <Line
             type='monotone'
-            dataKey='price'
+            dataKey={dataKey}
             stroke={isPriceUp ? '#22c55e' : '#ef4444'}
             strokeWidth={1.5}
             dot={false}
