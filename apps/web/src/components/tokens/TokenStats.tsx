@@ -4,7 +4,7 @@ import { TokenHolder } from '@dyor-hub/types';
 import { formatDistanceToNow } from 'date-fns';
 import { BarChart2, DollarSign, History, Users } from 'lucide-react';
 import { SolscanButton } from '../SolscanButton';
-import TokenPriceChart from './TokenPriceChart'
+import TokenPriceChart from './TokenPriceChart';
 
 interface TokenStatsProps {
   stats: TokenStatsType;
@@ -30,54 +30,30 @@ const formatPrice = (price: number | string | undefined | null): string => {
   }
 };
 
-// Helper function to format large numbers with appropriate suffixes (K, M, B, T)
-const formatLargeNumber = (num: number | string | undefined | null): string => {
-  try {
-    if (num === null || num === undefined) {
-      return '0';
-    }
+// Helper function to format large numbers with K/M/B suffixes
+const formatLargeNumber = (num: string | number | undefined): string => {
+  if (num === undefined) return '0';
 
-    const numValue = typeof num === 'number' ? num : Number(num);
+  const value = typeof num === 'string' ? parseFloat(num) : num;
+  if (isNaN(value)) return '0';
 
-    if (isNaN(numValue)) {
-      return '0';
-    }
-
-    if (numValue < 1000) {
-      return numValue.toLocaleString();
-    } else if (numValue < 1000000) {
-      return (numValue / 1000).toFixed(2) + 'K';
-    } else if (numValue < 1000000000) {
-      return (numValue / 1000000).toFixed(2) + 'M';
-    } else if (numValue < 1000000000000) {
-      return (numValue / 1000000000).toFixed(2) + 'B';
-    } else {
-      return (numValue / 1000000000000).toFixed(2) + 'T';
-    }
-  } catch {
-    return '0';
+  if (value >= 1e9) {
+    return (value / 1e9).toFixed(2) + 'B';
   }
+  if (value >= 1e6) {
+    return (value / 1e6).toFixed(2) + 'M';
+  }
+  if (value >= 1e3) {
+    return (value / 1e3).toFixed(2) + 'K';
+  }
+  return value.toFixed(2);
 };
 
-// Helper function to safely format a percentage with 2 decimal places
-const formatPercentage = (percentage: number | string | undefined | null): string => {
-  try {
-    if (typeof percentage === 'number') {
-      return percentage.toFixed(2);
-    }
-
-    if (percentage === null || percentage === undefined) {
-      return '0.00';
-    }
-
-    const numPercentage = Number(percentage);
-    return isNaN(numPercentage) ? '0.00' : numPercentage.toFixed(2);
-  } catch {
-    return '0.00';
-  }
+const formatPercentage = (num: number): string => {
+  return num.toFixed(2);
 };
 
-export function TokenStats({ stats, twitterHistory, tokenMintAddress }: TokenStatsProps) {
+export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenStatsProps) => {
   return (
     <div className='space-y-6 text-zinc-300'>
       {/* Market Data */}
@@ -109,7 +85,10 @@ export function TokenStats({ stats, twitterHistory, tokenMintAddress }: TokenSta
           </div>
         </div>
       )}
+
+      {/* Price Chart */}
       <TokenPriceChart tokenAddress={tokenMintAddress} />
+
       {/* Supply Information */}
       <div className='space-y-3'>
         <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
@@ -189,4 +168,4 @@ export function TokenStats({ stats, twitterHistory, tokenMintAddress }: TokenSta
       </div>
     </div>
   );
-}
+};
