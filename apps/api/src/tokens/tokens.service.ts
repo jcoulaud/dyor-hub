@@ -625,4 +625,50 @@ export class TokensService {
     this.pendingRequests.set(cacheKey, requestPromise);
     return requestPromise;
   }
+
+  async getTokenPriceHistory(mintAddress: string): Promise<any> {
+    try {
+      const unixTime = Math.floor(Date.now() / 1000);
+      const oneDayAgo = unixTime - 86400;
+
+      const response = await fetch(
+        `https://public-api.birdeye.so/defi/history_price?address=${mintAddress}&address_type=token&type=15m&time_from=${oneDayAgo}&time_to=${unixTime}`,
+        {
+          headers: {
+            'X-API-KEY': this.configService.get('BIRDEYE_API_KEY') || '',
+            'x-chain': 'solana',
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.error || response.statusText;
+        const status = response.status;
+
+        // Handle rate limiting specifically
+        if (status === 429) {
+          throw new Error('Rate limit exceeded - Please try again in a moment');
+        }
+
+        throw new Error(
+          `Failed to fetch price data from Birdeye: ${errorMessage}`,
+        );
+      }
+
+      const data = await response.json();
+
+      if (!data.data?.items) {
+        return { items: [] };
+      }
+
+      return data.data;
+    } catch (error) {
+      this.logger.error(
+        `Error fetching price history for token ${mintAddress}:`,
+        error,
+      );
+      throw error;
+    }
+  }
 }

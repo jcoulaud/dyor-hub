@@ -136,6 +136,7 @@ export class CommentsService {
       where: { id: savedComment.id },
       relations: {
         user: true,
+        token: true,
       },
     });
 

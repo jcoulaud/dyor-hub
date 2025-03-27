@@ -48,6 +48,7 @@ interface AuthResponse {
 interface CacheItem<T> {
   data: T;
   timestamp: number;
+  expiresAt: number;
 }
 
 const apiCache = new Map<string, CacheItem<unknown>>();
@@ -58,7 +59,7 @@ const getCache = <T>(key: string): T | null => {
   if (!cached) return null;
 
   // Check if cache is expired
-  if (Date.now() - cached.timestamp > CACHE_TTL) {
+  if (Date.now() >= cached.expiresAt) {
     apiCache.delete(key);
     return null;
   }
@@ -66,10 +67,11 @@ const getCache = <T>(key: string): T | null => {
   return cached.data as T;
 };
 
-const setCache = <T>(key: string, data: T): void => {
+const setCache = <T>(key: string, data: T, ttl: number = CACHE_TTL): void => {
   apiCache.set(key, {
     data,
     timestamp: Date.now(),
+    expiresAt: Date.now() + ttl,
   });
 };
 
@@ -230,6 +232,15 @@ export const auth = {
   },
 };
 
+interface PriceHistoryItem {
+  unixTime: number;
+  value: number;
+}
+
+interface PriceHistoryResponse {
+  items: PriceHistoryItem[];
+}
+
 export const tokens = {
   list: async (): Promise<Token[]> => {
     try {
@@ -333,5 +344,31 @@ export const tokens = {
     apiCache.delete(twitterHistoryCacheKey);
 
     return api<void>(`tokens/${mintAddress}/refresh`, { method: 'POST' });
+  },
+
+  getTokenPriceHistory: async (
+    mintAddress: string,
+    signal?: AbortSignal,
+  ): Promise<PriceHistoryResponse> => {
+    try {
+      const endpoint = `tokens/${mintAddress}/price-history`;
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first - but with a shorter TTL for price data
+      const cachedData = getCache<PriceHistoryResponse>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Fetch fresh data
+      const data = await api<PriceHistoryResponse>(endpoint, { signal });
+
+      // Update cache with 5 minutes TTL
+      setCache(cacheKey, data, 5 * 60 * 1000);
+
+      return data;
+    } catch (error) {
+      throw error;
+    }
   },
 };

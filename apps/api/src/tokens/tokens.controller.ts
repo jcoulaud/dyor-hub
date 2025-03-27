@@ -45,4 +45,9 @@ export class TokensController {
   async getAllTokens(): Promise<TokenEntity[]> {
     return this.tokensService.getAllTokens();
   }
+
+  @Get(':mintAddress/price-history')
+  async getTokenPriceHistory(@Param('mintAddress') mintAddress: string) {
+    return this.tokensService.getTokenPriceHistory(mintAddress);
+  }
 }

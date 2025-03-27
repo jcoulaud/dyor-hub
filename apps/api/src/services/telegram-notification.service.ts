@@ -80,9 +80,10 @@ export class TelegramNotificationService implements OnModuleInit {
     );
 
     const message = `
-🆕 <b>New Comment</b>
+🆕 <b>Comment</b>
 👤 <b>User:</b> ${displayName}
-🪙 <b>Token:</b> ${comment.tokenMintAddress}
+💎 <b>Symbol:</b> ${comment.token.symbol}
+📝 <b>CA:</b> ${comment.tokenMintAddress}
 💬 <b>Content:</b> ${truncatedContent}
 ⏰ <b>Posted:</b> ${new Date(comment.createdAt).toLocaleString()}
 `;
