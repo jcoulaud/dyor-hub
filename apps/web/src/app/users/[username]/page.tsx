@@ -1,19 +1,19 @@
 import { users } from '@/lib/api';
-import type { User } from '@dyor-hub/types';
+import type { User, UserActivity } from '@dyor-hub/types';
 import { MessageSquare, Reply, ThumbsDown, ThumbsUp, Twitter } from 'lucide-react';
 import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ActivitySection } from './ActivitySection';
-import { fetchUserComments } from './fetchUserComments';
-import { fetchUserStats } from './fetchUserStats';
+import { Activity } from './Activity';
 
 interface UserPageProps {
   params: {
     username: string;
   };
 }
+
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: UserPageProps): Promise<Metadata> {
   try {
@@ -30,20 +30,7 @@ export async function generateMetadata({ params }: UserPageProps): Promise<Metad
   }
 }
 
-// Add this interface for comment type
-export interface UserComment {
-  id: string;
-  content: string;
-  tokenMintAddress: string;
-  createdAt: string;
-  upvotes: number;
-  downvotes: number;
-  tokenSymbol: string;
-  isReply: boolean;
-  isUpvote?: boolean;
-  isDownvote?: boolean;
-  parentCommentId: string | null;
-}
+export type UserComment = UserActivity;
 
 // Server component that fetches the data and renders the client component
 export default async function UserProfilePage({ params }: UserPageProps) {
@@ -52,16 +39,12 @@ export default async function UserProfilePage({ params }: UserPageProps) {
   try {
     user = await users.getByUsername(params.username);
 
-    // In a real implementation, these would be API calls
-    const userStats = await fetchUserStats(user.id);
-    const userComments = await fetchUserComments(user.id);
+    const userStats = await users.getUserStats(params.username);
+    const userActivities = await users.getUserActivity(params.username, 1, 10);
+    const userComments = userActivities.data;
 
-    // Improve avatar image quality by removing "_normal" from URL if present
     const avatarUrl = user.avatarUrl ? user.avatarUrl.replace('_normal', '') : null;
 
-    // For a real implementation, this would be done server-side with proper pagination
-    // Here we'll just simulate the "most recent" 5 comments for display
-    const recentComments = userComments.slice(0, 5);
     const totalActivities =
       userStats.comments + userStats.replies + userStats.upvotes + userStats.downvotes;
 
@@ -156,8 +139,12 @@ export default async function UserProfilePage({ params }: UserPageProps) {
               </div>
             </div>
 
-            {/* Client-side Activity Section with interactive controls */}
-            <ActivitySection comments={recentComments} totalActivities={totalActivities} />
+            {/* Activity Section */}
+            <Activity
+              initialComments={userComments}
+              totalActivities={totalActivities}
+              username={params.username}
+            />
           </div>
         </div>
       </div>
