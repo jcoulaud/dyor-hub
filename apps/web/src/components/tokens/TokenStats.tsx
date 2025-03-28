@@ -3,7 +3,8 @@ import { truncateAddress } from '@/lib/utils';
 import type { TokenStats as TokenStatsType, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
 import { TokenHolder } from '@dyor-hub/types';
 import { formatDistanceToNow } from 'date-fns';
-import { BarChart2, DollarSign, History, Users } from 'lucide-react';
+import { BarChart2, DollarSign, History, Twitter, Users } from 'lucide-react';
+import Link from 'next/link';
 import { SolscanButton } from '../SolscanButton';
 import TokenPriceChart from './TokenPriceChart';
 
@@ -175,9 +176,18 @@ export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenSta
       {/* Twitter History */}
       {twitterHistory?.history && twitterHistory.history.length > 0 && (
         <div className='space-y-3 mt-8'>
-          <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
-            <History className='h-4 w-4 mr-2 text-red-400' />
-            Twitter History
+          <h3 className='text-sm font-medium text-zinc-400 flex items-center justify-between'>
+            <div className='flex items-center'>
+              <History className='h-4 w-4 mr-2 text-red-400' />
+              Twitter History
+            </div>
+            <Link
+              href={`https://twitter.com/${twitterHistory.history[0].username}`}
+              target='_blank'
+              rel='noopener noreferrer'
+              className='hover:text-red-300 transition-colors cursor-pointer'>
+              <Twitter className='h-4 w-4 text-red-400' />
+            </Link>
           </h3>
           <div className='space-y-2'>
             {[...twitterHistory.history].reverse().map((entry, index) => (
