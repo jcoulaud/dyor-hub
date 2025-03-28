@@ -24,10 +24,39 @@ export class PerspectiveService {
   private readonly apiEndpoint =
     'https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze';
   private readonly threshold = {
-    spam: 0.85,
+    spam: 0.9,
     toxicity: 0.8,
   };
   private readonly urlRegex = /https?:\/\/[^\s]+/;
+  private readonly cryptoTerms = new Set([
+    'moon',
+    'fly',
+    'pump',
+    'dump',
+    'hodl',
+    'fomo',
+    'fud',
+    'dyor',
+    'ngmi',
+    'wagmi',
+    'gm',
+    'gn',
+    'ser',
+    'fren',
+    'based',
+    'gigachad',
+    'alpha',
+    'beta',
+    'ape',
+    'diamond hands',
+    'paper hands',
+    'to the moon',
+    '10m',
+    '100x',
+    '1000x',
+    'mcap',
+    'market cap',
+  ]);
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('PERSPECTIVE_API_KEY') || '';
@@ -150,6 +179,19 @@ export class PerspectiveService {
 
       const spamScore = data.attributeScores.SPAM.summaryScore.value;
       const toxicityScore = data.attributeScores.TOXICITY.summaryScore.value;
+
+      // Log spam detection details for monitoring
+      if (spamScore > 0.7) {
+        // Log high spam scores for analysis
+        this.logger.warn('High spam score detected', {
+          text: text.substring(0, 100) + '...', // Log first 100 chars
+          spamScore,
+          toxicityScore,
+          containsCryptoTerm: Array.from(this.cryptoTerms).some((term) =>
+            text.toLowerCase().includes(term),
+          ),
+        });
+      }
 
       return {
         isSpam: spamScore > this.threshold.spam,
