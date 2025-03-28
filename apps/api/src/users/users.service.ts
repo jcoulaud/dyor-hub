@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
@@ -33,6 +33,19 @@ export class UsersService {
       .createQueryBuilder('user')
       .where('LOWER(user.username) = LOWER(:username)', { username })
       .getOne();
+  }
+
+  async updateWalletAddress(
+    userId: string,
+    walletAddress: string,
+  ): Promise<UserEntity> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    user.walletAddress = walletAddress;
+    return await this.userRepository.save(user);
   }
 
   async getUserStats(userId: string): Promise<UserStatsDto> {

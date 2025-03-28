@@ -26,6 +26,9 @@ export class UserEntity {
   @Column({ name: 'avatar_url', type: 'varchar' })
   avatarUrl: string;
 
+  @Column({ name: 'wallet_address', nullable: true, type: 'varchar' })
+  walletAddress: string;
+
   @Column({ name: 'twitter_access_token', nullable: true, type: 'varchar' })
   twitterAccessToken: string;
 

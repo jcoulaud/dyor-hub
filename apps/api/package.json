@@ -24,7 +24,7 @@
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/terminus": "^11.0.0",
     "@nestjs/typeorm": "^10.0.2",
-    "gill": "^0.1.0",
+    "@solana/kit": "^2.1.0",
     "@types/cookie-parser": "^1.4.8",
     "@types/express-session": "^1.18.1",
     "@types/passport-jwt": "^4.0.1",
