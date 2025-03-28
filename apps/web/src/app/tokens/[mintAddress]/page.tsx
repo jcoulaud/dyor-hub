@@ -6,6 +6,7 @@ import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { tokens } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import type { TokenStats as TokenStatsType } from '@dyor-hub/types';
@@ -30,6 +31,7 @@ export default function Page({ params }: PageProps) {
     null,
   );
   const [tokenStatsData, setTokenStatsData] = useState<TokenStatsType | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -58,9 +60,9 @@ export default function Page({ params }: PageProps) {
     [address, router],
   );
 
-  // Use useEffect to fetch data after component mounts
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
         const { mintAddress } = await params;
 
@@ -90,16 +92,105 @@ export default function Page({ params }: PageProps) {
         setTokenHistoryData(twitterHistory);
       } catch (error) {
         console.error('Error fetching token data:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchData();
   }, [params]);
 
+  if (isLoading) {
+    return (
+      <div className='flex-1 flex flex-col'>
+        <div className='container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 py-6'>
+          {/* Token Header Card Loading */}
+          <div className='relative group mb-6'>
+            <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-300'></div>
+            <Card className='relative w-full border-0 bg-black/60 backdrop-blur-md shadow-xl rounded-xl overflow-hidden'>
+              <CardContent className='p-4'>
+                <div className='flex items-start gap-4'>
+                  <Skeleton className='w-16 h-16 rounded-full' />
+                  <div className='flex-1 min-w-0'>
+                    <div className='flex flex-col gap-2'>
+                      <div className='flex justify-between items-center flex-wrap'>
+                        <Skeleton className='w-48 h-8' />
+                      </div>
+                      <Skeleton className='w-full h-16' />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Content - Three Column Layout Loading */}
+          <div className='grid grid-cols-1 xxs:grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 xl:grid-cols-12 gap-4 sm:gap-6 xl:gap-8'>
+            <div className='col-span-1 xxs:col-span-2 xs:col-span-2 sm:col-span-2 xl:col-span-3 space-y-4 sm:space-y-6 xl:space-y-8 order-1 xxs:order-none xs:order-none sm:order-none'>
+              <div className='relative group'>
+                <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+                <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                  <CardHeader className='pb-2 relative'>
+                    <div className='flex items-center mb-4'>
+                      <Skeleton className='h-10 w-10 rounded-xl mr-4' />
+                      <Skeleton className='h-6 w-48' />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className='space-y-6'>
+                      <div className='space-y-3'>
+                        <Skeleton className='h-5 w-24' />
+                        <div className='space-y-2'>
+                          <Skeleton className='h-6 w-full' />
+                          <Skeleton className='h-6 w-full' />
+                          <Skeleton className='h-6 w-full' />
+                        </div>
+                      </div>
+
+                      <div className='w-full h-[120px] bg-zinc-900 rounded-xl'>
+                        <div className='h-full w-full flex items-center justify-center'>
+                          <div className='w-full h-[80px] bg-zinc-800/50 animate-pulse rounded-lg'></div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            <div className='col-span-1 xxs:col-span-4 xs:col-span-4 sm:col-span-4 xl:col-span-6 space-y-4 sm:space-y-6 xl:space-y-8 order-3 xxs:order-none xs:order-none sm:order-none'>
+              <div className='relative group'>
+                <div className='absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+                <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                  <CardHeader className='pb-2 relative'>
+                    <div className='flex items-center'>
+                      <Skeleton className='h-10 w-10 rounded-xl mr-4' />
+                      <Skeleton className='h-6 w-48' />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className='space-y-4'>
+                      <Skeleton className='w-full h-24' />
+                      <Skeleton className='w-full h-24' />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If data has finished loading but tokenData is null, something went wrong
   if (!tokenData) {
     return (
       <div className='flex-1 flex items-center justify-center'>
-        <div className='animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500'></div>
+        <div className='text-center p-8'>
+          <h2 className='text-xl font-semibold text-red-500 mb-2'>Token not found</h2>
+          <p className='text-zinc-400'>The token you&apos;re looking for could not be found.</p>
+        </div>
       </div>
     );
   }

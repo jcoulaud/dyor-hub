@@ -1,3 +1,4 @@
+import { Skeleton } from '@/components/ui/skeleton';
 import { truncateAddress } from '@/lib/utils';
 import type { TokenStats as TokenStatsType, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
 import { TokenHolder } from '@dyor-hub/types';
@@ -54,6 +55,35 @@ const formatPercentage = (num: number): string => {
 };
 
 export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenStatsProps) => {
+  if (!stats) {
+    return (
+      <div className='space-y-6'>
+        <div className='space-y-3'>
+          <Skeleton className='h-5 w-24' />
+          <div className='space-y-2'>
+            <Skeleton className='h-6 w-full' />
+            <Skeleton className='h-6 w-full' />
+            <Skeleton className='h-6 w-full' />
+          </div>
+        </div>
+
+        <div className='w-full h-[120px] bg-zinc-900 rounded-xl'>
+          <div className='h-full w-full flex items-center justify-center'>
+            <div className='w-full h-[80px] bg-zinc-800/50 animate-pulse rounded-lg'></div>
+          </div>
+        </div>
+
+        <div className='space-y-3'>
+          <Skeleton className='h-5 w-36' />
+          <div className='space-y-2'>
+            <Skeleton className='h-6 w-full' />
+            <Skeleton className='h-6 w-full' />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className='space-y-6 text-zinc-300'>
       {/* Market Data */}

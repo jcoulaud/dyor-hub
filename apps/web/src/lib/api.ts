@@ -170,8 +170,18 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
 
 // Typed API methods
 export const comments = {
-  list: async (tokenMintAddress: string): Promise<Comment[]> => {
-    const response = await api<Comment[]>(`comments?tokenMintAddress=${tokenMintAddress}`);
+  list: async (
+    tokenMintAddress: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    data: Comment[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }> => {
+    const response = await api<{
+      data: Comment[];
+      meta: { total: number; page: number; limit: number; totalPages: number };
+    }>(`comments?tokenMintAddress=${tokenMintAddress}&page=${page}&limit=${limit}`);
     return response;
   },
 
