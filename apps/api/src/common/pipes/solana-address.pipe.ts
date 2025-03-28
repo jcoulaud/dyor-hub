@@ -21,8 +21,13 @@ export class SolanaAddressPipe implements PipeTransform<string> {
     }
 
     try {
-      // Validate that it's a valid PublicKey
-      new PublicKey(cleanValue);
+      // Validate that it's a valid PublicKey and is on the Ed25519 curve
+      const pubKey = new PublicKey(cleanValue);
+      if (!PublicKey.isOnCurve(pubKey.toBytes())) {
+        throw new BadRequestException(
+          'Invalid Solana address. Must be a valid Ed25519 public key.',
+        );
+      }
       return cleanValue;
     } catch (error) {
       if (error instanceof BadRequestException) {
