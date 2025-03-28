@@ -12,14 +12,7 @@ export function Header() {
           <div className='w-[140px]'>
             <Link href='/'>
               <div className='flex items-center'>
-                <Image
-                  src='/logo.png'
-                  alt='DYOR hub'
-                  width={140}
-                  height={40}
-                  className='h-auto w-auto'
-                  priority
-                />
+                <Image src='/logo.png' alt='DYOR hub' width={140} height={50} priority />
               </div>
             </Link>
           </div>
