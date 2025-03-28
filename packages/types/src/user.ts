@@ -31,4 +31,5 @@ export interface UserActivity {
   isUpvote?: boolean;
   isDownvote?: boolean;
   parentCommentId: string | null;
+  isRemoved?: boolean;
 }

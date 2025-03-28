@@ -38,6 +38,9 @@ export class UserActivityDto implements UserActivity {
   @Expose()
   parentCommentId: string | null;
 
+  @Expose()
+  isRemoved?: boolean;
+
   constructor(partial: Partial<UserActivityDto>) {
     Object.assign(this, partial);
   }
@@ -56,6 +59,7 @@ export class UserActivityDto implements UserActivity {
       tokenSymbol: tokenSymbol || '',
       isReply: Boolean(comment.parentId),
       parentCommentId: comment.parentId,
+      isRemoved: Boolean(comment.removedById),
     });
   }
 
@@ -76,6 +80,7 @@ export class UserActivityDto implements UserActivity {
       isUpvote: vote.type === 'upvote',
       isDownvote: vote.type === 'downvote',
       parentCommentId: comment.parentId,
+      isRemoved: Boolean(comment.removedById),
     });
   }
 }

@@ -100,6 +100,7 @@ export class UsersService {
         false as "isUpvote",
         false as "isDownvote",
         c.parent_id as "parentCommentId",
+        CASE WHEN c.removed_by_id IS NOT NULL THEN true ELSE false END as "isRemoved",
         'comment' as type
       FROM comments c
       LEFT JOIN tokens t ON c.token_mint_address = t.mint_address
@@ -120,6 +121,7 @@ export class UsersService {
         CASE WHEN cv.vote_type = 'upvote' THEN true ELSE false END as "isUpvote",
         CASE WHEN cv.vote_type = 'downvote' THEN true ELSE false END as "isDownvote",
         c.parent_id as "parentCommentId",
+        CASE WHEN c.removed_by_id IS NOT NULL THEN true ELSE false END as "isRemoved",
         'vote' as type
       FROM comment_votes cv
       JOIN comments c ON c.id = cv.comment_id
@@ -208,6 +210,10 @@ export class UsersService {
           raw.isDownvote === 'true' ||
           raw.isDownvote === 1,
         parentCommentId: raw.parentCommentId,
+        isRemoved:
+          raw.isRemoved === true ||
+          raw.isRemoved === 'true' ||
+          raw.isRemoved === 1,
       });
     });
 

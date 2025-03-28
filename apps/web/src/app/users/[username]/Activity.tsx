@@ -348,7 +348,13 @@ export function Activity({
 
                     {/* Comment Content */}
                     <div className='px-4 py-2.5'>
-                      <CommentContent html={comment.content} />
+                      {comment.isRemoved ? (
+                        <div className='text-zinc-500 text-sm italic'>
+                          This comment has been removed
+                        </div>
+                      ) : (
+                        <CommentContent html={comment.content} />
+                      )}
                     </div>
 
                     {/* Comment Footer */}
