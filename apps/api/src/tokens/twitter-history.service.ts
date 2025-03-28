@@ -75,19 +75,23 @@ export class TwitterHistoryService {
 
       const data: TwitterApiResponse = await response.json();
 
-      if (!data?.data || !Array.isArray(data.data)) {
-        this.logger.warn(
-          `Invalid response format for token ${token.mintAddress}:`,
-          data,
-        );
-        return;
-      }
-
       const history = this.twitterHistoryRepository.create({
         tokenMintAddress: token.mintAddress,
         twitterUsername: token.twitterHandle,
-        history: data.data,
+        history: [],
       });
+
+      if (data?.data && Array.isArray(data.data)) {
+        // If there's only one username and it matches current, keep empty array
+        // If there's more than one username or different username, store the history
+        if (
+          data.data.length > 1 ||
+          (data.data.length === 1 &&
+            data.data[0].username !== token.twitterHandle)
+        ) {
+          history.history = data.data;
+        }
+      }
 
       await this.twitterHistoryRepository.save(history);
     } catch (error) {
@@ -95,7 +99,6 @@ export class TwitterHistoryService {
         `Failed to fetch Twitter username history for token ${token.mintAddress}:`,
         error,
       );
-      // Don't rethrow - just log the error and continue
     }
   }
 

@@ -182,7 +182,7 @@ export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenSta
               Twitter History
             </div>
             <Link
-              href={`https://twitter.com/${twitterHistory.history[0].username}`}
+              href={`https://twitter.com/${twitterHistory.twitterUsername}`}
               target='_blank'
               rel='noopener noreferrer'
               className='hover:text-red-300 transition-colors cursor-pointer'>
