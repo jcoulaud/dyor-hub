@@ -12,7 +12,7 @@ import type { TokenStats as TokenStatsType } from '@dyor-hub/types';
 import { Token, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
 import { Globe, MessageSquare, Search, Shield, Sparkles, Twitter } from 'lucide-react';
 import Link from 'next/link';
-import { notFound, useRouter } from 'next/navigation';
+import { notFound, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 interface PageProps {
@@ -21,6 +21,7 @@ interface PageProps {
 
 export default function Page({ params }: PageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [address, setAddress] = useState('');
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -397,7 +398,10 @@ export default function Page({ params }: PageProps) {
                   <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent mt-3'></div>
                 </CardHeader>
                 <CardContent className='relative pt-0'>
-                  <CommentSection tokenMintAddress={token.mintAddress} commentId={undefined} />
+                  <CommentSection
+                    tokenMintAddress={token.mintAddress}
+                    commentId={searchParams?.get('comment') || undefined}
+                  />
                 </CardContent>
               </Card>
             </div>

@@ -58,6 +58,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   const { isAuthenticated, isLoading: authLoading, user } = useAuthContext();
   const commentRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const hasScrolled = useRef(false);
+  const userHasInteracted = useRef(false);
   const pathname = usePathname();
 
   const organizeComments = useCallback(
@@ -142,26 +143,67 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     }
   }, [authLoading, isAuthenticated, fetchComments]);
 
-  // Add effect to scroll to comment when commentId is provided and comments are loaded
   useEffect(() => {
-    if (commentId && !isLoading && commentsList.length > 0 && !hasScrolled.current) {
-      const timer = setTimeout(() => {
-        const commentElement = commentRefs.current.get(commentId);
+    if (commentId && commentsList.length > 0) {
+      hasScrolled.current = false;
 
-        if (commentElement) {
-          commentElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-          });
-          hasScrolled.current = true;
+      if (!userHasInteracted.current) {
+        const findAndScrollToComment = () => {
+          const commentElement = commentRefs.current.get(commentId);
+          if (commentElement && !hasScrolled.current) {
+            commentElement.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center',
+            });
+
+            // Add temporary highlight effect
+            commentElement.classList.add('transition-colors', 'duration-500');
+            commentElement.classList.add('bg-blue-500/15');
+            setTimeout(() => {
+              commentElement.classList.remove('bg-blue-500/15');
+              setTimeout(() => {
+                commentElement.classList.remove('transition-colors', 'duration-500');
+              }, 500);
+            }, 3000);
+
+            hasScrolled.current = true;
+            return true;
+          }
+          return false;
+        };
+
+        if (!findAndScrollToComment()) {
+          setTimeout(findAndScrollToComment, 1000);
         }
-      }, 500);
-
-      return () => clearTimeout(timer);
+      }
     }
-  }, [commentId, isLoading, commentsList]);
+  }, [commentId, commentsList, isLoading]);
+
+  useEffect(() => {
+    return () => {
+      hasScrolled.current = false;
+      userHasInteracted.current = false;
+    };
+  }, []);
+
+  const createCommentRefCallback = useCallback((itemId: string) => {
+    return (el: HTMLDivElement | null) => {
+      if (el) {
+        commentRefs.current.set(itemId, el);
+      } else {
+        commentRefs.current.delete(itemId);
+      }
+    };
+  }, []);
+
+  // Mark any user interaction to prevent unwanted scrolling
+  const handleUserInteraction = useCallback(() => {
+    userHasInteracted.current = true;
+  }, []);
 
   const withAuth = async (action: () => Promise<void>) => {
+    handleUserInteraction();
+
     if (authLoading) {
       return;
     }
@@ -176,6 +218,8 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   };
 
   const handleVote = async (commentId: string, type: VoteType) => {
+    handleUserInteraction();
+
     await withAuth(async () => {
       try {
         const response = await comments.vote(commentId, type);
@@ -215,6 +259,8 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   };
 
   const handleSubmitComment = async (parentId?: string, content?: string) => {
+    handleUserInteraction();
+
     const commentContent = content || newComment.trim();
     if (!commentContent) return;
 
@@ -261,6 +307,8 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
 
   // Add handler for sort changes
   const handleSortChange = (newSort: SortOption) => {
+    handleUserInteraction();
+
     // If we have a previous sort and user manually selects a sort
     if (previousSort && newSort !== 'new') {
       setSortBy(newSort);
@@ -271,12 +319,15 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   };
 
   const handleAuthModalClose = () => {
+    handleUserInteraction();
     setShowAuthModal(false);
     setPendingAction(null);
   };
 
   const handleRemoveComment = useCallback(
     async (commentId: string) => {
+      handleUserInteraction();
+
       if (!isAuthenticated) {
         setShowAuthModal(true);
         setPendingAction(() => async () => handleRemoveComment(commentId));
@@ -302,11 +353,13 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         });
       }
     },
-    [isAuthenticated, fetchComments, toast],
+    [isAuthenticated, fetchComments, toast, handleUserInteraction],
   );
 
   const copyCommentLinkToClipboard = useCallback(
     (comment: CommentType) => {
+      handleUserInteraction();
+
       const shareUrl = `${window.location.origin}${pathname}?comment=${comment.id}`;
 
       navigator.clipboard
@@ -346,11 +399,14 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
       currentTime.getTime() - commentDate.getTime() < fifteenMinutesMs;
 
     const handleReply = async (content: string) => {
+      handleUserInteraction();
       await handleSubmitComment(comment.id, content);
       setReplyingTo(null);
     };
 
     const handleReplyClick = () => {
+      handleUserInteraction();
+
       if (!isAuthenticated) {
         setShowAuthModal(true);
         setPendingAction(null);
@@ -360,14 +416,17 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     };
 
     const handleEditClick = () => {
+      handleUserInteraction();
       setEditingComment(comment.id);
     };
 
     const handleCancelEdit = () => {
+      handleUserInteraction();
       setEditingComment(null);
     };
 
     const handleSubmitEdit = async (content: string) => {
+      handleUserInteraction();
       try {
         await comments.update(comment.id, content);
         await fetchComments();
@@ -386,18 +445,11 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
       }
     };
 
-    // Collect comment ref for scrolling
-    const setCommentRef = (el: HTMLDivElement | null) => {
-      if (el) {
-        commentRefs.current.set(comment.id, el);
-      } else {
-        commentRefs.current.delete(comment.id);
-      }
-    };
+    const commentRef = createCommentRefCallback(comment.id);
 
     return (
       <div
-        ref={setCommentRef}
+        ref={commentRef}
         className={cn(
           'group/comment rounded-md transition-colors duration-150 w-full pr-2 sm:pr-4',
           depth > 0 && 'border-l-2 pl-2 sm:pl-4 ml-2 sm:ml-4',
