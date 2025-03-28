@@ -249,6 +249,14 @@ export function RichTextEditor({
       }),
     ],
     content,
+    editable: !readOnly,
+    onUpdate: ({ editor }) => {
+      const newContent = editor.getHTML();
+      if (maxLength && newContent.length > maxLength) {
+        return;
+      }
+      onChange(newContent);
+    },
     editorProps: {
       attributes: {
         class: cn(
@@ -263,16 +271,8 @@ export function RichTextEditor({
       },
       handleDrop: () => true, // Prevent default drop behavior
     },
-    onUpdate: ({ editor }) => {
-      const newContent = editor.getHTML();
-      if (maxLength && newContent.length > maxLength) {
-        // Prevent further input if maxLength is reached
-        return;
-      }
-      onChange(newContent);
-    },
+    immediatelyRender: false,
     onFocus: handleExpand,
-    editable: !readOnly,
     autofocus: autoFocus,
   });
 
