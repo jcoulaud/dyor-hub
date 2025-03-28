@@ -8,16 +8,15 @@ import { notFound } from 'next/navigation';
 import { Activity } from './Activity';
 
 interface UserPageProps {
-  params: {
-    username: string;
-  };
+  params: Promise<{ username: string }>;
 }
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: UserPageProps): Promise<Metadata> {
   try {
-    const user = await users.getByUsername(params.username);
+    const { username } = await params;
+    const user = await users.getByUsername(username);
     return {
       title: `${user.displayName} (@${user.username})`,
       description: `Profile page for ${user.displayName} (@${user.username})`,
@@ -37,10 +36,11 @@ export default async function UserProfilePage({ params }: UserPageProps) {
   let user: User;
 
   try {
-    user = await users.getByUsername(params.username);
+    const { username } = await params;
+    user = await users.getByUsername(username);
 
-    const userStats = await users.getUserStats(params.username);
-    const userActivities = await users.getUserActivity(params.username, 1, 10);
+    const userStats = await users.getUserStats(username);
+    const userActivities = await users.getUserActivity(username, 1, 10);
     const userComments = userActivities.data;
 
     const avatarUrl = user.avatarUrl ? user.avatarUrl.replace('_normal', '') : null;
@@ -143,7 +143,7 @@ export default async function UserProfilePage({ params }: UserPageProps) {
             <Activity
               initialComments={userComments}
               totalActivities={totalActivities}
-              username={params.username}
+              username={username}
             />
           </div>
         </div>
