@@ -22,28 +22,12 @@ export const metadata: Metadata = {
     'Solana, memecoin, cryptocurrency, token research, crypto community, DYOR, blockchain, token discussions',
   metadataBase: new URL(process.env.NEXT_PUBLIC_URL || 'https://dyorhub.xyz'),
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon-16x16.png',
-    apple: '/apple-touch-icon.png',
-    other: [
-      {
-        rel: 'icon',
-        type: 'image/png',
-        sizes: '32x32',
-        url: '/favicon-32x32.png',
-      },
-      {
-        rel: 'icon',
-        type: 'image/png',
-        sizes: '16x16',
-        url: '/favicon-16x16.png',
-      },
-      {
-        rel: 'mask-icon',
-        url: '/safari-pinned-tab.svg',
-        color: '#5bbad5',
-      },
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon0.svg', type: 'image/svg+xml' },
+      { url: '/icon1.png', type: 'image/png' },
     ],
+    apple: [{ url: '/apple-icon.png', type: 'image/png' }],
   },
   openGraph: {
     title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
