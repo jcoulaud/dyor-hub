@@ -177,8 +177,10 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
 
   if (isLoading && !data.length) {
     return (
-      <div className='w-full h-[120px] p-4 bg-zinc-900 rounded-xl shadow flex items-center justify-center'>
-        <div className='animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500'></div>
+      <div className='w-full h-[120px] p-4 bg-zinc-900 rounded-xl shadow'>
+        <div className='h-full w-full flex items-center justify-center'>
+          <div className='w-full h-[80px] bg-zinc-800/50 animate-pulse rounded-lg'></div>
+        </div>
       </div>
     );
   }
