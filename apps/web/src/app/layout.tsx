@@ -57,7 +57,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang='en' suppressHydrationWarning className={`${poppins.variable}`}>
-      <body className='bg-black font-sans antialiased'>
+      <body className='bg-black font-sans antialiased' suppressHydrationWarning>
         <PlausibleProvider domain='dyorhub.xyz'>
           <ThemeProvider>
             <AuthProvider>
