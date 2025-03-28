@@ -1,71 +1,45 @@
-name: Deploy to Production
+name: Build and Deploy
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      force_rebuild:
-        description: 'Force rebuild of the current environment'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
+    timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Build in pnpm container
+        uses: docker://guerreiro/pnpm
         with:
-          fetch-depth: 1
+          args: |
+            sh -c "pnpm install --frozen-lockfile && \
+            cd packages/types && pnpm build && \
+            cd ../../apps/web && pnpm build && \
+            cd ../api && pnpm build"
+        timeout-minutes: 15
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: latest
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Cache build artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            packages/types/dist
-            apps/api/dist
-            apps/web/dist
-          key: ${{ runner.os }}-build-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-build-
-
-      - name: Build packages
+      - name: Verify build artifacts
         run: |
-          cd packages/types
-          pnpm build
+          if [ ! -d "apps/web/.next" ] || [ ! -d "apps/api/dist" ]; then
+            echo "ERROR: Build artifacts not found"
+            exit 1
+          fi
 
-      - name: Build API and Web in parallel
+      - name: Copy built artifacts
         run: |
-          cd apps/api && pnpm build &
-          cd apps/web && pnpm build &
-          wait
+          CONTAINER_ID=$(docker ps -q -f ancestor=guerreiro/pnpm)
+          if [ -z "$CONTAINER_ID" ]; then
+            echo "ERROR: Build container not found"
+            exit 1
+          fi
+          docker cp $CONTAINER_ID:/app/apps/web/.next ./apps/web/
+          docker cp $CONTAINER_ID:/app/apps/api/dist ./apps/api/
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -77,67 +51,95 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -t rsa,ecdsa,ed25519 ${{ secrets.DROPLET_IP }} >> ~/.ssh/known_hosts
 
+      - name: Test SSH connection
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          if ! ssh $DEPLOY_USER@$DROPLET_IP "echo 'SSH connection successful'"; then
+            echo "ERROR: Failed to connect to droplet"
+            exit 1
+          fi
+
+      - name: Check droplet prerequisites
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          APP_DIR: /var/www/dyor-hub
+        run: |
+          # Check if docker-compose exists
+          if ! ssh $DEPLOY_USER@$DROPLET_IP "which docker-compose"; then
+            echo "ERROR: docker-compose not found on droplet"
+            exit 1
+          fi
+
+          # Check if docker daemon is running
+          if ! ssh $DEPLOY_USER@$DROPLET_IP "docker info >/dev/null 2>&1"; then
+            echo "ERROR: Docker daemon not running on droplet"
+            exit 1
+          fi
+
+          # Check if nginx is installed
+          if ! ssh $DEPLOY_USER@$DROPLET_IP "which nginx"; then
+            echo "ERROR: nginx not found on droplet"
+            exit 1
+          fi
+
+          # Check if app directory exists
+          if ! ssh $DEPLOY_USER@$DROPLET_IP "[ -d '$APP_DIR' ]"; then
+            echo "ERROR: App directory $APP_DIR not found on droplet"
+            exit 1
+          fi
+
       - name: Copy deployment script
         env:
           DROPLET_IP: ${{ secrets.DROPLET_IP }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          scp scripts/blue-green-deploy.sh $DEPLOY_USER@$DROPLET_IP:/tmp/blue-green-deploy.sh
+          if ! scp scripts/blue-green-deploy.sh $DEPLOY_USER@$DROPLET_IP:/tmp/blue-green-deploy.sh; then
+            echo "ERROR: Failed to copy deployment script"
+            exit 1
+          fi
 
-      - name: Smart Cleanup
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.DROPLET_IP }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
-            echo "=== Smart cleanup to prevent disk bloat ==="
-            
-            # Remove stopped containers older than 24h
-            docker container prune -f --filter "until=24h"
-            
-            # Remove dangling images (not used by any container)
-            docker image prune -f
-            
-            # Remove unused volumes older than 7 days
-            docker volume prune -f --filter "until=168h"
-            
-            # Clean old log files
-            find /var/log -type f -name "*.gz" -delete 2>/dev/null || true
-            
-            # Clean apt cache only if disk usage is above 80%
-            if [ $(df -h / | awk 'NR==2 {print $5}' | sed 's/%//') -gt 80 ]; then
-              apt-get clean -y 2>/dev/null || true
-            fi
-
-      - name: Verify Nginx Configuration
+      - name: Copy built artifacts to droplet
         env:
           DROPLET_IP: ${{ secrets.DROPLET_IP }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_ID: ${{ github.sha }}
         run: |
-          ssh $DEPLOY_USER@$DROPLET_IP "sudo test -f /etc/nginx/sites-enabled/dyor-hub && sudo nginx -t" || {
-            echo "Nginx configuration issue detected. Please check manually."
+          # Create temp directory on droplet
+          ssh $DEPLOY_USER@$DROPLET_IP "mkdir -p /var/www/dyor-hub/temp/$DEPLOY_ID"
+          
+          # Copy to temp directory
+          if ! scp -r apps/web/.next $DEPLOY_USER@$DROPLET_IP:/var/www/dyor-hub/temp/$DEPLOY_ID/web/; then
+            echo "ERROR: Failed to copy web artifacts"
             exit 1
-          }
+          fi
+          if ! scp -r apps/api/dist $DEPLOY_USER@$DROPLET_IP:/var/www/dyor-hub/temp/$DEPLOY_ID/api/; then
+            echo "ERROR: Failed to copy api artifacts"
+            exit 1
+          fi
 
-      - name: Deploy to DigitalOcean
+          # Verify copied files
+          if ! ssh $DEPLOY_USER@$DROPLET_IP "[ -d '/var/www/dyor-hub/temp/$DEPLOY_ID/web/.next' ] && [ -d '/var/www/dyor-hub/temp/$DEPLOY_ID/api/dist' ]"; then
+            echo "ERROR: Artifacts not found on droplet"
+            exit 1
+          fi
+
+      - name: Deploy
         env:
           DROPLET_IP: ${{ secrets.DROPLET_IP }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           APP_DIR: /var/www/dyor-hub
           GITHUB_REPO: ${{ github.repository }}
-          FORCE_REBUILD: ${{ github.event.inputs.force_rebuild || 'false' }}
+          DEPLOY_ID: ${{ github.sha }}
         run: |
           echo "Starting blue-green deployment - Note: The site will remain available during deployment"
           echo "This is a zero-downtime deployment, but you might temporarily see a 'Deploying' message"
-          ssh $DEPLOY_USER@$DROPLET_IP "chmod +x /tmp/blue-green-deploy.sh && sudo GITHUB_REPO=$GITHUB_REPO APP_DIR=$APP_DIR FORCE_REBUILD=$FORCE_REBUILD /tmp/blue-green-deploy.sh"
-          echo "Deployment command executed successfully"
-
-      - name: Wait for services to stabilize
-        run: |
-          echo "Waiting for services to stabilize (60 seconds)..."
-          sleep 60
+          if ! ssh $DEPLOY_USER@$DROPLET_IP "chmod +x /tmp/blue-green-deploy.sh && sudo GITHUB_REPO=$GITHUB_REPO APP_DIR=$APP_DIR DEPLOY_ID=$DEPLOY_ID /tmp/blue-green-deploy.sh"; then
+            echo "ERROR: Deployment failed"
+            exit 1
+          fi
 
       - name: Verify Deployment
         if: always()
@@ -210,37 +212,71 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const commit = context.payload.head_commit;
-            const sender = context.payload.sender;
-            const environment = 'Production';
+            try {
+              const commit = context.payload.head_commit;
+              const sender = context.payload.sender;
+              const environment = 'Production';
 
-            const message = {
-              embeds: [{
-                title: `🚀 Deployment Successful`,
-                description: `A new version has been deployed to ${environment}`,
-                color: 0x00ff00,
-                fields: [
-                  {
-                    name: 'Commit Message',
-                    value: commit.message,
-                    inline: false
-                  },
-                  {
-                    name: 'Deployed By',
-                    value: sender.login,
-                    inline: true
-                  }
-                ],
-                timestamp: new Date().toISOString()
-              }]
-            };
+              const message = {
+                embeds: [{
+                  title: `🚀 Deployment Successful`,
+                  description: `A new version has been deployed to ${environment}`,
+                  color: 0x00ff00,
+                  fields: [
+                    {
+                      name: 'Commit Message',
+                      value: commit.message,
+                      inline: false
+                    },
+                    {
+                      name: 'Deployed By',
+                      value: sender.login,
+                      inline: true
+                    }
+                  ],
+                  timestamp: new Date().toISOString()
+                }]
+              };
 
-            await fetch(process.env.DISCORD_WEBHOOK_URL, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(message)
-            });
+              const response = await fetch(process.env.DISCORD_WEBHOOK_URL, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(message)
+              });
+
+              if (!response.ok) {
+                throw new Error(`Discord webhook failed: ${response.statusText}`);
+              }
+            } catch (error) {
+              console.error('Failed to send Discord notification:', error);
+              // Don't fail the workflow for Discord notification failure
+            }
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Cleanup old deployments
+        if: success()
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_ID: ${{ github.sha }}
+        run: |
+          # Keep current and previous deployment, remove others
+          ssh $DEPLOY_USER@$DROPLET_IP "cd /var/www/dyor-hub/temp && ls -t | tail -n +3 | xargs -r rm -rf"
+
+      - name: Cleanup failed deployments
+        if: failure()
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_ID: ${{ github.sha }}
+        run: |
+          # Remove failed deployment
+          ssh $DEPLOY_USER@$DROPLET_IP "rm -rf /var/www/dyor-hub/temp/$DEPLOY_ID"
+
+      - name: Cleanup local artifacts
+        if: always()
+        run: |
+          rm -rf apps/web/.next apps/api/dist
