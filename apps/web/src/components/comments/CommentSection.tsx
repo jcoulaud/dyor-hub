@@ -16,6 +16,7 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AuthModal } from '../auth/AuthModal';
@@ -418,9 +419,25 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
             </Avatar>
             <div className='flex-1 min-w-0'>
               <div className='flex flex-wrap items-center gap-x-2 text-sm'>
-                <span className={cn('font-medium truncate', comment.isRemoved && 'opacity-40')}>
-                  {comment.user.displayName}
-                </span>
+                {comment.user.username ? (
+                  <Link href={`/users/${comment.user.username}`}>
+                    <span
+                      className={cn(
+                        'font-medium truncate cursor-pointer text-blue-400 hover:text-blue-600 transition-colors',
+                        comment.isRemoved && 'opacity-40',
+                      )}>
+                      {comment.user.displayName}
+                    </span>
+                  </Link>
+                ) : (
+                  <span
+                    className={cn(
+                      'font-medium truncate text-blue-400',
+                      comment.isRemoved && 'opacity-40',
+                    )}>
+                    {comment.user.displayName}
+                  </span>
+                )}
                 <span
                   className={cn(
                     'text-muted-foreground text-xs',

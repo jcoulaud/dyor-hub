@@ -6,6 +6,8 @@ import type {
   TokenStats,
   TwitterUsernameHistoryEntity,
   User,
+  UserActivity,
+  UserStats,
   VoteType,
 } from '@dyor-hub/types';
 
@@ -365,6 +367,115 @@ export const tokens = {
 
       // Update cache with 5 minutes TTL
       setCache(cacheKey, data, 5 * 60 * 1000);
+
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  },
+};
+
+export const users = {
+  getByUsername: async (username: string): Promise<User> => {
+    try {
+      const endpoint = `users/${username}`;
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first
+      const cachedData = getCache<User>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Fetch fresh data
+      const data = await api<User>(endpoint);
+
+      // Update cache
+      setCache(cacheKey, data);
+
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getUserStats: async (username: string): Promise<UserStats> => {
+    try {
+      const endpoint = `users/${username}/stats`;
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first with shorter TTL for stats
+      const cachedData = getCache<UserStats>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Fetch fresh data
+      const data = await api<UserStats>(endpoint);
+
+      // Update cache with shorter TTL (30 seconds)
+      setCache(cacheKey, data, 30 * 1000);
+
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getUserActivity: async (
+    username: string,
+    page: number = 1,
+    limit: number = 10,
+    type?: 'all' | 'comments' | 'replies' | 'upvotes' | 'downvotes',
+    sort: 'recent' | 'popular' = 'recent',
+  ): Promise<{
+    data: UserActivity[];
+    meta: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> => {
+    try {
+      // Build query params
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      if (sort) params.append('sort', sort);
+      if (type && type !== 'all') params.append('type', type);
+
+      const endpoint = `users/${username}/activity?${params.toString()}`;
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first with shorter TTL
+      const cachedData = getCache<{
+        data: UserActivity[];
+        meta: {
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+        };
+      }>(cacheKey);
+
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Fetch fresh data
+      const data = await api<{
+        data: UserActivity[];
+        meta: {
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+        };
+      }>(endpoint);
+
+      // Update cache with shorter TTL (30 seconds)
+      setCache(cacheKey, data, 30 * 1000);
 
       return data;
     } catch (error) {

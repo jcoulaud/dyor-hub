@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { comments } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { LatestComment } from '@dyor-hub/types';
+import type { LatestComment } from '@dyor-hub/types';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
@@ -130,12 +130,12 @@ export function LatestComments({
             <div className='flex-1 min-w-0'>
               <div className='flex items-center justify-between mb-1'>
                 <div className='flex items-center gap-2 overflow-hidden'>
-                  <span className='text-sm font-medium text-zinc-200 truncate max-w-[150px]'>
+                  <span className='text-sm font-medium truncate max-w-[150px] text-blue-400'>
                     {currentComment.user.displayName || currentComment.user.username || 'Anonymous'}
                   </span>
                   <Badge
                     variant='outline'
-                    className='text-xs px-2 py-0 h-5 border-blue-500/20 text-blue-400'>
+                    className='text-xs px-2 py-0 h-5 border-zinc-700 bg-zinc-800/50 text-zinc-300'>
                     ${currentComment.token.symbol}
                   </Badge>
                 </div>
