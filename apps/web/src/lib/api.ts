@@ -378,7 +378,8 @@ export const tokens = {
 export const users = {
   getByUsername: async (username: string): Promise<User> => {
     try {
-      const endpoint = `users/${username}`;
+      const sanitizedUsername = encodeURIComponent(username);
+      const endpoint = `users/${sanitizedUsername}`;
       const cacheKey = `api:${endpoint}`;
 
       // Check cache first
@@ -401,7 +402,8 @@ export const users = {
 
   getUserStats: async (username: string): Promise<UserStats> => {
     try {
-      const endpoint = `users/${username}/stats`;
+      const sanitizedUsername = encodeURIComponent(username);
+      const endpoint = `users/${sanitizedUsername}/stats`;
       const cacheKey = `api:${endpoint}`;
 
       // Check cache first with shorter TTL for stats
@@ -445,7 +447,8 @@ export const users = {
       if (sort) params.append('sort', sort);
       if (type && type !== 'all') params.append('type', type);
 
-      const endpoint = `users/${username}/activity?${params.toString()}`;
+      const sanitizedUsername = encodeURIComponent(username);
+      const endpoint = `users/${sanitizedUsername}/activity?${params.toString()}`;
       const cacheKey = `api:${endpoint}`;
 
       // Check cache first with shorter TTL

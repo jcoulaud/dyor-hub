@@ -29,9 +29,10 @@ export class UsersService {
   ) {}
 
   async findByUsername(username: string): Promise<UserEntity | null> {
-    return this.userRepository.findOne({
-      where: { username },
-    });
+    return this.userRepository
+      .createQueryBuilder('user')
+      .where('LOWER(user.username) = LOWER(:username)', { username })
+      .getOne();
   }
 
   async getUserStats(userId: string): Promise<UserStatsDto> {
