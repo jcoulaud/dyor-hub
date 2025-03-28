@@ -34,68 +34,82 @@ export class CommentsService {
   async findByTokenMintAddress(
     tokenMintAddress: string,
     currentUserId?: string,
-  ): Promise<CommentResponseDto[]> {
-    const query = this.commentRepository
-      .createQueryBuilder('comment')
-      .leftJoinAndSelect('comment.user', 'user')
-      .leftJoinAndSelect('comment.removedBy', 'removedBy')
-      .where('comment.token_mint_address = :tokenMintAddress', {
-        tokenMintAddress,
-      });
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    data: CommentResponseDto[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }> {
+    try {
+      const [total, comments] = await Promise.all([
+        this.commentRepository.count({ where: { tokenMintAddress } }),
+        this.commentRepository.find({
+          where: { tokenMintAddress },
+          relations: ['user', 'removedBy'],
+          order: { createdAt: 'DESC' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+      ]);
 
-    if (currentUserId) {
-      // Include user's vote data in query
-      query
-        .leftJoin('comment.votes', 'vote', 'vote.user_id = :currentUserId', {
-          currentUserId,
-        })
-        .addSelect('vote.type', 'userVoteType');
-    }
-
-    const comments = await query
-      .orderBy('comment.created_at', 'DESC')
-      .getMany();
-
-    // Fetch user votes in bulk for performance
-    let userVotes = [];
-    if (currentUserId) {
-      userVotes = await this.voteRepository.find({
-        where: {
-          userId: currentUserId,
-          commentId: In(comments.map((c) => c.id)),
-        },
-      });
-    }
-
-    return comments.map((comment) => {
-      const userVote = userVotes.find((v) => v.commentId === comment.id);
+      const userVotes =
+        currentUserId && comments.length > 0
+          ? await this.voteRepository.find({
+              where: {
+                userId: currentUserId,
+                commentId: In(comments.map((c) => c.id)),
+              },
+            })
+          : [];
 
       return {
-        id: comment.id,
-        content: comment.removedById
-          ? `Comment removed by ${comment.removedBy?.id === comment.userId ? 'user' : 'moderator'}`
-          : comment.content,
-        createdAt: comment.createdAt,
-        updatedAt: comment.updatedAt,
-        voteCount: comment.upvotes - comment.downvotes,
-        parentId: comment.parentId,
-        user: {
-          id: comment.user.id,
-          username: comment.user.username,
-          displayName: comment.user.displayName,
-          avatarUrl: comment.user.avatarUrl,
+        data: comments.map((comment) => {
+          const userVote = userVotes.find((v) => v.commentId === comment.id);
+
+          return {
+            id: comment.id,
+            content: comment.removedById
+              ? `Comment removed by ${comment.removedBy?.id === comment.userId ? 'user' : 'moderator'}`
+              : comment.content,
+            createdAt: comment.createdAt,
+            updatedAt: comment.updatedAt,
+            voteCount: comment.upvotes - comment.downvotes,
+            parentId: comment.parentId,
+            user: {
+              id: comment.user.id,
+              username: comment.user.username,
+              displayName: comment.user.displayName,
+              avatarUrl: comment.user.avatarUrl,
+            },
+            userVoteType: userVote?.type || null,
+            isRemoved: !!comment.removedById,
+            isEdited: comment.isEdited,
+            removedBy: comment.removedById
+              ? {
+                  id: comment.removedBy.id,
+                  isSelf: comment.removedBy.id === comment.userId,
+                }
+              : null,
+          };
+        }),
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
         },
-        userVoteType: userVote?.type || null,
-        isRemoved: !!comment.removedById,
-        isEdited: comment.isEdited,
-        removedBy: comment.removedById
-          ? {
-              id: comment.removedBy.id,
-              isSelf: comment.removedBy.id === comment.userId,
-            }
-          : null,
       };
-    });
+    } catch (error) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
   }
 
   async create(

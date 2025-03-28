@@ -54,12 +54,20 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 0,
+  });
   const { isAuthenticated, isLoading: authLoading, user } = useAuthContext();
   const commentRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const hasScrolled = useRef(false);
   const userHasInteracted = useRef(false);
   const pathname = usePathname();
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   const organizeComments = useCallback(
     (comments: CommentType[]) => {
@@ -120,21 +128,43 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     [sortBy],
   );
 
-  const fetchComments = useCallback(async () => {
-    try {
-      const data = await comments.list(tokenMintAddress);
-      const processedComments = data.map((comment) => ({
-        ...comment,
-        replies: [],
-      }));
-      setComments(organizeComments(processedComments));
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch comments');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [tokenMintAddress, organizeComments]);
+  const fetchComments = useCallback(
+    async (page: number = 1) => {
+      try {
+        if (page === 1) {
+          setIsLoading(true);
+        } else {
+          setIsLoadingMore(true);
+        }
+        const response = await comments.list(tokenMintAddress, page, 10);
+
+        const processedComments = response.data.map((comment) => ({
+          ...comment,
+          replies: [],
+        }));
+
+        if (page === 1) {
+          setComments(organizeComments(processedComments));
+        } else {
+          setComments((prevComments) => {
+            const newComments = [...prevComments, ...organizeComments(processedComments)];
+            return newComments;
+          });
+        }
+        setPagination(response.meta);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch comments');
+        if (page === 1) {
+          setComments([]);
+        }
+      } finally {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
+    },
+    [tokenMintAddress, organizeComments],
+  );
 
   // Fetch comments when component mounts or auth state changes
   useEffect(() => {
@@ -142,6 +172,34 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
       fetchComments();
     }
   }, [authLoading, isAuthenticated, fetchComments]);
+
+  // Set up intersection observer for infinite scrolling
+  useEffect(() => {
+    const target = observerTarget.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting && !isLoadingMore && pagination.page < pagination.totalPages) {
+          fetchComments(pagination.page + 1);
+        }
+      },
+      {
+        root: null,
+        rootMargin: '100px',
+        threshold: 0.1,
+      },
+    );
+
+    if (target) {
+      observer.observe(target);
+    }
+
+    return () => {
+      if (target) {
+        observer.unobserve(target);
+      }
+    };
+  }, [isLoadingMore, pagination, fetchComments]);
 
   useEffect(() => {
     if (commentId && commentsList.length > 0) {
@@ -667,7 +725,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   }
 
   return (
-    <>
+    <div className='space-y-4'>
       <div className='space-y-4 w-full'>
         <CommentInput
           onSubmit={(content) => handleSubmitComment(undefined, content)}
@@ -715,11 +773,42 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         )}
       </div>
 
+      {/* Loading More Indicator */}
+      {isLoadingMore && (
+        <div className='flex items-center justify-center py-4'>
+          <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+            <div className='flex space-x-2 mr-3'>
+              <div className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'></div>
+              <div
+                className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'
+                style={{ animationDelay: '300ms' }}></div>
+              <div
+                className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'
+                style={{ animationDelay: '600ms' }}></div>
+            </div>
+            <span className='text-sm font-medium text-zinc-300'>Loading more comments</span>
+          </div>
+        </div>
+      )}
+
+      {/* Observer Target */}
+      <div ref={observerTarget} className='h-4' />
+
+      {/* No Comments Message */}
+      {!isLoading && commentsList.length === 0 && (
+        <div className='text-center py-8 text-zinc-500'>
+          No comments yet. Be the first to share your thoughts!
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && <div className='text-center py-8 text-red-500'>{error}</div>}
+
       <AuthModal
         isOpen={showAuthModal}
         onClose={handleAuthModalClose}
         onAuthSuccess={pendingAction ?? undefined}
       />
-    </>
+    </div>
   );
 }

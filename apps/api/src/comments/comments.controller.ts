@@ -34,17 +34,40 @@ export class CommentsController {
   @UseGuards(OptionalAuthGuard)
   async getComments(
     @Query('tokenMintAddress') tokenMintAddress: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
     @CurrentUser() user?: { id: string },
-  ): Promise<CommentResponseDto[]> {
+  ): Promise<{
+    data: CommentResponseDto[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }> {
     const comments = await this.commentsService.findByTokenMintAddress(
       tokenMintAddress,
       user?.id,
+      parseInt(page, 10),
+      parseInt(limit, 10),
     );
-    return comments.map((comment) =>
-      plainToInstance(CommentResponseDto, comment, {
-        excludeExtraneousValues: true,
-      }),
-    );
+
+    if (!comments?.data || !comments?.meta) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page: parseInt(page, 10),
+          limit: parseInt(limit, 10),
+          totalPages: 0,
+        },
+      };
+    }
+
+    return {
+      data: comments.data.map((comment) =>
+        plainToInstance(CommentResponseDto, comment, {
+          excludeExtraneousValues: true,
+        }),
+      ),
+      meta: comments.meta,
+    };
   }
 
   @Get('latest')
