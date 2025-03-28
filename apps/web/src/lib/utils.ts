@@ -1,3 +1,4 @@
+import { address } from '@solana/kit';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -9,8 +10,15 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat().format(value);
 }
 
-export function isValidSolanaAddress(address: string): boolean {
-  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+export function isValidSolanaAddress(value: string): boolean {
+  if (!value) return false;
+
+  try {
+    address(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

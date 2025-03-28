@@ -495,4 +495,12 @@ export const users = {
       throw error;
     }
   },
+
+  updateWalletAddress: async (walletAddress: string): Promise<User> => {
+    const response = await api<User>('users/wallet', {
+      method: 'PUT',
+      body: { walletAddress },
+    });
+    return response;
+  },
 };

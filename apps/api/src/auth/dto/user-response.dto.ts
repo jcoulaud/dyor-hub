@@ -4,6 +4,7 @@ export class UserResponseDto {
   username: string;
   avatarUrl: string;
   isAdmin: boolean;
+  walletAddress?: string;
 
   constructor(partial: Partial<UserResponseDto>) {
     Object.assign(this, partial);
@@ -16,6 +17,7 @@ export class UserResponseDto {
       username: user.username,
       avatarUrl: user.avatarUrl,
       isAdmin: user.isAdmin || false,
+      walletAddress: user.walletAddress,
     });
   }
 }

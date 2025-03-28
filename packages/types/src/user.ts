@@ -4,6 +4,7 @@ export interface User {
   displayName: string;
   avatarUrl?: string;
   isAdmin: boolean;
+  walletAddress?: string;
 }
 
 export interface UserProfile extends User {
