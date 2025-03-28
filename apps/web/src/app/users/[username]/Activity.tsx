@@ -298,11 +298,17 @@ export function Activity({
       {/* Loading state */}
       {isLoading && (
         <div className='py-12 text-center bg-zinc-900/20 backdrop-blur-sm border border-zinc-800/30 rounded-xl'>
-          <div className='inline-block animate-pulse flex space-x-2 justify-center items-center'>
-            <div className='h-2 w-2 bg-blue-400 rounded-full'></div>
-            <div className='h-2 w-2 bg-blue-400 rounded-full delay-75'></div>
-            <div className='h-2 w-2 bg-blue-400 rounded-full delay-150'></div>
-            <span className='text-zinc-500 text-sm ml-2'>Loading activities...</span>
+          <div className='inline-flex items-center justify-center whitespace-nowrap'>
+            <div className='flex space-x-2 mr-3'>
+              <div className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'></div>
+              <div
+                className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'
+                style={{ animationDelay: '300ms' }}></div>
+              <div
+                className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'
+                style={{ animationDelay: '600ms' }}></div>
+            </div>
+            <span className='text-zinc-500 text-sm'>Loading activities</span>
           </div>
         </div>
       )}
