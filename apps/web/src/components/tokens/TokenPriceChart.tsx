@@ -51,7 +51,7 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPriceUp, setIsPriceUp] = useState<boolean>(false);
-  const [showMarketCap, setShowMarketCap] = useState(false);
+  const [showMarketCap, setShowMarketCap] = useState(true);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -209,12 +209,12 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
       <div className='absolute top-2 left-3 text-xs text-zinc-400'>24h</div>
       <div className='absolute top-2 right-3 flex items-center gap-2 z-10'>
         <Label htmlFor='chart-toggle' className='text-xs text-zinc-400 cursor-pointer'>
-          {showMarketCap ? 'Market Cap' : 'Price'}
+          {showMarketCap ? 'Price' : 'Market Cap'}
         </Label>
         <Switch
           id='chart-toggle'
-          checked={showMarketCap}
-          onCheckedChange={setShowMarketCap}
+          checked={!showMarketCap}
+          onCheckedChange={(checked) => setShowMarketCap(!checked)}
           className='data-[state=checked]:bg-blue-500 cursor-pointer'
         />
       </div>
