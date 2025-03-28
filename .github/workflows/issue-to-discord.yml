@@ -65,9 +65,8 @@ jobs:
 
               message = {
                 embeds: [{
-                  title: `Task Closed: ${issue.title}`,
+                  title: `Task Completed 🎉: ${issue.title}`,
                   url: issue.html_url,
-                  description: `${issue.body || 'No description provided'}`,
                   color: 0x00ff00,
                   fields: [
                     {
