@@ -1,23 +1,13 @@
 import { UserActivity, UserStats } from '@dyor-hub/types';
 import {
-  Body,
   Controller,
   Get,
   NotFoundException,
   Param,
-  Put,
   Query,
-  Req,
-  UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { UserResponseDto } from '../auth/dto/user-response.dto';
-import { TwitterAuthenticationException } from '../auth/exceptions/auth.exceptions';
 import { PaginatedResult, UsersService } from './users.service';
-
-interface AuthenticatedRequest extends Request {
-  user?: any;
-}
 
 @Controller('users')
 export class UsersController {
@@ -68,23 +58,5 @@ export class UsersController {
       type,
       sort,
     );
-  }
-
-  @Put('wallet')
-  @UseGuards(AuthGuard('jwt'))
-  async updateWalletAddress(
-    @Req() req: AuthenticatedRequest,
-    @Body() body: { walletAddress: string },
-  ): Promise<UserResponseDto> {
-    if (!req.user) {
-      throw new TwitterAuthenticationException('User not authenticated');
-    }
-
-    const updatedUser = await this.usersService.updateWalletAddress(
-      req.user.id,
-      body.walletAddress,
-    );
-
-    return UserResponseDto.fromEntity(updatedUser);
   }
 }

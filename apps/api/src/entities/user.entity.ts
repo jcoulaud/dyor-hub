@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { CommentVoteEntity } from './comment-vote.entity';
 import { CommentEntity } from './comment.entity';
+import { WalletEntity } from './wallet.entity';
 
 @Entity('users')
 export class UserEntity {
@@ -26,9 +27,6 @@ export class UserEntity {
   @Column({ name: 'avatar_url', type: 'varchar' })
   avatarUrl: string;
 
-  @Column({ name: 'wallet_address', nullable: true, type: 'varchar' })
-  walletAddress: string;
-
   @Column({ name: 'twitter_access_token', nullable: true, type: 'varchar' })
   twitterAccessToken: string;
 
@@ -43,6 +41,9 @@ export class UserEntity {
 
   @OneToMany(() => CommentVoteEntity, (vote) => vote.user)
   commentVotes: CommentVoteEntity[];
+
+  @OneToMany(() => WalletEntity, (wallet) => wallet.user)
+  wallets: WalletEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
