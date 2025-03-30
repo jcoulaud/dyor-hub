@@ -41,6 +41,7 @@ import {
 } from '../ui/dropdown-menu';
 import { AdminModeration } from './AdminModeration';
 import { CommentInput } from './CommentInput';
+import { TwitterShareButton } from './TwitterShareButton';
 
 interface CommentSectionProps {
   tokenMintAddress: string;
@@ -646,20 +647,14 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
                     <Button
                       variant='ghost'
                       size='sm'
-                      className='h-8 gap-2 px-2 cursor-pointer'
+                      className='h-8 gap-1 px-2 cursor-pointer'
                       onClick={handleReplyClick}>
                       <MessageSquare className='h-4 w-4' />
                       <span className='text-xs'>Reply</span>
                     </Button>
                   )}
                   {!comment.isRemoved && (
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      className='h-8 px-2 cursor-pointer'
-                      onClick={() => copyCommentLinkToClipboard(comment)}>
-                      <LinkIcon className='h-4 w-4' />
-                    </Button>
+                    <TwitterShareButton comment={comment} tokenMintAddress={tokenMintAddress} />
                   )}
                   {isAdmin && !isCommentOwner && !comment.isRemoved && (
                     <AdminModeration comment={comment} onCommentUpdated={fetchComments} />
@@ -678,6 +673,12 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
                             Edit
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem
+                          className='cursor-pointer'
+                          onClick={() => copyCommentLinkToClipboard(comment)}>
+                          <LinkIcon className='mr-2 h-4 w-4' />
+                          Copy link
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           className='text-red-500 hover:text-red-500 data-highlighted:text-red-500 hover:bg-transparent cursor-pointer'
                           onClick={() => handleRemoveComment(comment.id)}>
