@@ -41,7 +41,7 @@ jobs:
               };
             } else {
               let closingComment = 'No closing comment';
-              if (issue.state_reason === 'completed' && issue.state === 'closed') {
+              if (issue.state === 'closed') {
                 const comments = await github.rest.issues.listComments({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -63,11 +63,28 @@ jobs:
                 }
               }
 
+              let title = '';
+              let color = 0x00ff00; // Default green
+
+              if (issue.state_reason === 'completed') {
+                title = `Task Completed 🎉: ${issue.title}`;
+                color = 0x00ff00; // Green
+              } else if (issue.state_reason === 'not_planned') {
+                title = `Task Not Planned ❌: ${issue.title}`;
+                color = 0xff6347; // Tomato red
+              } else if (issue.state_reason === 'duplicate') {
+                title = `Task Duplicate 🔄: ${issue.title}`;
+                color = 0x9370db; // Medium purple
+              } else {
+                title = `Task Closed: ${issue.title}`;
+                color = 0xffa500; // Orange
+              }
+
               message = {
                 embeds: [{
-                  title: `Task Completed 🎉: ${issue.title}`,
+                  title,
                   url: issue.html_url,
-                  color: 0x00ff00,
+                  color,
                   fields: [
                     {
                       name: '\u200B',
