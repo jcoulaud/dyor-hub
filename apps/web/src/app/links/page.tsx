@@ -1,7 +1,8 @@
 import { CopyButton } from '@/components/CopyButton';
 import { CONTRACT_ADDRESS } from '@/lib/constants';
-import { Github, Globe, LineChart, MessageSquare, Twitter } from 'lucide-react';
+import { Github, Globe, Home, LineChart, MessageSquare, Twitter } from 'lucide-react';
 import { Metadata } from 'next';
+import Link from 'next/link';
 
 interface Link {
   title: string;
@@ -85,6 +86,15 @@ export default function LinksPage() {
         <div className='mt-10 text-center'>
           <p className='mb-2 text-sm text-zinc-400'>Contract Address</p>
           <CopyButton textToCopy={CONTRACT_ADDRESS} />
+        </div>
+
+        <div className='mt-10 text-center'>
+          <Link
+            href='/'
+            className='inline-flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-md transition-colors'>
+            <Home className='h-4 w-4' />
+            <span>Back to Home</span>
+          </Link>
         </div>
       </div>
     </main>
