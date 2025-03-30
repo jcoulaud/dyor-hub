@@ -209,7 +209,7 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
       <div className='absolute top-2 left-3 text-xs text-zinc-400'>24h</div>
       <div className='absolute top-2 right-3 flex items-center gap-2 z-10'>
         <Label htmlFor='chart-toggle' className='text-xs text-zinc-400 cursor-pointer'>
-          {showMarketCap ? 'Price' : 'Market Cap'}
+          {showMarketCap ? 'Market Cap' : 'Price'}
         </Label>
         <Switch
           id='chart-toggle'
