@@ -1,19 +1,21 @@
 # Build stage
 FROM node:20-alpine AS builder
 
-# Use tmpfs for npm/pnpm cache to save disk space
-RUN mkdir -p /tmp/pnpm-store && \
-    chmod 777 /tmp/pnpm-store
+# Install build dependencies including Python and USB related packages
+# (use only eudev, not libudev-zero)
+RUN apk add --no-cache python3 make g++ linux-headers eudev-dev libusb-dev
 
-# Set environment variables to use tmpfs
-ENV PNPM_HOME=/tmp/pnpm-store
-ENV npm_config_cache=/tmp/npm-cache
+# Set Python path explicitly to ensure node-gyp can find it
+ENV PYTHON=/usr/bin/python3
 
 # Create app directory
 WORKDIR /app
 
 # Install pnpm
 RUN npm install -g pnpm
+
+# Create configuration for pre-built binaries where possible
+RUN echo "nodedir=/usr/local\nusb_binary_host_mirror=https://github.com/tessel/node-usb/releases/download/" > .npmrc
 
 # Copy package files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -35,6 +37,10 @@ RUN cd apps/web && pnpm build
 # Production stage
 FROM node:20-alpine AS runner
 
+# Install runtime dependencies for USB (needed for hardware wallets)
+# (use only eudev, not libudev-zero)
+RUN apk add --no-cache eudev libusb
+
 WORKDIR /app
 
 # Set environment variables
@@ -47,6 +53,7 @@ ENV HOSTNAME "0.0.0.0"
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/.npmrc ./
 COPY --from=builder /app/apps/web/package.json ./apps/web/
 COPY --from=builder /app/apps/web/next.config.js ./apps/web/
 COPY --from=builder /app/apps/web/public ./apps/web/public
@@ -54,15 +61,9 @@ COPY --from=builder /app/apps/web/.next ./apps/web/.next
 COPY --from=builder /app/packages/types/package.json ./packages/types/
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
 
-# Create complete node_modules structure first
-RUN mkdir -p /app/node_modules/@dyor-hub && \
-    ln -s /app/packages/types /app/node_modules/@dyor-hub/types && \
-    mkdir -p /app/apps/web/node_modules/@dyor-hub && \
-    ln -s /app/packages/types /app/apps/web/node_modules/@dyor-hub/types
-
-# Install production dependencies
-RUN npm install -g pnpm && \
-    pnpm install --prod --no-frozen-lockfile
+# Copy built node_modules from builder stage with working native modules
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/web/node_modules ./apps/web/node_modules
 
 # Expose the port
 EXPOSE 3000
