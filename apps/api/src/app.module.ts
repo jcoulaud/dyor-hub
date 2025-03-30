@@ -11,6 +11,7 @@ import { TelegramNotificationService } from './services/telegram-notification.se
 import { SessionModule } from './session/session.module';
 import { TokensModule } from './tokens/tokens.module';
 import { UsersModule } from './users/users.module';
+import { WalletsModule } from './wallets/wallets.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { UsersModule } from './users/users.module';
     SessionModule,
     HealthModule,
     UsersModule,
+    WalletsModule,
   ],
   controllers: [AppController],
   providers: [TelegramNotificationService],

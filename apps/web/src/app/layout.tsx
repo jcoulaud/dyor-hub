@@ -3,6 +3,7 @@ import { Header } from '@/components/layout/Header';
 import { Toaster } from '@/components/ui/toast';
 import { AuthProvider } from '@/providers/auth-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
+import { SolanaWalletProvider } from '@/providers/wallet-provider';
 import type { Metadata } from 'next';
 import PlausibleProvider from 'next-plausible';
 import { Poppins } from 'next/font/google';
@@ -61,13 +62,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PlausibleProvider domain='dyorhub.xyz'>
           <ThemeProvider>
             <AuthProvider>
-              <Toaster>
-                <div className='flex flex-col min-h-screen w-full'>
-                  <Header />
-                  <main className='flex-1 flex flex-col w-full'>{children}</main>
-                  <Footer />
-                </div>
-              </Toaster>
+              <SolanaWalletProvider>
+                <Toaster>
+                  <div className='flex flex-col min-h-screen w-full'>
+                    <Header />
+                    <main className='flex-1 flex flex-col w-full'>{children}</main>
+                    <Footer />
+                  </div>
+                </Toaster>
+              </SolanaWalletProvider>
             </AuthProvider>
           </ThemeProvider>
         </PlausibleProvider>

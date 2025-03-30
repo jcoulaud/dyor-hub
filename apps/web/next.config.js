@@ -24,6 +24,11 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
 
+  webpack: (config) => {
+    config.externals.push('pino-pretty', 'lokijs', 'encoding');
+    return config;
+  },
+
   // Configure async rewrites for API proxy if needed
   async rewrites() {
     // Only set up rewrites for development environment

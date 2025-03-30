@@ -25,7 +25,7 @@ export function Header() {
               </Link>
             </nav>
           </div>
-          <div className='w-[140px] flex justify-end'>
+          <div className='w-[140px] flex items-center justify-end'>
             <UserMenu />
           </div>
         </div>

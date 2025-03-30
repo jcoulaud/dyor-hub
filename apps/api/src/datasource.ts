@@ -6,6 +6,7 @@ import { CommentEntity } from './entities/comment.entity';
 import { TokenEntity } from './entities/token.entity';
 import { TwitterUsernameHistoryEntity } from './entities/twitter-username-history.entity';
 import { UserEntity } from './entities/user.entity';
+import { WalletEntity } from './entities/wallet.entity';
 
 config(); // Load .env file
 
@@ -26,6 +27,7 @@ export const dataSourceOptions: DataSourceOptions = {
     CommentVoteEntity,
     UserEntity,
     TwitterUsernameHistoryEntity,
+    WalletEntity,
   ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',

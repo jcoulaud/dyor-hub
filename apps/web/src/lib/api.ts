@@ -56,14 +56,14 @@ interface CacheItem<T> {
 const apiCache = new Map<string, CacheItem<unknown>>();
 const CACHE_TTL = 60 * 1000; // 1 minute TTL
 
-const getCache = <T>(key: string): T | null => {
+const getCache = <T>(key: string): T | undefined => {
   const cached = apiCache.get(key);
-  if (!cached) return null;
+  if (!cached) return undefined;
 
   // Check if cache is expired
   if (Date.now() >= cached.expiresAt) {
     apiCache.delete(key);
-    return null;
+    return undefined;
   }
 
   return cached.data as T;
@@ -144,7 +144,8 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
       return null as T;
     }
 
-    return response.json();
+    const responseData = await response.json();
+    return responseData;
   } catch (error) {
     clearTimeout(timeoutId);
 
@@ -410,6 +411,28 @@ export const users = {
     }
   },
 
+  getUserPrimaryWallet: async (username: string): Promise<WalletResponse | null> => {
+    try {
+      const sanitizedUsername = encodeURIComponent(username);
+      const endpoint = `users/${sanitizedUsername}/primary-wallet`;
+
+      const cacheKey = `api:${endpoint}`;
+
+      apiCache.delete(cacheKey);
+
+      const data = await api<WalletResponse | null>(endpoint);
+
+      if (data) {
+        setCache(cacheKey, data, 60 * 1000); // 1 minute cache
+      }
+
+      return data;
+    } catch (error) {
+      console.error('[getUserPrimaryWallet] Error fetching primary wallet:', error);
+      return null;
+    }
+  },
+
   getUserStats: async (username: string): Promise<UserStats> => {
     try {
       const sanitizedUsername = encodeURIComponent(username);
@@ -494,5 +517,69 @@ export const users = {
     } catch (error) {
       throw error;
     }
+  },
+
+  updateWalletAddress: async (walletAddress: string): Promise<User> => {
+    const response = await api<User>('users/wallet', {
+      method: 'PUT',
+      body: { walletAddress },
+    });
+    return response;
+  },
+};
+
+interface WalletResponse {
+  id: string;
+  address: string;
+  isVerified: boolean;
+  isPrimary: boolean;
+}
+
+interface PublicWalletInfo {
+  address: string;
+  isVerified: boolean;
+}
+
+export const wallets = {
+  connect: async (address: string) => {
+    return api<WalletResponse>('wallets/connect', {
+      method: 'POST',
+      body: { address },
+    });
+  },
+
+  generateNonce: async (address: string) => {
+    return api<{ nonce: string; expiresAt: number }>('wallets/generate-nonce', {
+      method: 'POST',
+      body: { address },
+    });
+  },
+
+  verify: async (address: string, signature: string) => {
+    return api<WalletResponse>('wallets/verify', {
+      method: 'POST',
+      body: { address, signature },
+    });
+  },
+
+  list: async () => {
+    return api<WalletResponse[]>('wallets');
+  },
+
+  getPublicInfo: async (userId: string): Promise<PublicWalletInfo | null> => {
+    const result = await api<PublicWalletInfo | null>(`public-wallets/${userId}`);
+    return result;
+  },
+
+  setPrimary: async (id: string) => {
+    return api<{ success: boolean; isPrimary: boolean }>(`wallets/${id}/primary`, {
+      method: 'POST',
+    });
+  },
+
+  delete: async (id: string) => {
+    return api<{ success: boolean; message: string }>(`wallets/${id}`, {
+      method: 'DELETE',
+    });
   },
 };

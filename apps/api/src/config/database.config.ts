@@ -8,6 +8,7 @@ import { CommentEntity } from '../entities/comment.entity';
 import { TokenEntity } from '../entities/token.entity';
 import { TwitterUsernameHistoryEntity } from '../entities/twitter-username-history.entity';
 import { UserEntity } from '../entities/user.entity';
+import { WalletEntity } from '../entities/wallet.entity';
 
 export const databaseConfig: TypeOrmModuleAsyncOptions = {
   imports: [ConfigModule],
@@ -24,6 +25,7 @@ export const databaseConfig: TypeOrmModuleAsyncOptions = {
         CommentVoteEntity,
         UserEntity,
         TwitterUsernameHistoryEntity,
+        WalletEntity,
       ],
       synchronize: configService.get('NODE_ENV') !== 'production',
       logging: false,

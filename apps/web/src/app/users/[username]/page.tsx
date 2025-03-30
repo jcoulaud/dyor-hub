@@ -1,4 +1,5 @@
-import { users } from '@/lib/api';
+import { WalletBadge } from '@/components/wallet/WalletBadge';
+import { users, wallets } from '@/lib/api';
 import type { User, UserActivity } from '@dyor-hub/types';
 import { MessageSquare, Reply, ThumbsDown, ThumbsUp, Twitter } from 'lucide-react';
 import { Metadata } from 'next';
@@ -42,6 +43,13 @@ export default async function UserProfilePage({ params }: UserPageProps) {
     const userStats = await users.getUserStats(username);
     const userActivities = await users.getUserActivity(username, 1, 10);
     const userComments = userActivities.data;
+
+    let walletInfo = null;
+    try {
+      walletInfo = await wallets.getPublicInfo(user.id);
+    } catch {
+      // Continue without wallet info
+    }
 
     const avatarUrl = user.avatarUrl ? user.avatarUrl.replace('_normal', '') : null;
 
@@ -90,15 +98,25 @@ export default async function UserProfilePage({ params }: UserPageProps) {
                         <p className='text-zinc-400 text-sm'>@{user.username}</p>
                       </div>
 
-                      {/* Twitter link - use Next.js Link with passHref for better reliability */}
-                      <Link
-                        href={`https://twitter.com/${user.username}`}
-                        target='_blank'
-                        rel='noopener noreferrer'
-                        className='relative z-20 cursor-pointer mt-3 mb-2 md:my-0 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 transition-colors mx-auto md:mx-0 text-sm shadow-md'>
-                        <Twitter className='h-4 w-4 text-white' />
-                        <span className='text-white font-medium whitespace-nowrap'>Twitter</span>
-                      </Link>
+                      <div className='flex flex-col md:flex-row items-center gap-3 mt-3 md:mt-0'>
+                        <div className='flex items-center gap-2'>
+                          {walletInfo && walletInfo.isVerified && (
+                            <WalletBadge
+                              address={walletInfo.address}
+                              isVerified={walletInfo.isVerified}
+                            />
+                          )}
+
+                          <Link
+                            href={`https://twitter.com/${user.username}`}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                            title='Twitter'>
+                            <Twitter className='h-4 w-4 text-blue-400' />
+                          </Link>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
