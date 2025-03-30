@@ -1,6 +1,3 @@
-import { PublicKey } from '@solana/web3.js';
-import nacl from 'tweetnacl';
-
 interface VerificationState {
   verified: boolean;
   verifiedAt?: Date;
@@ -11,17 +8,11 @@ const verifiedWallets = new Map<string, VerificationState>();
 let isDeletingWallet = false;
 let resetTimeout: NodeJS.Timeout | null = null;
 
-// Generates a unique nonce for signature verification
-export function generateNonce(): string {
-  return `DYOR-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
-}
-
-// Creates the message to be signed by the wallet
 export function createSignatureMessage(nonce: string): string {
-  return `Sign this message to verify ownership of your wallet with DYOR hub.\n\nNonce: ${nonce}\nTimestamp: ${Date.now()}`;
+  // This must exactly match the format the backend is checking
+  return `Sign this message to verify ownership of your wallet with DYOR hub.\n\nNonce: ${nonce}`;
 }
 
-// Checks if a wallet is verified and handles expiration
 export function isWalletVerified(walletAddress: string): boolean {
   const verification = verifiedWallets.get(walletAddress);
 
@@ -53,33 +44,6 @@ export function setWalletVerified(walletAddress: string, verified: boolean): voi
 export function clearWalletVerification(walletAddress: string): void {
   if (walletAddress) {
     verifiedWallets.delete(walletAddress);
-  }
-}
-
-// Verifies a signature from the wallet against the message
-export async function verifyWalletSignature(
-  publicKey: PublicKey,
-  signature: Uint8Array,
-  message: string,
-): Promise<boolean> {
-  try {
-    const messageBytes = new TextEncoder().encode(message);
-
-    try {
-      const verified = nacl.sign.detached.verify(messageBytes, signature, publicKey.toBytes());
-
-      if (verified) {
-        setWalletVerified(publicKey.toBase58(), true);
-      }
-
-      return verified;
-    } catch (error) {
-      console.error('Signature verification failed:', error);
-      return false;
-    }
-  } catch (error) {
-    console.error('Error verifying signature:', error);
-    return false;
   }
 }
 

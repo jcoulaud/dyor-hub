@@ -8,7 +8,6 @@ import { truncateAddress } from '@/lib/utils';
 import {
   clearWalletVerification,
   createSignatureMessage,
-  generateNonce,
   isWalletBeingDeleted,
   setWalletVerified,
 } from '@/lib/wallet';
@@ -43,9 +42,12 @@ export function WalletVerification() {
       setError(null);
 
       const walletAddress = publicKey.toBase58();
-      const nonce = generateNonce();
+
+      const { nonce } = await wallets.generateNonce(walletAddress);
+
       const message = createSignatureMessage(nonce);
       const encodedMessage = new TextEncoder().encode(message);
+
       const signature = await signMessage(encodedMessage);
       const signatureBase64 = Buffer.from(signature).toString('base64');
 

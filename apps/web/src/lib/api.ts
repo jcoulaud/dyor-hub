@@ -505,64 +505,48 @@ export const users = {
   },
 };
 
+interface WalletResponse {
+  id: string;
+  address: string;
+  isVerified: boolean;
+  isPrimary?: boolean;
+}
+
 export const wallets = {
-  connect: async (
-    address: string,
-  ): Promise<{ id: string; address: string; isVerified: boolean; isPrimary?: boolean }> => {
-    const response = await api<{
-      id: string;
-      address: string;
-      isVerified: boolean;
-      isPrimary?: boolean;
-    }>('wallets/connect', {
+  connect: async (address: string) => {
+    return api<WalletResponse>('wallets/connect', {
       method: 'POST',
       body: { address },
     });
-    return response;
   },
 
-  verify: async (
-    address: string,
-    signature: string,
-  ): Promise<{ id: string; address: string; isVerified: boolean }> => {
-    const response = await api<{ id: string; address: string; isVerified: boolean }>(
-      'wallets/verify',
-      {
-        method: 'POST',
-        body: { address, signature },
-      },
-    );
-    return response;
+  generateNonce: async (address: string) => {
+    return api<{ nonce: string; expiresAt: number }>('wallets/generate-nonce', {
+      method: 'POST',
+      body: { address },
+    });
   },
 
-  list: async (): Promise<
-    { id: string; address: string; isVerified: boolean; isPrimary?: boolean }[]
-  > => {
-    const response =
-      await api<{ id: string; address: string; isVerified: boolean; isPrimary?: boolean }[]>(
-        'wallets',
-      );
-    return response;
+  verify: async (address: string, signature: string) => {
+    return api<WalletResponse>('wallets/verify', {
+      method: 'POST',
+      body: { address, signature },
+    });
   },
 
-  delete: async (walletId: string): Promise<{ success: boolean; message: string }> => {
-    try {
-      const response = await api<{ success: boolean; message: string }>(`wallets/${walletId}`, {
-        method: 'DELETE',
-      });
-      return response;
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 404) {
-        return { success: true, message: 'Wallet was already removed' };
-      }
-      throw error;
-    }
+  list: async () => {
+    return api<WalletResponse[]>('wallets');
   },
 
-  setPrimary: async (id: string): Promise<{ success: boolean; isPrimary: boolean }> => {
-    const response = await api<{ success: boolean; isPrimary: boolean }>(`wallets/${id}/primary`, {
+  setPrimary: async (id: string) => {
+    return api<{ success: boolean; isPrimary: boolean }>(`wallets/${id}/primary`, {
       method: 'POST',
     });
-    return response;
+  },
+
+  delete: async (id: string) => {
+    return api<{ success: boolean; message: string }>(`wallets/${id}`, {
+      method: 'DELETE',
+    });
   },
 };

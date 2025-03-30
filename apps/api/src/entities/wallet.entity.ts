@@ -26,6 +26,12 @@ export class WalletEntity {
   @Column({ name: 'signature', nullable: true, type: 'varchar' })
   signature: string;
 
+  @Column({ name: 'verification_nonce', nullable: true, type: 'varchar' })
+  verificationNonce: string;
+
+  @Column({ name: 'nonce_expires_at', nullable: true, type: 'bigint' })
+  nonceExpiresAt: number;
+
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 

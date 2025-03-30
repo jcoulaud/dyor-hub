@@ -13,6 +13,8 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UserEntity } from '../entities/user.entity';
 import { ConnectWalletDto } from './dto/connect-wallet.dto';
+import { GenerateNonceDto } from './dto/generate-nonce.dto';
+import { NonceResponseDto } from './dto/nonce-response.dto';
 import { VerifyWalletDto } from './dto/verify-wallet.dto';
 import { WalletResponseDto } from './dto/wallet-response.dto';
 import { WalletsService } from './wallets.service';
@@ -28,6 +30,21 @@ export class WalletsController {
     @Body() connectWalletDto: ConnectWalletDto,
   ): Promise<WalletResponseDto> {
     return this.walletsService.connectWallet(user.id, connectWalletDto);
+  }
+
+  @Post('generate-nonce')
+  async generateNonce(
+    @CurrentUser() user: UserEntity,
+    @Body() generateNonceDto: GenerateNonceDto,
+  ): Promise<NonceResponseDto> {
+    try {
+      return await this.walletsService.generateNonce(user.id, generateNonceDto);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to generate verification nonce',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Post('verify')
