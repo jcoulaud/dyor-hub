@@ -1,4 +1,4 @@
-import { address } from '@solana/kit';
+import { PublicKey } from '@solana/web3.js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -14,8 +14,8 @@ export function isValidSolanaAddress(value: string): boolean {
   if (!value) return false;
 
   try {
-    address(value);
-    return true;
+    const publicKey = new PublicKey(value);
+    return PublicKey.isOnCurve(publicKey);
   } catch {
     return false;
   }

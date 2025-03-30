@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
-import { address } from '@solana/kit';
+import { PublicKey } from '@solana/web3.js';
 
 @Injectable()
 export class SolanaAddressPipe implements PipeTransform<string> {
@@ -14,7 +14,12 @@ export class SolanaAddressPipe implements PipeTransform<string> {
     const cleanValue = value.trim();
 
     try {
-      address(cleanValue);
+      const publicKey = new PublicKey(cleanValue);
+
+      if (!PublicKey.isOnCurve(publicKey)) {
+        throw new Error('Address is not a valid Solana address');
+      }
+
       return cleanValue;
     } catch (error) {
       throw new BadRequestException(
