@@ -20,6 +20,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AuthModal } from '../auth/AuthModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
@@ -68,6 +78,9 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   const userHasInteracted = useRef(false);
   const pathname = usePathname();
   const observerTarget = useRef<HTMLDivElement>(null);
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
 
   const organizeComments = useCallback(
     (comments: CommentType[]) => {
@@ -392,27 +405,37 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         return;
       }
 
-      try {
-        await comments.remove(commentId);
-        await fetchComments();
-        toast({
-          title: 'Comment removed',
-          description: 'The comment has been removed successfully.',
-        });
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : 'Failed to remove the comment. Please try again.';
-        toast({
-          title: 'Error',
-          description: errorMessage,
-          variant: 'destructive',
-        });
-      }
+      setCommentToDelete(commentId);
+      setIsDeleteDialogOpen(true);
     },
-    [isAuthenticated, fetchComments, toast, handleUserInteraction],
+    [isAuthenticated, handleUserInteraction],
   );
+
+  const confirmDeleteComment = useCallback(async () => {
+    if (!commentToDelete) return;
+
+    setIsDeleteLoading(true);
+    try {
+      await comments.remove(commentToDelete);
+      await fetchComments();
+      toast({
+        title: 'Comment removed',
+        description: 'The comment has been removed successfully.',
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to remove the comment. Please try again.';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleteLoading(false);
+      setIsDeleteDialogOpen(false);
+      setCommentToDelete(null);
+    }
+  }, [commentToDelete, fetchComments, toast]);
 
   const copyCommentLinkToClipboard = useCallback(
     (comment: CommentType) => {
@@ -436,7 +459,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
           });
         });
     },
-    [pathname, toast],
+    [pathname, toast, handleUserInteraction],
   );
 
   const Comment = ({ comment, depth = 0 }: { comment: CommentType; depth?: number }) => {
@@ -809,6 +832,34 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         onClose={handleAuthModalClose}
         onAuthSuccess={pendingAction ?? undefined}
       />
+
+      {/* Comment Deletion Confirmation Dialog */}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) setCommentToDelete(null);
+        }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this comment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will permanently remove your comment. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleteLoading} className='cursor-pointer'>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteComment}
+              disabled={isDeleteLoading}
+              className='bg-red-500/90 hover:bg-red-600 focus:ring-red-400 cursor-pointer text-white'>
+              {isDeleteLoading ? 'Deleting...' : 'Yes, delete comment'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
