@@ -166,7 +166,7 @@ export function WalletVerification() {
           <div className='flex items-center gap-1.5'>
             <Badge
               variant='outline'
-              className='inline-flex items-center gap-1 px-2 py-1 bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800 transition-colors'>
+              className='inline-flex items-center gap-1 px-2 py-1 bg-amber-50 dark:bg-amber-950/30 text-orange-600 dark:text-orange-400 border-amber-200 dark:border-amber-800 transition-colors'>
               <XCircleIcon className='h-3.5 w-3.5' />
               <span className='font-medium'>Unverified</span>
             </Badge>
@@ -184,7 +184,7 @@ export function WalletVerification() {
             <Button
               variant='outline'
               size='sm'
-              className='h-8 font-medium bg-background dark:bg-muted cursor-pointer'
+              className='h-8 font-medium bg-background dark:bg-muted cursor-pointer border-white/20 hover:bg-muted/50 hover:border-white/50 transition-all duration-200'
               onClick={handleVerify}>
               <ShieldIcon className='h-3.5 w-3.5 mr-1.5' />
               Verify Now

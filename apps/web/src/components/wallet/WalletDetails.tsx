@@ -253,7 +253,7 @@ export function WalletDetails() {
               <div className='flex items-center gap-2'>
                 <div className='text-sm font-medium text-muted-foreground'>Connected Wallet</div>
                 {isPrimary && (
-                  <Badge className='h-5 rounded-md px-1.5 bg-primary/15 text-primary text-xs font-medium pointer-events-none'>
+                  <Badge className='h-5 rounded-md px-1.5 bg-yellow-500/15 text-yellow-500 text-xs font-medium pointer-events-none'>
                     Primary
                   </Badge>
                 )}
