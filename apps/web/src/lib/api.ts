@@ -504,3 +504,65 @@ export const users = {
     return response;
   },
 };
+
+export const wallets = {
+  connect: async (
+    address: string,
+  ): Promise<{ id: string; address: string; isVerified: boolean; isPrimary?: boolean }> => {
+    const response = await api<{
+      id: string;
+      address: string;
+      isVerified: boolean;
+      isPrimary?: boolean;
+    }>('wallets/connect', {
+      method: 'POST',
+      body: { address },
+    });
+    return response;
+  },
+
+  verify: async (
+    address: string,
+    signature: string,
+  ): Promise<{ id: string; address: string; isVerified: boolean }> => {
+    const response = await api<{ id: string; address: string; isVerified: boolean }>(
+      'wallets/verify',
+      {
+        method: 'POST',
+        body: { address, signature },
+      },
+    );
+    return response;
+  },
+
+  list: async (): Promise<
+    { id: string; address: string; isVerified: boolean; isPrimary?: boolean }[]
+  > => {
+    const response =
+      await api<{ id: string; address: string; isVerified: boolean; isPrimary?: boolean }[]>(
+        'wallets',
+      );
+    return response;
+  },
+
+  delete: async (walletId: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await api<{ success: boolean; message: string }>(`wallets/${walletId}`, {
+        method: 'DELETE',
+      });
+      return response;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        return { success: true, message: 'Wallet was already removed' };
+      }
+      throw error;
+    }
+  },
+
+  setPrimary: async (id: string): Promise<{ success: boolean; isPrimary: boolean }> => {
+    const response = await api<{ success: boolean; isPrimary: boolean }>(`wallets/${id}/primary`, {
+      method: 'POST',
+    });
+    return response;
+  },
+};

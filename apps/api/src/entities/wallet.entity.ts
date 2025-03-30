@@ -20,6 +20,9 @@ export class WalletEntity {
   @Column({ name: 'is_verified', type: 'boolean', default: false })
   isVerified: boolean;
 
+  @Column({ name: 'is_primary', type: 'boolean', default: false })
+  isPrimary: boolean;
+
   @Column({ name: 'signature', nullable: true, type: 'varchar' })
   signature: string;
 

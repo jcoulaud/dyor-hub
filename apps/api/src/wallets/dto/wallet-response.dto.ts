@@ -4,6 +4,7 @@ export class WalletResponseDto {
   id: string;
   address: string;
   isVerified: boolean;
+  isPrimary: boolean;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -17,6 +18,7 @@ export class WalletResponseDto {
       id: wallet.id,
       address: wallet.address,
       isVerified: wallet.isVerified,
+      isPrimary: wallet.isPrimary,
       userId: wallet.userId,
       createdAt: wallet.createdAt.toISOString(),
       updatedAt: wallet.updatedAt.toISOString(),

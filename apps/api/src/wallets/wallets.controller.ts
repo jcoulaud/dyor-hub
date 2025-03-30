@@ -45,6 +45,29 @@ export class WalletsController {
     return this.walletsService.getUserWallets(user.id);
   }
 
+  @Post(':id/primary')
+  async setPrimaryWallet(
+    @CurrentUser() user: UserEntity,
+    @Param('id') walletId: string,
+  ): Promise<{ success: boolean; isPrimary: boolean }> {
+    try {
+      const wallet = await this.walletsService.setPrimaryWallet(
+        user.id,
+        walletId,
+      );
+      return {
+        success: true,
+        isPrimary: wallet.isPrimary,
+      };
+    } catch (error) {
+      console.error(`Error in setPrimaryWallet controller: ${error.message}`);
+      throw new HttpException(
+        error.message || 'Could not set wallet as primary',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Delete(':id')
   async deleteWallet(
     @CurrentUser() user: UserEntity,

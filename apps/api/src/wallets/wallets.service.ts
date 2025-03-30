@@ -82,22 +82,39 @@ export class WalletsService {
   }
 
   async deleteWallet(userId: string, walletId: string): Promise<void> {
-    try {
-      const wallet = await this.walletsRepository.findOne({
-        where: { id: walletId, userId },
-      });
+    const wallet = await this.walletsRepository.findOne({
+      where: { id: walletId, userId },
+    });
 
-      if (!wallet) {
-        throw new NotFoundException(`Wallet with id ${walletId} not found`);
-      }
-
-      await this.walletsRepository.remove(wallet);
-    } catch (error) {
-      console.error('Error deleting wallet:', error);
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new Error(`Failed to delete wallet: ${error.message}`);
+    if (!wallet) {
+      throw new NotFoundException('Wallet not found');
     }
+
+    await this.walletsRepository.remove(wallet);
+  }
+
+  async setPrimaryWallet(
+    userId: string,
+    walletId: string,
+  ): Promise<WalletResponseDto> {
+    const wallet = await this.walletsRepository.findOne({
+      where: { id: walletId, userId },
+    });
+
+    if (!wallet) {
+      throw new NotFoundException('Wallet not found');
+    }
+
+    return this.walletsRepository.manager.transaction(async (manager) => {
+      await manager.query(
+        `UPDATE wallets SET is_primary = false WHERE user_id = $1`,
+        [userId],
+      );
+
+      wallet.isPrimary = true;
+      const updatedWallet = await manager.save(wallet);
+
+      return WalletResponseDto.fromEntity(updatedWallet);
+    });
   }
 }
