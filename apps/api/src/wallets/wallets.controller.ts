@@ -19,6 +19,37 @@ import { VerifyWalletDto } from './dto/verify-wallet.dto';
 import { WalletResponseDto } from './dto/wallet-response.dto';
 import { WalletsService } from './wallets.service';
 
+// Public controller - no auth guard
+@Controller('public-wallets')
+export class WalletsPublicController {
+  constructor(private readonly walletsService: WalletsService) {}
+
+  @Get(':userId')
+  async getPublicWalletInfo(
+    @Param('userId') userId: string,
+  ): Promise<{ address: string; isVerified: boolean } | null> {
+    try {
+      const wallets = await this.walletsService.getUserWallets(userId);
+
+      // Only return wallets that are both primary and verified
+      const primaryWallet = wallets.find(
+        (wallet) => wallet.isPrimary && wallet.isVerified,
+      );
+
+      return primaryWallet
+        ? {
+            address: primaryWallet.address,
+            isVerified: primaryWallet.isVerified,
+          }
+        : null;
+    } catch (error) {
+      console.error('Error getting public wallet info:', error);
+      return null;
+    }
+  }
+}
+
+// Private controller - requires authentication
 @Controller('wallets')
 @UseGuards(JwtAuthGuard)
 export class WalletsController {

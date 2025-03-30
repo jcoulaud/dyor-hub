@@ -155,6 +155,10 @@ export class WalletsService {
   }
 
   async getUserWallets(userId: string): Promise<WalletResponseDto[]> {
+    if (!userId) {
+      return [];
+    }
+
     const wallets = await this.walletsRepository.find({
       where: { userId },
     });
