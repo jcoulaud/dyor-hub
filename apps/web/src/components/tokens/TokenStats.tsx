@@ -7,6 +7,7 @@ import { BarChart2, DollarSign, History, Twitter, Users } from 'lucide-react';
 import Link from 'next/link';
 import { SolscanButton } from '../SolscanButton';
 import TokenPriceChart from './TokenPriceChart';
+import TopHoldersPieChart from './TokenHolderPieChart';
 
 interface TokenStatsProps {
   stats: TokenStatsType;
@@ -170,6 +171,8 @@ export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenSta
               </div>
             ))}
           </div>
+          {/* Pie Chart */}
+          <TopHoldersPieChart topHolders={stats.topHolders} />
         </div>
       )}
 
