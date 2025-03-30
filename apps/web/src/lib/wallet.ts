@@ -3,8 +3,10 @@ interface VerificationState {
   verifiedAt?: Date;
 }
 
+// Using a memory store to track verification state
 const verifiedWallets = new Map<string, VerificationState>();
 
+// Track wallet deletion state to prevent operations during deletion
 let isDeletingWallet = false;
 let resetTimeout: NodeJS.Timeout | null = null;
 
@@ -14,10 +16,12 @@ export function createSignatureMessage(nonce: string): string {
 }
 
 export function isWalletVerified(walletAddress: string): boolean {
-  const verification = verifiedWallets.get(walletAddress);
+  if (!walletAddress) return false;
 
+  const verification = verifiedWallets.get(walletAddress);
   if (!verification) return false;
 
+  // Check for verification expiration (24 hours)
   if (verification.verifiedAt) {
     const expirationTime = 24 * 60 * 60 * 1000; // 24 hours
     const now = new Date();
@@ -34,6 +38,8 @@ export function isWalletVerified(walletAddress: string): boolean {
 
 // Sets a wallet's verification status
 export function setWalletVerified(walletAddress: string, verified: boolean): void {
+  if (!walletAddress) return;
+
   verifiedWallets.set(walletAddress, {
     verified,
     verifiedAt: new Date(),
@@ -57,6 +63,7 @@ export function setWalletDeletionState(isDeleting: boolean): void {
   }
 
   if (isDeleting) {
+    // Auto-reset deletion state after 3 seconds as a safety measure
     resetTimeout = setTimeout(() => {
       isDeletingWallet = false;
     }, 3000);

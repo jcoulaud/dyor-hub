@@ -27,6 +27,7 @@ export function WalletDetails() {
   const { toast } = useToast();
   const hasFetchedWallet = useRef(false);
   const previousWalletAddress = useRef<string | null>(null);
+  const fetchingWallet = useRef(false);
 
   useEffect(() => {
     if (!wallet) {
@@ -50,16 +51,16 @@ export function WalletDetails() {
       return;
     }
 
-    if (isWalletBeingDeleted()) {
+    if (isWalletBeingDeleted() || fetchingWallet.current) {
       return;
     }
 
     setError(null);
     previousWalletAddress.current = walletAddress;
+    fetchingWallet.current = true;
 
     const fetchWallet = async () => {
       try {
-        hasFetchedWallet.current = true;
         const userWallets = await wallets.list();
         const foundWallet = userWallets.find((w) => w.address === walletAddress);
 
@@ -72,17 +73,18 @@ export function WalletDetails() {
           });
           setIsPrimary(isPrimaryWallet);
 
-          if (!dbWallet) {
+          if (!hasFetchedWallet.current) {
             toast({
               title: 'Wallet Connected',
               description: `Successfully connected wallet ${truncateAddress(walletAddress)}`,
             });
           }
+
+          hasFetchedWallet.current = true;
           return;
         }
 
         const newWallet = await wallets.connect(walletAddress);
-
         let isPrimaryWallet = newWallet.isPrimary === true;
 
         if (!isPrimaryWallet && userWallets.length === 0 && newWallet.id) {
@@ -112,6 +114,8 @@ export function WalletDetails() {
           title: 'Wallet Connected',
           description: `Successfully connected wallet ${truncateAddress(walletAddress)}`,
         });
+
+        hasFetchedWallet.current = true;
       } catch (err) {
         console.error('Error fetching wallet:', err);
         toast({
@@ -119,6 +123,8 @@ export function WalletDetails() {
           description: 'Failed to connect wallet to your account',
           variant: 'destructive',
         });
+      } finally {
+        fetchingWallet.current = false;
       }
     };
 
@@ -211,19 +217,19 @@ export function WalletDetails() {
 
       if (result.success) {
         setIsPrimary(true);
-        setDbWallet({
-          ...dbWallet,
-          isPrimary: true,
-        });
+        setDbWallet((prev) =>
+          prev
+            ? {
+                ...prev,
+                isPrimary: true,
+              }
+            : null,
+        );
 
         toast({
           title: 'Primary Wallet Set',
           description: `Wallet ${truncateAddress(walletAddress)} is now your primary wallet`,
         });
-
-        setTimeout(() => {
-          hasFetchedWallet.current = false;
-        }, 1000);
       } else {
         throw new Error('Failed to set primary wallet');
       }

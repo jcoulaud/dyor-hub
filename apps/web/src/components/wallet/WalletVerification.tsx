@@ -5,12 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { wallets } from '@/lib/api';
 import { truncateAddress } from '@/lib/utils';
-import {
-  clearWalletVerification,
-  createSignatureMessage,
-  isWalletBeingDeleted,
-  setWalletVerified,
-} from '@/lib/wallet';
+import { createSignatureMessage, isWalletBeingDeleted, setWalletVerified } from '@/lib/wallet';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { CheckCircleIcon, Loader2Icon, ShieldIcon, XCircleIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -21,7 +16,7 @@ export function WalletVerification() {
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasAttemptedVerification = useRef(false);
-  const hasConnectedWallet = useRef(false);
+  const hasConnectedWallet = useRef<string | null>(null);
   const { toast } = useToast();
 
   const handleVerify = useCallback(async () => {
@@ -42,15 +37,11 @@ export function WalletVerification() {
       setError(null);
 
       const walletAddress = publicKey.toBase58();
-
       const { nonce } = await wallets.generateNonce(walletAddress);
-
       const message = createSignatureMessage(nonce);
       const encodedMessage = new TextEncoder().encode(message);
-
       const signature = await signMessage(encodedMessage);
       const signatureBase64 = Buffer.from(signature).toString('base64');
-
       const verificationResult = await wallets.verify(walletAddress, signatureBase64);
 
       if (verificationResult.isVerified) {
@@ -69,13 +60,6 @@ export function WalletVerification() {
                 title: 'Wallet Verified & Set as Primary',
                 description: `Successfully verified wallet ${truncateAddress(walletAddress)} and set as your primary wallet`,
               });
-
-              setTimeout(() => {
-                if (publicKey && publicKey.toBase58() === walletAddress) {
-                  hasConnectedWallet.current = false;
-                }
-              }, 1000);
-
               return;
             }
           }
@@ -107,20 +91,18 @@ export function WalletVerification() {
     if (!publicKey) return;
 
     const walletAddress = publicKey.toBase58();
+    setError(null);
 
-    if (!hasConnectedWallet.current) {
-      setIsVerified(false);
-    }
+    if (isWalletBeingDeleted()) return;
 
-    if (hasConnectedWallet.current) return;
+    if (hasConnectedWallet.current === walletAddress) return;
 
-    if (isWalletBeingDeleted()) {
-      return;
-    }
+    hasConnectedWallet.current = walletAddress;
+    hasAttemptedVerification.current = false;
+    setIsVerified(false);
 
-    const connectWallet = async () => {
+    const checkWalletStatus = async () => {
       try {
-        hasConnectedWallet.current = true;
         const userWallets = await wallets.list();
         const foundWallet = userWallets.find((w) => w.address === walletAddress);
 
@@ -129,35 +111,16 @@ export function WalletVerification() {
 
           if (foundWallet.isVerified) {
             setWalletVerified(walletAddress, true);
-          } else {
-            clearWalletVerification(walletAddress);
-          }
-
-          if (
-            !foundWallet.isVerified &&
-            !hasAttemptedVerification.current &&
-            typeof signMessage === 'function'
-          ) {
+          } else if (typeof signMessage === 'function' && !hasAttemptedVerification.current) {
             hasAttemptedVerification.current = true;
-            setTimeout(() => {
-              if (!isWalletBeingDeleted()) {
-                handleVerify();
-              }
-            }, 500);
+            setTimeout(() => handleVerify(), 500);
           }
-
           return;
         }
 
-        setIsVerified(false);
-
-        if (!hasAttemptedVerification.current && typeof signMessage === 'function') {
+        if (typeof signMessage === 'function' && !hasAttemptedVerification.current) {
           hasAttemptedVerification.current = true;
-          setTimeout(() => {
-            if (!isWalletBeingDeleted()) {
-              handleVerify();
-            }
-          }, 500);
+          setTimeout(() => handleVerify(), 500);
         }
       } catch (err) {
         console.error('Error checking wallet status:', err);
@@ -170,13 +133,15 @@ export function WalletVerification() {
       }
     };
 
-    connectWallet();
+    checkWalletStatus();
   }, [publicKey, signMessage, toast, handleVerify]);
 
   useEffect(() => {
     if (!publicKey) {
-      hasConnectedWallet.current = false;
+      hasConnectedWallet.current = null;
       hasAttemptedVerification.current = false;
+      setIsVerified(false);
+      setError(null);
     }
   }, [publicKey]);
 
