@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { truncateAddress } from '@/lib/utils';
 import type { TokenStats as TokenStatsType, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
 import { TokenHolder } from '@dyor-hub/types';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { BarChart2, DollarSign, History, Twitter, Users } from 'lucide-react';
 import Link from 'next/link';
 import { SolscanButton } from '../SolscanButton';
@@ -204,7 +204,7 @@ export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenSta
 
       {/* Last Updated */}
       <div className='pt-2 text-xs text-zinc-500 text-right'>
-        Last updated: {new Date(stats.lastUpdated).toLocaleString()}
+        Last updated: {format(new Date(stats.lastUpdated), 'PPp')}
       </div>
     </div>
   );
