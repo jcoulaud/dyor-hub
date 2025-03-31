@@ -524,6 +524,55 @@ export const users = {
     }
   },
 
+  getUserSettings: async (): Promise<Record<string, unknown>> => {
+    try {
+      const endpoint = 'users/me/settings';
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first with short TTL
+      const cachedData = getCache<Record<string, unknown>>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Fetch fresh data
+      const data = await api<Record<string, unknown>>(endpoint);
+
+      // Update cache with short TTL (30 seconds)
+      setCache(cacheKey, data, 30 * 1000);
+
+      return data;
+    } catch (error) {
+      console.error('[getUserSettings] Error fetching user settings:', error);
+      return {};
+    }
+  },
+
+  updateUserSettings: async (settings: {
+    tokenChartDisplay: 'price' | 'marketCap';
+  }): Promise<Record<string, unknown>> => {
+    try {
+      const endpoint = 'users/me/settings';
+      const data = await api<Record<string, unknown>>(endpoint, {
+        method: 'PATCH',
+        body: {
+          settings: {
+            tokenChartDisplay: settings.tokenChartDisplay,
+          },
+        },
+      });
+
+      // Update cache
+      const cacheKey = `api:users/me/settings`;
+      setCache(cacheKey, data);
+
+      return data;
+    } catch (error) {
+      console.error('[updateUserSettings] Error updating user settings:', error);
+      throw error;
+    }
+  },
+
   updateWalletAddress: async (walletAddress: string): Promise<User> => {
     const response = await api<User>('users/wallet', {
       method: 'PUT',

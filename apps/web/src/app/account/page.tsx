@@ -1,7 +1,7 @@
 'use client';
 
 import { Separator } from '@/components/ui/separator';
-import { WalletCards } from 'lucide-react';
+import { Settings, WalletCards } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 // Create a client-only wallet content component
@@ -29,6 +29,12 @@ export default function AccountPage() {
               className='flex items-center gap-2 p-2 rounded-md bg-primary/10 text-primary font-medium'>
               <WalletCards className='h-5 w-5' />
               <span>Wallet Connection</span>
+            </a>
+            <a
+              href='/account/settings'
+              className='flex items-center gap-2 p-2 rounded-md hover:bg-accent text-foreground'>
+              <Settings className='h-5 w-5' />
+              <span>Settings</span>
             </a>
           </nav>
         </aside>

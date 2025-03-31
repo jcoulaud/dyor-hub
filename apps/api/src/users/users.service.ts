@@ -35,8 +35,33 @@ export class UsersService {
       .getOne();
   }
 
+  async getUserSettings(userId: string): Promise<Record<string, any>> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    return user?.preferences || {};
+  }
+
+  async updateUserSettings(
+    userId: string,
+    settings: Record<string, any>,
+  ): Promise<Record<string, any>> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+
+    const updatedSettings = {
+      ...(user.preferences || {}),
+      ...settings,
+    };
+
+    await this.userRepository.update(userId, {
+      preferences: updatedSettings,
+    });
+
+    return updatedSettings;
+  }
+
   async getUserStats(userId: string): Promise<UserStatsDto> {
-    // Count total comments (non-replies)
     const commentsCount = await this.commentRepository.count({
       where: {
         userId,
@@ -44,7 +69,6 @@ export class UsersService {
       },
     });
 
-    // Count replies
     const repliesCount = await this.commentRepository.count({
       where: {
         userId,
@@ -52,7 +76,6 @@ export class UsersService {
       },
     });
 
-    // Count upvotes
     const upvotesCount = await this.commentVoteRepository.count({
       where: {
         userId,
@@ -60,7 +83,6 @@ export class UsersService {
       },
     });
 
-    // Count downvotes
     const downvotesCount = await this.commentVoteRepository.count({
       where: {
         userId,
@@ -87,7 +109,6 @@ export class UsersService {
     limit = Math.min(50, Math.max(1, limit));
     const skip = (page - 1) * limit;
 
-    // Base comments query
     let commentsQuery = `
       SELECT 
         c.id as id,
@@ -108,7 +129,6 @@ export class UsersService {
       WHERE c.user_id = $1
     `;
 
-    // Votes query
     let votesQuery = `
       SELECT 
         cv.id as id,
@@ -130,7 +150,6 @@ export class UsersService {
       WHERE cv.user_id = $1
     `;
 
-    // Apply type filter conditions
     const queryParams: any[] = [userId];
     let paramCount = 1;
 
@@ -138,24 +157,23 @@ export class UsersService {
       switch (type) {
         case 'comments':
           commentsQuery += ` AND c.parent_id IS NULL`;
-          votesQuery = ''; // Don't include votes
+          votesQuery = '';
           break;
         case 'replies':
           commentsQuery += ` AND c.parent_id IS NOT NULL`;
-          votesQuery = ''; // Don't include votes
+          votesQuery = '';
           break;
         case 'upvotes':
-          commentsQuery = ''; // Don't include comments
+          commentsQuery = '';
           votesQuery += ` AND cv.vote_type = 'upvote'`;
           break;
         case 'downvotes':
-          commentsQuery = ''; // Don't include comments
+          commentsQuery = '';
           votesQuery += ` AND cv.vote_type = 'downvote'`;
           break;
       }
     }
 
-    // Combine queries if needed
     let fullQuery = '';
     if (commentsQuery && votesQuery) {
       fullQuery = `(${commentsQuery}) UNION ALL (${votesQuery})`;
@@ -165,7 +183,6 @@ export class UsersService {
       fullQuery = votesQuery;
     }
 
-    // Wrap in a subquery for ordering
     const orderBy =
       sort === 'popular' ? `(upvotes - downvotes) DESC` : `"createdAt" DESC`;
 
@@ -176,21 +193,18 @@ export class UsersService {
       LIMIT $${++paramCount} OFFSET $${++paramCount}
     `;
 
-    // Execute count query
     const countResult = await this.userRepository.manager.query(
       countQuery,
       queryParams,
     );
     const total = parseInt(countResult[0].count, 10);
 
-    // Execute main query with pagination
     const mainQueryParams = [...queryParams, limit, skip];
     const rawResults = await this.userRepository.manager.query(
       mainQuery,
       mainQueryParams,
     );
 
-    // Convert raw results to DTOs
     const result: UserActivityDto[] = rawResults.map((raw) => {
       return new UserActivityDto({
         id: raw.id,
