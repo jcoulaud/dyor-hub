@@ -1,10 +1,20 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Home, Link as LinkIcon, Menu, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useState } from 'react';
 import { UserMenu } from '../auth/UserMenu';
 
 export function Header() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   return (
     <header className='sticky top-0 z-50 w-full border-b border-white/5 bg-black/80 backdrop-blur-xl'>
       <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
@@ -17,15 +27,53 @@ export function Header() {
             </Link>
           </div>
           <div className='flex-1 flex items-center justify-center'>
-            <nav>
+            {/* Desktop Navigation */}
+            <nav className='hidden md:flex items-center space-x-4'>
+              <Link
+                href='/'
+                className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-blue-600/90 to-blue-800/90 hover:from-blue-500/90 hover:to-blue-700/90 border border-blue-700/30 shadow-md hover:shadow-blue-900/20 hover:scale-[1.02]'>
+                Home
+              </Link>
               <Link
                 href='/links'
-                className='px-2 sm:px-3 py-1.5 text-[13px] text-zinc-400 hover:text-white transition-colors rounded-md bg-zinc-800/40 whitespace-nowrap'>
+                className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-purple-600/90 to-indigo-800/90 hover:from-purple-500/90 hover:to-indigo-700/90 border border-indigo-700/30 shadow-md hover:shadow-indigo-900/20 hover:scale-[1.02]'>
                 Official Links
               </Link>
             </nav>
           </div>
-          <div className='w-[140px] flex items-center justify-end'>
+          <div className='w-[140px] flex items-center justify-end space-x-2'>
+            {/* Mobile Menu Button */}
+            <div className='md:hidden'>
+              <DropdownMenu open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    className='h-9 w-9 text-zinc-400 hover:text-white'>
+                    {isMobileMenuOpen ? <X className='h-5 w-5' /> : <Menu className='h-5 w-5' />}
+                    <span className='sr-only'>Toggle menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align='end'
+                  className='w-52 p-1 overflow-hidden border border-zinc-800/50 bg-black shadow-xl rounded-xl mt-2'>
+                  <Link
+                    href='/'
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
+                    <Home className='h-4 w-4' />
+                    <span>Home</span>
+                  </Link>
+                  <Link
+                    href='/links'
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
+                    <LinkIcon className='h-4 w-4' />
+                    <span>Official Links</span>
+                  </Link>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <UserMenu />
           </div>
         </div>
