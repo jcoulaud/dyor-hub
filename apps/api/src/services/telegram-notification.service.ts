@@ -93,7 +93,7 @@ export class TelegramNotificationService implements OnModuleInit {
         [
           {
             text: '🔗 View Comment',
-            url: `${this.appUrl}/tokens/${comment.tokenMintAddress}?comment=${comment.id}`,
+            url: `${this.appUrl}/tokens/${comment.tokenMintAddress}/comments/${comment.id}`,
           },
         ],
       ],

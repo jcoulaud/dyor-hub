@@ -13,7 +13,7 @@ interface TwitterShareButtonProps {
 export function TwitterShareButton({ comment, tokenMintAddress }: TwitterShareButtonProps) {
   const baseUrl = process.env.NEXT_PUBLIC_URL;
   const [tokenSymbol, setTokenSymbol] = useState<string | null>(null);
-  const shareUrl = `${baseUrl}/tokens/${tokenMintAddress}?comment=${comment.id}`;
+  const shareUrl = `${baseUrl}/tokens/${tokenMintAddress}/comments/${comment.id}`;
 
   useEffect(() => {
     const fetchTokenSymbol = async () => {

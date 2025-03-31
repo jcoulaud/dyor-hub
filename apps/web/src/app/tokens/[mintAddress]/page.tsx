@@ -13,16 +13,22 @@ import type { TokenStats as TokenStatsType } from '@dyor-hub/types';
 import { Token, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
 import { Globe, MessageSquare, Search, Shield, Sparkles, Twitter } from 'lucide-react';
 import Link from 'next/link';
-import { notFound, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { notFound, usePathname, useRouter } from 'next/navigation';
+import { use, useCallback, useEffect, useState } from 'react';
 
 interface PageProps {
   params: Promise<{ mintAddress: string }>;
+  commentId?: string;
 }
 
-export default function Page({ params }: PageProps) {
+export default function Page({ params, commentId }: PageProps) {
+  const { mintAddress } = use(params);
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const commentIdFromProps =
+    commentId || pathname.includes('/comments/')
+      ? pathname.split('/comments/')[1]?.split('/')[0]
+      : undefined;
   const [address, setAddress] = useState('');
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -64,8 +70,6 @@ export default function Page({ params }: PageProps) {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const { mintAddress } = await params;
-
         if (!mintAddress || !isValidSolanaAddress(mintAddress)) {
           notFound();
         }
@@ -489,10 +493,7 @@ export default function Page({ params }: PageProps) {
                   <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent mt-3'></div>
                 </CardHeader>
                 <CardContent className='relative pt-0'>
-                  <CommentSection
-                    tokenMintAddress={token.mintAddress}
-                    commentId={searchParams?.get('comment') || undefined}
-                  />
+                  <CommentSection tokenMintAddress={mintAddress} commentId={commentIdFromProps} />
                 </CardContent>
               </Card>
             </div>
