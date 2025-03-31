@@ -24,8 +24,8 @@ export class PerspectiveService {
   private readonly apiEndpoint =
     'https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze';
   private readonly threshold = {
-    spam: 0.9,
-    toxicity: 0.8,
+    spam: 0.95,
+    toxicity: 0.9,
   };
   private readonly urlRegex = /https?:\/\/[^\s]+/;
   private readonly cryptoTerms = new Set([
@@ -98,6 +98,13 @@ export class PerspectiveService {
               TOXICITY: {},
             },
             doNotStore: true,
+            context: {
+              entries: [
+                {
+                  text: "This is a cryptocurrency discussion platform. Common terms like 'moon', 'hodl', 'dyor', 'wagmi', 'gm', 'gn', 'ser', 'fren', 'based', 'gigachad', 'alpha', 'beta', 'ape', 'diamond hands', 'paper hands', 'to the moon', '10m', '100x', '1000x', 'mcap', 'market cap' are normal and not spam.",
+                },
+              ],
+            },
           }),
         });
 
@@ -153,6 +160,13 @@ export class PerspectiveService {
             TOXICITY: {},
           },
           doNotStore: true,
+          context: {
+            entries: [
+              {
+                text: "This is a cryptocurrency discussion platform. Common terms like 'moon', 'hodl', 'dyor', 'wagmi', 'gm', 'gn', 'ser', 'fren', 'based', 'gigachad', 'alpha', 'beta', 'ape', 'diamond hands', 'paper hands', 'to the moon', '10m', '100x', '1000x', 'mcap', 'market cap' are normal and not spam.",
+              },
+            ],
+          },
         }),
       });
 
