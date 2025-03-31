@@ -328,7 +328,7 @@ export function Activity({
                     rounded-xl overflow-hidden transition-all duration-200 hover:shadow-md
                   `}>
                   <Link
-                    href={`/tokens/${comment.tokenMintAddress}?comment=${comment.id}`}
+                    href={`/tokens/${comment.tokenMintAddress}/comments/${comment.id}`}
                     className='block cursor-pointer'>
                     {/* Comment Header */}
                     <div className='p-2.5 border-b border-zinc-800/50 flex items-center justify-between'>
@@ -381,7 +381,7 @@ export function Activity({
                   {/* View button */}
                   <div className='absolute bottom-2 right-4 z-10'>
                     <Link
-                      href={`/tokens/${comment.tokenMintAddress}?comment=${comment.id}`}
+                      href={`/tokens/${comment.tokenMintAddress}/comments/${comment.id}`}
                       className='flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-800/80 hover:bg-zinc-700 transition-colors text-xs text-zinc-400 hover:text-white'
                       onClick={(e) => e.stopPropagation()}>
                       <span>View</span>

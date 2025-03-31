@@ -114,7 +114,7 @@ export function LatestComments({
             isTransitioning ? 'opacity-0' : 'opacity-100',
           )}>
           <Link
-            href={`/tokens/${currentComment.token.tokenMintAddress}?comment=${currentComment.id}`}
+            href={`/tokens/${currentComment.token.tokenMintAddress}/comments/${currentComment.id}`}
             className='flex items-center gap-4 h-full p-4 transition-colors'>
             <Avatar className='h-10 w-10 border border-white/10 flex-shrink-0'>
               <AvatarImage

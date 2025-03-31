@@ -15,7 +15,7 @@ export default async function Image({
 }: {
   params: { mintAddress: string; commentId: string };
 }) {
-  const { commentId, mintAddress } = params;
+  const { mintAddress, commentId } = params;
 
   let commentContent = '';
   let username = '';

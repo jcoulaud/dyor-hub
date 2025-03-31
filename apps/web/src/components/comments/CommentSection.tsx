@@ -9,15 +9,15 @@ import { formatDistanceToNow } from 'date-fns';
 import {
   ArrowBigDown,
   ArrowBigUp,
+  ArrowLeft,
   ChevronDown,
-  Link as LinkIcon,
   MessageSquare,
   MoreHorizontal,
   Pencil,
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AuthModal } from '../auth/AuthModal';
 import {
@@ -77,11 +77,11 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   const commentRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const hasScrolled = useRef(false);
   const userHasInteracted = useRef(false);
-  const pathname = usePathname();
   const observerTarget = useRef<HTMLDivElement>(null);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+  const router = useRouter();
 
   const organizeComments = useCallback(
     (comments: CommentType[]) => {
@@ -216,47 +216,9 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   }, [isLoadingMore, pagination, fetchComments]);
 
   useEffect(() => {
-    if (commentId && commentsList.length > 0) {
-      hasScrolled.current = false;
-
-      if (!userHasInteracted.current) {
-        const findAndScrollToComment = () => {
-          const commentElement = commentRefs.current.get(commentId);
-          if (commentElement && !hasScrolled.current) {
-            commentElement.scrollIntoView({
-              behavior: 'smooth',
-              block: 'center',
-            });
-
-            // Add temporary highlight effect
-            commentElement.classList.add('transition-colors', 'duration-500');
-            commentElement.classList.add('bg-blue-500/15');
-            setTimeout(() => {
-              commentElement.classList.remove('bg-blue-500/15');
-              setTimeout(() => {
-                commentElement.classList.remove('transition-colors', 'duration-500');
-              }, 500);
-            }, 3000);
-
-            hasScrolled.current = true;
-            return true;
-          }
-          return false;
-        };
-
-        if (!findAndScrollToComment()) {
-          setTimeout(findAndScrollToComment, 1000);
-        }
-      }
-    }
-  }, [commentId, commentsList, isLoading]);
-
-  useEffect(() => {
-    return () => {
-      hasScrolled.current = false;
-      userHasInteracted.current = false;
-    };
-  }, []);
+    hasScrolled.current = false;
+    userHasInteracted.current = false;
+  }, [commentId]);
 
   const createCommentRefCallback = useCallback((itemId: string) => {
     return (el: HTMLDivElement | null) => {
@@ -438,29 +400,21 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     }
   }, [commentToDelete, fetchComments, toast]);
 
-  const copyCommentLinkToClipboard = useCallback(
-    (comment: CommentType) => {
-      handleUserInteraction();
-
-      const shareUrl = `${window.location.origin}${pathname}?comment=${comment.id}`;
-
-      navigator.clipboard
-        .writeText(shareUrl)
-        .then(() => {
-          toast({
-            title: 'Link copied',
-            description: 'Comment link copied to clipboard',
-          });
-        })
-        .catch(() => {
-          toast({
-            title: 'Failed to copy',
-            description: 'Could not copy the link. Please try again.',
-            variant: 'destructive',
-          });
-        });
+  // Function to find a comment and its replies in the list
+  const findCommentThread = useCallback(
+    (commentId: string, comments: CommentType[]): CommentType | null => {
+      for (const comment of comments) {
+        if (comment.id === commentId) {
+          return comment;
+        }
+        if (comment.replies?.length) {
+          const found = findCommentThread(commentId, comment.replies);
+          if (found) return found;
+        }
+      }
+      return null;
     },
-    [pathname, toast, handleUserInteraction],
+    [],
   );
 
   const Comment = ({ comment, depth = 0 }: { comment: CommentType; depth?: number }) => {
@@ -674,12 +628,6 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem
-                          className='cursor-pointer'
-                          onClick={() => copyCommentLinkToClipboard(comment)}>
-                          <LinkIcon className='mr-2 h-4 w-4' />
-                          Copy link
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
                           className='text-red-500 hover:text-red-500 data-highlighted:text-red-500 hover:bg-transparent cursor-pointer'
                           onClick={() => handleRemoveComment(comment.id)}>
                           <Trash2 className='mr-2 h-4 w-4' />
@@ -748,6 +696,46 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     );
   }
 
+  // If we have a commentId, show only that comment thread
+  if (commentId) {
+    const focusedComment = findCommentThread(commentId, commentsList);
+
+    if (!focusedComment) {
+      return (
+        <Card className='p-6 text-center'>
+          <div className='text-red-500 mb-3'>Comment not found</div>
+          <Button
+            onClick={() => router.push(`/tokens/${tokenMintAddress}`)}
+            variant='outline'
+            className='gap-2'>
+            <ArrowLeft className='h-4 w-4' />
+            Back to all comments
+          </Button>
+        </Card>
+      );
+    }
+
+    return (
+      <div className='space-y-4'>
+        <div className='flex items-center gap-2'>
+          <Button
+            onClick={() => router.push(`/tokens/${tokenMintAddress}`)}
+            variant='ghost'
+            size='sm'
+            className='gap-2 text-muted-foreground hover:text-foreground cursor-pointer'>
+            <ArrowLeft className='h-4 w-4' />
+            All comments
+          </Button>
+        </div>
+
+        <div className='space-y-4 w-full'>
+          <Comment comment={focusedComment} />
+        </div>
+      </div>
+    );
+  }
+
+  // Regular view for all comments
   return (
     <div className='space-y-4'>
       <div className='space-y-4 w-full'>
