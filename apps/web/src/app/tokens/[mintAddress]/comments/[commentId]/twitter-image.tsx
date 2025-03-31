@@ -2,4 +2,4 @@
 export { contentType, default, size } from './opengraph-image';
 
 // Specific Twitter alt text
-export const alt = 'DYOR hub - Comment shared on Twitter';
+export const alt = 'DYOR hub - New Comment';

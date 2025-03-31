@@ -50,7 +50,6 @@ export const metadata: Metadata = {
     title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
     description:
       'Your trusted platform for Solana memecoin discussions, research, and real-time updates. Connect with verified Twitter users, discover trending tokens, and make informed decisions.',
-    images: [`${process.env.NEXT_PUBLIC_URL || 'https://dyorhub.xyz'}/twitter-image.png`],
     creator: '@JulienCoulaud',
   },
 };
