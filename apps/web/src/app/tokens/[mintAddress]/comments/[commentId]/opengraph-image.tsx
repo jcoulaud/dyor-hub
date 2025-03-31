@@ -24,7 +24,10 @@ export default async function Image({
   let tokenImageUrl = '';
 
   try {
-    const commentData = await comments.get(commentId);
+    const [commentData, tokenData] = await Promise.all([
+      comments.get(commentId),
+      tokens.getByMintAddress(mintAddress),
+    ]);
 
     commentContent = commentData.content
       .replace(/<[^>]*>/g, '') // Remove HTML tags
@@ -32,88 +35,54 @@ export default async function Image({
 
     username = commentData.user.displayName || commentData.user.username || 'Anonymous';
     avatarUrl = commentData.user.avatarUrl || '';
-
-    const tokenData = await tokens.getByMintAddress(mintAddress);
-    tokenSymbol = tokenData.symbol || '';
+    tokenSymbol = tokenData.symbol || tokenData.name || 'Token';
     tokenImageUrl = tokenData.imageUrl || '';
   } catch {
     commentContent = 'Check out this comment on DYOR hub';
     username = 'User';
+    tokenSymbol = 'Token';
   }
 
+  // Load font
   let fontData;
   try {
     fontData = await readFile(join(process.cwd(), 'apps/web/public/fonts/Inter-SemiBold.ttf'));
-  } catch {}
+  } catch {
+    // Fallback to system fonts if Inter is not available
+  }
 
-  let avatarSrc: string | null = null;
-  let tokenImageSrc: string | null = null;
-  let logoSrc: string | null = null;
+  // Load logo
+  let logoSrc;
+  try {
+    const logoData = await readFile(join(process.cwd(), 'apps/web/public/logo-white.png'));
+    logoSrc = `data:image/png;base64,${logoData.toString('base64')}`;
+  } catch {
+    // Will use fallback if logo can't be loaded
+  }
 
-  const fetchImageAsDataUrl = async (url: string, type = 'image/jpeg'): Promise<string | null> => {
+  const fetchImageAsDataUrl = async (url: string): Promise<string | null> => {
     try {
-      if (!url || !url.startsWith('http')) {
-        return null;
-      }
+      if (!url || !url.startsWith('http')) return null;
 
-      const response = await fetch(url);
+      const res = await fetch(url);
+      if (!res.ok) return null;
 
-      if (!response.ok) {
-        return null;
-      }
-
-      const contentType = response.headers.get('content-type');
-      if (contentType) {
-        type = contentType;
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-
-      if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-        return null;
-      }
+      const arrayBuffer = await res.arrayBuffer();
+      if (!arrayBuffer || arrayBuffer.byteLength === 0) return null;
 
       const base64 = Buffer.from(arrayBuffer).toString('base64');
-      return `data:${type};base64,${base64}`;
+      const contentType = res.headers.get('content-type') || 'image/jpeg';
+      return `data:${contentType};base64,${base64}`;
     } catch {
       return null;
     }
   };
 
-  try {
-    // Try first path
-    try {
-      const logoData = await readFile(join(process.cwd(), 'apps/web/public/logo-white.png'));
-      logoSrc = `data:image/png;base64,${logoData.toString('base64')}`;
-    } catch {
-      // If first path fails, try second path
-      const logoData = await readFile(join(process.cwd(), 'public/logo-white.png'));
-      logoSrc = `data:image/png;base64,${logoData.toString('base64')}`;
-    }
-  } catch {
-    // Failed to load logo from either path, will use fallback
-  }
-
-  if (avatarUrl) {
-    avatarSrc = await fetchImageAsDataUrl(avatarUrl);
-  }
-
-  if (tokenImageUrl) {
-    tokenImageSrc = await fetchImageAsDataUrl(tokenImageUrl);
-  }
-
-  const fontOptions = fontData
-    ? {
-        fonts: [
-          {
-            name: 'Inter',
-            data: fontData,
-            style: 'normal' as const,
-            weight: 600 as const,
-          },
-        ],
-      }
-    : {};
+  // Fetch images in parallel
+  const [avatarSrc, tokenImageSrc] = await Promise.all([
+    avatarUrl ? fetchImageAsDataUrl(avatarUrl) : Promise.resolve(null),
+    tokenImageUrl ? fetchImageAsDataUrl(tokenImageUrl) : Promise.resolve(null),
+  ]);
 
   return new ImageResponse(
     (
@@ -128,7 +97,6 @@ export default async function Image({
             'radial-gradient(circle at 25px 25px, #333 2%, transparent 0%), radial-gradient(circle at 75px 75px, #333 2%, transparent 0%)',
           backgroundSize: '100px 100px',
           padding: 40,
-          justifyContent: 'flex-start',
           fontFamily: fontData ? 'Inter' : 'sans-serif',
         }}>
         {/* Header with Logo */}
@@ -159,7 +127,7 @@ export default async function Image({
                 fontWeight: 'bold',
                 marginRight: 20,
               }}>
-              <span>D</span>
+              D
             </div>
           )}
           <div
@@ -254,7 +222,7 @@ export default async function Image({
                       mintAddress.substring(mintAddress.length - 4)}
                 </span>
               </div>
-              {tokenImageSrc ? (
+              {tokenImageSrc && (
                 <img
                   src={tokenImageSrc}
                   width={64}
@@ -265,7 +233,7 @@ export default async function Image({
                   }}
                   alt='Token'
                 />
-              ) : null}
+              )}
             </div>
           </div>
 
@@ -319,7 +287,16 @@ export default async function Image({
     ),
     {
       ...size,
-      ...fontOptions,
+      ...(fontData && {
+        fonts: [
+          {
+            name: 'Inter',
+            data: fontData,
+            style: 'normal',
+            weight: 600,
+          },
+        ],
+      }),
     },
   );
 }
