@@ -64,7 +64,8 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingSpecificComment, setIsLoadingSpecificComment] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
@@ -82,6 +83,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const router = useRouter();
+  const [focusedComment, setFocusedComment] = useState<CommentType | null>(null);
 
   const organizeComments = useCallback(
     (comments: CommentType[]) => {
@@ -182,13 +184,16 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
 
   // Fetch comments when component mounts or auth state changes
   useEffect(() => {
-    if (!authLoading) {
-      fetchComments();
+    if (!authLoading && !commentId) {
+      setIsLoading(true);
+      fetchComments().finally(() => setIsLoading(false));
     }
-  }, [authLoading, isAuthenticated, fetchComments]);
+  }, [authLoading, isAuthenticated, fetchComments, commentId]);
 
   // Set up intersection observer for infinite scrolling
   useEffect(() => {
+    if (commentId) return; // Don't set up infinite scroll when viewing a specific comment
+
     const target = observerTarget.current;
     const observer = new IntersectionObserver(
       (entries) => {
@@ -213,7 +218,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         observer.unobserve(target);
       }
     };
-  }, [isLoadingMore, pagination, fetchComments]);
+  }, [isLoadingMore, pagination, fetchComments, commentId]);
 
   useEffect(() => {
     hasScrolled.current = false;
@@ -399,23 +404,6 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
       setCommentToDelete(null);
     }
   }, [commentToDelete, fetchComments, toast]);
-
-  // Function to find a comment and its replies in the list
-  const findCommentThread = useCallback(
-    (commentId: string, comments: CommentType[]): CommentType | null => {
-      for (const comment of comments) {
-        if (comment.id === commentId) {
-          return comment;
-        }
-        if (comment.replies?.length) {
-          const found = findCommentThread(commentId, comment.replies);
-          if (found) return found;
-        }
-      }
-      return null;
-    },
-    [],
-  );
 
   const Comment = ({ comment, depth = 0 }: { comment: CommentType; depth?: number }) => {
     const maxDepth = 5;
@@ -666,51 +654,37 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className='space-y-4'>
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className='p-4 animate-pulse'>
-            <div className='flex gap-3'>
-              <div className='w-10 h-20 bg-gray-200 rounded'></div>
-              <div className='flex-1 space-y-2'>
-                <div className='h-5 bg-gray-200 rounded w-1/4'></div>
-                <div className='h-4 bg-gray-200 rounded w-3/4'></div>
-                <div className='h-4 bg-gray-200 rounded w-1/2'></div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-    );
-  }
+  useEffect(() => {
+    const fetchSpecificComment = async () => {
+      if (commentId) {
+        try {
+          setIsLoadingSpecificComment(true);
+          const comment = await comments.get(commentId);
+          setFocusedComment(comment);
+        } catch (error) {
+          console.error('Error fetching specific comment:', error);
+          setFocusedComment(null);
+        } finally {
+          setIsLoadingSpecificComment(false);
+        }
+      }
+    };
 
-  if (error) {
-    return (
-      <Card className='p-6 text-center'>
-        <div className='text-red-500 mb-3'>Error: {error}</div>
-        <Button onClick={() => fetchComments()} variant='outline'>
-          Try Again
-        </Button>
-      </Card>
-    );
-  }
+    fetchSpecificComment();
+  }, [commentId]);
 
-  // If we have a commentId, show only that comment thread
   if (commentId) {
-    const focusedComment = findCommentThread(commentId, commentsList);
-
-    if (!focusedComment) {
+    if (isLoadingSpecificComment || (!isLoadingSpecificComment && !focusedComment)) {
       return (
-        <Card className='p-6 text-center'>
-          <div className='text-red-500 mb-3'>Comment not found</div>
-          <Button
-            onClick={() => router.push(`/tokens/${tokenMintAddress}`)}
-            variant='outline'
-            className='gap-2'>
-            <ArrowLeft className='h-4 w-4' />
-            Back to all comments
-          </Button>
+        <Card className='p-4 animate-pulse'>
+          <div className='flex gap-3'>
+            <div className='w-10 h-20 bg-gray-200 rounded'></div>
+            <div className='flex-1 space-y-2'>
+              <div className='h-5 bg-gray-200 rounded w-1/4'></div>
+              <div className='h-4 bg-gray-200 rounded w-3/4'></div>
+              <div className='h-4 bg-gray-200 rounded w-1/2'></div>
+            </div>
+          </div>
         </Card>
       );
     }
@@ -729,7 +703,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         </div>
 
         <div className='space-y-4 w-full'>
-          <Comment comment={focusedComment} />
+          <Comment comment={focusedComment!} />
         </div>
       </div>
     );
