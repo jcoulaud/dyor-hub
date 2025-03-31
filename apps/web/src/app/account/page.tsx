@@ -1,10 +1,11 @@
 'use client';
 
-import { Separator } from '@/components/ui/separator';
-import { WalletCards } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ShieldCheck, WalletCards } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
-// Create a client-only wallet content component
+// Client-only wallet content component
 const WalletContent = dynamic(
   () => import('@/components/wallet/WalletContent').then((mod) => mod.WalletContent),
   { ssr: false },
@@ -12,20 +13,31 @@ const WalletContent = dynamic(
 
 export default function AccountPage() {
   return (
-    <section className='space-y-6 bg-card rounded-xl border shadow-sm p-6'>
-      <div className='flex items-center justify-between'>
-        <div>
-          <h2 className='text-xl font-semibold'>Wallet Connection</h2>
-          <p className='text-sm text-muted-foreground'>Connect and verify your Solana wallet</p>
-        </div>
-        <div className='h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center'>
-          <WalletCards className='h-5 w-5 text-primary' />
-        </div>
+    <div className='space-y-8'>
+      <div className='flex items-center justify-between mb-4'>
+        <h2 className='text-2xl font-bold'>Connected Wallets</h2>
+        <Badge variant='outline' className='px-3'>
+          <ShieldCheck className='h-3 w-3 mr-1' />
+          <span className='text-xs'>Security</span>
+        </Badge>
       </div>
 
-      <Separator />
-
-      <WalletContent />
-    </section>
+      <Card className='transition-all hover:shadow-md'>
+        <CardHeader>
+          <div className='flex items-center justify-between'>
+            <div>
+              <CardTitle>Wallet Connection</CardTitle>
+              <CardDescription>Connect and verify your Solana wallet</CardDescription>
+            </div>
+            <div className='h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center'>
+              <WalletCards className='h-5 w-5 text-primary' />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <WalletContent />
+        </CardContent>
+      </Card>
+    </div>
   );
 }
