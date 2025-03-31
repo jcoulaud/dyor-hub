@@ -7,11 +7,12 @@ import { TokenStats } from '@/components/tokens/TokenStats';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 import { tokens } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import type { TokenStats as TokenStatsType } from '@dyor-hub/types';
 import { Token, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
-import { Globe, MessageSquare, Search, Shield, Sparkles, Twitter } from 'lucide-react';
+import { Copy, Globe, MessageSquare, Search, Shield, Sparkles, Twitter } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, usePathname, useRouter } from 'next/navigation';
 import { use, useCallback, useEffect, useState } from 'react';
@@ -25,6 +26,7 @@ export default function Page({ params, commentId }: PageProps) {
   const { mintAddress } = use(params);
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
   const commentIdFromProps =
     commentId || pathname.includes('/comments/')
       ? pathname.split('/comments/')[1]?.split('/')[0]
@@ -316,6 +318,19 @@ export default function Page({ params, commentId }: PageProps) {
                             <line x1='10' y1='14' x2='21' y2='3' />
                           </svg>
                         </SolscanButton>
+
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(token.mintAddress);
+                            toast({
+                              title: 'Address copied',
+                              description: 'Token address copied to clipboard',
+                            });
+                          }}
+                          className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
+                          title='Copy address'>
+                          <Copy className='w-4 h-4 text-blue-400' />
+                        </button>
 
                         {/* Desktop Social buttons */}
                         {token.websiteUrl && (
