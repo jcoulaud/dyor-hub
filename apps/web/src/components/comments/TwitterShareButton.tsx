@@ -55,7 +55,7 @@ export function TwitterShareButton({ comment, tokenMintAddress }: TwitterShareBu
       className={cn('h-8 gap-1 px-2 cursor-pointer', comment.isRemoved && 'opacity-40')}
       onClick={(e) => {
         e.preventDefault();
-        window.open(twitterShareUrl, '_blank', 'noopener,noreferrer,width=600,height=300');
+        window.open(twitterShareUrl, '_blank', 'noopener,noreferrer,width=800,height=600');
       }}
       disabled={comment.isRemoved}>
       <Twitter className='h-4 w-4' />
