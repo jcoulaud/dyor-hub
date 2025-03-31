@@ -14,6 +14,34 @@ log() {
   echo "[$(date +%Y-%m-%d\ %H:%M:%S)] $1"
 }
 
+# Cleanup function for Docker resources
+cleanup_docker_resources() {
+  {
+    # Redirect all cleanup logs to a separate file
+    exec 1>>/var/log/dyor-hub-cleanup.log 2>&1
+    
+    echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Starting async cleanup of Docker resources..."
+    
+    # Wait a bit to ensure new deployment is stable
+    sleep 300
+    
+    # Clean build cache older than 12h
+    docker builder prune -f --filter until=12h --keep-storage=10GB
+    
+    # Remove dangling images and unused images older than 12h
+    docker image prune -f
+    docker image prune -a -f --filter "until=12h"
+    
+    # Remove unused volumes (not used by any container) older than 12h
+    docker volume prune -f --filter "until=12h"
+    
+    # Clean old container logs but preserve recent ones
+    find /var/lib/docker/containers/ -type f -name '*-json.log' -size +10M -exec truncate -s 10M {} \;
+    
+    echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Async cleanup completed"
+  } &>/dev/null &  # Redirect all output to /dev/null and run in background
+}
+
 log "Starting blue-green deployment"
 
 # Determine current active environment
@@ -143,4 +171,6 @@ docker image prune -f
 rm docker-compose.override.yml
 echo "$NEW_ENV" > ".env.active"
 
-log "Deployment completed successfully" 
+log "Deployment completed successfully"
+cleanup_docker_resources  # Start cleanup in background
+log "Deployment finished, cleanup will run in background" 
