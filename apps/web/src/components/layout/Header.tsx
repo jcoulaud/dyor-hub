@@ -6,7 +6,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, Link as LinkIcon, Menu, X } from 'lucide-react';
+import { Home, Link as LinkIcon, Menu, MessageSquare, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -39,6 +39,14 @@ export function Header() {
                 className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-purple-600/90 to-indigo-800/90 hover:from-purple-500/90 hover:to-indigo-700/90 border border-indigo-700/30 shadow-md hover:shadow-indigo-900/20 hover:scale-[1.02]'>
                 Official Links
               </Link>
+              <a
+                href='https://discord.gg/GW8t7pFZ'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-indigo-600/90 to-purple-700/90 hover:from-indigo-500/90 hover:to-purple-600/90 border border-purple-700/30 shadow-md hover:shadow-purple-900/20 hover:scale-[1.02]'>
+                <MessageSquare className='h-4 w-4 inline-block mr-1.5' />
+                Discord
+              </a>
             </nav>
           </div>
           <div className='w-[140px] flex items-center justify-end space-x-2'>
@@ -71,6 +79,15 @@ export function Header() {
                     <LinkIcon className='h-4 w-4' />
                     <span>Official Links</span>
                   </Link>
+                  <a
+                    href='https://discord.gg/GW8t7pFZ'
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
+                    <MessageSquare className='h-4 w-4' />
+                    <span>Discord</span>
+                  </a>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
