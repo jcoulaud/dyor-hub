@@ -7,6 +7,7 @@ import {
   Delete,
   Get,
   Logger,
+  NotFoundException,
   Param,
   Post,
   Put,
@@ -84,6 +85,23 @@ export class CommentsController {
         excludeExtraneousValues: true,
       }),
     );
+  }
+
+  @Get(':id')
+  @UseGuards(OptionalAuthGuard)
+  async getCommentById(
+    @Param('id') id: string,
+    @CurrentUser() user?: { id: string },
+  ): Promise<CommentResponseDto> {
+    const comment = await this.commentsService.findById(id, user?.id);
+
+    if (!comment) {
+      throw new NotFoundException(`Comment with ID ${id} not found`);
+    }
+
+    return plainToInstance(CommentResponseDto, comment, {
+      excludeExtraneousValues: true,
+    });
   }
 
   @Post()

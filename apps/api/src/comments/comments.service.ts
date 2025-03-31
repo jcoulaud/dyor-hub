@@ -112,6 +112,60 @@ export class CommentsService {
     }
   }
 
+  async findById(
+    id: string,
+    currentUserId?: string,
+  ): Promise<CommentResponseDto | null> {
+    try {
+      const comment = await this.commentRepository.findOne({
+        where: { id },
+        relations: ['user', 'removedBy'],
+      });
+
+      if (!comment) {
+        return null;
+      }
+
+      let userVote = null;
+      if (currentUserId) {
+        userVote = await this.voteRepository.findOne({
+          where: {
+            userId: currentUserId,
+            commentId: id,
+          },
+        });
+      }
+
+      return {
+        id: comment.id,
+        content: comment.removedById
+          ? `Comment removed by ${comment.removedBy?.id === comment.userId ? 'user' : 'moderator'}`
+          : comment.content,
+        createdAt: comment.createdAt,
+        updatedAt: comment.updatedAt,
+        voteCount: comment.upvotes - comment.downvotes,
+        parentId: comment.parentId,
+        user: {
+          id: comment.user.id,
+          username: comment.user.username,
+          displayName: comment.user.displayName,
+          avatarUrl: comment.user.avatarUrl,
+        },
+        userVoteType: userVote?.type || null,
+        isRemoved: !!comment.removedById,
+        isEdited: comment.isEdited,
+        removedBy: comment.removedById
+          ? {
+              id: comment.removedBy.id,
+              isSelf: comment.removedBy.id === comment.userId,
+            }
+          : null,
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
   async create(
     createCommentDto: CreateCommentDto,
     userId: string,

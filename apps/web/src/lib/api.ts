@@ -186,6 +186,11 @@ export const comments = {
     return response;
   },
 
+  get: async (commentId: string): Promise<Comment> => {
+    const response = await api<Comment>(`comments/${commentId}`);
+    return response;
+  },
+
   latest: async (limit: number = 5): Promise<LatestComment[]> => {
     const response = await api<LatestComment[]>(`comments/latest?limit=${limit}`);
     return response;
