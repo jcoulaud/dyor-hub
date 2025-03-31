@@ -41,6 +41,7 @@ import {
 } from '../ui/dropdown-menu';
 import { AdminModeration } from './AdminModeration';
 import { CommentInput } from './CommentInput';
+import { CopyLinkButton } from './CopyLinkButton';
 import { TwitterShareButton } from './TwitterShareButton';
 
 interface CommentSectionProps {
@@ -592,11 +593,14 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
                       className='h-8 gap-1 px-2 cursor-pointer'
                       onClick={handleReplyClick}>
                       <MessageSquare className='h-4 w-4' />
-                      <span className='text-xs'>Reply</span>
+                      <span className='hidden sm:inline text-xs'>Reply</span>
                     </Button>
                   )}
                   {!comment.isRemoved && (
                     <TwitterShareButton comment={comment} tokenMintAddress={tokenMintAddress} />
+                  )}
+                  {!comment.isRemoved && (
+                    <CopyLinkButton comment={comment} tokenMintAddress={tokenMintAddress} />
                   )}
                   {isAdmin && !isCommentOwner && !comment.isRemoved && (
                     <AdminModeration comment={comment} onCommentUpdated={fetchComments} />
