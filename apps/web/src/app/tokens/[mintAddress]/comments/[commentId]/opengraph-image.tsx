@@ -10,6 +10,33 @@ export const size = {
 };
 export const contentType = 'image/png';
 
+async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    // Handle local files from public directory
+    if (url.startsWith('/')) {
+      const relativePath = url.slice(1);
+      const data = await readFile(join(process.cwd(), 'public', relativePath));
+      return `data:image/png;base64,${Buffer.from(data).toString('base64')}`;
+    }
+
+    // Handle remote URLs
+    if (url.startsWith('http')) {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+
+      const arrayBuffer = await res.arrayBuffer();
+      if (!arrayBuffer || arrayBuffer.byteLength === 0) return null;
+
+      const contentType = res.headers.get('content-type') || 'image/jpeg';
+      return `data:${contentType};base64,${Buffer.from(arrayBuffer).toString('base64')}`;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function Image({
   params,
 }: {
@@ -17,10 +44,11 @@ export default async function Image({
 }) {
   const { mintAddress, commentId } = params;
 
-  let commentContent = '';
-  let username = '';
+  // Initialize default values
+  let commentContent = 'Check out this comment on DYOR hub';
+  let username = 'User';
   let avatarUrl = '';
-  let tokenSymbol = '';
+  let tokenSymbol = 'Token';
   let tokenImageUrl = '';
 
   try {
@@ -29,59 +57,20 @@ export default async function Image({
       tokens.getByMintAddress(mintAddress),
     ]);
 
-    commentContent = commentData.content
-      .replace(/<[^>]*>/g, '') // Remove HTML tags
-      .substring(0, 220); // Limit to 220 chars
-
+    commentContent = commentData.content.replace(/<[^>]*>/g, '').substring(0, 220);
     username = commentData.user.displayName || commentData.user.username || 'Anonymous';
     avatarUrl = commentData.user.avatarUrl || '';
     tokenSymbol = tokenData.symbol || tokenData.name || 'Token';
     tokenImageUrl = tokenData.imageUrl || '';
   } catch {
-    commentContent = 'Check out this comment on DYOR hub';
-    username = 'User';
-    tokenSymbol = 'Token';
+    // Use default values set above if fetching fails
   }
-
-  // Load font
-  let fontData;
-  try {
-    fontData = await readFile(join(process.cwd(), 'apps/web/public/fonts/Inter-SemiBold.ttf'));
-  } catch {
-    // Fallback to system fonts if Inter is not available
-  }
-
-  // Load logo
-  let logoSrc;
-  try {
-    const logoData = await readFile(join(process.cwd(), 'apps/web/public/logo-white.png'));
-    logoSrc = `data:image/png;base64,${logoData.toString('base64')}`;
-  } catch {
-    // Will use fallback if logo can't be loaded
-  }
-
-  const fetchImageAsDataUrl = async (url: string): Promise<string | null> => {
-    try {
-      if (!url || !url.startsWith('http')) return null;
-
-      const res = await fetch(url);
-      if (!res.ok) return null;
-
-      const arrayBuffer = await res.arrayBuffer();
-      if (!arrayBuffer || arrayBuffer.byteLength === 0) return null;
-
-      const base64 = Buffer.from(arrayBuffer).toString('base64');
-      const contentType = res.headers.get('content-type') || 'image/jpeg';
-      return `data:${contentType};base64,${base64}`;
-    } catch {
-      return null;
-    }
-  };
 
   // Fetch images in parallel
-  const [avatarSrc, tokenImageSrc] = await Promise.all([
+  const [avatarSrc, tokenImageSrc, logoSrc] = await Promise.all([
     avatarUrl ? fetchImageAsDataUrl(avatarUrl) : Promise.resolve(null),
     tokenImageUrl ? fetchImageAsDataUrl(tokenImageUrl) : Promise.resolve(null),
+    fetchImageAsDataUrl('/logo-white.png'),
   ]);
 
   return new ImageResponse(
@@ -97,13 +86,14 @@ export default async function Image({
             'radial-gradient(circle at 25px 25px, #333 2%, transparent 0%), radial-gradient(circle at 75px 75px, #333 2%, transparent 0%)',
           backgroundSize: '100px 100px',
           padding: 40,
-          fontFamily: fontData ? 'Inter' : 'sans-serif',
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
         }}>
         {/* Header with Logo */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 40 }}>
           {logoSrc ? (
             <img
-              src={logoSrc}
+              src={logoSrc as unknown as string}
               width={120}
               height={40}
               style={{
@@ -287,16 +277,6 @@ export default async function Image({
     ),
     {
       ...size,
-      ...(fontData && {
-        fonts: [
-          {
-            name: 'Inter',
-            data: fontData,
-            style: 'normal',
-            weight: 600,
-          },
-        ],
-      }),
     },
   );
 }
