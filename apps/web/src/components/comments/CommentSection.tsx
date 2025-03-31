@@ -264,6 +264,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
       try {
         const response = await comments.vote(commentId, type);
 
+        // Update main comments list state
         setComments((prevComments) => {
           const updateCommentVotes = (comments: CommentType[]): CommentType[] => {
             return comments.map((comment) => {
@@ -288,6 +289,30 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
 
           return updateCommentVotes(prevComments);
         });
+
+        // Update focusedComment state when on a comment page
+        if (focusedComment) {
+          const updateFocusedComment = (comment: CommentType): CommentType => {
+            if (comment.id === commentId) {
+              return {
+                ...comment,
+                voteCount: response.upvotes - response.downvotes,
+                userVoteType: response.userVoteType,
+              };
+            }
+
+            if (comment.replies?.length) {
+              return {
+                ...comment,
+                replies: comment.replies.map(updateFocusedComment),
+              };
+            }
+
+            return comment;
+          };
+
+          setFocusedComment(updateFocusedComment(focusedComment));
+        }
       } catch (error) {
         toast({
           title: 'Error',
