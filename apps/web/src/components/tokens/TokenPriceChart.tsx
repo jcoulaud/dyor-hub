@@ -1,7 +1,8 @@
 'use client';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { ApiError, tokens } from '@/lib/api';
+import { tokens, users } from '@/lib/api';
+import { format } from 'date-fns';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
 
@@ -15,6 +16,10 @@ interface TokenPriceChartProps {
   tokenAddress: string;
   totalSupply: string;
 }
+
+// Cache for price history data
+const priceHistoryCache = new Map<string, { data: ChartPoint[]; timestamp: number }>();
+const CACHE_TTL = 30000; // 30 seconds
 
 const formatPrice = (value: number) => {
   return new Intl.NumberFormat('en-US', {
@@ -34,29 +39,52 @@ const formatMarketCap = (value: number) => {
   }).format(value);
 };
 
-const formatTime = (unixTime: number) => {
-  return new Date(unixTime * 1000).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
+const formatTime = (timestamp: number): string => {
+  return format(new Date(timestamp * 1000), 'h:mm a');
 };
-
-// Cache for price history data
-const priceHistoryCache = new Map<string, { data: ChartPoint[]; timestamp: number }>();
-const CACHE_TTL = 30000; // 30 seconds
 
 const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPriceChartProps) => {
   const [data, setData] = useState<ChartPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPriceUp, setIsPriceUp] = useState<boolean>(false);
-  const [showMarketCap, setShowMarketCap] = useState(true);
+  const [showMarketCap, setShowMarketCap] = useState(false);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isDevelopment = process.env.NODE_ENV === 'development';
+
+  // Load user preference on initial render
+  useEffect(() => {
+    const loadUserPreference = async () => {
+      try {
+        const settings = await users.getUserSettings();
+        if (settings.tokenChartDisplay === 'marketCap') {
+          setShowMarketCap(true);
+        } else {
+          setShowMarketCap(false);
+        }
+      } catch {
+        // Silently fail and use default preference
+      }
+    };
+
+    loadUserPreference();
+  }, []);
+
+  // Save user preference when it changes
+  const handleDisplayToggle = useCallback(async (checked: boolean) => {
+    setShowMarketCap(!checked);
+    try {
+      const chartMode = !checked ? 'marketCap' : 'price';
+      await users.updateUserSettings({
+        tokenChartDisplay: chartMode,
+      });
+    } catch {
+      // Continue with local state change even if saving fails
+    }
+  }, []);
 
   const fetchData = useCallback(
     async (retryCount = 0) => {
@@ -109,29 +137,24 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
         } else {
           setError('No price data available');
         }
-      } catch (err) {
-        // Type guard for AbortError
-        if (err instanceof Error && err.name === 'AbortError') return;
+      } catch (error) {
+        // Handle aborted requests
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
 
-        const errorMessage = err instanceof ApiError ? err.message : 'Failed to load data';
+        setError('Failed to load price data');
 
-        if (errorMessage.toLowerCase().includes('rate limit') && retryCount < 3) {
-          const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000);
-          setError(`Rate limit exceeded. Retrying in ${retryDelay / 1000}s...`);
+        // Retry with exponential backoff
+        if (retryCount < 3) {
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current);
+          }
 
+          const delay = Math.min(1000 * 2 ** retryCount, 10000);
           retryTimeoutRef.current = setTimeout(() => {
             fetchData(retryCount + 1);
-          }, retryDelay);
-        } else {
-          setError(errorMessage);
-          // On error, keep the cached data if available
-          const cached = priceHistoryCache.get(tokenAddress);
-          if (cached) {
-            setData(cached.data);
-            const firstPrice = cached.data[0]?.price;
-            const lastPrice = cached.data[cached.data.length - 1]?.price;
-            setIsPriceUp(lastPrice > firstPrice);
-          }
+          }, delay);
         }
       } finally {
         setIsLoading(false);
@@ -141,32 +164,24 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
   );
 
   useEffect(() => {
-    if (isDevelopment) return; // Skip effect in development mode
-
-    // Clear any pending timeouts
-    if (fetchTimeoutRef.current) {
-      clearTimeout(fetchTimeoutRef.current);
-    }
-
-    // Debounce the fetch call
-    fetchTimeoutRef.current = setTimeout(() => {
-      fetchData();
-    }, 100);
+    fetchData();
 
     return () => {
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
       }
-    };
-  }, [tokenAddress, fetchData, isDevelopment]);
 
-  // If in development mode, show placeholder
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [fetchData]);
+
+  // Render placeholder in development mode
   if (isDevelopment) {
     return (
       <div className='w-full h-[120px] p-4 bg-zinc-900 rounded-xl shadow flex items-center justify-center'>
@@ -214,7 +229,7 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
         <Switch
           id='chart-toggle'
           checked={!showMarketCap}
-          onCheckedChange={(checked) => setShowMarketCap(!checked)}
+          onCheckedChange={handleDisplayToggle}
           className='data-[state=checked]:bg-blue-500 cursor-pointer'
         />
       </div>

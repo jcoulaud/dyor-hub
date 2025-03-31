@@ -10,6 +10,7 @@ export interface UserProfile extends User {
   twitterId?: string;
   twitterAccessToken?: string;
   twitterRefreshToken?: string;
+  preferences?: Record<string, any>;
 }
 
 export interface UserStats {

@@ -36,6 +36,14 @@ export class UserEntity {
   @Column({ name: 'is_admin', type: 'boolean', default: false })
   isAdmin: boolean;
 
+  @Column({
+    name: 'preferences',
+    type: 'jsonb',
+    nullable: true,
+    default: () => "'{}'",
+  })
+  preferences: Record<string, any>;
+
   @OneToMany(() => CommentEntity, (comment) => comment.user)
   comments: CommentEntity[];
 

@@ -1,12 +1,18 @@
 import { UserActivity, UserStats } from '@dyor-hub/types';
 import {
+  Body,
   Controller,
   Get,
   NotFoundException,
   Param,
+  Patch,
   Query,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
 import { UserResponseDto } from '../auth/dto/user-response.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { PaginatedResult, UsersService } from './users.service';
 
 @Controller('users')
@@ -24,6 +30,24 @@ export class UsersController {
     }
 
     return UserResponseDto.fromEntity(user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/settings')
+  async getMySettings(@Request() req): Promise<Record<string, any>> {
+    return this.usersService.getUserSettings(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/settings')
+  async updateMySettings(
+    @Request() req,
+    @Body() updateSettingsDto: UpdateSettingsDto,
+  ): Promise<Record<string, any>> {
+    return this.usersService.updateUserSettings(
+      req.user.id,
+      updateSettingsDto.settings,
+    );
   }
 
   @Get(':username/stats')
