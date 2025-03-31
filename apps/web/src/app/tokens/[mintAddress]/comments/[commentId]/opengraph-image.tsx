@@ -52,8 +52,27 @@ export default async function Image({
 
   const fetchImageAsDataUrl = async (url: string, type = 'image/jpeg'): Promise<string | null> => {
     try {
+      if (!url || !url.startsWith('http')) {
+        return null;
+      }
+
       const response = await fetch(url);
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (contentType) {
+        type = contentType;
+      }
+
       const arrayBuffer = await response.arrayBuffer();
+
+      if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+        return null;
+      }
+
       const base64 = Buffer.from(arrayBuffer).toString('base64');
       return `data:${type};base64,${base64}`;
     } catch {
@@ -61,8 +80,19 @@ export default async function Image({
     }
   };
 
-  const logoData = await readFile(join(process.cwd(), 'public/logo-white.png'));
-  logoSrc = `data:image/png;base64,${logoData.toString('base64')}`;
+  try {
+    // Try first path
+    try {
+      const logoData = await readFile(join(process.cwd(), 'apps/web/public/logo-white.png'));
+      logoSrc = `data:image/png;base64,${logoData.toString('base64')}`;
+    } catch {
+      // If first path fails, try second path
+      const logoData = await readFile(join(process.cwd(), 'public/logo-white.png'));
+      logoSrc = `data:image/png;base64,${logoData.toString('base64')}`;
+    }
+  } catch {
+    // Failed to load logo from either path, will use fallback
+  }
 
   if (avatarUrl) {
     avatarSrc = await fetchImageAsDataUrl(avatarUrl);
@@ -103,23 +133,42 @@ export default async function Image({
         }}>
         {/* Header with Logo */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 40 }}>
-          <img
-            src={logoSrc}
-            width={120}
-            height={40}
-            style={{
-              objectFit: 'contain',
-              marginRight: 20,
-            }}
-            alt='DYOR hub Logo'
-          />
+          {logoSrc ? (
+            <img
+              src={logoSrc}
+              width={120}
+              height={40}
+              style={{
+                objectFit: 'contain',
+                marginRight: 20,
+              }}
+              alt='DYOR hub Logo'
+            />
+          ) : (
+            <div
+              style={{
+                backgroundColor: '#8b5cf6',
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: 24,
+                fontWeight: 'bold',
+                marginRight: 20,
+              }}>
+              <span>D</span>
+            </div>
+          )}
           <div
             style={{
               color: '#ffffff',
               fontSize: 30,
               fontWeight: 'bold',
               display: 'flex',
-              marginLeft: 20,
+              marginLeft: logoSrc ? 20 : 0,
             }}>
             <span>New comment on DYOR hub!</span>
           </div>
