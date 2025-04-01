@@ -21,6 +21,24 @@ export async function generateMetadata({ params }: UserPageProps): Promise<Metad
     return {
       title: `${user.displayName} (@${user.username})`,
       description: `Profile page for ${user.displayName} (@${user.username})`,
+      openGraph: {
+        title: `${user.displayName} (@${user.username})`,
+        description: `Profile page for ${user.displayName} (@${user.username})`,
+        images: [
+          {
+            url: `/users/${username}/opengraph-image`,
+            width: 1200,
+            height: 630,
+            alt: `${user.displayName} - DYOR hub Profile`,
+          },
+        ],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: `${user.displayName} (@${user.username})`,
+        description: `Profile page for ${user.displayName} (@${user.username})`,
+        images: [`/users/${username}/opengraph-image`],
+      },
     };
   } catch {
     return {
