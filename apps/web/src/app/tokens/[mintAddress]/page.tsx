@@ -16,6 +16,8 @@ import Link from 'next/link';
 import { notFound, usePathname, useRouter } from 'next/navigation';
 import { use, useCallback, useEffect, useState } from 'react';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 interface PageProps {
   params: Promise<{ mintAddress: string }>;
   commentId?: string;
@@ -87,6 +89,12 @@ export default function Page({ params, commentId }: PageProps) {
         // Replace cf-ipfs.com with ipfs.io in image URL
         if (token.imageUrl && token.imageUrl.includes('cf-ipfs.com/ipfs/')) {
           token.imageUrl = token.imageUrl.replace('cf-ipfs.com/ipfs/', 'ipfs.io/ipfs/');
+        }
+
+        // Skip fetching token stats in development environment
+        if (isDev) {
+          setIsStatsLoaded(true);
+          return;
         }
 
         const [tokenStats, twitterHistory] = await Promise.all([
@@ -434,7 +442,9 @@ export default function Page({ params, commentId }: PageProps) {
                         <div className='inline-flex items-center px-4 py-2 rounded-full bg-red-950/20 backdrop-blur-sm border border-red-500/10'>
                           <Shield className='h-4 w-4 text-red-400 mr-2' />
                           <span className='text-sm font-medium text-zinc-200'>
-                            Unable to load token data. Please refresh or try again later.
+                            {isDev
+                              ? 'Token data disabled in development mode to save on API calls'
+                              : 'Unable to load token data. Please refresh or try again later.'}
                           </span>
                         </div>
                       </div>
