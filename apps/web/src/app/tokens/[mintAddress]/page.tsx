@@ -431,10 +431,10 @@ export default function Page({ params, commentId }: PageProps) {
                   ) : (
                     <div className='space-y-4 text-zinc-300'>
                       <div className='flex items-center justify-center py-8'>
-                        <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
-                          <Shield className='h-4 w-4 text-green-500 mr-2' />
-                          <span className='text-sm font-medium text-zinc-300'>
-                            More data coming soon
+                        <div className='inline-flex items-center px-4 py-2 rounded-full bg-red-950/20 backdrop-blur-sm border border-red-500/10'>
+                          <Shield className='h-4 w-4 text-red-400 mr-2' />
+                          <span className='text-sm font-medium text-zinc-200'>
+                            Unable to load token data. Please refresh or try again later.
                           </span>
                         </div>
                       </div>
