@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { TokenEntity } from '../entities/token.entity';
+import { WatchlistService } from '../watchlist/watchlist.service';
 import { TwitterHistoryService } from './twitter-history.service';
 
 interface DexScreenerResponse {
@@ -49,6 +50,7 @@ export class TokensService {
     private readonly tokenRepository: Repository<TokenEntity>,
     private readonly configService: ConfigService,
     private readonly twitterHistoryService: TwitterHistoryService,
+    private readonly watchlistService?: WatchlistService,
   ) {
     const heliusApiKey = this.configService.get<string>('HELIUS_API_KEY');
     this.HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`;
@@ -189,7 +191,10 @@ export class TokensService {
     return token;
   }
 
-  async getTokenData(mintAddress: string): Promise<TokenEntity> {
+  async getTokenData(
+    mintAddress: string,
+    userId?: string,
+  ): Promise<TokenEntity & { isWatchlisted?: boolean }> {
     try {
       let token = await this.tokenRepository.findOne({
         where: { mintAddress },
@@ -278,9 +283,18 @@ export class TokensService {
         }
       }
 
+      // Add watchlist status if user is authenticated
+      if (userId && this.watchlistService) {
+        const isWatchlisted = await this.watchlistService.isTokenInWatchlist(
+          userId,
+          mintAddress,
+        );
+        return { ...token, isWatchlisted };
+      }
+
       return token;
     } catch (error) {
-      this.logger.error(`Error fetching token ${mintAddress}:`, error);
+      this.logger.error(`Error fetching token data for ${mintAddress}:`, error);
       throw error;
     }
   }

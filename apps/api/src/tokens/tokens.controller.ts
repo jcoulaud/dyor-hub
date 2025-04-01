@@ -1,8 +1,10 @@
 import { TokenStats } from '@dyor-hub/types';
-import { Controller, Get, Param, Post } from '@nestjs/common';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { CurrentUser, OptionalAuthGuard } from '../auth';
 import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
 import { TokenEntity } from '../entities/token.entity';
 import { TwitterUsernameHistoryEntity } from '../entities/twitter-username-history.entity';
+import { UserEntity } from '../entities/user.entity';
 import { TokensService } from './tokens.service';
 import { TwitterHistoryService } from './twitter-history.service';
 
@@ -14,10 +16,12 @@ export class TokensController {
   ) {}
 
   @Get(':mintAddress')
+  @UseGuards(OptionalAuthGuard)
   async getTokenData(
     @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
-  ): Promise<TokenEntity> {
-    return this.tokensService.getTokenData(mintAddress);
+    @CurrentUser() user?: UserEntity,
+  ): Promise<TokenEntity & { isWatchlisted?: boolean }> {
+    return this.tokensService.getTokenData(mintAddress, user?.id);
   }
 
   @Get(':mintAddress/stats')
