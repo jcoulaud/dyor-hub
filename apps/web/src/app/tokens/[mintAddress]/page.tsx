@@ -4,6 +4,7 @@ import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
+import { WatchlistButton } from '@/components/tokens/WatchlistButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,6 +24,8 @@ interface PageProps {
   commentId?: string;
 }
 
+type TokenWithWatchlistStatus = Token & { isWatchlisted?: boolean };
+
 export default function Page({ params, commentId }: PageProps) {
   const { mintAddress } = use(params);
   const router = useRouter();
@@ -34,7 +37,7 @@ export default function Page({ params, commentId }: PageProps) {
   const [address, setAddress] = useState('');
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [tokenData, setTokenData] = useState<Token | null>(null);
+  const [tokenData, setTokenData] = useState<TokenWithWatchlistStatus | null>(null);
   const [tokenHistoryData, setTokenHistoryData] = useState<TwitterUsernameHistoryEntity | null>(
     null,
   );
@@ -188,16 +191,46 @@ export default function Page({ params, commentId }: PageProps) {
                 </div>
               ) : tokenData ? (
                 <div className='flex items-start gap-4'>
-                  <TokenImage
-                    imageUrl={tokenData.imageUrl}
-                    name={tokenData.name}
-                    symbol={tokenData.symbol}
-                    className='w-16 h-16 rounded-full'
-                  />
+                  <div className='flex flex-col items-center'>
+                    <TokenImage
+                      imageUrl={tokenData.imageUrl}
+                      name={tokenData.name}
+                      symbol={tokenData.symbol}
+                      className='w-16 h-16 rounded-full'
+                    />
+                    <div className='sm:hidden mt-2'>
+                      <WatchlistButton
+                        mintAddress={tokenData.mintAddress}
+                        initialWatchlistStatus={tokenData.isWatchlisted}
+                        size='sm'
+                      />
+                    </div>
+                  </div>
                   <div className='flex-1 min-w-0'>
                     <div className='flex flex-col gap-2'>
                       <div className='flex justify-between items-center flex-wrap'>
-                        <h1 className='text-2xl font-bold text-white'>{tokenData.name}</h1>
+                        <div className='flex flex-col sm:flex-row sm:items-center sm:gap-2'>
+                          <h1 className='text-2xl font-bold text-white'>{tokenData.name}</h1>
+                          <div className='flex items-center sm:hidden'>
+                            <span className='text-lg text-zinc-400 font-medium'>$</span>
+                            <span className='text-lg text-zinc-400 font-medium'>
+                              {tokenData.symbol}
+                            </span>
+                          </div>
+                          <div className='hidden sm:flex sm:items-center'>
+                            <span className='text-lg text-zinc-400 font-medium'>$</span>
+                            <span className='text-lg text-zinc-400 font-medium'>
+                              {tokenData.symbol}
+                            </span>
+                            <div className='ml-3'>
+                              <WatchlistButton
+                                mintAddress={tokenData.mintAddress}
+                                initialWatchlistStatus={tokenData.isWatchlisted}
+                                size='sm'
+                              />
+                            </div>
+                          </div>
+                        </div>
                         <div className='hidden sm:flex items-center gap-2 flex-shrink-0'>
                           <SolscanButton
                             address={tokenData.mintAddress}

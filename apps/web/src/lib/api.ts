@@ -582,6 +582,94 @@ export const users = {
   },
 };
 
+export const watchlist = {
+  getWatchlistedTokens: async (): Promise<(Token & { addedAt: Date })[]> => {
+    try {
+      const endpoint = 'watchlist/tokens';
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first with short TTL
+      const cachedData = getCache<(Token & { addedAt: Date })[]>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Fetch fresh data
+      const data = await api<(Token & { addedAt: Date })[]>(endpoint);
+
+      // Update cache with short TTL (30 seconds)
+      setCache(cacheKey, data, 30 * 1000);
+
+      return data;
+    } catch (error) {
+      console.error('[getWatchlistedTokens] Error fetching watchlisted tokens:', error);
+      return [];
+    }
+  },
+
+  addTokenToWatchlist: async (mintAddress: string): Promise<{ success: boolean }> => {
+    try {
+      const endpoint = `watchlist/tokens/${mintAddress}`;
+      const data = await api<{ success: boolean }>(endpoint, {
+        method: 'POST',
+      });
+
+      // Invalidate cache for watchlist
+      apiCache.delete('api:watchlist/tokens');
+
+      // Also invalidate the specific token cache since watchlist status changed
+      apiCache.delete(`api:tokens/${mintAddress}`);
+
+      return data;
+    } catch (error) {
+      console.error('[addTokenToWatchlist] Error adding token to watchlist:', error);
+      throw error;
+    }
+  },
+
+  removeTokenFromWatchlist: async (mintAddress: string): Promise<void> => {
+    try {
+      const endpoint = `watchlist/tokens/${mintAddress}`;
+      await api<void>(endpoint, {
+        method: 'DELETE',
+      });
+
+      // Invalidate cache for watchlist
+      apiCache.delete('api:watchlist/tokens');
+
+      // Also invalidate the specific token cache since watchlist status changed
+      apiCache.delete(`api:tokens/${mintAddress}`);
+    } catch (error) {
+      console.error('[removeTokenFromWatchlist] Error removing token from watchlist:', error);
+      throw error;
+    }
+  },
+
+  isTokenWatchlisted: async (mintAddress: string): Promise<boolean> => {
+    try {
+      const endpoint = `watchlist/tokens/${mintAddress}/status`;
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first with very short TTL
+      const cachedData = getCache<{ isWatchlisted: boolean }>(cacheKey);
+      if (cachedData) {
+        return cachedData.isWatchlisted;
+      }
+
+      // Fetch fresh data
+      const data = await api<{ isWatchlisted: boolean }>(endpoint);
+
+      // Update cache with very short TTL (10 seconds)
+      setCache(cacheKey, data, 10 * 1000);
+
+      return data.isWatchlisted;
+    } catch (error) {
+      console.error('[isTokenWatchlisted] Error checking token watchlist status:', error);
+      return false;
+    }
+  },
+};
+
 interface WalletResponse {
   id: string;
   address: string;

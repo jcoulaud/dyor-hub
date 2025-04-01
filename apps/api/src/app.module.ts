@@ -12,6 +12,7 @@ import { SessionModule } from './session/session.module';
 import { TokensModule } from './tokens/tokens.module';
 import { UsersModule } from './users/users.module';
 import { WalletsModule } from './wallets/wallets.module';
+import { WatchlistModule } from './watchlist/watchlist.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { WalletsModule } from './wallets/wallets.module';
     HealthModule,
     UsersModule,
     WalletsModule,
+    WatchlistModule,
   ],
   controllers: [AppController],
   providers: [TelegramNotificationService],
