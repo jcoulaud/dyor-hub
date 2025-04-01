@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TokenWatchlistEntity } from '../entities/token-watchlist.entity';
 import { TokenEntity } from '../entities/token.entity';
+import { UserEntity } from '../entities/user.entity';
 
 @Injectable()
 export class WatchlistService {
@@ -13,6 +14,8 @@ export class WatchlistService {
     private readonly tokenWatchlistRepository: Repository<TokenWatchlistEntity>,
     @InjectRepository(TokenEntity)
     private readonly tokenRepository: Repository<TokenEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
   ) {}
 
   async addTokenToWatchlist(
@@ -94,7 +97,10 @@ export class WatchlistService {
   ): Promise<(TokenEntity & { addedAt: Date })[]> {
     const watchlistItems = await this.tokenWatchlistRepository.find({
       where: { userId },
-      relations: ['token'],
+      relations: {
+        token: true,
+        user: true,
+      },
       order: { createdAt: 'DESC' },
     });
 

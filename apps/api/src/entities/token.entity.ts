@@ -52,6 +52,9 @@ export class TokenEntity {
   @OneToMany(() => TwitterUsernameHistoryEntity, (history) => history.token)
   twitterUsernameHistory: TwitterUsernameHistoryEntity[];
 
-  @OneToMany(() => TokenWatchlistEntity, (watchlist) => watchlist.token)
+  @OneToMany(() => TokenWatchlistEntity, (watchlist) => watchlist.token, {
+    cascade: true,
+    eager: false,
+  })
   watchlistedBy: TokenWatchlistEntity[];
 }

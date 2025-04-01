@@ -19,12 +19,14 @@ export class TokenWatchlistEntity {
 
   @ManyToOne(() => UserEntity, (user) => user.watchlistedTokens, {
     onDelete: 'CASCADE',
+    eager: false,
   })
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 
   @ManyToOne(() => TokenEntity, (token) => token.watchlistedBy, {
     onDelete: 'CASCADE',
+    eager: false,
   })
   @JoinColumn({
     name: 'token_mint_address',

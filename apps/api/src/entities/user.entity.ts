@@ -54,7 +54,10 @@ export class UserEntity {
   @OneToMany(() => WalletEntity, (wallet) => wallet.user)
   wallets: WalletEntity[];
 
-  @OneToMany(() => TokenWatchlistEntity, (watchlist) => watchlist.user)
+  @OneToMany(() => TokenWatchlistEntity, (watchlist) => watchlist.user, {
+    cascade: true,
+    eager: false,
+  })
   watchlistedTokens: TokenWatchlistEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
