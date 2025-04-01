@@ -94,46 +94,45 @@ export default function WatchlistPage() {
         {tokens.map((token) => (
           <div
             key={token.mintAddress}
-            className='flex items-center justify-between p-4 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/60 rounded-lg hover:bg-zinc-800/30 transition-colors'>
-            <div className='flex items-center space-x-4'>
-              <div className='w-12 h-12 rounded-full bg-zinc-800 overflow-hidden flex-shrink-0'>
-                {token.imageUrl ? (
-                  <Image
-                    src={token.imageUrl}
-                    alt={token.name}
-                    width={48}
-                    height={48}
-                    className='object-cover'
-                  />
-                ) : (
-                  <div className='w-full h-full flex items-center justify-center bg-blue-900/50 text-xl font-bold text-blue-300'>
-                    {token.symbol.substring(0, 1)}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <div className='flex items-center gap-2'>
-                  <Link
-                    href={`/tokens/${token.mintAddress}`}
-                    className='font-bold text-lg hover:text-blue-400 transition-colors'>
-                    {token.name}
-                  </Link>
-                  <span className='text-zinc-400 text-sm flex items-center'>
-                    <span>$</span>
-                    {token.symbol}
-                  </span>
+            className='flex items-start p-3 sm:p-4 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/60 rounded-lg hover:bg-zinc-800/30 transition-colors'>
+            <div className='w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-zinc-800 overflow-hidden flex-shrink-0'>
+              {token.imageUrl ? (
+                <Image
+                  src={token.imageUrl}
+                  alt={token.name}
+                  width={48}
+                  height={48}
+                  className='object-cover'
+                />
+              ) : (
+                <div className='w-full h-full flex items-center justify-center bg-blue-900/50 text-lg sm:text-xl font-bold text-blue-300'>
+                  {token.symbol.substring(0, 1)}
                 </div>
-                {token.description && (
-                  <p className='text-sm text-zinc-400 mt-1 line-clamp-2'>{token.description}</p>
-                )}
-              </div>
+              )}
             </div>
 
-            <div className='flex items-center space-x-4'>
+            <div className='flex-1 min-w-0 mx-3 sm:mx-4 overflow-hidden'>
+              <div className='flex items-center gap-1'>
+                <Link
+                  href={`/tokens/${token.mintAddress}`}
+                  className='font-bold text-base sm:text-lg hover:text-blue-400 transition-colors truncate'>
+                  {token.name}
+                </Link>
+                <span className='text-zinc-400 text-xs sm:text-sm flex items-center flex-shrink-0'>
+                  <span>$</span>
+                  {token.symbol}
+                </span>
+              </div>
+              <p className='text-xs sm:text-sm text-zinc-400 mt-0.5 sm:mt-1 line-clamp-2 break-all'>
+                {token.description || '-'}
+              </p>
+            </div>
+
+            <div className='flex-shrink-0'>
               <WatchlistButton
                 mintAddress={token.mintAddress}
                 initialWatchlistStatus={true}
+                size='sm'
                 onStatusChange={(isWatchlisted) => {
                   if (!isWatchlisted) {
                     handleTokenRemoved(token.mintAddress);
@@ -170,7 +169,7 @@ export default function WatchlistPage() {
       </div>
 
       <Tabs defaultValue='tokens' className='w-full' onValueChange={setActiveTab}>
-        <TabsList className='grid grid-cols-2 mb-8 w-[400px]'>
+        <TabsList className='grid grid-cols-2 mb-8 w-full max-w-[400px]'>
           <TabsTrigger value='tokens' className='rounded-md'>
             <BookmarkIcon className='w-4 h-4 mr-2' />
             Tokens
