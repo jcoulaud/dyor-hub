@@ -1,3 +1,5 @@
+import { ShareButton } from '@/components/share/ShareButton';
+import { TwitterShareButton } from '@/components/share/TwitterShareButton';
 import { WalletBadge } from '@/components/wallet/WalletBadge';
 import { users, wallets } from '@/lib/api';
 import type { User, UserActivity } from '@dyor-hub/types';
@@ -112,8 +114,20 @@ export default async function UserProfilePage({ params }: UserPageProps) {
                   <div className='text-center md:text-left flex-1'>
                     <div className='flex flex-col md:flex-row md:items-center md:justify-between'>
                       <div>
-                        <h1 className='text-2xl font-bold text-white'>{user.displayName}</h1>
-                        <p className='text-zinc-400 text-sm'>@{user.username}</p>
+                        <div className='flex items-center gap-1 mb-1 md:hidden justify-center w-full'>
+                          <ShareButton />
+                          <TwitterShareButton displayName={user.displayName} />
+                        </div>
+                        <h1 className='text-2xl font-bold text-white md:flex md:items-center md:gap-2 text-center md:text-left'>
+                          {user.displayName}
+                          <div className='hidden md:flex items-center gap-1'>
+                            <ShareButton />
+                            <TwitterShareButton displayName={user.displayName} />
+                          </div>
+                        </h1>
+                        <p className='text-zinc-400 text-sm text-center md:text-left'>
+                          @{user.username}
+                        </p>
                       </div>
 
                       <div className='flex flex-col md:flex-row items-center gap-3 mt-3 md:mt-0'>
