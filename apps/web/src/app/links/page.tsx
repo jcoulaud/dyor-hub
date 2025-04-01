@@ -1,5 +1,5 @@
 import { CopyButton } from '@/components/CopyButton';
-import { CONTRACT_ADDRESS } from '@/lib/constants';
+import { CONTRACT_ADDRESS, DISCORD_URL } from '@/lib/constants';
 import { Github, Globe, Home, LineChart, MessageSquare, Twitter } from 'lucide-react';
 import { Metadata } from 'next';
 import Link from 'next/link';
@@ -38,7 +38,7 @@ export default function LinksPage() {
     },
     {
       title: 'Discord',
-      url: 'https://discord.gg/UxCTFNUU',
+      url: DISCORD_URL,
       icon: <MessageSquare className='h-4 w-4' />,
       description: 'HQ for DYOR',
     },

@@ -6,6 +6,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { DISCORD_URL } from '@/lib/constants';
 import { Home, Link as LinkIcon, Menu, MessageSquare, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -40,7 +41,7 @@ export function Header() {
                 Official Links
               </Link>
               <a
-                href='https://discord.gg/GW8t7pFZ'
+                href={DISCORD_URL}
                 target='_blank'
                 rel='noopener noreferrer'
                 className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-indigo-600/90 to-purple-700/90 hover:from-indigo-500/90 hover:to-purple-600/90 border border-purple-700/30 shadow-md hover:shadow-purple-900/20 hover:scale-[1.02]'>
@@ -80,7 +81,7 @@ export function Header() {
                     <span>Official Links</span>
                   </Link>
                   <a
-                    href='https://discord.gg/GW8t7pFZ'
+                    href={DISCORD_URL}
                     target='_blank'
                     rel='noopener noreferrer'
                     onClick={() => setIsMobileMenuOpen(false)}
