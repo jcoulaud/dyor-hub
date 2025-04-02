@@ -205,10 +205,12 @@ export default function Home() {
         <div className='absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
 
         {isLoading ? (
-          <div className='container relative z-10 mx-auto flex justify-center'>
-            <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
-              <Sparkles className='h-4 w-4 text-blue-400 mr-2 animate-pulse' />
-              <span className='text-sm font-medium text-zinc-300'>Loading tokens...</span>
+          <div className='container relative z-10 mx-auto flex justify-center py-6'>
+            <div className='flex items-center space-x-3'>
+              <div className='relative w-5 h-5'>
+                <div className='absolute top-0 left-0 w-full h-full rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin'></div>
+              </div>
+              <span className='text-sm text-zinc-300'>Loading tokens</span>
             </div>
           </div>
         ) : memoizedTokenList.length > 0 ? (
