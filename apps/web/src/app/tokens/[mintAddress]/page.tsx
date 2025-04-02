@@ -203,6 +203,7 @@ export default function Page({ params, commentId }: PageProps) {
                         mintAddress={tokenData.mintAddress}
                         initialWatchlistStatus={tokenData.isWatchlisted}
                         size='sm'
+                        tokenSymbol={tokenData.symbol}
                       />
                     </div>
                   </div>
@@ -227,6 +228,7 @@ export default function Page({ params, commentId }: PageProps) {
                                 mintAddress={tokenData.mintAddress}
                                 initialWatchlistStatus={tokenData.isWatchlisted}
                                 size='sm'
+                                tokenSymbol={tokenData.symbol}
                               />
                             </div>
                           </div>

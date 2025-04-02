@@ -3,12 +3,23 @@ import { watchlist } from '@/lib/api';
 import { useAuthContext } from '@/providers/auth-provider';
 import { Bookmark } from 'lucide-react';
 import { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
 
 interface WatchlistButtonProps {
   mintAddress: string;
   initialWatchlistStatus?: boolean;
   size?: 'sm' | 'md' | 'lg';
   onStatusChange?: (isWatchlisted: boolean) => void;
+  tokenSymbol?: string;
 }
 
 export function WatchlistButton({
@@ -16,11 +27,13 @@ export function WatchlistButton({
   initialWatchlistStatus = false,
   size = 'md',
   onStatusChange,
+  tokenSymbol,
 }: WatchlistButtonProps) {
   const { isAuthenticated } = useAuthContext();
   const { toast } = useToast();
   const [isWatchlisted, setIsWatchlisted] = useState(initialWatchlistStatus);
   const [isLoading, setIsLoading] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
   const sizes = {
     sm: 'w-5 h-5',
@@ -40,28 +53,23 @@ export function WatchlistButton({
       return;
     }
 
+    if (isWatchlisted) {
+      setIsConfirmDialogOpen(true);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      if (isWatchlisted) {
-        await watchlist.removeTokenFromWatchlist(mintAddress);
-        setIsWatchlisted(false);
-        toast({
-          title: 'Token Removed',
-          description: 'Token removed from your watchlist',
-        });
-        onStatusChange?.(false);
-      } else {
-        await watchlist.addTokenToWatchlist(mintAddress);
-        setIsWatchlisted(true);
-        toast({
-          title: 'Token Added',
-          description: 'Token added to your watchlist',
-        });
-        onStatusChange?.(true);
-      }
+      await watchlist.addTokenToWatchlist(mintAddress);
+      setIsWatchlisted(true);
+      toast({
+        title: 'Token Added',
+        description: 'Token added to your watchlist',
+      });
+      onStatusChange?.(true);
     } catch (error) {
-      console.error('Error toggling watchlist status:', error);
+      console.error('Error adding token to watchlist:', error);
       toast({
         title: 'Error',
         description: 'Failed to update watchlist',
@@ -72,17 +80,66 @@ export function WatchlistButton({
     }
   };
 
+  const handleRemoveFromWatchlist = async () => {
+    setIsLoading(true);
+
+    try {
+      await watchlist.removeTokenFromWatchlist(mintAddress);
+      setIsWatchlisted(false);
+      toast({
+        title: 'Token Removed',
+        description: 'Token removed from your watchlist',
+      });
+      onStatusChange?.(false);
+    } catch (error) {
+      console.error('Error removing token from watchlist:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update watchlist',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+      setIsConfirmDialogOpen(false);
+    }
+  };
+
   return (
-    <button
-      onClick={handleToggleWatchlist}
-      disabled={isLoading}
-      className={`flex items-center justify-center rounded-lg p-1.5 
-        transition-all duration-200 hover:bg-zinc-800/60
-        ${isWatchlisted ? 'text-blue-400 hover:text-blue-300' : 'text-zinc-400 hover:text-zinc-200'}
-        ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-      title={isWatchlisted ? 'Remove from watchlist' : 'Add to watchlist'}
-      aria-label={isWatchlisted ? 'Remove from watchlist' : 'Add to watchlist'}>
-      <Bookmark className={`${iconSize} ${isWatchlisted ? 'fill-current' : ''}`} />
-    </button>
+    <>
+      <button
+        onClick={handleToggleWatchlist}
+        disabled={isLoading}
+        className={`flex items-center justify-center rounded-lg p-1.5 
+          transition-all duration-200 hover:bg-zinc-800/60
+          ${isWatchlisted ? 'text-blue-400 hover:text-blue-300' : 'text-zinc-400 hover:text-zinc-200'}
+          ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        title={isWatchlisted ? 'Remove from watchlist' : 'Add to watchlist'}
+        aria-label={isWatchlisted ? 'Remove from watchlist' : 'Add to watchlist'}>
+        <Bookmark className={`${iconSize} ${isWatchlisted ? 'fill-current' : ''}`} />
+      </button>
+
+      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove from watchlist?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove {tokenSymbol ? `$${tokenSymbol}` : 'this token'} from
+              your watchlist?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading} className='cursor-pointer'>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveFromWatchlist}
+              disabled={isLoading}
+              className='cursor-pointer'>
+              {isLoading ? 'Removing...' : `Yes, remove${tokenSymbol ? ` $${tokenSymbol}` : ''}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -133,6 +133,7 @@ export default function WatchlistPage() {
                 mintAddress={token.mintAddress}
                 initialWatchlistStatus={true}
                 size='sm'
+                tokenSymbol={token.symbol}
                 onStatusChange={(isWatchlisted) => {
                   if (!isWatchlisted) {
                     handleTokenRemoved(token.mintAddress);
