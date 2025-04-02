@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import { json } from 'express';
 import session from 'express-session';
 import 'reflect-metadata';
 import { AppModule } from './app.module';
@@ -115,6 +116,34 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+
+  // Add Solana RPC proxy endpoint
+  const heliusApiKey = configService.get<string>('HELIUS_API_KEY');
+  app.use('/api/solana-rpc', json(), async (req, res) => {
+    try {
+      const heliusUrl = `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`;
+
+      const response = await fetch(heliusUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(req.body),
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          error: `RPC request failed: ${response.statusText}`,
+        });
+      }
+
+      const data = await response.json();
+      res.status(200).json(data);
+    } catch (error) {
+      console.error('Error proxying RPC request:', error);
+      res.status(500).json({ error: 'Failed to process RPC request' });
+    }
+  });
 
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);

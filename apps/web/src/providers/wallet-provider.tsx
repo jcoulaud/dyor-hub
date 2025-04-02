@@ -27,10 +27,9 @@ interface WalletProviderProps {
 function WalletProviderInner({ children }: WalletProviderProps) {
   const network = WalletAdapterNetwork.Mainnet;
 
-  const endpoint = useMemo(
-    () => process.env.NEXT_PUBLIC_SOLANA_RPC || clusterApiUrl(network),
-    [network],
-  );
+  const endpoint = useMemo(() => {
+    return process.env.NEXT_PUBLIC_SOLANA_RPC || clusterApiUrl(network);
+  }, [network]);
 
   const wallets = useMemo(
     () => [
@@ -43,7 +42,6 @@ function WalletProviderInner({ children }: WalletProviderProps) {
     ],
     [network],
   );
-
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider
