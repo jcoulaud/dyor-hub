@@ -173,97 +173,106 @@ export default function SettingsPage() {
           </Badge>
         </div>
 
-        <Card className='transition-all hover:shadow-md'>
-          <CardHeader>
-            <div className='flex items-center justify-between'>
-              <div>
-                <CardTitle>Token Chart Display</CardTitle>
-                <CardDescription>Set your default token chart display preference</CardDescription>
+        {/* Preferences Section */}
+        <div className='space-y-4'>
+          <h3 className='text-xl font-semibold text-foreground'>Preferences</h3>
+          <Card className='transition-all hover:shadow-md'>
+            <CardHeader>
+              <div className='flex items-center justify-between'>
+                <div>
+                  <CardTitle>Token Chart Display</CardTitle>
+                  <CardDescription>Set your default token chart display preference</CardDescription>
+                </div>
+                <div className='h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center'>
+                  <BarChart2 className='h-5 w-5 text-primary' />
+                </div>
               </div>
-              <div className='h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center'>
-                <BarChart2 className='h-5 w-5 text-primary' />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className='space-y-4'>
-            <FormField
-              control={form.control}
-              name='tokenChartDisplay'
-              render={({ field }: PreferencesFieldRenderProps<'tokenChartDisplay'>) => (
-                <FormItem className='space-y-3'>
-                  <FormLabel>Default Chart View</FormLabel>
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    className='grid grid-cols-2 gap-4'>
-                    <FormItem>
-                      <FormControl>
-                        <label
-                          className={`flex w-full cursor-pointer items-center space-x-2 rounded-md border p-4 transition-colors hover:bg-secondary/50 ${field.value === 'price' ? 'border-primary bg-primary/5' : ''}`}>
-                          <RadioGroupItem value='price' id='price' className='cursor-pointer' />
-                          <FormLabel htmlFor='price' className='font-medium cursor-pointer'>
-                            Price
-                          </FormLabel>
-                        </label>
-                      </FormControl>
-                    </FormItem>
-                    <FormItem>
-                      <FormControl>
-                        <label
-                          className={`flex w-full cursor-pointer items-center space-x-2 rounded-md border p-4 transition-colors hover:bg-secondary/50 ${field.value === 'marketCap' ? 'border-primary bg-primary/5' : ''}`}>
-                          <RadioGroupItem
-                            value='marketCap'
-                            id='marketCap'
-                            className='cursor-pointer'
-                          />
-                          <FormLabel htmlFor='marketCap' className='font-medium cursor-pointer'>
-                            Market Cap
-                          </FormLabel>
-                        </label>
-                      </FormControl>
-                    </FormItem>
-                  </RadioGroup>
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className='space-y-4'>
+              <FormField
+                control={form.control}
+                name='tokenChartDisplay'
+                render={({ field }: PreferencesFieldRenderProps<'tokenChartDisplay'>) => (
+                  <FormItem className='space-y-3'>
+                    <FormLabel>Default Chart View</FormLabel>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      className='grid grid-cols-2 gap-4'>
+                      <FormItem>
+                        <FormControl>
+                          <label
+                            className={`flex w-full cursor-pointer items-center space-x-2 rounded-md border p-4 transition-colors hover:bg-secondary/50 ${field.value === 'price' ? 'border-primary bg-primary/5' : ''}`}>
+                            <RadioGroupItem value='price' id='price' className='cursor-pointer' />
+                            <FormLabel htmlFor='price' className='font-medium cursor-pointer'>
+                              Price
+                            </FormLabel>
+                          </label>
+                        </FormControl>
+                      </FormItem>
+                      <FormItem>
+                        <FormControl>
+                          <label
+                            className={`flex w-full cursor-pointer items-center space-x-2 rounded-md border p-4 transition-colors hover:bg-secondary/50 ${field.value === 'marketCap' ? 'border-primary bg-primary/5' : ''}`}>
+                            <RadioGroupItem
+                              value='marketCap'
+                              id='marketCap'
+                              className='cursor-pointer'
+                            />
+                            <FormLabel htmlFor='marketCap' className='font-medium cursor-pointer'>
+                              Market Cap
+                            </FormLabel>
+                          </label>
+                        </FormControl>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className='transition-all hover:shadow-md'>
-          <CardHeader>
-            <div className='flex items-center justify-between'>
-              <div>
-                <CardTitle>Profile Visibility</CardTitle>
-                <CardDescription>
-                  Control what information is visible on your public profile
-                </CardDescription>
+        {/* Privacy Section */}
+        <div className='space-y-4'>
+          <h3 className='text-xl font-semibold text-foreground'>Privacy</h3>
+          <Card className='transition-all hover:shadow-md'>
+            <CardHeader>
+              <div className='flex items-center justify-between'>
+                <div>
+                  <CardTitle>Profile Visibility</CardTitle>
+                  <CardDescription>
+                    Control what information is visible on your public profile
+                  </CardDescription>
+                </div>
+                <div className='h-10 w-10 rounded-full bg-secondary/50 flex items-center justify-center'>
+                  <Eye className='h-5 w-5 text-secondary-foreground' />
+                </div>
               </div>
-              <div className='h-10 w-10 rounded-full bg-secondary/50 flex items-center justify-center'>
-                <Eye className='h-5 w-5 text-secondary-foreground' />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name='showWalletAddress'
-              render={({ field }: PreferencesFieldRenderProps<'showWalletAddress'>) => (
-                <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
-                  <div className='space-y-0.5'>
-                    <FormLabel className='text-base'>Show Wallet Address</FormLabel>
-                    <FormDescription>
-                      Display your primary and verified wallet addresses on your public profile.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name='showWalletAddress'
+                render={({ field }: PreferencesFieldRenderProps<'showWalletAddress'>) => (
+                  <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
+                    <div className='space-y-0.5'>
+                      <FormLabel className='text-base'>Show Wallet Address</FormLabel>
+                      <FormDescription>
+                        Display your primary and verified wallet addresses on your public profile.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
+        {/* Save Button */}
         <div className='flex justify-end'>
           <Button
             type='submit'
