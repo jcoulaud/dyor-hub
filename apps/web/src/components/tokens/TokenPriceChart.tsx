@@ -1,6 +1,7 @@
 'use client';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
 import { tokens, users } from '@/lib/api';
 import { format } from 'date-fns';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
@@ -44,6 +45,7 @@ const formatTime = (timestamp: number): string => {
 };
 
 const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPriceChartProps) => {
+  const { toast } = useToast();
   const [data, setData] = useState<ChartPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,36 +57,42 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
 
   const isDevelopment = process.env.NODE_ENV === 'development';
 
-  // Load user preference on initial render
   useEffect(() => {
     const loadUserPreference = async () => {
       try {
-        const settings = await users.getUserSettings();
-        if (settings.tokenChartDisplay === 'marketCap') {
+        const preferences = await users.getUserPreferences();
+        if (preferences.tokenChartDisplay === 'marketCap') {
           setShowMarketCap(true);
         } else {
           setShowMarketCap(false);
         }
       } catch {
-        // Silently fail and use default preference
+        setShowMarketCap(false);
       }
     };
 
     loadUserPreference();
   }, []);
 
-  // Save user preference when it changes
-  const handleDisplayToggle = useCallback(async (checked: boolean) => {
-    setShowMarketCap(!checked);
+  const toggleChartType = async () => {
+    const newType = showMarketCap ? 'price' : 'marketCap';
+    setShowMarketCap(!showMarketCap);
     try {
-      const chartMode = !checked ? 'marketCap' : 'price';
-      await users.updateUserSettings({
-        tokenChartDisplay: chartMode,
+      await users.updateUserPreferences({
+        tokenChartDisplay: newType,
+      });
+      toast({
+        description: `Chart view updated to ${newType === 'price' ? 'Price' : 'Market Cap'}`,
       });
     } catch {
-      // Continue with local state change even if saving fails
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to save chart preference',
+      });
+      setShowMarketCap(showMarketCap);
     }
-  }, []);
+  };
 
   const fetchData = useCallback(
     async (retryCount = 0) => {
@@ -229,7 +237,7 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
         <Switch
           id='chart-toggle'
           checked={!showMarketCap}
-          onCheckedChange={handleDisplayToggle}
+          onCheckedChange={toggleChartType}
           className='data-[state=checked]:bg-blue-500 cursor-pointer'
         />
       </div>
