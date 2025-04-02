@@ -148,6 +148,15 @@ sudo nginx -t -q
 if [ $? -eq 0 ]; then
   sudo nginx -s reload -q
   log "Nginx configuration updated successfully"
+  
+  # Only run immediate cleanup if API check was successful (not timed out)
+  if [ $RETRY_COUNT -ne $MAX_RETRIES ]; then
+    log "Running immediate Docker builder cleanup"
+    docker builder prune -f
+    log "Docker builder cleanup completed"
+  else
+    log "Skipping immediate Docker builder cleanup as API health check timed out"
+  fi
 else
   log "ERROR: Nginx configuration test failed. Rolling back..."
   sudo cp "${NGINX_CONFIG}.bak" $NGINX_CONFIG

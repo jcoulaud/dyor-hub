@@ -3,6 +3,7 @@ import * as path from 'path';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { CommentVoteEntity } from './entities/comment-vote.entity';
 import { CommentEntity } from './entities/comment.entity';
+import { TokenWatchlistEntity } from './entities/token-watchlist.entity';
 import { TokenEntity } from './entities/token.entity';
 import { TwitterUsernameHistoryEntity } from './entities/twitter-username-history.entity';
 import { UserEntity } from './entities/user.entity';
@@ -28,11 +29,12 @@ export const dataSourceOptions: DataSourceOptions = {
     UserEntity,
     TwitterUsernameHistoryEntity,
     WalletEntity,
+    TokenWatchlistEntity,
   ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',
-  migrationsRun: isProduction, // Automatically run migrations in production
-  synchronize: !isProduction, // Enable synchronize in development mode only
+  migrationsRun: isProduction,
+  synchronize: false,
   logging: isProduction ? ['error', 'warn'] : true, // Only log errors and warnings in production
   logger: 'advanced-console',
 };

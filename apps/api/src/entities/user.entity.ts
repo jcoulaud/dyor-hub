@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { CommentVoteEntity } from './comment-vote.entity';
 import { CommentEntity } from './comment.entity';
+import { TokenWatchlistEntity } from './token-watchlist.entity';
 import { WalletEntity } from './wallet.entity';
 
 @Entity('users')
@@ -52,6 +53,12 @@ export class UserEntity {
 
   @OneToMany(() => WalletEntity, (wallet) => wallet.user)
   wallets: WalletEntity[];
+
+  @OneToMany(() => TokenWatchlistEntity, (watchlist) => watchlist.user, {
+    cascade: true,
+    eager: false,
+  })
+  watchlistedTokens: TokenWatchlistEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

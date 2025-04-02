@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { auth } from '@/lib/api';
 import { useAuthContext } from '@/providers/auth-provider';
-import { LogOut, Settings, User, UserCircle, UserCog } from 'lucide-react';
+import { Bookmark, LogOut, Settings, User, UserCircle, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { TwitterLoginButton } from './TwitterLoginButton';
@@ -81,6 +81,13 @@ export function UserMenu() {
             <DropdownMenuItem className='flex items-center gap-2 md:px-3 md:py-2.5 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
               <UserCircle className='h-4 w-4' />
               <span>Public Profile</span>
+            </DropdownMenuItem>
+          </Link>
+
+          <Link href='/watchlist'>
+            <DropdownMenuItem className='flex items-center gap-2 md:px-3 md:py-2.5 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
+              <Bookmark className='h-4 w-4' />
+              <span>Watchlist</span>
             </DropdownMenuItem>
           </Link>
 
