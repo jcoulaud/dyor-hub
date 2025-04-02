@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import { json } from 'express';
 import session from 'express-session';
 import 'reflect-metadata';
 import { AppModule } from './app.module';
@@ -58,6 +59,8 @@ async function bootstrap() {
     process.exit(1);
   }
   app.use(cookieParser(sessionSecret));
+
+  app.use(json({ limit: '5mb' }));
 
   // Configure API routing
   const useApiSubdomain =
