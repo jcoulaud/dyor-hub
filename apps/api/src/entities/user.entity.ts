@@ -1,3 +1,4 @@
+import { UserPreferences } from '@dyor-hub/types';
 import {
   Column,
   CreateDateColumn,
@@ -43,7 +44,7 @@ export class UserEntity {
     nullable: true,
     default: () => "'{}'",
   })
-  preferences: Record<string, any>;
+  preferences: Partial<UserPreferences>;
 
   @OneToMany(() => CommentEntity, (comment) => comment.user)
   comments: CommentEntity[];

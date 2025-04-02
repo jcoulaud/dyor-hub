@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { UserResponseDto } from '../auth/dto/user-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { PaginatedResult, UsersService } from './users.service';
 
 @Controller('users')
@@ -33,20 +33,20 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('me/settings')
-  async getMySettings(@Request() req): Promise<Record<string, any>> {
-    return this.usersService.getUserSettings(req.user.id);
+  @Get('me/preferences')
+  async getMyPreferences(@Request() req): Promise<Record<string, any>> {
+    return this.usersService.getUserPreferences(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('me/settings')
-  async updateMySettings(
+  @Patch('me/preferences')
+  async updateMyPreferences(
     @Request() req,
-    @Body() updateSettingsDto: UpdateSettingsDto,
+    @Body() updatePreferencesDto: UpdatePreferencesDto,
   ): Promise<Record<string, any>> {
-    return this.usersService.updateUserSettings(
+    return this.usersService.updateUserPreferences(
       req.user.id,
-      updateSettingsDto.settings,
+      updatePreferencesDto.preferences,
     );
   }
 

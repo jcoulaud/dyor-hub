@@ -4,6 +4,7 @@ export interface User {
   displayName: string;
   avatarUrl?: string;
   isAdmin: boolean;
+  preferences?: Record<string, any>;
 }
 
 export interface UserProfile extends User {

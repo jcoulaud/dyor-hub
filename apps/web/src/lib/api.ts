@@ -7,6 +7,7 @@ import type {
   TwitterUsernameHistoryEntity,
   User,
   UserActivity,
+  UserPreferences,
   UserStats,
   VoteType,
 } from '@dyor-hub/types';
@@ -524,51 +525,41 @@ export const users = {
     }
   },
 
-  getUserSettings: async (): Promise<Record<string, unknown>> => {
+  getUserPreferences: async (): Promise<Partial<UserPreferences>> => {
     try {
-      const endpoint = 'users/me/settings';
+      const endpoint = 'users/me/preferences';
       const cacheKey = `api:${endpoint}`;
 
-      // Check cache first with short TTL
-      const cachedData = getCache<Record<string, unknown>>(cacheKey);
+      const cachedData = getCache<Partial<UserPreferences>>(cacheKey);
       if (cachedData) {
         return cachedData;
       }
 
-      // Fetch fresh data
-      const data = await api<Record<string, unknown>>(endpoint);
-
-      // Update cache with short TTL (30 seconds)
+      const data = await api<Partial<UserPreferences>>(endpoint);
       setCache(cacheKey, data, 30 * 1000);
-
       return data;
     } catch (error) {
-      console.error('[getUserSettings] Error fetching user settings:', error);
+      console.error('[getUserPreferences] Error fetching user preferences:', error);
       return {};
     }
   },
 
-  updateUserSettings: async (settings: {
-    tokenChartDisplay: 'price' | 'marketCap';
-  }): Promise<Record<string, unknown>> => {
+  updateUserPreferences: async (
+    preferences: Partial<UserPreferences>,
+  ): Promise<Partial<UserPreferences>> => {
     try {
-      const endpoint = 'users/me/settings';
-      const data = await api<Record<string, unknown>>(endpoint, {
+      const endpoint = 'users/me/preferences';
+      const data = await api<Partial<UserPreferences>>(endpoint, {
         method: 'PATCH',
-        body: {
-          settings: {
-            tokenChartDisplay: settings.tokenChartDisplay,
-          },
-        },
+        body: { preferences: preferences },
       });
 
-      // Update cache
-      const cacheKey = `api:users/me/settings`;
-      setCache(cacheKey, data);
-
+      const cacheKey = `api:users/me/preferences`;
+      const currentPrefs = getCache<Partial<UserPreferences>>(cacheKey) || {};
+      setCache(cacheKey, { ...currentPrefs, ...data });
       return data;
     } catch (error) {
-      console.error('[updateUserSettings] Error updating user settings:', error);
+      console.error('[updateUserPreferences] Error updating user preferences:', error);
       throw error;
     }
   },

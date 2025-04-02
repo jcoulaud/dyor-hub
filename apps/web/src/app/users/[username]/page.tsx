@@ -132,12 +132,14 @@ export default async function UserProfilePage({ params }: UserPageProps) {
 
                       <div className='flex flex-col md:flex-row items-center gap-3 mt-3 md:mt-0'>
                         <div className='flex items-center gap-2'>
-                          {walletInfo && walletInfo.isVerified && (
-                            <WalletBadge
-                              address={walletInfo.address}
-                              isVerified={walletInfo.isVerified}
-                            />
-                          )}
+                          {user.preferences?.showWalletAddress &&
+                            walletInfo &&
+                            walletInfo.isVerified && (
+                              <WalletBadge
+                                address={walletInfo.address}
+                                isVerified={walletInfo.isVerified}
+                              />
+                            )}
 
                           <Link
                             href={`https://twitter.com/${user.username}`}

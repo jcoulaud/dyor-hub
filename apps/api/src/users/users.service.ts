@@ -1,3 +1,4 @@
+import { UserPreferences, defaultUserPreferences } from '@dyor-hub/types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
@@ -31,34 +32,48 @@ export class UsersService {
   async findByUsername(username: string): Promise<UserEntity | null> {
     return this.userRepository
       .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+        'user.isAdmin',
+        'user.preferences',
+      ])
       .where('LOWER(user.username) = LOWER(:username)', { username })
       .getOne();
   }
 
-  async getUserSettings(userId: string): Promise<Record<string, any>> {
+  async getUserPreferences(userId: string): Promise<Partial<UserPreferences>> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    return user?.preferences || {};
+    return {
+      ...defaultUserPreferences,
+      ...(user?.preferences || {}),
+    };
   }
 
-  async updateUserSettings(
+  async updateUserPreferences(
     userId: string,
-    settings: Record<string, any>,
-  ): Promise<Record<string, any>> {
+    preferences: Partial<UserPreferences>,
+  ): Promise<Partial<UserPreferences>> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new Error(`User with ID ${userId} not found`);
     }
 
-    const updatedSettings = {
+    const updatedPreferences = {
       ...(user.preferences || {}),
-      ...settings,
+      ...preferences,
     };
 
     await this.userRepository.update(userId, {
-      preferences: updatedSettings,
+      preferences: updatedPreferences,
     });
 
-    return updatedSettings;
+    return {
+      ...defaultUserPreferences,
+      ...updatedPreferences,
+    };
   }
 
   async getUserStats(userId: string): Promise<UserStatsDto> {
