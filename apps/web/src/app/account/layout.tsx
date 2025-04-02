@@ -2,7 +2,7 @@
 
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, User, WalletCards } from 'lucide-react';
+import { User, WalletCards } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -12,13 +12,6 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   return (
     <RequireAuth>
       <div className='container mx-auto px-4 py-12 max-w-5xl'>
-        <Link
-          href='/'
-          className='inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-6'>
-          <ArrowLeft className='mr-2 h-4 w-4' />
-          Back to Home
-        </Link>
-
         <div className='grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8'>
           <aside className='space-y-6'>
             <div className='flex flex-col space-y-2'>
