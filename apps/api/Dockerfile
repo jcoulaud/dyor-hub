@@ -1,30 +1,32 @@
 # Build stage
 FROM node:20-alpine AS builder
 
-# Use tmpfs for npm/pnpm cache to save disk space
-RUN mkdir -p /tmp/pnpm-store && \
-    chmod 777 /tmp/pnpm-store
+# Set build cache settings
+ENV BUILDKIT_INLINE_CACHE=1
 
-# Set environment variables to use tmpfs
-ENV PNPM_HOME=/tmp/pnpm-store
-ENV npm_config_cache=/tmp/npm-cache
+# Install essential build dependencies including Python
+RUN apk add --no-cache python3 make g++ linux-headers git
 
-# Create app directory
-WORKDIR /app
+# Set Python path explicitly
+ENV PYTHON=/usr/bin/python3
 
 # Install pnpm
 RUN npm install -g pnpm
 
-# Copy package files
+# Create app directory and set workdir
+WORKDIR /app
+
+# Copy package files first for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/types/package.json ./packages/types/
 COPY apps/api/package.json ./apps/api/
 
-# Install dependencies
-RUN pnpm install --no-frozen-lockfile
+# Install dependencies with efficient caching
+RUN pnpm install --frozen-lockfile
 
-# Copy the source code
-COPY . .
+# Copy only necessary files for building
+COPY packages/types/ ./packages/types/
+COPY apps/api/ ./apps/api/
 
 # Build the types package first
 RUN cd packages/types && pnpm build
@@ -39,10 +41,10 @@ WORKDIR /app
 
 # Set environment variables
 ENV NODE_ENV production
-# Configure Node.js memory settings
 ENV NODE_OPTIONS="--max-old-space-size=1024"
+ENV PYTHON=/usr/bin/python3
 
-# Copy necessary files from builder
+# Copy only what's needed to run the application
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
@@ -51,12 +53,18 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/packages/types/package.json ./packages/types/
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
 
-# Install production dependencies
-RUN npm install -g pnpm && \
-    pnpm install --prod --no-frozen-lockfile
+# Install production dependencies only
+RUN apk add --no-cache python3 make g++ linux-headers && \
+    npm install -g pnpm && \
+    PNPM_REGISTRY_DEFAULT_STRICTSSL=false PYTHON=/usr/bin/python3 NODE_OPTIONS=--openssl-legacy-provider pnpm install --prod --frozen-lockfile --ignore-scripts && \
+    apk del make g++
 
 # Expose the port
 EXPOSE 3001
+
+# Health check to validate the service is running properly
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -q -O - http://localhost:3001/health || exit 1
 
 # Start the application
 CMD ["sh", "-c", "cd apps/api && NODE_ENV=production node dist/scripts/init-database.js && node dist/main.js"] 

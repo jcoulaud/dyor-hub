@@ -109,7 +109,49 @@ EOF
 
 # Build and start new environment
 log "Building $NEW_ENV environment"
-docker-compose build --no-cache
+# Use buildkit for optimization
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
+# Check for changes that would require a rebuild
+CHANGES_DETECTED=false
+if [ "$FORCE_REBUILD" = "true" ]; then
+  CHANGES_DETECTED=true
+  log "Force rebuild requested"
+else
+  # Get the current and previous commit hashes
+  CURRENT_COMMIT=$(git rev-parse HEAD)
+  
+  # Check if .env.last-deployed-commit exists
+  if [ -f ".env.last-deployed-commit" ]; then
+    LAST_DEPLOYED_COMMIT=$(cat .env.last-deployed-commit)
+    
+    if [ "$CURRENT_COMMIT" != "$LAST_DEPLOYED_COMMIT" ]; then
+      CHANGES_DETECTED=true
+      log "New commit detected: $CURRENT_COMMIT (previous: $LAST_DEPLOYED_COMMIT)"
+    else
+      log "No new commits detected"
+    fi
+  else
+    # First deployment or file doesn't exist
+    CHANGES_DETECTED=true
+    log "First deployment or missing commit tracking file"
+  fi
+fi
+
+# Only build images if changes detected or images don't exist
+if [ "$CHANGES_DETECTED" = "true" ] || ! docker image inspect dyor-hub-api:latest >/dev/null 2>&1 || ! docker image inspect dyor-hub-web:latest >/dev/null 2>&1; then
+  log "Building Docker images with cache optimizations"
+  # Clean up old images to ensure we get a fresh build
+  docker-compose build --no-cache --build-arg BUILDKIT_INLINE_CACHE=1
+  
+  # Save the current commit as the last deployed
+  echo "$CURRENT_COMMIT" > .env.last-deployed-commit
+  log "Docker images rebuilt successfully"
+else
+  log "Skipping image build, using existing images"
+fi
+
 log "Starting database services"
 docker-compose up -d postgres redis
 sleep 10

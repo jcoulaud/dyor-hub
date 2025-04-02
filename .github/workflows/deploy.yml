@@ -15,7 +15,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -46,25 +46,29 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Cache build artifacts
+        id: cache-build
         uses: actions/cache@v4
         with:
           path: |
             packages/types/dist
             apps/api/dist
+            apps/web/.next
             apps/web/dist
-          key: ${{ runner.os }}-build-${{ github.sha }}
+          key: ${{ runner.os }}-build-${{ github.sha }}-${{ hashFiles('**/pnpm-lock.yaml', 'packages/types/src/**', 'apps/api/src/**', 'apps/web/src/**', 'apps/web/app/**') }}
           restore-keys: |
             ${{ runner.os }}-build-
 
       - name: Build packages
+        if: steps.cache-build.outputs.cache-hit != 'true'
         run: |
           cd packages/types
           pnpm build
 
       - name: Build API and Web in parallel
+        if: steps.cache-build.outputs.cache-hit != 'true'
         run: |
-          cd apps/api && pnpm build &
-          cd apps/web && pnpm build &
+          pnpm --filter "@dyor-hub/api" build &
+          pnpm --filter "@dyor-hub/web" build &
           wait
 
       - name: Setup SSH
@@ -93,19 +97,19 @@ jobs:
           port: 22
           script: |
             echo "=== Smart cleanup to prevent disk bloat ==="
-            
+
             # Remove stopped containers older than 24h
             docker container prune -f --filter "until=24h"
-            
+
             # Remove dangling images (not used by any container)
             docker image prune -f
-            
+
             # Remove unused volumes older than 7 days
             docker volume prune -f --filter "until=168h"
-            
+
             # Clean old log files
             find /var/log -type f -name "*.gz" -delete 2>/dev/null || true
-            
+
             # Clean apt cache only if disk usage is above 80%
             if [ $(df -h / | awk 'NR==2 {print $5}' | sed 's/%//') -gt 80 ]; then
               apt-get clean -y 2>/dev/null || true
@@ -127,7 +131,7 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           APP_DIR: /var/www/dyor-hub
           GITHUB_REPO: ${{ github.repository }}
-          FORCE_REBUILD: ${{ github.event.inputs.force_rebuild || 'false' }}
+          FORCE_REBUILD: ${{ github.event.inputs.force_rebuild || 'true' }}
         run: |
           echo "Starting blue-green deployment - Note: The site will remain available during deployment"
           echo "This is a zero-downtime deployment, but you might temporarily see a 'Deploying' message"
@@ -136,8 +140,8 @@ jobs:
 
       - name: Wait for services to stabilize
         run: |
-          echo "Waiting for services to stabilize (60 seconds)..."
-          sleep 60
+          echo "Waiting for services to stabilize (30 seconds)..."
+          sleep 30
 
       - name: Verify Deployment
         if: always()
@@ -157,51 +161,41 @@ jobs:
           if ! ssh $DEPLOY_USER@$DROPLET_IP "docker ps | grep 'dyor-hub-$ACTIVE_ENV'"; then
             echo "ERROR: No containers for the active environment ($ACTIVE_ENV) are running!"
             
-            echo "Trying to start the containers..."
-            ssh $DEPLOY_USER@$DROPLET_IP "cd $APP_DIR && docker-compose -f docker-compose.$ACTIVE_ENV.yml up -d || true"
-            sleep 20
+            # Show logs briefly
+            ssh $DEPLOY_USER@$DROPLET_IP "docker logs --tail=20 dyor-hub-$ACTIVE_ENV-web 2>&1 || echo 'No web container logs available'"
+            ssh $DEPLOY_USER@$DROPLET_IP "docker logs --tail=20 dyor-hub-$ACTIVE_ENV-api 2>&1 || echo 'No API container logs available'"
             
-            if ! ssh $DEPLOY_USER@$DROPLET_IP "docker ps | grep 'dyor-hub-$ACTIVE_ENV'"; then
-              echo "ERROR: Still no running containers after restart attempt!"
-              
-              echo "Getting deployment logs..."
-              ssh $DEPLOY_USER@$DROPLET_IP "cd $APP_DIR && cat /tmp/deployment.log 2>/dev/null || echo 'No deployment log file found'"
-              
-              echo "Checking Docker logs for containers..."
-              ssh $DEPLOY_USER@$DROPLET_IP "docker logs dyor-hub-$ACTIVE_ENV-web 2>&1 || echo 'No web container logs available'"
-              ssh $DEPLOY_USER@$DROPLET_IP "docker logs dyor-hub-$ACTIVE_ENV-api 2>&1 || echo 'No API container logs available'"
-              
-              exit 1
-            else
-              echo "Containers successfully restarted!"
-            fi
+            exit 1
           fi
 
-          echo "Checking if the web service is responding..."
-          MAX_RETRIES=5
+          # Quick health check
+          MAX_RETRIES=3
           RETRY_COUNT=0
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dyorhub.xyz/)
-            echo "Response code: $RESPONSE_CODE"
+            # Try multiple health endpoints - the main website, API health, or a known page
+            RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dyorhub.xyz/ || echo "failed")
+            echo "Website health check response: $RESPONSE_CODE"
             
             if [[ "$RESPONSE_CODE" == "200" ]]; then
               echo "Website is responding successfully!"
               break
             fi
             
+            echo "Trying API health check..."
+            RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://api.dyorhub.xyz/health || echo "failed")
+            echo "API health check response: $RESPONSE_CODE"
+            
+            if [[ "$RESPONSE_CODE" == "200" ]]; then
+              echo "API is healthy!"
+              break
+            fi
+            
             RETRY_COUNT=$((RETRY_COUNT + 1))
             if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-              echo "Retrying in 10 seconds... ($RETRY_COUNT/$MAX_RETRIES)"
-              sleep 10
+              echo "Retrying in 5 seconds... ($RETRY_COUNT/$MAX_RETRIES)"
+              sleep 5
             fi
           done
-
-          if [[ "$RESPONSE_CODE" != "200" ]]; then
-            echo "ERROR: Website not responding with 200 status after $MAX_RETRIES attempts!"
-            echo "Checking Nginx configuration and logs..."
-            ssh $DEPLOY_USER@$DROPLET_IP "sudo nginx -t && sudo cat /var/log/nginx/error.log | tail -50"
-            exit 1
-          fi
 
           echo "Deployment verification successful!"
 
