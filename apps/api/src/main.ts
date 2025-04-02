@@ -60,6 +60,8 @@ async function bootstrap() {
   }
   app.use(cookieParser(sessionSecret));
 
+  app.use(json({ limit: '5mb' }));
+
   // Configure API routing
   const useApiSubdomain =
     !isDevelopment && configService.get('USE_API_SUBDOMAIN') === 'true';

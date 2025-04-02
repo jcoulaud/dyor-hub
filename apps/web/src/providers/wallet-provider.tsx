@@ -28,7 +28,9 @@ function WalletProviderInner({ children }: WalletProviderProps) {
   const network = WalletAdapterNetwork.Mainnet;
 
   const endpoint = useMemo(() => {
-    return process.env.NEXT_PUBLIC_SOLANA_RPC || clusterApiUrl(network);
+    return process.env.NEXT_PUBLIC_API_URL
+      ? `${process.env.NEXT_PUBLIC_API_URL}/solana-rpc`
+      : clusterApiUrl(network);
   }, [network]);
 
   const wallets = useMemo(

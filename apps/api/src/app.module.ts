@@ -9,6 +9,7 @@ import { databaseConfig } from './config/database.config';
 import { HealthModule } from './health/health.module';
 import { TelegramNotificationService } from './services/telegram-notification.service';
 import { SessionModule } from './session/session.module';
+import { SolanaModule } from './solana/solana.module';
 import { TokensModule } from './tokens/tokens.module';
 import { UsersModule } from './users/users.module';
 import { WalletsModule } from './wallets/wallets.module';
@@ -31,6 +32,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     UsersModule,
     WalletsModule,
     WatchlistModule,
+    SolanaModule,
   ],
   controllers: [AppController],
   providers: [TelegramNotificationService],
