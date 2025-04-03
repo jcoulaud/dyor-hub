@@ -85,6 +85,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const router = useRouter();
   const [focusedComment, setFocusedComment] = useState<CommentType | null>(null);
+  const [threadComments, setThreadComments] = useState<CommentType[]>([]);
 
   const organizeComments = useCallback(
     (comments: CommentType[]) => {
@@ -263,17 +264,17 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     await withAuth(async () => {
       try {
         const response = await comments.vote(commentId, type);
+        const voteUpdate = {
+          voteCount: response.upvotes - response.downvotes,
+          userVoteType: response.userVoteType,
+        };
 
-        // Update main comments list state
+        // Update main comments list state for regular view
         setComments((prevComments) => {
           const updateCommentVotes = (comments: CommentType[]): CommentType[] => {
             return comments.map((comment) => {
               if (comment.id === commentId) {
-                return {
-                  ...comment,
-                  voteCount: response.upvotes - response.downvotes,
-                  userVoteType: response.userVoteType,
-                };
+                return { ...comment, ...voteUpdate };
               }
 
               if (comment.replies?.length) {
@@ -290,28 +291,36 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
           return updateCommentVotes(prevComments);
         });
 
-        // Update focusedComment state when on a comment page
-        if (focusedComment) {
-          const updateFocusedComment = (comment: CommentType): CommentType => {
-            if (comment.id === commentId) {
-              return {
-                ...comment,
-                voteCount: response.upvotes - response.downvotes,
-                userVoteType: response.userVoteType,
-              };
-            }
+        // Update threadComments if we're viewing a comment thread
+        if (threadComments.length > 0) {
+          setThreadComments((prevThreadComments) => {
+            const updateCommentVotes = (comments: CommentType[]): CommentType[] => {
+              return comments.map((comment) => {
+                if (comment.id === commentId) {
+                  return { ...comment, ...voteUpdate };
+                }
 
-            if (comment.replies?.length) {
-              return {
-                ...comment,
-                replies: comment.replies.map(updateFocusedComment),
-              };
-            }
+                if (comment.replies?.length) {
+                  return {
+                    ...comment,
+                    replies: updateCommentVotes(comment.replies),
+                  };
+                }
 
-            return comment;
-          };
+                return comment;
+              });
+            };
 
-          setFocusedComment(updateFocusedComment(focusedComment));
+            return updateCommentVotes(prevThreadComments);
+          });
+        }
+
+        // Update the focusedComment if it's the one being voted on
+        if (focusedComment && focusedComment.id === commentId) {
+          setFocusedComment({
+            ...focusedComment,
+            ...voteUpdate,
+          });
         }
       } catch (error) {
         toast({
@@ -438,6 +447,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     const isAdmin = user?.isAdmin ?? false;
     const isReplying = replyingTo === comment.id;
     const isEditing = editingComment === comment.id;
+    const isFocused = commentId === comment.id;
 
     // Check if comment is less than 15 minutes old
     const commentDate = new Date(comment.createdAt);
@@ -501,7 +511,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
       <div
         ref={commentRef}
         className={cn(
-          'group/comment rounded-md transition-colors duration-150 w-full pr-2 sm:pr-4',
+          'group/comment rounded-md transition-all duration-300 ease-in-out w-full pr-2 sm:pr-4 relative',
           depth > 0 && 'border-l-2 pl-2 sm:pl-4 ml-2 sm:ml-4',
           depth === 1 && 'border-blue-500/20 hover:border-blue-500/40 bg-blue-500/[0.03]',
           depth === 2 && 'border-purple-500/20 hover:border-purple-500/40 bg-purple-500/[0.03]',
@@ -509,6 +519,12 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
           depth === 4 && 'border-orange-500/20 hover:border-orange-500/40 bg-orange-500/[0.03]',
           depth >= 5 && 'border-gray-500/20 hover:border-gray-500/40 bg-gray-500/[0.03]',
         )}>
+        {isFocused && (
+          <div className='absolute -top-2 right-2 z-10 px-1.5 py-0.5 rounded-md bg-amber-100/70 dark:bg-amber-800/30 text-amber-700 dark:text-amber-200 text-[10px] font-medium shadow-sm'>
+            <MessageSquare className='h-2.5 w-2.5 inline-block mr-0.5 -translate-y-[0.5px]' />
+            Focused comment
+          </div>
+        )}
         <div className='py-2 sm:py-3'>
           <div className='flex gap-2 sm:gap-3'>
             <Avatar
@@ -684,23 +700,36 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   };
 
   useEffect(() => {
+    if (!commentId) return;
+
     const fetchSpecificComment = async () => {
-      if (commentId) {
-        try {
-          setIsLoadingSpecificComment(true);
-          const comment = await comments.get(commentId);
-          setFocusedComment(comment);
-        } catch (error) {
-          console.error('Error fetching specific comment:', error);
-          setFocusedComment(null);
-        } finally {
-          setIsLoadingSpecificComment(false);
-        }
+      try {
+        setIsLoadingSpecificComment(true);
+
+        const threadData = await comments.getThread(commentId);
+
+        setFocusedComment(threadData.rootComment);
+
+        setThreadComments(organizeComments(threadData.comments));
+
+        // Scroll to the focused comment
+        setTimeout(() => {
+          const commentEl = commentRefs.current.get(commentId);
+          if (commentEl) {
+            commentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      } catch (error) {
+        console.error('Error fetching specific comment:', error);
+        setFocusedComment(null);
+        setThreadComments([]);
+      } finally {
+        setIsLoadingSpecificComment(false);
       }
     };
 
     fetchSpecificComment();
-  }, [commentId]);
+  }, [commentId, organizeComments]);
 
   if (commentId) {
     if (isLoadingSpecificComment || (!isLoadingSpecificComment && !focusedComment)) {
@@ -732,7 +761,11 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         </div>
 
         <div className='space-y-4 w-full'>
-          <Comment comment={focusedComment!} />
+          {threadComments.length > 0 ? (
+            threadComments.map((comment) => <Comment key={comment.id} comment={comment} />)
+          ) : (
+            <Comment comment={focusedComment!} />
+          )}
         </div>
       </div>
     );
