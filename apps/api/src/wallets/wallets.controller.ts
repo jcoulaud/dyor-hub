@@ -3,8 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  HttpException,
-  HttpStatus,
   Param,
   Post,
   UseGuards,
@@ -30,20 +28,13 @@ export class WalletsPublicController {
   ): Promise<{ address: string; isVerified: boolean } | null> {
     try {
       const wallets = await this.walletsService.getUserWallets(userId);
-
-      // Only return wallets that are both primary and verified
       const primaryWallet = wallets.find(
         (wallet) => wallet.isPrimary && wallet.isVerified,
       );
-
       return primaryWallet
-        ? {
-            address: primaryWallet.address,
-            isVerified: primaryWallet.isVerified,
-          }
+        ? { address: primaryWallet.address, isVerified: true }
         : null;
     } catch (error) {
-      console.error('Error getting public wallet info:', error);
       return null;
     }
   }
@@ -68,14 +59,7 @@ export class WalletsController {
     @CurrentUser() user: UserEntity,
     @Body() generateNonceDto: GenerateNonceDto,
   ): Promise<NonceResponseDto> {
-    try {
-      return await this.walletsService.generateNonce(user.id, generateNonceDto);
-    } catch (error) {
-      throw new HttpException(
-        error.message || 'Failed to generate verification nonce',
-        error.status || HttpStatus.BAD_REQUEST,
-      );
-    }
+    return this.walletsService.generateNonce(user.id, generateNonceDto);
   }
 
   @Post('verify')
@@ -98,22 +82,11 @@ export class WalletsController {
     @CurrentUser() user: UserEntity,
     @Param('id') walletId: string,
   ): Promise<{ success: boolean; isPrimary: boolean }> {
-    try {
-      const wallet = await this.walletsService.setPrimaryWallet(
-        user.id,
-        walletId,
-      );
-      return {
-        success: true,
-        isPrimary: wallet.isPrimary,
-      };
-    } catch (error) {
-      console.error(`Error in setPrimaryWallet controller: ${error.message}`);
-      throw new HttpException(
-        error.message || 'Could not set wallet as primary',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+    const wallet = await this.walletsService.setPrimaryWallet(
+      user.id,
+      walletId,
+    );
+    return { success: true, isPrimary: wallet.isPrimary };
   }
 
   @Delete(':id')
@@ -121,18 +94,7 @@ export class WalletsController {
     @CurrentUser() user: UserEntity,
     @Param('id') walletId: string,
   ): Promise<{ success: boolean; message: string }> {
-    try {
-      await this.walletsService.deleteWallet(user.id, walletId);
-      return {
-        success: true,
-        message: 'Wallet deleted successfully',
-      };
-    } catch (error) {
-      console.error(`Error in deleteWallet controller: ${error.message}`);
-      throw new HttpException(
-        error.message || 'Could not delete wallet',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+    await this.walletsService.deleteWallet(user.id, walletId);
+    return { success: true, message: 'Wallet deleted successfully' };
   }
 }

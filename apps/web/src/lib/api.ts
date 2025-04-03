@@ -47,7 +47,7 @@ interface AuthResponse {
   user: User | null;
 }
 
-// Simple in-memory cache for API responses
+// Simple in-memory cache
 interface CacheItem<T> {
   data: T;
   timestamp: number;
@@ -61,12 +61,10 @@ const getCache = <T>(key: string): T | undefined => {
   const cached = apiCache.get(key);
   if (!cached) return undefined;
 
-  // Check if cache is expired
   if (Date.now() >= cached.expiresAt) {
     apiCache.delete(key);
     return undefined;
   }
-
   return cached.data as T;
 };
 
@@ -79,23 +77,16 @@ const setCache = <T>(key: string, data: T, ttl: number = CACHE_TTL): void => {
 };
 
 const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
-  // Format endpoint based on API routing strategy
+  // Format endpoint based on API routing strategy (Subdomain vs Path)
   let apiEndpoint = endpoint;
-
-  // Path-based: ensure /api prefix
   if (!isApiSubdomain) {
     apiEndpoint = endpoint.startsWith('/api/') ? endpoint : `/api/${endpoint.replace(/^\//, '')}`;
   } else {
-    // Subdomain-based: remove /api prefix if present
     apiEndpoint = endpoint.startsWith('/api/') ? endpoint.substring(5) : endpoint;
   }
-
-  // Ensure leading slash
   if (!apiEndpoint.startsWith('/')) {
     apiEndpoint = `/${apiEndpoint}`;
   }
-
-  // Build full request URL
   const url = `${API_BASE_URL}${apiEndpoint}`;
 
   const controller = new AbortController();
@@ -104,10 +95,9 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
   try {
     const config: RequestInit = {
       ...options,
-      credentials: 'include', // Send cookies with cross-origin requests
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        // Help debug CORS issues
         ...(typeof window !== 'undefined' && { Origin: window.location.origin }),
         ...options.headers,
       },
@@ -122,51 +112,52 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      if (response.status === 401) {
-        // Special case for auth check endpoints
-        if (endpoint === 'auth/profile') {
-          throw new ApiError(401, 'Unauthorized');
-        }
-      }
+      const statusCode = response.status;
+      let message = `HTTP error ${statusCode}`;
+      let errorData: { message?: string | string[] } | string | null = null;
 
-      let errorMessage = `HTTP error ${response.status}`;
       try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorMessage;
+        errorData = await response.json();
+        if (errorData && typeof errorData === 'object' && errorData.message) {
+          if (typeof errorData.message === 'string') {
+            message = errorData.message;
+          } else if (Array.isArray(errorData.message)) {
+            message = errorData.message.join(', ');
+          }
+        } else if (typeof errorData === 'string') {
+          message = errorData;
+        }
       } catch {
-        // JSON parse failed, use default message
+        // Keep default message if JSON parsing fails
       }
 
-      throw new ApiError(response.status, errorMessage);
+      if (statusCode === 401 && endpoint === 'auth/profile') {
+        message = 'Unauthorized';
+      }
+
+      throw new ApiError(statusCode, message);
     }
 
-    // Empty response
     if (response.status === 204) {
       return null as T;
     }
 
-    const responseData = await response.json();
-    return responseData;
+    return await response.json();
   } catch (error) {
     clearTimeout(timeoutId);
 
-    // Request timed out
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new ApiError(408, 'Request timeout');
     }
-
-    // Pass through API errors
     if (error instanceof ApiError) {
       throw error;
     }
-
-    // Connection issues
     if (error instanceof Error) {
       throw new ApiError(0, `Network error: ${error.message}`);
     }
 
     // Unexpected errors
-    throw new ApiError(500, 'Unknown error occurred');
+    throw new ApiError(500, 'An unknown error occurred');
   }
 };
 

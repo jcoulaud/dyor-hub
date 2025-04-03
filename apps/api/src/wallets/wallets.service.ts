@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PublicKey } from '@solana/web3.js';
 import * as crypto from 'crypto';
 import * as nacl from 'tweetnacl';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
 import { WalletEntity } from '../entities/wallet.entity';
 import { ConnectWalletDto } from './dto/connect-wallet.dto';
@@ -27,23 +31,23 @@ export class WalletsService {
   ): Promise<WalletResponseDto> {
     const { address } = connectWalletDto;
 
-    // Check if wallet already exists for this address
     let wallet = await this.walletsRepository.findOne({
       where: { address },
     });
 
     if (wallet) {
-      // If wallet exists but belongs to another user, throw an error
       if (wallet.userId !== userId) {
-        throw new Error('Wallet address already connected to another account');
+        throw new ConflictException(
+          'Wallet address already connected to another account',
+        );
       }
       return WalletResponseDto.fromEntity(wallet);
     }
 
-    // Create new wallet
-    const user = await this.usersRepository.findOneOrFail({
-      where: { id: userId },
-    });
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
     wallet = this.walletsRepository.create({
       address,
@@ -67,7 +71,7 @@ export class WalletsService {
         throw new Error('Invalid Solana address: not on Ed25519 curve');
       }
     } catch (error) {
-      throw new Error(`Invalid Solana address: ${error.message}`);
+      throw new Error(`Invalid Solana address format: ${error.message}`);
     }
 
     const wallet = await this.walletsRepository.findOne({
@@ -75,23 +79,20 @@ export class WalletsService {
     });
 
     if (!wallet) {
-      throw new Error('Wallet not found. Please connect the wallet first.');
+      throw new NotFoundException(
+        'Wallet not found. Please connect the wallet first.',
+      );
     }
 
+    // Generate a secure random nonce
     const nonce = `DYOR-${Date.now()}-${crypto.randomInt(100000, 999999)}`;
-
-    // Nonce expiration (15 minutes from now)
-    const expiresAt = Date.now() + 15 * 60 * 1000;
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 min expiration
 
     wallet.verificationNonce = nonce;
     wallet.nonceExpiresAt = expiresAt;
-
     await this.walletsRepository.save(wallet);
 
-    return {
-      nonce,
-      expiresAt,
-    };
+    return { nonce, expiresAt };
   }
 
   async verifyWallet(
@@ -105,30 +106,40 @@ export class WalletsService {
     });
 
     if (!wallet) {
-      throw new Error('Wallet not found');
+      throw new NotFoundException(
+        'Wallet not found or not associated with this user account.',
+      );
     }
 
+    // Check if already verified by another user
+    const conflictingWallet = await this.walletsRepository.findOne({
+      where: {
+        address: address,
+        isVerified: true,
+        userId: Not(userId),
+      },
+    });
+
+    if (conflictingWallet) {
+      throw new ConflictException('Wallet already verified by another user.');
+    }
+
+    // Check nonce presence and expiration
+    if (!wallet.verificationNonce) {
+      throw new Error(
+        'No verification nonce found. Please request a new nonce first.',
+      );
+    }
+    if (wallet.nonceExpiresAt && wallet.nonceExpiresAt < Date.now()) {
+      throw new Error(
+        'Verification nonce has expired. Please request a new nonce.',
+      );
+    }
+
+    // Verify signature
     try {
       const signatureBytes = Buffer.from(signature, 'base64');
-
       const publicKey = new PublicKey(address);
-
-      if (!PublicKey.isOnCurve(publicKey)) {
-        throw new Error('Invalid Solana address: not on Ed25519 curve');
-      }
-
-      if (!wallet.verificationNonce) {
-        throw new Error(
-          'No verification nonce found. Please request a new nonce first.',
-        );
-      }
-
-      if (wallet.nonceExpiresAt && wallet.nonceExpiresAt < Date.now()) {
-        throw new Error(
-          'Verification nonce has expired. Please request a new nonce.',
-        );
-      }
-
       const message = `Sign this message to verify ownership of your wallet with DYOR hub.\n\nNonce: ${wallet.verificationNonce}`;
       const messageBytes = new TextEncoder().encode(message);
 
@@ -142,6 +153,7 @@ export class WalletsService {
         throw new Error('Signature verification failed');
       }
 
+      // Update wallet state on successful verification
       wallet.isVerified = true;
       wallet.signature = signature;
       wallet.verificationNonce = null;
@@ -155,49 +167,44 @@ export class WalletsService {
   }
 
   async getUserWallets(userId: string): Promise<WalletResponseDto[]> {
-    if (!userId) {
-      return [];
-    }
-
-    const wallets = await this.walletsRepository.find({
-      where: { userId },
-    });
-
+    if (!userId) return [];
+    const wallets = await this.walletsRepository.find({ where: { userId } });
     return wallets.map((wallet) => WalletResponseDto.fromEntity(wallet));
   }
 
   async deleteWallet(userId: string, walletId: string): Promise<void> {
-    const wallet = await this.walletsRepository.findOne({
-      where: { id: walletId, userId },
+    const result = await this.walletsRepository.delete({
+      id: walletId,
+      userId,
     });
-
-    if (!wallet) {
-      throw new NotFoundException('Wallet not found');
+    if (result.affected === 0) {
+      throw new NotFoundException(
+        'Wallet not found or you do not own this wallet.',
+      );
     }
-
-    await this.walletsRepository.remove(wallet);
   }
 
   async setPrimaryWallet(
     userId: string,
     walletId: string,
   ): Promise<WalletResponseDto> {
-    const wallet = await this.walletsRepository.findOne({
+    const walletToMakePrimary = await this.walletsRepository.findOne({
       where: { id: walletId, userId },
     });
 
-    if (!wallet) {
-      throw new NotFoundException('Wallet not found');
+    if (!walletToMakePrimary) {
+      throw new NotFoundException('Wallet not found for this user.');
     }
 
     return this.walletsRepository.manager.transaction(async (manager) => {
-      await manager.query(
-        `UPDATE wallets SET is_primary = false WHERE user_id = $1`,
-        [userId],
+      await manager.update(
+        WalletEntity,
+        { userId: userId },
+        { isPrimary: false },
       );
 
-      wallet.isPrimary = true;
-      const updatedWallet = await manager.save(wallet);
+      walletToMakePrimary.isPrimary = true;
+      const updatedWallet = await manager.save(walletToMakePrimary);
 
       return WalletResponseDto.fromEntity(updatedWallet);
     });
