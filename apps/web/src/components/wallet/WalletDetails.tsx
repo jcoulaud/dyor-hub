@@ -1,143 +1,265 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { wallets } from '@/lib/api';
 import { truncateAddress } from '@/lib/utils';
-import {
-  clearWalletVerification,
-  isWalletBeingDeleted,
-  setWalletDeletionState,
-} from '@/lib/wallet';
+import { clearWalletVerification, setWalletDeletionState } from '@/lib/wallet';
+import { walletEvents } from '@/lib/wallet-events';
 import { DbWallet } from '@dyor-hub/types';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { ExternalLinkIcon, ShieldIcon, Trash2Icon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import {
+  AlertTriangleIcon,
+  CopyIcon,
+  Loader2Icon,
+  ShieldIcon,
+  SquareArrowOutUpRightIcon,
+  StarIcon,
+  Trash2Icon,
+} from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { WalletVerification } from './WalletVerification';
 
 export function WalletDetails() {
   const wallet = useWallet();
   const { publicKey, disconnect } = wallet || {};
   const [error, setError] = useState<string | null>(null);
+  const [associationConflictError, setAssociationConflictError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAssociating, setIsAssociating] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isSettingPrimary, setIsSettingPrimary] = useState(false);
   const [dbWallet, setDbWallet] = useState<DbWallet | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
   const { toast } = useToast();
-  const hasFetchedWallet = useRef(false);
   const previousWalletAddress = useRef<string | null>(null);
-  const fetchingWallet = useRef(false);
+  const isFetching = useRef(false);
 
-  useEffect(() => {
-    if (!wallet) {
-      setError('Wallet context not available');
-      return;
+  const copyToClipboard = useCallback(async () => {
+    if (!publicKey) return;
+    try {
+      await navigator.clipboard.writeText(publicKey.toBase58());
+      toast({ title: 'Copied!', description: 'Wallet address copied to clipboard' });
+    } catch (err) {
+      console.error('Failed to copy wallet address:', err);
     }
+  }, [publicKey, toast]);
 
-    if (!publicKey) {
-      setError('Wallet not connected');
-      if (dbWallet) {
-        hasFetchedWallet.current = false;
-        previousWalletAddress.current = null;
-        setDbWallet(null);
-      }
-      return;
-    }
+  const openExplorer = useCallback(() => {
+    if (!publicKey) return;
+    window.open(`https://solscan.io/account/${publicKey.toBase58()}`, '_blank');
+  }, [publicKey]);
 
-    const walletAddress = publicKey.toBase58();
+  const refreshWalletData = useCallback(
+    async (showToast = false, isAssociationAttempt = false) => {
+      if (!publicKey || isFetching.current) return;
 
-    if (previousWalletAddress.current === walletAddress && hasFetchedWallet.current) {
-      return;
-    }
+      const walletAddress = publicKey.toBase58();
+      isFetching.current = true;
+      if (!isAssociationAttempt) setIsLoading(true);
+      setError(null);
+      setAssociationConflictError(null);
 
-    if (isWalletBeingDeleted() || fetchingWallet.current) {
-      return;
-    }
-
-    setError(null);
-    previousWalletAddress.current = walletAddress;
-    fetchingWallet.current = true;
-
-    const fetchWallet = async () => {
       try {
         const userWallets = await wallets.list();
         const foundWallet = userWallets.find((w) => w.address === walletAddress);
 
         if (foundWallet) {
-          const isPrimaryWallet = foundWallet.isPrimary === true;
-
-          setDbWallet({
-            ...foundWallet,
-            isPrimary: isPrimaryWallet,
-          });
-          setIsPrimary(isPrimaryWallet);
-
-          if (!hasFetchedWallet.current) {
-            toast({
-              title: 'Wallet Connected',
-              description: `Successfully connected wallet ${truncateAddress(walletAddress)}`,
-            });
+          setDbWallet(foundWallet);
+          setIsPrimary(foundWallet.isPrimary === true);
+          if (showToast) {
+            toast({ title: 'Wallet Data Refreshed' });
           }
-
-          hasFetchedWallet.current = true;
-          return;
-        }
-
-        const newWallet = await wallets.connect(walletAddress);
-        let isPrimaryWallet = newWallet.isPrimary === true;
-
-        if (!isPrimaryWallet && userWallets.length === 0 && newWallet.id) {
+        } else if (!isAssociationAttempt) {
+          setIsAssociating(true);
           try {
-            const result = await wallets.setPrimary(newWallet.id);
+            const newWallet = await wallets.connect(walletAddress);
+            toast({
+              title: 'Wallet Linked',
+              description: 'Wallet linked to your account. Please verify ownership.',
+            });
+            setDbWallet(newWallet);
+            setIsPrimary(newWallet.isPrimary === true);
+          } catch (connectErr: unknown) {
+            const alreadyConnectedMsg = 'Wallet address already connected to another account';
+            let backendErrorMessage = '';
 
-            if (result.success) {
-              isPrimaryWallet = true;
+            if (typeof connectErr === 'object' && connectErr !== null) {
+              if (
+                'response' in connectErr &&
+                typeof connectErr.response === 'object' &&
+                connectErr.response !== null
+              ) {
+                const response = connectErr.response as { message?: string | string[] };
+                if (typeof response.message === 'string') backendErrorMessage = response.message;
+                else if (Array.isArray(response.message))
+                  backendErrorMessage = response.message.join(', ');
+              }
+              if (
+                !backendErrorMessage &&
+                'message' in connectErr &&
+                typeof connectErr.message === 'string'
+              ) {
+                backendErrorMessage = connectErr.message;
+              }
+            }
 
+            if (backendErrorMessage.includes(alreadyConnectedMsg)) {
+              const conflictMsg =
+                'This wallet is linked to another account. The other account must remove it first.';
+              setAssociationConflictError(conflictMsg);
               toast({
-                title: 'Primary Wallet Set',
-                description: `Wallet ${truncateAddress(walletAddress)} has been set as your primary wallet`,
+                title: 'Association Conflict',
+                description: conflictMsg,
+                variant: 'destructive',
+              });
+            } else {
+              const generalErrorMsg = 'Failed to automatically link this wallet to your account.';
+              setError(generalErrorMsg);
+              toast({
+                title: 'Association Failed',
+                description: generalErrorMsg,
+                variant: 'destructive',
               });
             }
-          } catch (err) {
-            console.error('Error setting primary wallet:', err);
+            setDbWallet(null);
+            setIsPrimary(false);
+          } finally {
+            setIsAssociating(false);
           }
+        } else {
+          setDbWallet(null);
+          setIsPrimary(false);
         }
-
-        setDbWallet({
-          ...newWallet,
-          isPrimary: isPrimaryWallet,
-        });
-        setIsPrimary(isPrimaryWallet);
-
+      } catch {
+        setError('Failed to fetch wallet details. Please refresh.');
         toast({
-          title: 'Wallet Connected',
-          description: `Successfully connected wallet ${truncateAddress(walletAddress)}`,
-        });
-
-        hasFetchedWallet.current = true;
-      } catch (err) {
-        console.error('Error fetching wallet:', err);
-        toast({
-          title: 'Connection Error',
-          description: 'Failed to connect wallet to your account',
+          title: 'Error',
+          description: 'Could not fetch wallet data.',
           variant: 'destructive',
         });
+        setDbWallet(null);
+        setIsPrimary(false);
       } finally {
-        fetchingWallet.current = false;
+        setIsLoading(false);
+        isFetching.current = false;
       }
-    };
+    },
+    [publicKey, toast],
+  );
 
-    fetchWallet();
-  }, [wallet, publicKey, toast, dbWallet]);
+  const handleSetPrimary = useCallback(async () => {
+    if (!dbWallet?.id || isPrimary) return;
+    const walletAddress = publicKey?.toBase58();
+    if (!walletAddress) return;
 
-  if (error || !publicKey || !wallet) {
+    setIsSettingPrimary(true);
+    try {
+      const result = await wallets.setPrimary(dbWallet.id);
+      if (result.success) {
+        toast({
+          title: 'Primary Wallet Set',
+          description: `Wallet ${truncateAddress(walletAddress)} is now primary.`,
+        });
+        refreshWalletData(false);
+      } else {
+        throw new Error('API indicated failure setting primary wallet');
+      }
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Failed to set primary wallet.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSettingPrimary(false);
+    }
+  }, [dbWallet, isPrimary, refreshWalletData, toast, publicKey]);
+
+  const handleDisconnect = useCallback(async () => {
+    if (isRemoving) return;
+    const walletAddress = publicKey?.toBase58();
+    if (!walletAddress) return;
+
+    const walletIdToRemove = dbWallet?.id;
+    setIsRemoving(true);
+    setWalletDeletionState(true);
+
+    try {
+      clearWalletVerification(walletAddress);
+      if (typeof disconnect === 'function') {
+        await disconnect();
+      }
+      if (walletIdToRemove) {
+        await wallets.delete(walletIdToRemove);
+        walletEvents.emit('wallet-removed', { walletId: walletIdToRemove, address: walletAddress });
+        toast({
+          title: 'Wallet Removed',
+          description: `Successfully removed wallet ${truncateAddress(walletAddress)}`,
+        });
+      }
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Failed to remove wallet completely.',
+        variant: 'destructive',
+      });
+      setWalletDeletionState(false);
+    } finally {
+      setIsRemoving(false);
+    }
+  }, [publicKey, disconnect, dbWallet, isRemoving, toast]);
+
+  useEffect(() => {
+    if (!publicKey) {
+      setError(null);
+      setAssociationConflictError(null);
+      setDbWallet(null);
+      setIsPrimary(false);
+      setIsLoading(false);
+      setIsAssociating(false);
+      previousWalletAddress.current = null;
+      isFetching.current = false;
+      return;
+    }
+
+    const walletAddress = publicKey.toBase58();
+
+    if (previousWalletAddress.current === walletAddress) {
+      return;
+    }
+
+    previousWalletAddress.current = walletAddress;
+    refreshWalletData(false, false);
+  }, [publicKey, refreshWalletData]);
+
+  if (isLoading && !dbWallet) {
+    return (
+      <Card className='w-full overflow-hidden border bg-card'>
+        <CardContent className='p-6 space-y-4'>
+          <Skeleton className='h-8 w-3/4' />
+          <Skeleton className='h-10 w-full' />
+          <Skeleton className='h-10 w-1/2' />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
     return (
       <Card className='w-full border-red-200 bg-red-50/10'>
-        <CardContent className='p-6'>
-          <div className='text-center text-red-500 text-sm'>
-            {error || 'Wallet connection issue. Please refresh the page and try again.'}
-          </div>
+        <CardContent className='p-6 text-center text-red-500 text-sm'>{error}</CardContent>
+      </Card>
+    );
+  }
+
+  if (!publicKey) {
+    return (
+      <Card className='w-full border-red-200 bg-red-50/10'>
+        <CardContent className='p-6 text-center text-muted-foreground text-sm'>
+          Wallet disconnected.
         </CardContent>
       </Card>
     );
@@ -145,181 +267,100 @@ export function WalletDetails() {
 
   const walletAddress = publicKey.toBase58();
 
-  const handleDisconnect = async () => {
-    if (isRemoving) return;
-
-    try {
-      setIsRemoving(true);
-      setWalletDeletionState(true);
-
-      const walletId = dbWallet?.id;
-      const walletAddressToRemove = walletAddress;
-
-      clearWalletVerification(walletAddressToRemove);
-
-      if (typeof disconnect === 'function') {
-        disconnect();
-      }
-
-      hasFetchedWallet.current = false;
-      previousWalletAddress.current = null;
-      setDbWallet(null);
-
-      if (walletId) {
-        const result = await wallets.delete(walletId);
-
-        if (result.success) {
-          toast({
-            title: 'Wallet Removed',
-            description: `Successfully removed wallet ${truncateAddress(walletAddressToRemove)}`,
-          });
-        } else {
-          throw new Error('Failed to remove wallet from database');
-        }
-      }
-    } catch (err) {
-      console.error('Error removing wallet:', err);
-
-      toast({
-        title: 'Error',
-        description: 'Failed to remove wallet completely. Please try again.',
-        variant: 'destructive',
-      });
-
-      setWalletDeletionState(false);
-    } finally {
-      setIsRemoving(false);
-    }
-  };
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(walletAddress);
-
-      toast({
-        title: 'Copied!',
-        description: 'Wallet address copied to clipboard',
-      });
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-
-  const openExplorer = () => {
-    window.open(`https://solscan.io/account/${walletAddress}`, '_blank');
-  };
-
-  const setPrimaryWallet = async () => {
-    if (!dbWallet?.id) return;
-
-    try {
-      const result = await wallets.setPrimary(dbWallet.id);
-
-      if (result.success) {
-        setIsPrimary(true);
-        setDbWallet((prev) =>
-          prev
-            ? {
-                ...prev,
-                isPrimary: true,
-              }
-            : null,
-        );
-
-        toast({
-          title: 'Primary Wallet Set',
-          description: `Wallet ${truncateAddress(walletAddress)} is now your primary wallet`,
-        });
-      } else {
-        throw new Error('Failed to set primary wallet');
-      }
-    } catch (err) {
-      console.error('Error setting primary wallet:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to set primary wallet',
-        variant: 'destructive',
-      });
-    }
-  };
-
   return (
     <Card className='w-full overflow-hidden border bg-card'>
       <CardContent className='p-0'>
-        <div className='flex flex-col divide-y'>
-          {/* Wallet info header */}
-          <div className='p-6 flex flex-wrap items-center justify-between gap-4 bg-muted/30'>
-            <div className='flex flex-col gap-1'>
+        <div className='flex flex-col divide-y divide-border'>
+          <div className='p-4 md:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-muted/30'>
+            <div>
+              <div className='text-xs text-muted-foreground mb-1'>Connected Wallet</div>
               <div className='flex items-center gap-2'>
-                <div className='text-sm font-medium text-muted-foreground'>Connected Wallet</div>
-                {isPrimary && (
-                  <Badge className='h-5 rounded-md px-1.5 bg-yellow-500/15 text-yellow-500 text-xs font-medium pointer-events-none'>
-                    Primary
-                  </Badge>
-                )}
-              </div>
-              <div className='flex items-center gap-2'>
-                <button
-                  onClick={openExplorer}
-                  className='relative flex items-center gap-1 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 h-8 px-3 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'>
-                  <span className='font-mono text-zinc-200 text-xs'>
-                    {truncateAddress(walletAddress)}
-                  </span>
-                  <ExternalLinkIcon className='h-3.5 w-3.5 text-blue-400' />
-                </button>
-                <button
+                <span className='font-mono text-lg font-medium'>
+                  {truncateAddress(walletAddress)}
+                </span>
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  className='h-7 w-7 bg-muted/50 hover:bg-muted'
                   onClick={copyToClipboard}
-                  className='flex items-center justify-center h-8 w-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'>
-                  <svg
-                    width='14'
-                    height='14'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeWidth='2'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    className='text-blue-400'>
-                    <rect width='14' height='14' x='8' y='8' rx='2' ry='2' />
-                    <path d='M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' />
-                  </svg>
-                  <span className='sr-only'>Copy address</span>
-                </button>
+                  title='Copy address'>
+                  <CopyIcon className='h-3.5 w-3.5' />
+                </Button>
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  className='h-7 w-7 bg-muted/50 hover:bg-muted'
+                  onClick={openExplorer}
+                  title='View on Explorer'>
+                  <SquareArrowOutUpRightIcon className='h-3.5 w-3.5' />
+                </Button>
               </div>
             </div>
-
-            <div className='flex gap-2'>
-              {!isPrimary && (
+            <div className='flex items-center gap-2 flex-wrap'>
+              {dbWallet && !isPrimary && (
                 <Button
                   variant='outline'
                   size='sm'
-                  onClick={setPrimaryWallet}
-                  className='text-primary border-primary/30 hover:bg-primary/5 transition-all duration-200 cursor-pointer'>
+                  onClick={handleSetPrimary}
+                  disabled={isSettingPrimary}
+                  title='Make this your primary wallet for all operations'
+                  className='bg-yellow-500/10 text-white border border-yellow-500/30 hover:bg-yellow-500/20 hover:text-white transition-colors font-medium'>
+                  {isSettingPrimary ? (
+                    <Loader2Icon className='mr-1.5 h-3.5 w-3.5 animate-spin' />
+                  ) : (
+                    <StarIcon className='mr-1.5 h-3.5 w-3.5 fill-yellow-400 stroke-yellow-600' />
+                  )}
                   Set as Primary
                 </Button>
               )}
               <Button
-                variant='outline'
+                variant='destructive'
                 size='sm'
                 onClick={handleDisconnect}
                 disabled={isRemoving}
-                className='bg-red-950/30 text-white border-red-900/50 hover:bg-red-900/40 hover:text-white hover:border-red-800/60 focus:ring-1 focus:ring-red-900/20 transition-all duration-200 cursor-pointer flex items-center gap-1.5 px-3 rounded-md shadow-sm'>
-                <Trash2Icon className='h-4 w-4' />
-                {isRemoving ? 'Disconnecting...' : 'Disconnect'}
+                title={
+                  dbWallet ? 'Disconnect and remove from account' : 'Disconnect wallet adapter'
+                }>
+                {isRemoving && dbWallet ? (
+                  <Loader2Icon className='mr-1.5 h-3.5 w-3.5 animate-spin' />
+                ) : (
+                  <Trash2Icon className='mr-1.5 h-3.5 w-3.5' />
+                )}
+                {dbWallet ? 'Remove' : 'Disconnect'}
               </Button>
             </div>
           </div>
 
-          {/* Wallet details */}
-          <div className='p-6'>
-            <div className='flex flex-col gap-1.5'>
-              <div className='text-sm font-medium text-muted-foreground flex items-center gap-1.5'>
-                <ShieldIcon className='h-3.5 w-3.5' />
-                Verification Status
-              </div>
-              <WalletVerification />
+          {isAssociating && (
+            <div className='p-4 md:p-6 text-sm text-muted-foreground flex items-center gap-2'>
+              <Loader2Icon className='h-4 w-4 animate-spin' />
+              <span>Linking wallet to your account...</span>
             </div>
-          </div>
+          )}
+
+          {associationConflictError && (
+            <div className='p-4 md:p-6 bg-red-500/10 border-t border-red-500/20'>
+              <div className='flex items-center gap-2'>
+                <AlertTriangleIcon className='h-4 w-4 text-red-300 flex-shrink-0' />
+                <p className='text-xs text-red-300'>{associationConflictError}</p>
+              </div>
+            </div>
+          )}
+
+          {dbWallet && !associationConflictError && (
+            <div className='p-4 md:p-6 border-t border-border'>
+              <div className='flex flex-col gap-1.5'>
+                <div className='text-sm font-medium text-muted-foreground flex items-center gap-1.5'>
+                  <ShieldIcon className='h-3.5 w-3.5' />
+                  Verification Status
+                </div>
+                <WalletVerification
+                  dbWallet={dbWallet}
+                  onVerificationSuccess={() => refreshWalletData(true)}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
