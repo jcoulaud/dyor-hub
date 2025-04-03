@@ -217,6 +217,21 @@ export const comments = {
     const response = await api<Comment>(`comments/${commentId}/remove`, { method: 'POST' });
     return response;
   },
+
+  getThread: async (
+    commentId: string,
+  ): Promise<{
+    rootComment: Comment;
+    comments: Comment[];
+    focusedCommentId: string;
+  }> => {
+    const response = await api<{
+      rootComment: Comment;
+      comments: Comment[];
+      focusedCommentId: string;
+    }>(`comments/thread/${commentId}`);
+    return response;
+  },
 };
 
 export const auth = {

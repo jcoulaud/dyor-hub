@@ -422,4 +422,129 @@ export class CommentsService {
       },
     }));
   }
+
+  async findCommentThread(
+    commentId: string,
+    currentUserId?: string,
+  ): Promise<{
+    rootComment: CommentResponseDto;
+    comments: CommentResponseDto[];
+    focusedCommentId: string;
+  }> {
+    const focusedComment = await this.commentRepository.findOne({
+      where: { id: commentId },
+      relations: ['user', 'removedBy'],
+    });
+
+    if (!focusedComment) {
+      throw new NotFoundException(`Comment with ID ${commentId} not found`);
+    }
+
+    // Find the root comment
+    let rootCommentId = commentId;
+    if (focusedComment.parentId) {
+      let currentParentId = focusedComment.parentId;
+
+      while (currentParentId) {
+        const parentComment = await this.commentRepository.findOne({
+          where: { id: currentParentId },
+        });
+
+        if (!parentComment) break;
+
+        rootCommentId = parentComment.id;
+
+        if (!parentComment.parentId) {
+          break;
+        }
+
+        currentParentId = parentComment.parentId;
+      }
+    }
+
+    // Fetch all comments in thread
+    const threadComments = await this.commentRepository
+      .createQueryBuilder('comment')
+      .leftJoinAndSelect('comment.user', 'user')
+      .leftJoinAndSelect('comment.removedBy', 'removedBy')
+      .where('comment.id = :rootId', { rootId: rootCommentId })
+      .orWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('c.id')
+          .from(CommentEntity, 'c')
+          .where('c.id = :rootId', { rootId: rootCommentId })
+          .getQuery();
+        return `comment.parentId IN ${subQuery} OR comment.id IN ${subQuery}`;
+      })
+      .orWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('c.id')
+          .from(CommentEntity, 'c')
+          .where('c.parentId = :rootId', { rootId: rootCommentId })
+          .getQuery();
+        return `comment.parentId IN ${subQuery}`;
+      })
+      .getMany();
+
+    // Get user votes
+    let userVotes: CommentVoteEntity[] = [];
+    if (currentUserId && threadComments.length > 0) {
+      userVotes = await this.voteRepository.find({
+        where: {
+          userId: currentUserId,
+          commentId: In(threadComments.map((c) => c.id)),
+        },
+      });
+    }
+
+    const createCommentDTO = (comment: CommentEntity) => {
+      const userVote = userVotes.find((v) => v.commentId === comment.id);
+
+      return {
+        id: comment.id,
+        content: comment.removedById
+          ? `Comment removed by ${comment.removedBy?.id === comment.userId ? 'user' : 'moderator'}`
+          : comment.content,
+        createdAt: comment.createdAt,
+        updatedAt: comment.updatedAt,
+        voteCount: comment.upvotes - comment.downvotes,
+        parentId: comment.parentId,
+        user: {
+          id: comment.user.id,
+          username: comment.user.username,
+          displayName: comment.user.displayName,
+          avatarUrl: comment.user.avatarUrl,
+        },
+        userVoteType: userVote?.type || null,
+        isRemoved: !!comment.removedById,
+        isEdited: comment.isEdited,
+        removedBy: comment.removedById
+          ? {
+              id: comment.removedBy.id,
+              isSelf: comment.removedBy.id === comment.userId,
+            }
+          : null,
+      };
+    };
+
+    // Find the root comment from the fetched comments
+    const rootComment = threadComments.find((c) => c.id === rootCommentId);
+
+    if (!rootComment) {
+      throw new NotFoundException(
+        `Root comment with ID ${rootCommentId} not found`,
+      );
+    }
+
+    const commentDTOs = threadComments.map(createCommentDTO);
+    const rootCommentDTO = createCommentDTO(rootComment);
+
+    return {
+      rootComment: rootCommentDTO,
+      comments: commentDTOs,
+      focusedCommentId: commentId,
+    };
+  }
 }

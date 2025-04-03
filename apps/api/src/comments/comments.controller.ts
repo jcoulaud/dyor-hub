@@ -21,6 +21,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import { CommentsService } from './comments.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
+import { CommentThreadResponseDto } from './dto/comment-thread-response.dto';
 import { LatestCommentResponseDto } from './dto/latest-comment-response.dto';
 import { VoteResponseDto } from './dto/vote-response.dto';
 
@@ -172,5 +173,34 @@ export class CommentsController {
       throw new BadRequestException('Invalid vote type');
     }
     return this.commentsService.vote(id, user.id, type);
+  }
+
+  @Get('/thread/:id')
+  @UseGuards(OptionalAuthGuard)
+  async getCommentThread(
+    @Param('id') id: string,
+    @CurrentUser() user?: { id: string },
+  ): Promise<CommentThreadResponseDto> {
+    try {
+      const threadData = await this.commentsService.findCommentThread(
+        id,
+        user?.id,
+      );
+
+      return plainToInstance(CommentThreadResponseDto, threadData, {
+        excludeExtraneousValues: true,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error fetching comment thread: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Could not fetch comment thread: ${error.message}`,
+      );
+    }
   }
 }
