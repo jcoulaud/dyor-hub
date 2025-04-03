@@ -168,7 +168,7 @@ export function WalletVerification({ dbWallet, onVerificationSuccess }: WalletVe
             <Button
               variant='outline'
               size='sm'
-              className='h-8 font-medium bg-green-500/10 text-white border-green-500/30 hover:bg-green-500/20 hover:text-white transition-all duration-200 ml-auto'
+              className='h-8 font-medium bg-background dark:bg-muted cursor-pointer border-white/20 hover:bg-muted/50 hover:border-white/50 transition-all duration-200 ml-auto'
               onClick={handleVerify}
               disabled={!canVerify || isVerifying}>
               <ShieldIcon className='h-3.5 w-3.5 mr-1.5' />

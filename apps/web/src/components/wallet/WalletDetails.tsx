@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { wallets } from '@/lib/api';
 import { truncateAddress } from '@/lib/utils';
 import { clearWalletVerification, setWalletDeletionState } from '@/lib/wallet';
+import { walletEvents } from '@/lib/wallet-events';
 import { DbWallet } from '@dyor-hub/types';
 import { useWallet } from '@solana/wallet-adapter-react';
 import {
@@ -193,6 +194,7 @@ export function WalletDetails() {
       }
       if (walletIdToRemove) {
         await wallets.delete(walletIdToRemove);
+        walletEvents.emit('wallet-removed', { walletId: walletIdToRemove, address: walletAddress });
         toast({
           title: 'Wallet Removed',
           description: `Successfully removed wallet ${truncateAddress(walletAddress)}`,

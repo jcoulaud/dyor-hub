@@ -2,9 +2,10 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { wallets } from '@/lib/api';
+import { walletEvents } from '@/lib/wallet-events';
 import { DbWallet } from '@dyor-hub/types';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ConnectWalletCard } from './ConnectWalletCard';
 import { SavedWalletList } from './SavedWalletList';
 import { WalletDetails } from './WalletDetails';
@@ -15,24 +16,32 @@ export function WalletContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUserWallets = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const userWallets = await wallets.list();
-        setDbWallets(userWallets || []);
-      } catch (err) {
-        console.error('Error fetching user wallets:', err);
-        setError('Failed to load your wallet information. Please try refreshing.');
-        setDbWallets([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserWallets();
+  const fetchUserWallets = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const userWallets = await wallets.list();
+      setDbWallets(userWallets || []);
+    } catch (err) {
+      console.error('Error fetching user wallets:', err);
+      setError('Failed to load your wallet information. Please try refreshing.');
+      setDbWallets([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchUserWallets();
+
+    const unsubscribe = walletEvents.subscribe('wallet-removed', () => {
+      fetchUserWallets();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [fetchUserWallets]);
 
   if (isLoading) {
     return (
