@@ -38,6 +38,7 @@ export class CommentsController {
     @Query('tokenMintAddress') tokenMintAddress: string,
     @Query('page') page = '1',
     @Query('limit') limit = '10',
+    @Query('sortBy') sortBy = 'best',
     @CurrentUser() user?: { id: string },
   ): Promise<{
     data: CommentResponseDto[];
@@ -48,6 +49,7 @@ export class CommentsController {
       user?.id,
       parseInt(page, 10),
       parseInt(limit, 10),
+      sortBy,
     );
 
     if (!comments?.data || !comments?.meta) {

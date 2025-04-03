@@ -167,6 +167,7 @@ export const comments = {
     tokenMintAddress: string,
     page: number = 1,
     limit: number = 10,
+    sortBy: string = 'best',
   ): Promise<{
     data: Comment[];
     meta: { total: number; page: number; limit: number; totalPages: number };
@@ -174,7 +175,9 @@ export const comments = {
     const response = await api<{
       data: Comment[];
       meta: { total: number; page: number; limit: number; totalPages: number };
-    }>(`comments?tokenMintAddress=${tokenMintAddress}&page=${page}&limit=${limit}`);
+    }>(
+      `comments?tokenMintAddress=${tokenMintAddress}&page=${page}&limit=${limit}&sortBy=${sortBy}`,
+    );
     return response;
   },
 

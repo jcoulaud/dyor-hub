@@ -121,10 +121,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
           Math.abs(a.voteCount) - Math.abs(b.voteCount),
       }[sortBy];
 
-      // Sort root comments
-      rootComments.sort(sortFn);
-
-      // Sort replies recursively
+      // Only sort replies recursively
       const sortReplies = (comments: CommentType[]) => {
         comments.sort(sortFn);
         comments.forEach((comment) => {
@@ -154,7 +151,8 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         } else {
           setIsLoadingMore(true);
         }
-        const response = await comments.list(tokenMintAddress, page, 10);
+
+        const response = await comments.list(tokenMintAddress, page, 10, sortBy);
 
         const processedComments = response.data.map((comment) => ({
           ...comment,
@@ -172,6 +170,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         setPagination(response.meta);
         setError(null);
       } catch (err) {
+        console.error('Error fetching comments:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch comments');
         if (page === 1) {
           setComments([]);
@@ -181,7 +180,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         setIsLoadingMore(false);
       }
     },
-    [tokenMintAddress, organizeComments],
+    [tokenMintAddress, organizeComments, sortBy],
   );
 
   // Fetch comments when component mounts or auth state changes
@@ -390,6 +389,14 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     } else {
       setSortBy(newSort);
     }
+
+    // Reset pagination to page 1 and fetch comments with the new sort
+    setPagination((prev) => ({
+      ...prev,
+      page: 1,
+    }));
+
+    fetchComments(1);
   };
 
   const handleAuthModalClose = () => {
@@ -789,18 +796,40 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         <div className='flex items-center pb-2 w-full'>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant='ghost' size='sm' className='text-sm text-gray-500'>
-                Sort by: <span className='font-medium ml-1 capitalize'>{sortBy}</span>
-                <ChevronDown className='ml-1 h-4 w-4' />
+              <Button
+                variant='ghost'
+                size='sm'
+                className='text-sm gap-1 px-2 py-1 bg-zinc-800/30 border border-zinc-700/30 hover:bg-zinc-800/70'>
+                <span className='text-muted-foreground mr-1'>Sort:</span>
+                <span className='font-medium capitalize'>{sortBy}</span>
+                <ChevronDown className='ml-1 h-3.5 w-3.5 opacity-70' />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent align='start' className='min-w-[120px]'>
               {(['best', 'new', 'old', 'controversial'] as const).map((option) => (
                 <DropdownMenuItem
                   key={option}
                   onClick={() => handleSortChange(option)}
-                  className='capitalize'>
+                  className={cn(
+                    'capitalize flex items-center justify-between',
+                    sortBy === option ? 'bg-zinc-800 text-white font-medium' : '',
+                  )}>
                   {option}
+                  {sortBy === option && (
+                    <svg
+                      xmlns='http://www.w3.org/2000/svg'
+                      width='16'
+                      height='16'
+                      viewBox='0 0 24 24'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='2'
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      className='ml-2 h-3.5 w-3.5'>
+                      <polyline points='20 6 9 17 4 12'></polyline>
+                    </svg>
+                  )}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
