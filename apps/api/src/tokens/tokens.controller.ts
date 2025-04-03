@@ -51,6 +51,7 @@ export class TokensController {
   }
 
   @Get(':mintAddress/price-history')
+  @UseGuards(OptionalAuthGuard)
   async getTokenPriceHistory(@Param('mintAddress') mintAddress: string) {
     return this.tokensService.getTokenPriceHistory(mintAddress);
   }

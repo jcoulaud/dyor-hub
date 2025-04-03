@@ -75,6 +75,7 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
   const toggleChartType = async () => {
     const newType = showMarketCap ? 'price' : 'marketCap';
     setShowMarketCap(!showMarketCap);
+
     try {
       await users.updateUserPreferences({
         tokenChartDisplay: newType,
@@ -83,12 +84,7 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
         description: `Chart view updated to ${newType === 'price' ? 'Price' : 'Market Cap'}`,
       });
     } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to save chart preference',
-      });
-      setShowMarketCap(showMarketCap);
+      // Silently fail
     }
   };
 

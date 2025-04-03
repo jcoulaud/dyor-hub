@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UserResponseDto } from '../auth/dto/user-response.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { PaginatedResult, UsersService } from './users.service';
 
@@ -32,18 +32,25 @@ export class UsersController {
     return UserResponseDto.fromEntity(user);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalAuthGuard)
   @Get('me/preferences')
   async getMyPreferences(@Request() req): Promise<Record<string, any>> {
+    if (!req.user?.id) {
+      // Only send default public preferences
+      return { tokenChartDisplay: 'price' };
+    }
     return this.usersService.getUserPreferences(req.user.id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalAuthGuard)
   @Patch('me/preferences')
   async updateMyPreferences(
     @Request() req,
     @Body() updatePreferencesDto: UpdatePreferencesDto,
   ): Promise<Record<string, any>> {
+    if (!req.user?.id) {
+      return updatePreferencesDto.preferences;
+    }
     return this.usersService.updateUserPreferences(
       req.user.id,
       updatePreferencesDto.preferences,
