@@ -29,6 +29,7 @@ export function WalletDetails() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAssociating, setIsAssociating] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isSettingPrimary, setIsSettingPrimary] = useState(false);
   const [dbWallet, setDbWallet] = useState<DbWallet | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
   const { toast } = useToast();
@@ -152,6 +153,8 @@ export function WalletDetails() {
     if (!dbWallet?.id || isPrimary) return;
     const walletAddress = publicKey?.toBase58();
     if (!walletAddress) return;
+
+    setIsSettingPrimary(true);
     try {
       const result = await wallets.setPrimary(dbWallet.id);
       if (result.success) {
@@ -169,6 +172,8 @@ export function WalletDetails() {
         description: 'Failed to set primary wallet.',
         variant: 'destructive',
       });
+    } finally {
+      setIsSettingPrimary(false);
     }
   }, [dbWallet, isPrimary, refreshWalletData, toast, publicKey]);
 
@@ -274,7 +279,7 @@ export function WalletDetails() {
                 <Button
                   variant='ghost'
                   size='icon'
-                  className='h-7 w-7'
+                  className='h-7 w-7 bg-muted/50 hover:bg-muted'
                   onClick={copyToClipboard}
                   title='Copy address'>
                   <CopyIcon className='h-3.5 w-3.5' />
@@ -282,7 +287,7 @@ export function WalletDetails() {
                 <Button
                   variant='ghost'
                   size='icon'
-                  className='h-7 w-7'
+                  className='h-7 w-7 bg-muted/50 hover:bg-muted'
                   onClick={openExplorer}
                   title='View on Explorer'>
                   <SquareArrowOutUpRightIcon className='h-3.5 w-3.5' />
@@ -291,8 +296,19 @@ export function WalletDetails() {
             </div>
             <div className='flex items-center gap-2 flex-wrap'>
               {dbWallet && !isPrimary && (
-                <Button variant='outline' size='sm' onClick={handleSetPrimary}>
-                  <StarIcon className='mr-1.5 h-3.5 w-3.5' /> Set as Primary
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={handleSetPrimary}
+                  disabled={isSettingPrimary}
+                  title='Make this your primary wallet for all operations'
+                  className='bg-yellow-500/10 text-white border border-yellow-500/30 hover:bg-yellow-500/20 hover:text-white transition-colors font-medium'>
+                  {isSettingPrimary ? (
+                    <Loader2Icon className='mr-1.5 h-3.5 w-3.5 animate-spin' />
+                  ) : (
+                    <StarIcon className='mr-1.5 h-3.5 w-3.5 fill-yellow-400 stroke-yellow-600' />
+                  )}
+                  Set as Primary
                 </Button>
               )}
               <Button
@@ -321,10 +337,10 @@ export function WalletDetails() {
           )}
 
           {associationConflictError && (
-            <div className='p-4 md:p-6 bg-destructive/10 border-t border-destructive/20'>
-              <div className='flex items-start gap-2'>
-                <AlertTriangleIcon className='h-4 w-4 text-destructive flex-shrink-0 mt-0.5' />
-                <p className='text-xs text-destructive'>{associationConflictError}</p>
+            <div className='p-4 md:p-6 bg-red-500/10 border-t border-red-500/20'>
+              <div className='flex items-center gap-2'>
+                <AlertTriangleIcon className='h-4 w-4 text-red-300 flex-shrink-0' />
+                <p className='text-xs text-red-300'>{associationConflictError}</p>
               </div>
             </div>
           )}
