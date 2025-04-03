@@ -51,7 +51,6 @@ export function WalletVerification({ dbWallet, onVerificationSuccess }: WalletVe
     if (isVerifying) return;
 
     const walletAddress = publicKey.toBase58();
-    const tryCount = 0;
 
     // Check for known wallet/browser issues
     const walletIssues = checkForKnownWalletIssues();
@@ -94,21 +93,11 @@ export function WalletVerification({ dbWallet, onVerificationSuccess }: WalletVe
         setError(null);
         setShowTroubleshooting(false);
 
-        console.log('Starting wallet verification for:', {
-          address: walletAddress,
-          dbWalletId: dbWallet.id,
-          signMessageAvailable: typeof signMessage === 'function',
-          tryCount,
-        });
-
         const { nonce } = await wallets.generateNonce(walletAddress);
-        console.log('Received nonce:', { nonce });
 
         const message = createSignatureMessage(nonce);
-        console.log('Signing message:', { message, nonce, walletAddress });
 
         const encodedMessage = new TextEncoder().encode(message);
-        console.log('Encoded message length:', encodedMessage.length);
 
         let signature;
         try {
@@ -137,20 +126,9 @@ export function WalletVerification({ dbWallet, onVerificationSuccess }: WalletVe
           throw signError;
         }
 
-        console.log('Generated signature:', {
-          signatureType: typeof signature,
-          signatureLength: signature.byteLength,
-          signatureInstance: Object.prototype.toString.call(signature),
-        });
-
         const signatureBase64 = Buffer.from(signature).toString('base64');
-        console.log('Base64 signature:', {
-          base64Length: signatureBase64.length,
-          base64Snippet: signatureBase64.substring(0, 20) + '...',
-        });
 
         const verificationResult = await wallets.verify(walletAddress, signatureBase64);
-        console.log('Verification API response:', verificationResult);
 
         if (verificationResult.isVerified) {
           setWalletVerified(walletAddress, true);
@@ -186,13 +164,6 @@ export function WalletVerification({ dbWallet, onVerificationSuccess }: WalletVe
           throw new Error('Server verification check failed.');
         }
       } catch (err: unknown) {
-        console.error('Wallet verification error:', {
-          error: err,
-          errorType: typeof err,
-          errorMessage: err instanceof Error ? err.message : String(err),
-          errorObject: JSON.stringify(err, Object.getOwnPropertyNames(err)),
-        });
-
         const alreadyVerifiedMsg = 'Wallet already verified by another user';
         const notFoundMsg = 'Wallet not found. Please connect the wallet first';
         let backendErrorMessage = '';

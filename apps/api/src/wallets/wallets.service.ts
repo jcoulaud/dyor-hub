@@ -138,43 +138,17 @@ export class WalletsService {
 
     // Verify signature
     try {
-      console.log('Starting verification with data:', {
-        walletId: wallet.id,
-        address,
-        signatureProvided: !!signature,
-        signatureLength: signature?.length,
-        nonceExists: !!wallet.verificationNonce,
-        nonceValue: wallet.verificationNonce,
-      });
-
       const signatureBytes = Buffer.from(signature, 'base64');
-      console.log('Decoded signature bytes:', {
-        bytesLength: signatureBytes.length,
-        isValidBuffer: Buffer.isBuffer(signatureBytes),
-      });
 
       const publicKey = new PublicKey(address);
       const message = `Sign this message to verify ownership of your wallet with DYOR hub.\n\nNonce: ${wallet.verificationNonce}`;
       const messageBytes = new TextEncoder().encode(message);
-
-      console.log('Verification parameters:', {
-        messageToVerify: message,
-        messageLength: messageBytes.length,
-        publicKeyOnCurve: PublicKey.isOnCurve(publicKey),
-      });
 
       const verified = nacl.sign.detached.verify(
         messageBytes,
         signatureBytes,
         publicKey.toBytes(),
       );
-
-      console.log('Verification result:', {
-        walletId: wallet.id,
-        address,
-        verified,
-        signatureBytesLength: signatureBytes.length,
-      });
 
       if (!verified) {
         throw new Error('Signature verification failed');
@@ -187,21 +161,9 @@ export class WalletsService {
       wallet.nonceExpiresAt = null;
 
       await this.walletsRepository.save(wallet);
-      console.log('Wallet successfully verified and updated:', {
-        walletId: wallet.id,
-        address,
-        isVerified: wallet.isVerified,
-      });
 
       return WalletResponseDto.fromEntity(wallet);
     } catch (error) {
-      console.error('Wallet verification error details:', {
-        walletId: wallet.id,
-        address,
-        errorName: error.name,
-        errorMessage: error.message,
-        errorStack: error.stack,
-      });
       throw new Error(`Wallet verification failed: ${error.message}`);
     }
   }
