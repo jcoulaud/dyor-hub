@@ -55,6 +55,7 @@ interface CacheItem<T> {
 }
 
 const apiCache = new Map<string, CacheItem<unknown>>();
+const pendingRequests = new Map<string, Promise<unknown>>();
 const CACHE_TTL = 60 * 1000; // 1 minute TTL
 
 const getCache = <T>(key: string): T | undefined => {
@@ -278,13 +279,25 @@ export const tokens = {
         return cachedData;
       }
 
+      // Check if there's a pending request
+      if (pendingRequests.has(cacheKey)) {
+        return pendingRequests.get(cacheKey) as Promise<Token[]>;
+      }
+
       // Fetch fresh data
-      const data = await api<Token[]>(endpoint);
+      const requestPromise = api<Token[]>(endpoint)
+        .then((data) => {
+          // Update cache
+          setCache(cacheKey, data);
+          return data;
+        })
+        .finally(() => {
+          pendingRequests.delete(cacheKey);
+        });
 
-      // Update cache
-      setCache(cacheKey, data);
-
-      return data;
+      // Store the pending request
+      pendingRequests.set(cacheKey, requestPromise);
+      return requestPromise;
     } catch (error) {
       throw error;
     }
@@ -301,13 +314,25 @@ export const tokens = {
         return cachedData;
       }
 
+      // Check if there's a pending request
+      if (pendingRequests.has(cacheKey)) {
+        return pendingRequests.get(cacheKey) as Promise<Token>;
+      }
+
       // Fetch fresh data
-      const data = await api<Token>(endpoint);
+      const requestPromise = api<Token>(endpoint)
+        .then((data) => {
+          // Update cache
+          setCache(cacheKey, data);
+          return data;
+        })
+        .finally(() => {
+          pendingRequests.delete(cacheKey);
+        });
 
-      // Update cache
-      setCache(cacheKey, data);
-
-      return data;
+      // Store the pending request
+      pendingRequests.set(cacheKey, requestPromise);
+      return requestPromise;
     } catch (error) {
       throw error;
     }
@@ -324,13 +349,25 @@ export const tokens = {
         return cachedData;
       }
 
+      // Check if there's a pending request
+      if (pendingRequests.has(cacheKey)) {
+        return pendingRequests.get(cacheKey) as Promise<TokenStats>;
+      }
+
       // Fetch fresh data
-      const data = await api<TokenStats>(endpoint);
+      const requestPromise = api<TokenStats>(endpoint)
+        .then((data) => {
+          // Update cache
+          setCache(cacheKey, data);
+          return data;
+        })
+        .finally(() => {
+          pendingRequests.delete(cacheKey);
+        });
 
-      // Update cache
-      setCache(cacheKey, data);
-
-      return data;
+      // Store the pending request
+      pendingRequests.set(cacheKey, requestPromise);
+      return requestPromise;
     } catch (error) {
       throw error;
     }
@@ -347,13 +384,25 @@ export const tokens = {
         return cachedData;
       }
 
+      // Check if there's a pending request
+      if (pendingRequests.has(cacheKey)) {
+        return pendingRequests.get(cacheKey) as Promise<TwitterUsernameHistoryEntity | null>;
+      }
+
       // Fetch fresh data
-      const data = await api<TwitterUsernameHistoryEntity>(endpoint);
+      const requestPromise = api<TwitterUsernameHistoryEntity>(endpoint)
+        .then((data) => {
+          // Update cache
+          setCache(cacheKey, data);
+          return data;
+        })
+        .finally(() => {
+          pendingRequests.delete(cacheKey);
+        });
 
-      // Update cache
-      setCache(cacheKey, data);
-
-      return data;
+      // Store the pending request
+      pendingRequests.set(cacheKey, requestPromise);
+      return requestPromise;
     } catch (error) {
       throw error;
     }
@@ -385,13 +434,28 @@ export const tokens = {
         return cachedData;
       }
 
+      // Check if there's a pending request
+      if (pendingRequests.has(cacheKey) && !signal?.aborted) {
+        return pendingRequests.get(cacheKey) as Promise<PriceHistoryResponse>;
+      }
+
       // Fetch fresh data
-      const data = await api<PriceHistoryResponse>(endpoint, { signal });
+      const requestPromise = api<PriceHistoryResponse>(endpoint, { signal })
+        .then((data) => {
+          // Update cache with 5 minutes TTL
+          setCache(cacheKey, data, 5 * 60 * 1000);
+          return data;
+        })
+        .finally(() => {
+          pendingRequests.delete(cacheKey);
+        });
 
-      // Update cache with 5 minutes TTL
-      setCache(cacheKey, data, 5 * 60 * 1000);
+      // Only store the pending request if not aborted
+      if (!signal?.aborted) {
+        pendingRequests.set(cacheKey, requestPromise);
+      }
 
-      return data;
+      return requestPromise;
     } catch (error) {
       throw error;
     }
