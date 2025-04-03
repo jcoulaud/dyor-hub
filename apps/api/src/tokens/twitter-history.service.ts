@@ -34,6 +34,19 @@ export class TwitterHistoryService {
       return;
     }
 
+    // Validate Twitter handle first
+    if (!this.isValidTwitterHandle(token.twitterHandle)) {
+      this.logger.warn(
+        `Invalid Twitter handle format: ${token.twitterHandle} for token ${token.mintAddress}`,
+      );
+      // Create empty record to avoid future attempts
+      await this.createEmptyHistoryRecord(
+        token.mintAddress,
+        token.twitterHandle,
+      );
+      return;
+    }
+
     // Check if API key is available
     const apiKey = this.configService.get('TOTO_API_KEY');
     if (!apiKey) {
@@ -52,6 +65,9 @@ export class TwitterHistoryService {
     }
 
     try {
+      // Clean the handle
+      const cleanHandle = this.normalizeTwitterHandle(token.twitterHandle);
+
       const response = await fetch(this.API_URL, {
         method: 'POST',
         headers: {
@@ -60,7 +76,7 @@ export class TwitterHistoryService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user: token.twitterHandle,
+          user: cleanHandle,
           how: 'username',
           page: 1,
         }),
@@ -68,7 +84,12 @@ export class TwitterHistoryService {
 
       if (!response.ok) {
         this.logger.warn(
-          `API request failed with status ${response.status} for token ${token.mintAddress}`,
+          `API request failed with status ${response.status} for token ${token.mintAddress} with Twitter handle ${token.twitterHandle}`,
+        );
+        // Create empty record for failed requests to avoid repeated attempts
+        await this.createEmptyHistoryRecord(
+          token.mintAddress,
+          token.twitterHandle,
         );
         return;
       }
@@ -86,8 +107,7 @@ export class TwitterHistoryService {
         // If there's more than one username or different username, store the history
         if (
           data.data.length > 1 ||
-          (data.data.length === 1 &&
-            data.data[0].username !== token.twitterHandle)
+          (data.data.length === 1 && data.data[0].username !== cleanHandle)
         ) {
           history.history = data.data;
         }
@@ -97,7 +117,11 @@ export class TwitterHistoryService {
     } catch (error) {
       this.logger.error(
         `Failed to fetch Twitter username history for token ${token.mintAddress}:`,
-        error,
+        error instanceof Error ? error.message : String(error),
+      );
+      await this.createEmptyHistoryRecord(
+        token.mintAddress,
+        token.twitterHandle,
       );
     }
   }
@@ -114,9 +138,56 @@ export class TwitterHistoryService {
     } catch (error) {
       this.logger.error(
         `Error fetching Twitter history for ${tokenMintAddress}:`,
-        error,
+        error instanceof Error ? error.message : String(error),
       );
       return null;
+    }
+  }
+
+  private isValidTwitterHandle(handle: string): boolean {
+    if (!handle) return false;
+
+    // Check for URLs or email addresses
+    if (
+      handle.includes('http') ||
+      handle.includes('www.') ||
+      handle.includes('/') ||
+      handle.includes('@gmail.com')
+    ) {
+      return false;
+    }
+
+    // Remove @ if present and check format
+    const normalizedHandle = this.normalizeTwitterHandle(handle);
+
+    // Twitter handle rules: 1-15 characters, alphanumeric and underscores only
+    return /^[A-Za-z0-9_]{1,15}$/.test(normalizedHandle);
+  }
+
+  private normalizeTwitterHandle(handle: string): string {
+    return handle.startsWith('@') ? handle.substring(1) : handle;
+  }
+
+  private async createEmptyHistoryRecord(
+    mintAddress: string,
+    twitterHandle: string,
+  ): Promise<void> {
+    try {
+      const history = this.twitterHistoryRepository.create({
+        tokenMintAddress: mintAddress,
+        twitterUsername: twitterHandle,
+        history: [],
+      });
+
+      await this.twitterHistoryRepository.save(history);
+      this.logger.debug(
+        `Created empty history record for ${mintAddress} to prevent future attempts`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to create empty history record for ${mintAddress}`,
+        error,
+      );
     }
   }
 }
