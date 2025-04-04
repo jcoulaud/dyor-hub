@@ -1,11 +1,11 @@
 import { Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
 import { Session } from 'express-session';
+import { Public } from '../users/users.controller';
+import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { AuthConfigService } from './config/auth.config';
-import { UserResponseDto } from './dto/user-response.dto';
 import { TwitterAuthenticationException } from './exceptions/auth.exceptions';
 
 interface AuthenticatedRequest extends Request {
@@ -19,19 +19,23 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
-interface AuthResponse {
-  authenticated: boolean;
-  user?: UserResponseDto;
-}
-
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly authConfigService: AuthConfigService,
-    private readonly jwtService: JwtService,
   ) {}
 
+  @Get('profile')
+  @UseGuards(AuthGuard)
+  getProfile(@Req() req: AuthenticatedRequest) {
+    return {
+      authenticated: !!req.user,
+      user: req.user,
+    };
+  }
+
+  @Public()
   @Get('twitter-login-url')
   getTwitterLoginUrl(@Req() req: AuthenticatedRequest): { url: string } {
     let apiBaseUrl: string;
@@ -64,8 +68,9 @@ export class AuthController {
     return { url };
   }
 
+  @Public()
   @Get('twitter')
-  @UseGuards(AuthGuard('twitter'))
+  @UseGuards(PassportAuthGuard('twitter'))
   async twitterAuth(
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
@@ -83,8 +88,9 @@ export class AuthController {
     });
   }
 
+  @Public()
   @Get('twitter/callback')
-  @UseGuards(AuthGuard('twitter'))
+  @UseGuards(PassportAuthGuard('twitter'))
   async twitterAuthCallback(
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
@@ -237,70 +243,9 @@ export class AuthController {
     }
   }
 
-  @Get('profile')
-  async getProfile(@Req() req: AuthenticatedRequest): Promise<AuthResponse> {
-    try {
-      const token = req.cookies?.jwt;
-
-      if (!token) {
-        return { authenticated: false };
-      }
-
-      try {
-        const payload = this.jwtService.verify(token, {
-          secret: this.authConfigService.jwtSecret,
-        });
-
-        const user = await this.authService.findUserById(payload.sub);
-
-        if (!user) {
-          return { authenticated: false };
-        }
-
-        return {
-          authenticated: true,
-          user: UserResponseDto.fromEntity(user),
-        };
-      } catch (error) {
-        return { authenticated: false };
-      }
-    } catch (error) {
-      return { authenticated: false };
-    }
-  }
-
   @Get('logout')
-  async logout(@Req() req: AuthenticatedRequest, @Res() res: Response) {
-    const cookieConfig = this.authConfigService.getCookieConfig(
-      this.authConfigService.isDevelopment,
-    );
-
-    res.clearCookie('jwt', {
-      ...cookieConfig,
-      maxAge: 0,
-    });
-
-    res.clearCookie('dyor.sid', {
-      ...cookieConfig,
-      maxAge: 0,
-    });
-
-    if (req.session) {
-      try {
-        await new Promise<void>((resolve, reject) => {
-          req.session.destroy((err) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve();
-            }
-          });
-        });
-      } catch (error) {
-        // Continue with the response even if session destruction fails
-      }
-    }
-
-    res.json({ success: true });
+  logout(@Res() res: Response): void {
+    res.clearCookie('jwt');
+    res.status(200).json({ success: true });
   }
 }

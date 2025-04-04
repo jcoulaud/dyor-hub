@@ -53,9 +53,12 @@ export const dataSourceOptions: DataSourceOptions = {
   ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',
-  migrationsRun: isProduction,
+  migrationsRun: true,
   synchronize: false,
-  logging: isProduction ? ['error', 'warn'] : true, // Only log errors and warnings in production
+  logging:
+    process.env.NODE_ENV === 'production'
+      ? ['error', 'warn']
+      : ['error', 'warn', 'info'],
   logger: 'advanced-console',
 };
 

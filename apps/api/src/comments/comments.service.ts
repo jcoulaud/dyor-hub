@@ -6,10 +6,12 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
+import { GamificationEvent } from '../gamification/services/activity-hooks.service';
 import { PerspectiveService } from '../services/perspective.service';
 import { TelegramNotificationService } from '../services/telegram-notification.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
@@ -29,6 +31,7 @@ export class CommentsService {
     private readonly voteRepository: Repository<CommentVoteEntity>,
     private readonly perspectiveService: PerspectiveService,
     private readonly telegramService: TelegramNotificationService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findByTokenMintAddress(
@@ -289,6 +292,11 @@ export class CommentsService {
     // Notify admins via Telegram about the new comment
     this.telegramService.notifyNewComment(populatedComment);
 
+    this.eventEmitter.emit(GamificationEvent.COMMENT_CREATED, {
+      userId,
+      commentId: savedComment.id,
+    });
+
     return populatedComment;
   }
 
@@ -402,6 +410,12 @@ export class CommentsService {
 
     // Update comment with new vote counts
     await this.commentRepository.update(commentId, { upvotes, downvotes });
+
+    this.eventEmitter.emit(GamificationEvent.COMMENT_VOTED, {
+      userId,
+      commentId,
+      voteType: type,
+    });
 
     return {
       upvotes,

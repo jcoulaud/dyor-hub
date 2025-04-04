@@ -2,7 +2,7 @@ import { ShareButton } from '@/components/share/ShareButton';
 import { TwitterShareButton } from '@/components/share/TwitterShareButton';
 import { WalletBadge } from '@/components/wallet/WalletBadge';
 import { users, wallets } from '@/lib/api';
-import type { User, UserActivity } from '@dyor-hub/types';
+import type { User, UserActivity, UserStats } from '@dyor-hub/types';
 import { MessageSquare, Reply, ThumbsDown, ThumbsUp, Twitter } from 'lucide-react';
 import { Metadata } from 'next';
 import Image from 'next/image';
@@ -58,11 +58,43 @@ export default async function UserProfilePage({ params }: UserPageProps) {
 
   try {
     const { username } = await params;
-    user = await users.getByUsername(username);
+    try {
+      user = await users.getByUsername(username);
+    } catch (error) {
+      console.error(`Failed to fetch user ${username}:`, error);
+      notFound();
+    }
 
-    const userStats = await users.getUserStats(username);
-    const userActivities = await users.getUserActivity(username, 1, 10);
-    const userComments = userActivities.data;
+    // Fetch stats with error handling
+    let userStats: UserStats = {
+      comments: 0,
+      replies: 0,
+      upvotes: 0,
+      downvotes: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      reputation: 0,
+    };
+
+    try {
+      userStats = await users.getUserStats(username);
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      // Use default values from initialization
+    }
+
+    // Fetch activities with error handling
+    let userComments: UserActivity[] = [];
+    let totalActivities = 0;
+
+    try {
+      const userActivities = await users.getUserActivity(username, 1, 10);
+      userComments = userActivities.data;
+      totalActivities =
+        userStats.comments + userStats.replies + userStats.upvotes + userStats.downvotes;
+    } catch (error) {
+      console.error('Error fetching user activities:', error);
+    }
 
     let walletInfo = null;
     try {
@@ -72,9 +104,6 @@ export default async function UserProfilePage({ params }: UserPageProps) {
     }
 
     const avatarUrl = user.avatarUrl ? user.avatarUrl.replace('_normal', '') : null;
-
-    const totalActivities =
-      userStats.comments + userStats.replies + userStats.upvotes + userStats.downvotes;
 
     return (
       <div className='min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black'>
@@ -201,7 +230,8 @@ export default async function UserProfilePage({ params }: UserPageProps) {
         </div>
       </div>
     );
-  } catch {
+  } catch (error) {
+    console.error('Error rendering user profile page:', error);
     notFound();
   }
 }
