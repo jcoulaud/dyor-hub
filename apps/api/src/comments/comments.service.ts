@@ -36,34 +36,111 @@ export class CommentsService {
     currentUserId?: string,
     page: number = 1,
     limit: number = 10,
+    sortBy: string = 'best',
   ): Promise<{
     data: CommentResponseDto[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
     try {
-      const [total, comments] = await Promise.all([
-        this.commentRepository.count({ where: { tokenMintAddress } }),
-        this.commentRepository.find({
-          where: { tokenMintAddress },
-          relations: ['user', 'removedBy'],
-          order: { createdAt: 'DESC' },
-          skip: (page - 1) * limit,
-          take: limit,
-        }),
-      ]);
+      const total = await this.commentRepository.count({
+        where: { tokenMintAddress },
+      });
 
+      let dbOrderBy: any;
+
+      switch (sortBy) {
+        case 'new':
+          dbOrderBy = { createdAt: 'DESC' };
+          break;
+        case 'old':
+          dbOrderBy = { createdAt: 'ASC' };
+          break;
+        default:
+          dbOrderBy = { createdAt: 'DESC' };
+      }
+
+      const shouldFetchAll = ['best', 'controversial'].includes(sortBy);
+
+      const commentsQuery = this.commentRepository
+        .createQueryBuilder('comment')
+        .leftJoinAndSelect('comment.user', 'user')
+        .leftJoinAndSelect('comment.removedBy', 'removedBy')
+        .where('comment.tokenMintAddress = :tokenMintAddress', {
+          tokenMintAddress,
+        })
+        .orderBy(
+          dbOrderBy.createdAt === 'ASC'
+            ? 'comment.createdAt'
+            : 'comment.createdAt',
+          dbOrderBy.createdAt === 'ASC' ? 'ASC' : 'DESC',
+        );
+
+      let comments: CommentEntity[];
+
+      if (shouldFetchAll) {
+        const maxCommentsToFetch = Math.min(500, total);
+        comments = await commentsQuery.take(maxCommentsToFetch).getMany();
+      } else {
+        comments = await commentsQuery
+          .skip((page - 1) * limit)
+          .take(limit)
+          .getMany();
+      }
+
+      if (sortBy === 'best') {
+        comments.sort(
+          (a, b) => b.upvotes - b.downvotes - (a.upvotes - a.downvotes),
+        );
+      } else if (sortBy === 'controversial') {
+        comments.sort((a, b) => {
+          // First prioritize comments with negative scores
+          const aScore = a.upvotes - a.downvotes;
+          const bScore = b.upvotes - b.downvotes;
+
+          // Negative scores are most controversial, they come first
+          if (aScore < 0 && bScore >= 0) return -1;
+          if (aScore >= 0 && bScore < 0) return 1;
+
+          // Then examine the controversy ratio
+          const aTotalVotes = a.upvotes + a.downvotes;
+          const bTotalVotes = b.upvotes + b.downvotes;
+
+          // Skip division if no votes
+          if (aTotalVotes === 0 && bTotalVotes === 0) return 0;
+          if (aTotalVotes === 0) return 1;
+          if (bTotalVotes === 0) return -1;
+
+          // Calculate how controversial (closer to 50/50 ratio is more controversial)
+          const aControversy = Math.min(a.upvotes, a.downvotes) / aTotalVotes;
+          const bControversy = Math.min(b.upvotes, b.downvotes) / bTotalVotes;
+
+          // Higher controversy value (closer to 0.5) comes first
+          if (aControversy !== bControversy) {
+            return bControversy - aControversy;
+          }
+
+          // If equally controversial, more votes wins
+          return bTotalVotes - aTotalVotes;
+        });
+      }
+
+      const paginatedComments = shouldFetchAll
+        ? comments.slice((page - 1) * limit, page * limit)
+        : comments;
+
+      // Fetch user votes if applicable
       const userVotes =
-        currentUserId && comments.length > 0
+        currentUserId && paginatedComments.length > 0
           ? await this.voteRepository.find({
               where: {
                 userId: currentUserId,
-                commentId: In(comments.map((c) => c.id)),
+                commentId: In(paginatedComments.map((c) => c.id)),
               },
             })
           : [];
 
       return {
-        data: comments.map((comment) => {
+        data: paginatedComments.map((comment) => {
           const userVote = userVotes.find((v) => v.commentId === comment.id);
 
           return {
