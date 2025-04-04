@@ -1,13 +1,23 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserEntity } from '../entities';
 import { ActivityTrackingService } from './services/activity-tracking.service';
+import { BadgeService } from './services/badge.service';
 
 @Controller('gamification')
 export class GamificationController {
   constructor(
     private readonly activityTrackingService: ActivityTrackingService,
+    private readonly badgeService: BadgeService,
   ) {}
 
   @Get('streak')
@@ -44,5 +54,33 @@ export class GamificationController {
     return {
       isAtRisk,
     };
+  }
+
+  @Get('badges')
+  @UseGuards(AuthGuard)
+  async getCurrentUserBadges(@CurrentUser() user: UserEntity) {
+    return this.badgeService.getUserBadges(user.id);
+  }
+
+  @Get('users/:userId/badges')
+  @UseGuards(AuthGuard)
+  async getUserBadges(@Param('userId') userId: string) {
+    return this.badgeService.getUserBadges(userId);
+  }
+
+  @Post('badges/check')
+  @UseGuards(AuthGuard)
+  async checkAndAwardBadges(@CurrentUser() user: UserEntity) {
+    return this.badgeService.checkAndAwardBadges(user.id);
+  }
+
+  @Patch('badges/:badgeId/display')
+  @UseGuards(AuthGuard)
+  async toggleBadgeDisplay(
+    @CurrentUser() user: UserEntity,
+    @Param('badgeId') badgeId: string,
+    @Body() { isDisplayed }: { isDisplayed: boolean },
+  ) {
+    return this.badgeService.toggleBadgeDisplay(user.id, badgeId, isDisplayed);
   }
 }

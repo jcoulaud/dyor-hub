@@ -68,9 +68,9 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     WalletsModule,
     SolanaModule,
     UsersModule,
+    SessionModule,
     GamificationModule,
     NotificationsModule,
-    SessionModule,
   ],
   controllers: [AppController],
   providers: [

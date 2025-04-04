@@ -11,9 +11,11 @@ import {
   UserReputationEntity,
   UserStreakEntity,
 } from '../entities';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { GamificationController } from './gamification.controller';
 import { ActivityHooksService } from './services/activity-hooks.service';
 import { ActivityTrackingService } from './services/activity-tracking.service';
+import { BadgeService } from './services/badge.service';
 import { StreakSchedulerService } from './services/streak-scheduler.service';
 
 @Module({
@@ -29,13 +31,15 @@ import { StreakSchedulerService } from './services/streak-scheduler.service';
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
     forwardRef(() => AuthModule),
+    forwardRef(() => NotificationsModule),
   ],
   controllers: [GamificationController],
   providers: [
     ActivityTrackingService,
     StreakSchedulerService,
     ActivityHooksService,
+    BadgeService,
   ],
-  exports: [ActivityTrackingService, ActivityHooksService],
+  exports: [ActivityTrackingService, ActivityHooksService, BadgeService],
 })
 export class GamificationModule {}

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { ActivityType } from '../../entities';
 import { ActivityTrackingService } from './activity-tracking.service';
+import { BadgeService } from './badge.service';
 
 export enum GamificationEvent {
   COMMENT_CREATED = 'comment.created',
@@ -36,6 +37,7 @@ export class ActivityHooksService {
 
   constructor(
     private readonly activityTrackingService: ActivityTrackingService,
+    private readonly badgeService: BadgeService,
   ) {}
 
   @OnEvent(GamificationEvent.COMMENT_CREATED)
@@ -47,6 +49,8 @@ export class ActivityHooksService {
         event.commentId,
         'comment',
       );
+
+      await this.badgeService.checkAndAwardBadges(event.userId);
     } catch (error) {
       this.logger.error(
         `Failed to track comment activity: ${error.message}`,
@@ -64,6 +68,8 @@ export class ActivityHooksService {
         event.commentId,
         'comment',
       );
+
+      await this.badgeService.checkAndAwardBadges(event.userId);
     } catch (error) {
       this.logger.error(
         `Failed to track vote activity: ${error.message}`,
@@ -81,6 +87,8 @@ export class ActivityHooksService {
         event.postId,
         'post',
       );
+
+      await this.badgeService.checkAndAwardBadges(event.userId);
     } catch (error) {
       this.logger.error(
         `Failed to track post activity: ${error.message}`,
