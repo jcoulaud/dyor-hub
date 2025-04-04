@@ -10,10 +10,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { badges } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
+import { badges, streaks, StreakUser } from '@/lib/api';
 import { Badge } from '@dyor-hub/types';
 import { format } from 'date-fns';
-import { BadgeCheck, Calendar, Gauge, Medal, Users } from 'lucide-react';
+import { BadgeCheck, Calendar, Flame, Medal, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -42,6 +43,8 @@ export default function AdminDashboard() {
   const [recentActivity, setRecentActivity] = useState<BadgeActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [topStreakUsers, setTopStreakUsers] = useState<StreakUser[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     async function fetchData() {
@@ -66,12 +69,40 @@ export default function AdminDashboard() {
           console.warn('Could not fetch recent badge activity:', activityErr);
         }
 
+        // Fetch streak data
+        try {
+          const streakOverview = await streaks.admin.getStreakOverview();
+          const topStreakData = await streaks.admin.getTopStreakUsers(5);
+
+          setDashboardData((prev) => ({
+            ...prev,
+            activeStreaks: streakOverview.activeStreaksCount.toString(),
+            atRiskStreaks: streakOverview.streaksAtRiskCount,
+          }));
+
+          // Store top streak users
+          setTopStreakUsers(topStreakData.topCurrentStreaks);
+        } catch (streakErr) {
+          console.error('Failed to fetch streak data:', streakErr);
+
+          toast({
+            title: 'Failed to load streak data',
+            description: 'Please try again later or contact support if the issue persists.',
+            variant: 'destructive',
+          });
+
+          setDashboardData((prev) => ({
+            ...prev,
+            activeStreaks: '0',
+            atRiskStreaks: 0,
+          }));
+        }
+
+        // For now, keep using mock data for reputation
         setDashboardData((prev) => ({
           ...prev,
           topUserReputation: '5,280',
           topUsername: '@topuser',
-          activeStreaks: '183',
-          atRiskStreaks: 38,
         }));
       } catch (err: unknown) {
         console.error('Error fetching dashboard data:', err);
@@ -82,7 +113,7 @@ export default function AdminDashboard() {
     }
 
     fetchData();
-  }, []);
+  }, [toast]);
 
   return (
     <div className='space-y-6'>
@@ -117,7 +148,7 @@ export default function AdminDashboard() {
         <Card className='bg-black/80 border-zinc-800/80'>
           <CardHeader className='flex flex-row items-center justify-between pb-2'>
             <CardTitle className='text-zinc-200 text-sm font-medium'>Active Streaks</CardTitle>
-            <Gauge className='h-4 w-4 text-emerald-500' />
+            <Flame className='h-4 w-4 text-emerald-500' />
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold text-white'>{dashboardData.activeStreaks}</div>
@@ -166,7 +197,7 @@ export default function AdminDashboard() {
             Badges
           </TabsTrigger>
           <TabsTrigger value='streaks' className='data-[state=active]:bg-zinc-800'>
-            <Gauge className='h-4 w-4 mr-2' />
+            <Flame className='h-4 w-4 mr-2' />
             Streaks
           </TabsTrigger>
           <TabsTrigger value='users' className='data-[state=active]:bg-zinc-800'>
@@ -219,9 +250,42 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value='streaks' className='space-y-4'>
-          <div className='text-sm text-center py-6 text-zinc-400 bg-black/80 border border-zinc-800/80 rounded-md'>
-            Streak management interface coming soon.
-          </div>
+          <Card className='bg-black/80 border-zinc-800/80'>
+            <CardHeader>
+              <CardTitle className='text-zinc-200'>Top Active Streaks</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className='text-sm text-center py-6 text-zinc-400'>Loading streak data...</div>
+              ) : topStreakUsers.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Rank</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Current Streak</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {topStreakUsers.slice(0, 5).map((user, index) => (
+                      <TableRow key={user.id}>
+                        <TableCell className='font-medium'>#{index + 1}</TableCell>
+                        <TableCell>{user.username}</TableCell>
+                        <TableCell className='flex items-center gap-2'>
+                          <Flame className='h-3 w-3 text-emerald-500' />
+                          <span>{user.currentStreak} days</span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className='text-sm text-center py-6 text-zinc-400'>
+                  No active streaks found.
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value='users' className='space-y-4'>

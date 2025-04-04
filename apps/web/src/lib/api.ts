@@ -1080,3 +1080,45 @@ export const badges = {
     },
   },
 };
+
+export interface StreakOverview {
+  activeStreaksCount: number;
+  streaksAtRiskCount: number;
+  milestoneCounts: Record<number, number>;
+}
+
+export interface StreakUser {
+  id: string;
+  userId: string;
+  username: string;
+  currentStreak?: number;
+  longestStreak?: number;
+  lastActivityDate?: Date | null;
+}
+
+export interface TopStreakUsers {
+  topCurrentStreaks: StreakUser[];
+  topAllTimeStreaks: StreakUser[];
+}
+
+export const streaks = {
+  admin: {
+    async getStreakOverview(): Promise<StreakOverview> {
+      try {
+        return await api<StreakOverview>('admin/streaks/overview');
+      } catch (error) {
+        console.error('Error fetching streak overview:', error);
+        throw error;
+      }
+    },
+
+    async getTopStreakUsers(limit: number = 10): Promise<TopStreakUsers> {
+      try {
+        return await api<TopStreakUsers>(`admin/streaks/top-users?limit=${limit}`);
+      } catch (error) {
+        console.error('Error fetching top streak users:', error);
+        throw error;
+      }
+    },
+  },
+};
