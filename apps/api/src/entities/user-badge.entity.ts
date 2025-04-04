@@ -25,7 +25,7 @@ export class UserBadgeEntity {
   @Column({ name: 'earned_at', type: 'timestamp' })
   earnedAt: Date;
 
-  @Column({ name: 'is_displayed', type: 'boolean', default: false })
+  @Column({ name: 'is_displayed', type: 'boolean', default: true })
   isDisplayed: boolean;
 
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })

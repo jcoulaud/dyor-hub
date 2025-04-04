@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UserEntity } from '../entities';
+import { BadgeCategory, UserEntity } from '../entities';
 import { ActivityTrackingService } from './services/activity-tracking.service';
 import { BadgeService } from './services/badge.service';
 
@@ -62,10 +62,38 @@ export class GamificationController {
     return this.badgeService.getUserBadges(user.id);
   }
 
+  @Get('badges/available')
+  @UseGuards(AuthGuard)
+  async getAvailableBadges(@CurrentUser() user: UserEntity) {
+    return this.badgeService.getAvailableBadges(user.id);
+  }
+
+  @Get('badges/summary')
+  @UseGuards(AuthGuard)
+  async getUserBadgeSummary(@CurrentUser() user: UserEntity) {
+    return this.badgeService.getUserBadgeSummary(user.id);
+  }
+
+  @Get('badges/categories')
+  async getBadgeCategories() {
+    return this.badgeService.getAllBadgeCategories();
+  }
+
+  @Get('badges/category/:category')
+  async getBadgesByCategory(@Param('category') category: BadgeCategory) {
+    return this.badgeService.getBadgesByCategory(category);
+  }
+
   @Get('users/:userId/badges')
   @UseGuards(AuthGuard)
   async getUserBadges(@Param('userId') userId: string) {
     return this.badgeService.getUserBadges(userId);
+  }
+
+  @Get('users/:userId/badges/summary')
+  @UseGuards(AuthGuard)
+  async getOtherUserBadgeSummary(@Param('userId') userId: string) {
+    return this.badgeService.getUserBadgeSummary(userId);
   }
 
   @Post('badges/check')

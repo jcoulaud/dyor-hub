@@ -1,10 +1,13 @@
 import type {
+  Badge,
   Comment,
+  CreateBadgeRequest,
   CreateCommentDto,
   LatestComment,
   Token,
   TokenStats,
   TwitterUsernameHistoryEntity,
+  UpdateBadgeRequest,
   User,
   UserActivity,
   UserPreferences,
@@ -870,5 +873,210 @@ export const wallets = {
     return api<{ success: boolean; message: string }>(`wallets/${id}`, {
       method: 'DELETE',
     });
+  },
+};
+
+export const badges = {
+  async getAllBadges(): Promise<Badge[]> {
+    const cacheKey = 'badges:all';
+    const cached = getCache<Badge[]>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const data = await api<Badge[]>('gamification/badges');
+      setCache(cacheKey, data, 5 * 60 * 1000); // 5 minutes cache
+      return data;
+    } catch (error) {
+      console.error('Error fetching badges:', error);
+      throw error;
+    }
+  },
+
+  async getBadge(id: string): Promise<Badge> {
+    const cacheKey = `badge:${id}`;
+    const cached = getCache<Badge>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const data = await api<Badge>(`gamification/badges/${id}`);
+      setCache(cacheKey, data, 5 * 60 * 1000); // 5 minutes cache
+      return data;
+    } catch (error) {
+      console.error(`Error fetching badge ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Admin-only API functions
+  admin: {
+    async getAllBadges(): Promise<Badge[]> {
+      try {
+        return await api<Badge[]>('admin/badges');
+      } catch (error) {
+        console.error('Error fetching badges as admin:', error);
+        throw error;
+      }
+    },
+
+    async getBadge(id: string): Promise<Badge> {
+      try {
+        return await api<Badge>(`admin/badges/${id}`);
+      } catch (error) {
+        console.error(`Error fetching badge ${id} as admin:`, error);
+        throw error;
+      }
+    },
+
+    async getRecentBadgeActivity(limit: number = 10): Promise<
+      Array<{
+        id: string;
+        userId: string;
+        badgeId: string;
+        earnedAt: string;
+        user: {
+          id: string;
+          username: string;
+          displayName: string;
+        };
+        badge: Badge;
+      }>
+    > {
+      try {
+        return await api<
+          Array<{
+            id: string;
+            userId: string;
+            badgeId: string;
+            earnedAt: string;
+            user: {
+              id: string;
+              username: string;
+              displayName: string;
+            };
+            badge: Badge;
+          }>
+        >(`admin/badges/activity/recent?limit=${limit}`);
+      } catch (error) {
+        console.error('Error fetching recent badge activity:', error);
+        throw error;
+      }
+    },
+
+    async createBadge(badge: CreateBadgeRequest): Promise<Badge> {
+      try {
+        const result = await api<Badge>('admin/badges', {
+          method: 'POST',
+          body: badge,
+        });
+
+        // Invalidate badges cache
+        apiCache.delete('badges:all');
+        return result;
+      } catch (error) {
+        console.error('Error creating badge:', error);
+        throw error;
+      }
+    },
+
+    async updateBadge(id: string, badge: UpdateBadgeRequest): Promise<Badge> {
+      try {
+        const result = await api<Badge>(`admin/badges/${id}`, {
+          method: 'PUT',
+          body: badge,
+        });
+
+        // Invalidate caches
+        apiCache.delete('badges:all');
+        apiCache.delete(`badge:${id}`);
+        return result;
+      } catch (error) {
+        console.error(`Error updating badge ${id}:`, error);
+        throw error;
+      }
+    },
+
+    async deleteBadge(id: string): Promise<boolean> {
+      try {
+        await api<void>(`admin/badges/${id}`, {
+          method: 'DELETE',
+        });
+
+        // Invalidate caches
+        apiCache.delete('badges:all');
+        apiCache.delete(`badge:${id}`);
+        return true;
+      } catch (error) {
+        console.error(`Error deleting badge ${id}:`, error);
+        throw error;
+      }
+    },
+
+    async getBadgeStats(id: string): Promise<{
+      badge: Badge;
+      awardCount: number;
+      recentActivity: Array<{
+        id: string;
+        userId: string;
+        badgeId: string;
+        earnedAt: string;
+        user: {
+          id: string;
+          username: string;
+          displayName: string;
+        };
+      }>;
+    }> {
+      try {
+        return await api<{
+          badge: Badge;
+          awardCount: number;
+          recentActivity: Array<{
+            id: string;
+            userId: string;
+            badgeId: string;
+            earnedAt: string;
+            user: {
+              id: string;
+              username: string;
+              displayName: string;
+            };
+          }>;
+        }>(`admin/badges/${id}/stats`);
+      } catch (error) {
+        console.error(`Error fetching badge stats for ${id}:`, error);
+        throw error;
+      }
+    },
+
+    async awardBadgeToUsers(
+      id: string,
+      userIds: string[],
+    ): Promise<{
+      success: Array<{
+        id: string;
+        userId: string;
+        badgeId: string;
+        earnedAt: string;
+      }>;
+      failed: Array<{ userId: string; reason: string }>;
+    }> {
+      try {
+        return await api<{
+          success: Array<{
+            id: string;
+            userId: string;
+            badgeId: string;
+            earnedAt: string;
+          }>;
+          failed: Array<{ userId: string; reason: string }>;
+        }>(`admin/badges/${id}/award-bulk`, {
+          method: 'POST',
+          body: { userIds },
+        });
+      } catch (error) {
+        console.error(`Error awarding badge ${id} to users:`, error);
+        throw error;
+      }
+    },
   },
 };

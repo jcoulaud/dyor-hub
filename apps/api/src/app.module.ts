@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
@@ -69,6 +70,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     SolanaModule,
     UsersModule,
     SessionModule,
+    AdminModule,
     GamificationModule,
     NotificationsModule,
   ],

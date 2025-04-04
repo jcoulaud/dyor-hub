@@ -1,3 +1,4 @@
+export * from './badge';
 export * from './comment';
 export * from './token';
 export * from './user';
