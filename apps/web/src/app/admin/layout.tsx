@@ -3,7 +3,7 @@
 import { AdminGuard } from '@/components/admin/AdminGuard';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { BadgeCheck, BarChart3, Flame, Medal, Settings, ShieldCheck, Trophy } from 'lucide-react';
+import { BadgeCheck, BarChart3, Flame, Medal, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -31,16 +31,6 @@ const navItems = [
     title: 'Reputation',
     href: '/admin/reputation',
     icon: Medal,
-  },
-  {
-    title: 'Leaderboard',
-    href: '/admin/leaderboard',
-    icon: Trophy,
-  },
-  {
-    title: 'Settings',
-    href: '/admin/settings',
-    icon: Settings,
   },
 ];
 
