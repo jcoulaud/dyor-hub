@@ -31,3 +31,13 @@ export function truncateAddress(address: string): string {
   if (address.length <= 16) return address;
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
+
+/**
+ * Improves avatar quality by removing '_normal' from Twitter avatar URLs
+ * @param url The original avatar URL that might contain '_normal'
+ * @returns A high-resolution version of the avatar URL
+ */
+export function getHighResAvatar(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  return url.replace('_normal', '');
+}

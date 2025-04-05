@@ -38,7 +38,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             </nav>
           </aside>
 
-          <main className='bg-card/50 rounded-lg p-6 border border-border/50 shadow-sm'>
+          <main className='bg-card/50 rounded-lg p-6 border border-white/10 shadow-sm'>
             {children}
           </main>
         </div>

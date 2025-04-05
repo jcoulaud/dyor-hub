@@ -13,6 +13,11 @@ export class PublicRouteMiddleware implements NestMiddleware {
     /^\/users\/[^/]+$/, // /users/:username (basic profile)
     /^\/users\/[^/]+\/stats\?.+$/, // /users/:username/stats?page=1
     /^\/users\/[^/]+\/activity\?.+$/, // /users/:username/activity?page=1&limit=10
+
+    // Leaderboard routes - public access
+    /^\/leaderboards$/, // Main leaderboard
+    /^\/leaderboards\?.+$/, // Leaderboard with query params
+    /^\/leaderboards\/user\/[^/]+$/, // User-specific leaderboard stats
   ];
 
   use(req: Request, _: Response, next: NextFunction) {

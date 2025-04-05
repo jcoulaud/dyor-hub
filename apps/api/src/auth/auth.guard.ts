@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { IS_PUBLIC_ROUTE } from '../users/users.controller';
+import { IS_PUBLIC_KEY } from './decorators/public.decorator';
 import { JwtStrategy } from './jwt.strategy';
 
 @Injectable()
@@ -17,11 +17,10 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // First check if route is marked as public using metadata
-    const isPublic = this.reflector.getAllAndOverride<boolean>(
-      IS_PUBLIC_ROUTE,
-      [context.getHandler(), context.getClass()],
-    );
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     if (isPublic) {
       return true;

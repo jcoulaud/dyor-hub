@@ -1,3 +1,4 @@
+import { LeaderboardCategory, LeaderboardTimeframe } from '@dyor-hub/types';
 import {
   Column,
   CreateDateColumn,
@@ -9,20 +10,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserEntity } from './user.entity';
-
-export enum LeaderboardCategory {
-  COMMENTS = 'comments',
-  POSTS = 'posts',
-  UPVOTES_GIVEN = 'upvotes_given',
-  UPVOTES_RECEIVED = 'upvotes_received',
-  REPUTATION = 'reputation',
-}
-
-export enum LeaderboardTimeframe {
-  WEEKLY = 'weekly',
-  MONTHLY = 'monthly',
-  ALL_TIME = 'all_time',
-}
 
 @Entity('leaderboards')
 @Unique(['userId', 'category', 'timeframe'])

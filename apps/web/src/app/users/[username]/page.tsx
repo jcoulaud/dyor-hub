@@ -2,6 +2,7 @@ import { ShareButton } from '@/components/share/ShareButton';
 import { TwitterShareButton } from '@/components/share/TwitterShareButton';
 import { WalletBadge } from '@/components/wallet/WalletBadge';
 import { users, wallets } from '@/lib/api';
+import { getHighResAvatar } from '@/lib/utils';
 import type { User, UserActivity, UserStats } from '@dyor-hub/types';
 import { MessageSquare, Reply, ThumbsDown, ThumbsUp, Twitter } from 'lucide-react';
 import { Metadata } from 'next';
@@ -103,7 +104,7 @@ export default async function UserProfilePage({ params }: UserPageProps) {
       // Continue without wallet info
     }
 
-    const avatarUrl = user.avatarUrl ? user.avatarUrl.replace('_normal', '') : null;
+    const avatarUrl = getHighResAvatar(user.avatarUrl) || null;
 
     return (
       <div className='min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black'>

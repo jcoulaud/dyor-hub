@@ -2,10 +2,10 @@ import { Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
 import { Session } from 'express-session';
-import { Public } from '../users/users.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { AuthConfigService } from './config/auth.config';
+import { Public } from './decorators/public.decorator';
 import { TwitterAuthenticationException } from './exceptions/auth.exceptions';
 
 interface AuthenticatedRequest extends Request {

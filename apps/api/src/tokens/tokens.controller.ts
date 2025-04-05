@@ -1,11 +1,11 @@
 import { TokenStats } from '@dyor-hub/types';
 import { Controller, Get, Param, Post } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
 import { TokenEntity } from '../entities/token.entity';
 import { TwitterUsernameHistoryEntity } from '../entities/twitter-username-history.entity';
 import { UserEntity } from '../entities/user.entity';
-import { Public } from '../users/users.controller';
 import { TokensService } from './tokens.service';
 import { TwitterHistoryService } from './twitter-history.service';
 

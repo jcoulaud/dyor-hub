@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { comments } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, getHighResAvatar } from '@/lib/utils';
 import type { LatestComment } from '@dyor-hub/types';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
@@ -118,7 +118,7 @@ export function LatestComments({
             className='flex items-center gap-4 h-full p-4 transition-colors'>
             <Avatar className='h-10 w-10 border border-white/10 flex-shrink-0'>
               <AvatarImage
-                src={currentComment.user.avatarUrl || ''}
+                src={getHighResAvatar(currentComment.user.avatarUrl) || ''}
                 alt={currentComment.user.displayName || 'User'}
               />
               <AvatarFallback className='text-xs'>

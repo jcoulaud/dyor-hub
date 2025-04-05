@@ -3,7 +3,7 @@
 import { AdminGuard } from '@/components/admin/AdminGuard';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { BadgeCheck, BarChart3, Flame, Medal, ShieldCheck } from 'lucide-react';
+import { BadgeCheck, BarChart3, Flame, Medal, ShieldCheck, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -32,6 +32,11 @@ const navItems = [
     href: '/admin/reputation',
     icon: Medal,
   },
+  {
+    title: 'Leaderboards',
+    href: '/admin/leaderboards',
+    icon: Trophy,
+  },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
@@ -42,8 +47,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <div className='flex min-h-screen flex-col'>
         <div className='flex flex-1'>
           {/* Sidebar Navigation */}
-          <aside className='hidden w-64 flex-col border-r border-zinc-800/50 bg-black/70 md:flex'>
-            <div className='flex h-14 items-center border-b border-zinc-800/50 px-4'>
+          <aside className='hidden w-64 flex-col border-r border-white/10 bg-black/70 md:flex'>
+            <div className='flex h-14 items-center border-b border-white/10 px-4'>
               <Link
                 href='/admin'
                 className='flex items-center gap-2 font-semibold text-emerald-500'>
@@ -75,7 +80,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </aside>
 
           {/* Mobile Navigation */}
-          <div className='flex w-full flex-col md:hidden border-b border-zinc-800/50 bg-black/80'>
+          <div className='flex w-full flex-col md:hidden border-b border-white/10 bg-black/80'>
             <div className='flex h-14 items-center px-4'>
               <Link
                 href='/admin'

@@ -10,16 +10,13 @@ import {
   Patch,
   Query,
   Request,
-  SetMetadata,
   UseGuards,
 } from '@nestjs/common';
+import { Public } from '../auth/decorators/public.decorator';
 import { UserResponseDto } from '../auth/dto/user-response.dto';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { PaginatedResult, UsersService } from './users.service';
-
-export const IS_PUBLIC_ROUTE = 'isPublicRoute';
-export const Public = () => SetMetadata(IS_PUBLIC_ROUTE, true);
 
 @Injectable()
 @Controller('users')

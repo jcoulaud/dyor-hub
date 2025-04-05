@@ -2,7 +2,7 @@
 
 import { useToast } from '@/hooks/use-toast';
 import { comments } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, getHighResAvatar } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { Comment, CreateCommentDto, VoteType } from '@dyor-hub/types';
 import { formatDistanceToNow } from 'date-fns';
@@ -539,7 +539,10 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
                 'h-6 w-6 sm:h-[28px] sm:w-[28px] shrink-0',
                 comment.isRemoved && 'opacity-40',
               )}>
-              <AvatarImage src={comment.user.avatarUrl} alt={comment.user.displayName} />
+              <AvatarImage
+                src={getHighResAvatar(comment.user.avatarUrl)}
+                alt={comment.user.displayName}
+              />
               <AvatarFallback>{comment.user.displayName[0]}</AvatarFallback>
             </Avatar>
             <div className='flex-1 min-w-0'>

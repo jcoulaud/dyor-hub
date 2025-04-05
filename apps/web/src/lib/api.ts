@@ -5,6 +5,9 @@ import type {
   CreateBadgeRequest,
   CreateCommentDto,
   LatestComment,
+  LeaderboardCategory,
+  LeaderboardResponse,
+  LeaderboardTimeframe,
   Token,
   TokenStats,
   TwitterUsernameHistoryEntity,
@@ -12,6 +15,7 @@ import type {
   User,
   UserActivity,
   UserPreferences,
+  UserRankEntry,
   UserReputation,
   UserReputationTrends,
   UserStats,
@@ -1126,6 +1130,103 @@ export const streaks = {
   },
 };
 
+interface EnhancedUserReputation {
+  userId: string;
+  username: string;
+  avatarUrl?: string | null;
+  totalPoints: number;
+  weeklyPoints: number;
+}
+
+interface PaginatedLeaderboardResponse {
+  users: EnhancedUserReputation[];
+  timestamp: Date;
+  meta?: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+}
+
+export const leaderboards = {
+  getLeaderboard: async (
+    category: LeaderboardCategory,
+    timeframe: LeaderboardTimeframe,
+    limit: number = 10,
+  ): Promise<LeaderboardResponse> => {
+    try {
+      return await api<LeaderboardResponse>(
+        `leaderboards?category=${category}&timeframe=${timeframe}&limit=${limit}`,
+      );
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+      throw error;
+    }
+  },
+
+  getPaginatedLeaderboard: async (
+    category: LeaderboardCategory,
+    timeframe: LeaderboardTimeframe,
+    page: number = 1,
+    pageSize: number = 20,
+  ): Promise<PaginatedLeaderboardResponse> => {
+    try {
+      return await api<PaginatedLeaderboardResponse>(
+        `leaderboards?category=${category}&timeframe=${timeframe}&page=${page}&pageSize=${pageSize}`,
+      );
+    } catch (error) {
+      console.error('Error fetching paginated leaderboard:', error);
+      throw error;
+    }
+  },
+
+  getUserPosition: async (
+    category: LeaderboardCategory,
+    timeframe: LeaderboardTimeframe,
+  ): Promise<{ rank: number; points: number }> => {
+    try {
+      return await api<{ rank: number; points: number }>(
+        `leaderboards/user-position?category=${category}&timeframe=${timeframe}`,
+      );
+    } catch (error) {
+      console.error('Error fetching user position:', error);
+      throw error;
+    }
+  },
+
+  getCurrentUserRanks: async (): Promise<UserRankEntry[]> => {
+    try {
+      return await api<UserRankEntry[]>('leaderboards/user');
+    } catch (error) {
+      console.error('Error fetching current user ranks:', error);
+      throw error;
+    }
+  },
+
+  getUserRanks: async (userId: string): Promise<UserRankEntry[]> => {
+    try {
+      return await api<UserRankEntry[]>(`leaderboards/user/${userId}`);
+    } catch (error) {
+      console.error('Error fetching user ranks:', error);
+      throw error;
+    }
+  },
+
+  admin: {
+    async recalculateLeaderboards(): Promise<{ message: string }> {
+      try {
+        return await api<{ message: string }>('leaderboards/recalculate', {
+          method: 'POST',
+        });
+      } catch (error) {
+        console.error('Error recalculating leaderboards:', error);
+        throw error;
+      }
+    },
+  },
+};
+
 export const reputation = {
   getUserReputationTrends: async (userId: string): Promise<UserReputationTrends> => {
     const cacheKey = `reputation_trends_${userId}`;
@@ -1197,5 +1298,15 @@ export const reputation = {
         throw error;
       }
     },
+  },
+};
+
+export const admin = {
+  // ... existing admin methods ...
+
+  recalculateLeaderboards: async (): Promise<{ message: string }> => {
+    return api<{ message: string }>('leaderboards/recalculate', {
+      method: 'POST',
+    });
   },
 };
