@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { ActivityType } from '../../entities';
 import { ActivityTrackingService } from './activity-tracking.service';
 import { BadgeService } from './badge.service';
+import { ReputationService } from './reputation.service';
 
 export enum GamificationEvent {
   COMMENT_CREATED = 'comment.created',
@@ -38,6 +39,7 @@ export class ActivityHooksService {
   constructor(
     private readonly activityTrackingService: ActivityTrackingService,
     private readonly badgeService: BadgeService,
+    private readonly reputationService: ReputationService,
   ) {}
 
   @OnEvent(GamificationEvent.COMMENT_CREATED)
@@ -48,6 +50,11 @@ export class ActivityHooksService {
         ActivityType.COMMENT,
         event.commentId,
         'comment',
+      );
+
+      await this.reputationService.awardPointsForActivity(
+        event.userId,
+        ActivityType.COMMENT,
       );
 
       await this.badgeService.checkAndAwardBadges(event.userId);
@@ -62,11 +69,21 @@ export class ActivityHooksService {
   @OnEvent(GamificationEvent.COMMENT_VOTED)
   async handleCommentVoted(event: CommentVotedEvent) {
     try {
+      const activityType =
+        event.voteType === 'upvote'
+          ? ActivityType.UPVOTE
+          : ActivityType.DOWNVOTE;
+
       await this.activityTrackingService.trackActivity(
         event.userId,
-        ActivityType.UPVOTE,
+        activityType,
         event.commentId,
         'comment',
+      );
+
+      await this.reputationService.awardPointsForActivity(
+        event.userId,
+        activityType,
       );
 
       await this.badgeService.checkAndAwardBadges(event.userId);
@@ -88,6 +105,11 @@ export class ActivityHooksService {
         'post',
       );
 
+      await this.reputationService.awardPointsForActivity(
+        event.userId,
+        ActivityType.POST,
+      );
+
       await this.badgeService.checkAndAwardBadges(event.userId);
     } catch (error) {
       this.logger.error(
@@ -101,6 +123,11 @@ export class ActivityHooksService {
   async handleUserLoggedIn(event: UserLoggedInEvent) {
     try {
       await this.activityTrackingService.trackActivity(
+        event.userId,
+        ActivityType.LOGIN,
+      );
+
+      await this.reputationService.awardPointsForActivity(
         event.userId,
         ActivityType.LOGIN,
       );

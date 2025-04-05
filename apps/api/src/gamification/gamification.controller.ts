@@ -3,13 +3,18 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { BadgeCategory, UserEntity } from '../entities';
+import { BadgeCategory, UserActivityEntity, UserEntity } from '../entities';
+import { ACTIVITY_POINTS } from './constants/reputation-points';
+import { ActivityPointsResponseDto } from './dto/reputation.dto';
 import { ActivityTrackingService } from './services/activity-tracking.service';
 import { BadgeService } from './services/badge.service';
 
@@ -18,6 +23,8 @@ export class GamificationController {
   constructor(
     private readonly activityTrackingService: ActivityTrackingService,
     private readonly badgeService: BadgeService,
+    @InjectRepository(UserActivityEntity)
+    private userActivityRepository: Repository<UserActivityEntity>,
   ) {}
 
   @Get('streak')
@@ -110,5 +117,21 @@ export class GamificationController {
     @Body() { isDisplayed }: { isDisplayed: boolean },
   ) {
     return this.badgeService.toggleBadgeDisplay(user.id, badgeId, isDisplayed);
+  }
+
+  @Get('users/:userId/activities/points')
+  @UseGuards(AuthGuard)
+  async getUserActivitiesWithPoints(
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<ActivityPointsResponseDto[]> {
+    const activities = await this.userActivityRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
+    return activities.map((activity) => ({
+      activityType: activity.activityType,
+      points: ACTIVITY_POINTS[activity.activityType] || 0,
+    }));
   }
 }

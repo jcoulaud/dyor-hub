@@ -1,4 +1,5 @@
 import type {
+  ActivityPointsConfig,
   Badge,
   Comment,
   CreateBadgeRequest,
@@ -11,6 +12,8 @@ import type {
   User,
   UserActivity,
   UserPreferences,
+  UserReputation,
+  UserReputationTrends,
   UserStats,
   VoteType,
   WalletResponse,
@@ -1117,6 +1120,80 @@ export const streaks = {
         return await api<TopStreakUsers>(`admin/streaks/top-users?limit=${limit}`);
       } catch (error) {
         console.error('Error fetching top streak users:', error);
+        throw error;
+      }
+    },
+  },
+};
+
+export const reputation = {
+  getUserReputationTrends: async (userId: string): Promise<UserReputationTrends> => {
+    const cacheKey = `reputation_trends_${userId}`;
+    const cached = getCache<UserReputationTrends>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const data = await api<UserReputationTrends>(`reputation/user/${userId}`);
+      setCache(cacheKey, data, PROFILE_CACHE_TTL);
+      return data;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError(404, 'Reputation data not found');
+      }
+      throw error;
+    }
+  },
+
+  getTopUsers: async (
+    limit: number = 10,
+  ): Promise<{ users: UserReputation[]; lastUpdated: Date }> => {
+    const cacheKey = `reputation_top_users_${limit}`;
+    const cached = getCache<{ users: UserReputation[]; lastUpdated: Date }>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const data = await api<{ users: UserReputation[]; lastUpdated: Date }>(
+        `reputation/leaderboard?limit=${limit}`,
+      );
+      setCache(cacheKey, data, CACHE_TTL);
+      return data;
+    } catch (error) {
+      console.error('Failed to get top users by reputation:', error);
+      throw error;
+    }
+  },
+
+  admin: {
+    getActivityPointValues: async (): Promise<ActivityPointsConfig> => {
+      const cacheKey = 'reputation_point_values';
+      const cached = getCache<ActivityPointsConfig>(cacheKey);
+      if (cached) return cached;
+
+      try {
+        const data = await api<ActivityPointsConfig>('admin/reputation/activities/points');
+        setCache(cacheKey, data, CACHE_TTL);
+        return data;
+      } catch (error) {
+        console.error('Failed to get activity point values:', error);
+        throw error;
+      }
+    },
+
+    getTopUsers: async (
+      limit: number = 10,
+    ): Promise<{ users: UserReputation[]; timestamp: Date }> => {
+      const cacheKey = `reputation_admin_top_users_${limit}`;
+      const cached = getCache<{ users: UserReputation[]; timestamp: Date }>(cacheKey);
+      if (cached) return cached;
+
+      try {
+        const data = await api<{ users: UserReputation[]; timestamp: Date }>(
+          `admin/reputation/top-users?limit=${limit}`,
+        );
+        setCache(cacheKey, data, CACHE_TTL);
+        return data;
+      } catch (error) {
+        console.error('Failed to get top users as admin:', error);
         throw error;
       }
     },

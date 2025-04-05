@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { badges, streaks, StreakUser } from '@/lib/api';
+import { badges as badgesApi, reputation, streaks as streaksApi, TopStreakUsers } from '@/lib/api';
 import { Badge } from '@dyor-hub/types';
 import { format } from 'date-fns';
 import { BadgeCheck, Calendar, Flame, Medal, Users } from 'lucide-react';
@@ -31,10 +31,19 @@ type BadgeActivity = {
   badge: Badge;
 };
 
+type DashboardData = {
+  badgeCount: string;
+  categoriesCount: string;
+  activeStreaks: string;
+  atRiskStreaks: number;
+  topUserReputation: string;
+  topUsername: string;
+};
+
 export default function AdminDashboard() {
-  const [dashboardData, setDashboardData] = useState({
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
     badgeCount: '...',
-    categoriesCount: 0,
+    categoriesCount: '0',
     topUserReputation: '...',
     topUsername: '...',
     activeStreaks: '...',
@@ -43,54 +52,52 @@ export default function AdminDashboard() {
   const [recentActivity, setRecentActivity] = useState<BadgeActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [topStreakUsers, setTopStreakUsers] = useState<StreakUser[]>([]);
+  const [topStreakUsers, setTopStreakUsers] = useState<TopStreakUsers['topCurrentStreaks']>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch badge data
-        const badgesData = await badges.admin.getAllBadges();
+        setIsLoading(true);
+        setError(null);
 
-        // Calculate badge stats
-        const categoriesSet = new Set(badgesData.map((badge) => badge.category));
-
-        setDashboardData((prev) => ({
-          ...prev,
-          badgeCount: badgesData.length.toString(),
-          categoriesCount: categoriesSet.size,
-        }));
-
-        // Fetch recent badge activity
+        // Get badge stats
         try {
-          const recentActivityData = await badges.admin.getRecentBadgeActivity(10);
-          setRecentActivity(recentActivityData);
-        } catch (activityErr) {
-          console.warn('Could not fetch recent badge activity:', activityErr);
-        }
-
-        // Fetch streak data
-        try {
-          const streakOverview = await streaks.admin.getStreakOverview();
-          const topStreakData = await streaks.admin.getTopStreakUsers(5);
+          const badgesData = await badgesApi.admin.getAllBadges();
+          const categories = new Set(badgesData.map((badge) => badge.category));
 
           setDashboardData((prev) => ({
             ...prev,
-            activeStreaks: streakOverview.activeStreaksCount.toString(),
-            atRiskStreaks: streakOverview.streaksAtRiskCount,
+            badgeCount: badgesData.length.toString(),
+            categoriesCount: categories.size.toString(),
           }));
 
-          // Store top streak users
-          setTopStreakUsers(topStreakData.topCurrentStreaks);
-        } catch (streakErr) {
-          console.error('Failed to fetch streak data:', streakErr);
+          // Get recent badge activity
+          const badgeActivity = await badgesApi.admin.getRecentBadgeActivity(10);
+          setRecentActivity(badgeActivity || []);
+        } catch (err) {
+          console.error('Error fetching badge data:', err);
+          setDashboardData((prev) => ({
+            ...prev,
+            badgeCount: '0',
+            categoriesCount: '0',
+          }));
+        }
 
-          toast({
-            title: 'Failed to load streak data',
-            description: 'Please try again later or contact support if the issue persists.',
-            variant: 'destructive',
-          });
+        // Get streak data
+        try {
+          const streakData = await streaksApi.admin.getStreakOverview();
+          const topStreakData = await streaksApi.admin.getTopStreakUsers(10);
 
+          setDashboardData((prev) => ({
+            ...prev,
+            activeStreaks: streakData.activeStreaksCount.toString(),
+            atRiskStreaks: streakData.streaksAtRiskCount,
+          }));
+
+          setTopStreakUsers(topStreakData.topCurrentStreaks || []);
+        } catch (err) {
+          console.error('Error fetching streak data:', err);
           setDashboardData((prev) => ({
             ...prev,
             activeStreaks: '0',
@@ -98,12 +105,32 @@ export default function AdminDashboard() {
           }));
         }
 
-        // For now, keep using mock data for reputation
-        setDashboardData((prev) => ({
-          ...prev,
-          topUserReputation: '5,280',
-          topUsername: '@topuser',
-        }));
+        // Fetch top reputation user data
+        try {
+          const topReputationUsers = await reputation.getTopUsers(1);
+          if (topReputationUsers.users && topReputationUsers.users.length > 0) {
+            const topUser = topReputationUsers.users[0];
+            setDashboardData((prev) => ({
+              ...prev,
+              topUserReputation: topUser.totalPoints.toString(),
+              topUsername: `@${topUser.username}`,
+            }));
+          } else {
+            // Fallback if no users with reputation
+            setDashboardData((prev) => ({
+              ...prev,
+              topUserReputation: '0',
+              topUsername: 'No users yet',
+            }));
+          }
+        } catch (err) {
+          console.error('Error fetching reputation data:', err);
+          setDashboardData((prev) => ({
+            ...prev,
+            topUserReputation: '0',
+            topUsername: 'Unknown',
+          }));
+        }
       } catch (err: unknown) {
         console.error('Error fetching dashboard data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
