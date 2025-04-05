@@ -54,7 +54,9 @@ export function AdminGuard({ children }: AdminGuardProps) {
           <ShieldAlert className='h-12 w-12 text-red-500' />
           <div className='text-center'>
             <h1 className='text-xl font-bold text-white'>Access Denied</h1>
-            <p className='mt-2 text-zinc-400'>You don't have permission to access this area.</p>
+            <p className='mt-2 text-zinc-400'>
+              You don&apos;t have permission to access this area.
+            </p>
           </div>
           <Badge variant='outline' className='border-red-800 bg-red-950/30 text-red-400'>
             Admin access required

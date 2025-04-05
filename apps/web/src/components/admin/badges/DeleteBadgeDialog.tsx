@@ -38,7 +38,7 @@ export function DeleteBadgeDialog({
     try {
       await onConfirm(badge.id);
       onOpenChange(false);
-    } catch (err) {
+    } catch {
       setError('Failed to delete badge. Please try again.');
     } finally {
       setIsDeleting(false);

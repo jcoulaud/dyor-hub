@@ -157,7 +157,6 @@ export function BadgeDetailsDialog({
                 id='name'
                 className='bg-zinc-900/50 border-zinc-800 focus-visible:ring-zinc-500 text-zinc-100'
                 {...form.register('name')}
-                disabled={mode === 'view'}
               />
             )}
             {form.formState.errors.name && mode === 'edit' && (
@@ -176,7 +175,6 @@ export function BadgeDetailsDialog({
                 id='description'
                 className='bg-zinc-900/50 border-zinc-800 focus-visible:ring-zinc-500 text-zinc-100 min-h-[80px]'
                 {...form.register('description')}
-                disabled={mode === 'view'}
               />
             )}
             {form.formState.errors.description && mode === 'edit' && (
@@ -197,10 +195,7 @@ export function BadgeDetailsDialog({
                 control={form.control}
                 name='category'
                 render={({ field }) => (
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={mode === 'view'}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <SelectTrigger className='bg-zinc-900/50 border-zinc-800 focus:ring-zinc-500 text-zinc-100'>
                       <SelectValue placeholder='Select category' />
                     </SelectTrigger>
@@ -232,10 +227,7 @@ export function BadgeDetailsDialog({
                 control={form.control}
                 name='requirement'
                 render={({ field }) => (
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={mode === 'view'}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <SelectTrigger className='bg-zinc-900/50 border-zinc-800 focus:ring-zinc-500 text-zinc-100'>
                       <SelectValue placeholder='Select requirement' />
                     </SelectTrigger>
@@ -281,7 +273,6 @@ export function BadgeDetailsDialog({
                 type='number'
                 className='bg-zinc-900/50 border-zinc-800 focus-visible:ring-zinc-500 text-zinc-100'
                 {...form.register('thresholdValue', { valueAsNumber: true })}
-                disabled={mode === 'view'}
               />
             )}
             {form.formState.errors.thresholdValue && mode === 'edit' && (
@@ -317,7 +308,6 @@ export function BadgeDetailsDialog({
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
-                    disabled={mode === 'view'}
                     className='data-[state=checked]:bg-green-600'
                   />
                 )}

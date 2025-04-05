@@ -146,9 +146,7 @@ export default function AdminDashboard() {
     <div className='space-y-6'>
       <div>
         <h1 className='text-2xl font-bold text-white'>Admin Dashboard</h1>
-        <p className='text-sm text-zinc-400'>
-          Monitor and manage gamification features for your users.
-        </p>
+        <p className='text-sm text-zinc-400'>Monitor and manage gamification features</p>
       </div>
 
       <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>

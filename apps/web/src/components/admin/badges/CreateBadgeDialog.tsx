@@ -63,7 +63,7 @@ export function CreateBadgeDialog({ open, onOpenChange, onSuccess }: CreateBadge
       } else {
         throw new Error('Failed to create badge');
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to create badge. Please try again.',
