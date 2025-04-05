@@ -11,6 +11,10 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
     "db:init": "node dist/scripts/init-database.js",
+    "db:truncate": "ts-node -r tsconfig-paths/register src/scripts/reset-db.ts",
+    "db:seed": "ts-node -r tsconfig-paths/register src/scripts/seed-database.ts",
+    "db:truncate-and-seed": "ts-node -r tsconfig-paths/register src/scripts/reset-and-seed.ts",
+    "db:rebuild-schema": "ts-node -r tsconfig-paths/register src/scripts/rebuild-database-schema.ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs}/**/*.ts\" --fix"
   },
@@ -53,6 +57,7 @@
     "typeorm": "^0.3.20"
   },
   "devDependencies": {
+    "@faker-js/faker": "^9.6.0",
     "@nestjs/cli": "^10.0.0",
     "@nestjs/schematics": "^10.0.0",
     "@nestjs/testing": "10.4.15",

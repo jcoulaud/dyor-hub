@@ -7,7 +7,17 @@ import { dataSourceOptions } from '../datasource';
 
 const execAsync = promisify(exec);
 
-async function resetDatabase() {
+/**
+ * Completely rebuilds the database schema by:
+ * 1. Dropping the database
+ * 2. Clearing migrations
+ * 3. Generating a new migration from the current entities
+ * 4. Running the migration to create all tables
+ *
+ * Use this when schema changes have been made to entities.
+ * For quick data clearing without schema changes, use truncateAllTables() in reset-db.ts
+ */
+async function rebuildDatabaseSchema() {
   try {
     console.log('🗑️  Dropping database...');
     await execAsync('pnpm db:drop');
@@ -64,9 +74,9 @@ async function resetDatabase() {
     console.log('🚀 Running migrations...');
     await execAsync('pnpm migration:run');
 
-    console.log('✅ Database reset completed successfully!');
+    console.log('✅ Database schema rebuild completed successfully!');
   } catch (error) {
-    console.error('❌ Error during database reset:', error);
+    console.error('❌ Error during database schema rebuild:', error);
     if (error instanceof Error) {
       console.error('Error details:', error.message);
       if ('stdout' in error) {
@@ -77,4 +87,9 @@ async function resetDatabase() {
   }
 }
 
-resetDatabase();
+// Run the function if this script is executed directly
+if (require.main === module) {
+  rebuildDatabaseSchema();
+}
+
+export { rebuildDatabaseSchema };
