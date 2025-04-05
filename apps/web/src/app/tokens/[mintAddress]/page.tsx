@@ -76,22 +76,29 @@ export default function Page({ params, commentId }: PageProps) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        if (!mintAddress || !isValidSolanaAddress(mintAddress)) {
+        // Avoid reloading if already loaded
+        if (tokenData && mintAddress === tokenData.mintAddress) {
+          return;
+        }
+
+        // Check valid Solana address format
+        if (!isValidSolanaAddress(mintAddress)) {
           notFound();
         }
 
-        const token = await tokens.getByMintAddress(mintAddress).catch(() => null);
+        try {
+          const token = await tokens.getByMintAddress(mintAddress);
+          setTokenData(token);
+          setIsHeaderLoaded(true);
 
-        if (!token) {
+          // Replace cf-ipfs.com with ipfs.io in image URL
+          if (token.imageUrl && token.imageUrl.includes('cf-ipfs.com/ipfs/')) {
+            token.imageUrl = token.imageUrl.replace('cf-ipfs.com/ipfs/', 'ipfs.io/ipfs/');
+          }
+        } catch (error) {
+          console.error('Error fetching token data:', error);
           notFound();
-        }
-
-        setTokenData(token);
-        setIsHeaderLoaded(true);
-
-        // Replace cf-ipfs.com with ipfs.io in image URL
-        if (token.imageUrl && token.imageUrl.includes('cf-ipfs.com/ipfs/')) {
-          token.imageUrl = token.imageUrl.replace('cf-ipfs.com/ipfs/', 'ipfs.io/ipfs/');
+          return;
         }
 
         // Skip fetching token stats in development environment
@@ -100,16 +107,32 @@ export default function Page({ params, commentId }: PageProps) {
           return;
         }
 
-        const [tokenStats, twitterHistory] = await Promise.all([
-          tokens.getTokenStats(mintAddress).catch(() => null),
-          tokens.getTwitterHistory(mintAddress).catch(() => null),
-        ]);
+        try {
+          const [tokenStats, twitterHistory] = await Promise.allSettled([
+            tokens.getTokenStats(mintAddress),
+            tokens.getTwitterHistory(mintAddress),
+          ]);
 
-        setTokenStatsData(tokenStats);
-        setTokenHistoryData(twitterHistory);
-        setIsStatsLoaded(true);
+          if (tokenStats.status === 'fulfilled') {
+            setTokenStatsData(tokenStats.value);
+          } else {
+            console.error('Error fetching token stats:', tokenStats.reason);
+          }
+
+          if (twitterHistory.status === 'fulfilled') {
+            setTokenHistoryData(twitterHistory.value);
+          } else {
+            console.error('Error fetching token twitter history:', twitterHistory.reason);
+          }
+        } catch (error) {
+          console.error('Error fetching token stats or history:', error);
+        } finally {
+          setIsStatsLoaded(true);
+        }
       } catch (error) {
-        console.error('Error fetching token data:', error);
+        console.error('Error in fetchData:', error);
+        setIsHeaderLoaded(true);
+        setIsStatsLoaded(true);
       }
     };
 

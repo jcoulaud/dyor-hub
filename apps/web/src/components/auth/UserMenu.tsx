@@ -6,11 +6,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { auth } from '@/lib/api';
 import { useAuthContext } from '@/providers/auth-provider';
-import { Bookmark, LogOut, Settings, User, UserCircle, UserCog } from 'lucide-react';
+import { Bookmark, LogOut, Settings, ShieldCheck, User, UserCircle, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { TwitterLoginButton } from './TwitterLoginButton';
@@ -105,6 +106,19 @@ export function UserMenu() {
             </DropdownMenuItem>
           </Link>
 
+          {user.isAdmin && (
+            <>
+              <DropdownMenuSeparator className='my-1 bg-zinc-800/50' />
+              <Link href='/admin'>
+                <DropdownMenuItem className='flex items-center gap-2 md:px-3 md:py-2.5 px-2.5 py-2 text-sm text-emerald-500 hover:text-emerald-400 focus:text-emerald-400 cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
+                  <ShieldCheck className='h-4 w-4' />
+                  <span>Admin Dashboard</span>
+                </DropdownMenuItem>
+              </Link>
+            </>
+          )}
+
+          <DropdownMenuSeparator className='my-1 bg-zinc-800/50' />
           <DropdownMenuItem
             onClick={handleLogout}
             disabled={isLoggingOut}

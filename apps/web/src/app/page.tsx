@@ -71,11 +71,13 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
 
   const fetchTokens = useCallback(async () => {
+    setIsLoading(true);
     try {
       const data = await tokens.list();
-      setTokenList(data);
+      setTokenList(data || []);
     } catch (error) {
       console.error('Failed to fetch tokens:', error);
+      setTokenList([]);
     } finally {
       setIsLoading(false);
     }

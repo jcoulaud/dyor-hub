@@ -194,19 +194,6 @@ export class PerspectiveService {
       const spamScore = data.attributeScores.SPAM.summaryScore.value;
       const toxicityScore = data.attributeScores.TOXICITY.summaryScore.value;
 
-      // Log spam detection details for monitoring
-      if (spamScore > 0.7) {
-        // Log high spam scores for analysis
-        this.logger.warn('High spam score detected', {
-          text: text.substring(0, 100) + '...', // Log first 100 chars
-          spamScore,
-          toxicityScore,
-          containsCryptoTerm: Array.from(this.cryptoTerms).some((term) =>
-            text.toLowerCase().includes(term),
-          ),
-        });
-      }
-
       return {
         isSpam: spamScore > this.threshold.spam,
         isToxic: toxicityScore > this.threshold.toxicity,

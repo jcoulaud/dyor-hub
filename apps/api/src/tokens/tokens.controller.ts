@@ -1,10 +1,11 @@
 import { TokenStats } from '@dyor-hub/types';
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { CurrentUser, OptionalAuthGuard } from '../auth';
+import { Controller, Get, Param, Post } from '@nestjs/common';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
 import { TokenEntity } from '../entities/token.entity';
 import { TwitterUsernameHistoryEntity } from '../entities/twitter-username-history.entity';
 import { UserEntity } from '../entities/user.entity';
+import { Public } from '../users/users.controller';
 import { TokensService } from './tokens.service';
 import { TwitterHistoryService } from './twitter-history.service';
 
@@ -15,8 +16,8 @@ export class TokensController {
     private readonly twitterHistoryService: TwitterHistoryService,
   ) {}
 
+  @Public()
   @Get(':mintAddress')
-  @UseGuards(OptionalAuthGuard)
   async getTokenData(
     @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
     @CurrentUser() user?: UserEntity,
@@ -24,6 +25,7 @@ export class TokensController {
     return this.tokensService.getTokenData(mintAddress, user?.id);
   }
 
+  @Public()
   @Get(':mintAddress/stats')
   async getTokenStats(
     @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
@@ -38,6 +40,7 @@ export class TokensController {
     return this.tokensService.refreshTokenMetadata(mintAddress);
   }
 
+  @Public()
   @Get(':mintAddress/twitter-history')
   async getTwitterHistory(
     @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
@@ -45,13 +48,14 @@ export class TokensController {
     return this.twitterHistoryService.getUsernameHistory(mintAddress);
   }
 
+  @Public()
   @Get()
   async getAllTokens(): Promise<TokenEntity[]> {
     return this.tokensService.getAllTokens();
   }
 
+  @Public()
   @Get(':mintAddress/price-history')
-  @UseGuards(OptionalAuthGuard)
   async getTokenPriceHistory(@Param('mintAddress') mintAddress: string) {
     return this.tokensService.getTokenPriceHistory(mintAddress);
   }

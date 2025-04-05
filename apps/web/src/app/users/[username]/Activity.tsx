@@ -1,12 +1,11 @@
 'use client';
 
+import { Pagination } from '@/components/ui/pagination';
 import { users } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
 import {
   ArrowDown,
   ArrowUp,
-  ChevronLeft,
-  ChevronRight,
   CircleDot,
   Clock,
   MessageSquare,
@@ -116,13 +115,14 @@ export function Activity({
   const [sortFilter, setSortFilter] = useState<SortFilter>('recent');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [visibleComments, setVisibleComments] = useState<UserComment[]>(initialComments);
+  const [visibleComments, setVisibleComments] = useState<UserComment[]>(initialComments || []);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
-    total: totalActivities,
+    total: totalActivities || 0,
     page: 1,
     limit: 10,
-    totalPages: Math.ceil(totalActivities / 10),
+    totalPages: Math.ceil((totalActivities || 0) / 10),
   });
 
   const [activityCounts, setActivityCounts] = useState({
@@ -147,6 +147,7 @@ export function Activity({
 
   const fetchActivity = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const result = await users.getUserActivity(username, currentPage, 10, typeFilter, sortFilter);
 
@@ -154,6 +155,8 @@ export function Activity({
       setPagination(result.meta);
     } catch (error) {
       console.error('Failed to load user activity', error);
+      setError('Failed to load activity. Please try again later.');
+      setVisibleComments([]);
     } finally {
       setIsLoading(false);
     }
@@ -248,7 +251,7 @@ export function Activity({
               icon={<CircleDot className='h-3.5 w-3.5' />}
               color='text-blue-400'
               label='All'
-              count={totalActivities}
+              count={pagination.total}
             />
             <TypeFilterTab
               active={typeFilter === 'comments'}
@@ -269,7 +272,7 @@ export function Activity({
             <TypeFilterTab
               active={typeFilter === 'upvotes'}
               onClick={() => handleTypeFilterChange('upvotes')}
-              icon={<ThumbsUp className='h-3.5 w-3.5' />}
+              icon={<ArrowUp className='h-3.5 w-3.5' />}
               color='text-green-400'
               label='Upvotes'
               count={activityCounts.upvotes}
@@ -277,7 +280,7 @@ export function Activity({
             <TypeFilterTab
               active={typeFilter === 'downvotes'}
               onClick={() => handleTypeFilterChange('downvotes')}
-              icon={<ThumbsDown className='h-3.5 w-3.5' />}
+              icon={<ArrowDown className='h-3.5 w-3.5' />}
               color='text-red-400'
               label='Downvotes'
               count={activityCounts.downvotes}
@@ -286,370 +289,97 @@ export function Activity({
         </div>
       </div>
 
-      {/* No results message */}
-      {!isLoading && visibleComments.length === 0 && (
-        <div className='py-12 text-center bg-zinc-900/20 backdrop-blur-sm border border-zinc-800/30 rounded-xl'>
-          <p className='text-zinc-500 text-sm'>
-            No {typeFilter !== 'all' ? typeFilter : 'activities'} found.
-          </p>
-        </div>
-      )}
-
-      {/* Loading state */}
-      {isLoading && (
-        <div className='py-12 text-center bg-zinc-900/20 backdrop-blur-sm border border-zinc-800/30 rounded-xl'>
-          <div className='inline-flex items-center justify-center whitespace-nowrap'>
-            <div className='flex space-x-2 mr-3'>
-              <div className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'></div>
-              <div
-                className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'
-                style={{ animationDelay: '300ms' }}></div>
-              <div
-                className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'
-                style={{ animationDelay: '600ms' }}></div>
-            </div>
-            <span className='text-zinc-500 text-sm'>Loading activities</span>
+      {/* Activity grid */}
+      <div className='space-y-4'>
+        {isLoading ? (
+          // Loading state
+          <div className='py-12 text-center text-zinc-400'>
+            <div className='w-10 h-10 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4'></div>
+            <p>Loading activities...</p>
           </div>
-        </div>
-      )}
-
-      {/* Cards Grid Layout */}
-      {!isLoading && visibleComments.length > 0 && (
-        <div className='space-y-3'>
-          {visibleComments.map((comment) => {
-            const activityDetails = getActivityDetails(comment);
-
+        ) : error ? (
+          // Error state
+          <div className='py-12 text-center'>
+            <div className='bg-red-900/20 border border-red-900/30 rounded-lg p-6 mb-4 mx-auto max-w-md'>
+              <p className='text-red-400 mb-2'>{error}</p>
+              <button
+                onClick={fetchActivity}
+                className='px-4 py-2 bg-red-900/30 hover:bg-red-900/50 border border-red-900/30 rounded text-red-100 text-sm transition-colors'>
+                Try Again
+              </button>
+            </div>
+          </div>
+        ) : visibleComments.length === 0 ? (
+          // Empty state
+          <div className='py-12 text-center text-zinc-400'>
+            <p className='mb-2'>No activities found.</p>
+            {typeFilter !== 'all' && (
+              <button
+                onClick={() => handleTypeFilterChange('all')}
+                className='px-4 py-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/30 rounded text-zinc-300 text-sm transition-colors'>
+                View All Activities
+              </button>
+            )}
+          </div>
+        ) : (
+          // Activities list
+          visibleComments.map((comment) => {
+            const details = getActivityDetails(comment);
             return (
-              <div key={comment.id} className='relative group'>
-                <div
-                  className={`
-                    group bg-zinc-900/30 hover:bg-zinc-900/50 backdrop-blur-sm border 
-                    ${activityDetails.borderColor}
-                    rounded-xl overflow-hidden transition-all duration-200 hover:shadow-md
-                  `}>
-                  <Link
-                    href={`/tokens/${comment.tokenMintAddress}/comments/${comment.id}`}
-                    className='block cursor-pointer'>
-                    {/* Comment Header */}
-                    <div className='p-2.5 border-b border-zinc-800/50 flex items-center justify-between'>
-                      <div className='flex items-center gap-2'>
-                        <span className='flex items-center justify-center h-4 w-4'>
-                          {activityDetails.icon}
-                        </span>
-                        <span
-                          className={`
-                          text-sm font-medium 
-                          ${activityDetails.color}
-                        `}>
-                          {activityDetails.type} on ${comment.tokenSymbol}
-                        </span>
-                      </div>
-                      <div className='flex items-center gap-2 text-xs text-zinc-500'>
-                        <Clock className='h-3 w-3' />
-                        <span>
-                          {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                        </span>
-                      </div>
-                    </div>
+              <Link
+                href={`/tokens/${comment.tokenMintAddress}?comment=${comment.id}`}
+                key={comment.id}
+                className={`block p-4 bg-zinc-900/30 backdrop-blur-sm border ${details.borderColor} rounded-lg hover:bg-zinc-900/50 transition-all duration-200`}>
+                <div className='flex items-start gap-3'>
+                  <div
+                    className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-zinc-800/80 ${details.color}`}>
+                    {details.icon}
+                  </div>
 
-                    {/* Comment Content */}
-                    <div className='px-4 py-2.5'>
-                      {comment.isRemoved ? (
-                        <div className='text-zinc-500 text-sm italic'>
-                          This comment has been removed
-                        </div>
-                      ) : (
-                        <CommentContent html={comment.content} />
+                  <div className='flex-1 min-w-0'>
+                    <div className='flex items-center gap-1.5 mb-1'>
+                      <span className={`text-xs font-medium ${details.color}`}>{details.type}</span>
+                      <span className='text-xs text-zinc-500'>•</span>
+                      <span className='text-xs text-zinc-500'>
+                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                      </span>
+                      {comment.tokenSymbol && (
+                        <>
+                          <span className='text-xs text-zinc-500'>•</span>
+                          <span className='text-xs text-zinc-400'>${comment.tokenSymbol}</span>
+                        </>
                       )}
                     </div>
 
-                    {/* Comment Footer */}
-                    <div className='px-4 py-2 bg-black/20 flex items-center justify-between'>
-                      <div className='flex items-center gap-4'>
-                        <div className='flex items-center gap-1.5'>
-                          <ArrowUp className='h-3.5 w-3.5 text-green-400/80' />
-                          <span className='text-xs text-zinc-400'>{comment.upvotes}</span>
-                        </div>
-                        <div className='flex items-center gap-1.5'>
-                          <ArrowDown className='h-3.5 w-3.5 text-red-400/80' />
-                          <span className='text-xs text-zinc-400'>{comment.downvotes}</span>
-                        </div>
+                    <CommentContent html={comment.content} />
+
+                    <div className='flex items-center gap-3 mt-1.5 text-xs'>
+                      <div className='flex items-center gap-1 text-green-400/90'>
+                        <ThumbsUp className='h-3 w-3' />
+                        <span>{comment.upvotes || 0}</span>
+                      </div>
+                      <div className='flex items-center gap-1 text-red-400/90'>
+                        <ThumbsDown className='h-3 w-3' />
+                        <span>{comment.downvotes || 0}</span>
                       </div>
                     </div>
-                  </Link>
-
-                  {/* View button */}
-                  <div className='absolute bottom-2 right-4 z-10'>
-                    <Link
-                      href={`/tokens/${comment.tokenMintAddress}/comments/${comment.id}`}
-                      className='flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-800/80 hover:bg-zinc-700 transition-colors text-xs text-zinc-400 hover:text-white'
-                      onClick={(e) => e.stopPropagation()}>
-                      <span>View</span>
-                      <ChevronRight className='h-3 w-3' />
-                    </Link>
                   </div>
                 </div>
-              </div>
+              </Link>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
 
-      {/* Pagination  */}
-      {!isLoading && visibleComments.length > 0 && pagination.totalPages > 1 && (
-        <div className='mt-6 flex items-center justify-between'>
-          <div className='text-xs text-zinc-500'>
-            Showing {visibleComments.length} of {pagination.total} activities
-          </div>
-
-          <div className='flex text-xs'>
-            {/* Previous button */}
-            <button
-              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-              disabled={isLoading || currentPage === 1}
-              className={`
-                flex items-center justify-center
-                px-2 py-1.5 rounded-l-md border cursor-pointer
-                ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}
-                bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-300
-                transition-colors duration-200
-              `}>
-              <ChevronLeft className='h-3 w-3' />
-            </button>
-
-            {(() => {
-              const SIBLINGS = 1; // Siblings on each side
-              const BOUNDARIES = 1; // Boundary pages (first/last) to show
-
-              const range = (start: number, end: number) => {
-                const length = end - start + 1;
-                return Array.from({ length }, (_, i) => start + i);
-              };
-
-              const totalPageCount = pagination.totalPages;
-              const totalPageNumbers = SIBLINGS * 2 + 3; // siblings + current + first + last
-
-              // Case 1: Not enough pages to need ellipsis
-              if (totalPageCount <= totalPageNumbers) {
-                return range(1, totalPageCount).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    disabled={isLoading}
-                    className={`
-                      min-w-[2rem] px-3 py-1.5 cursor-pointer border-t border-b border-r
-                      ${
-                        currentPage === page
-                          ? 'bg-blue-600 text-white font-medium border-blue-700'
-                          : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-300'
-                      }
-                      ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                      transition-colors duration-200
-                    `}>
-                    {page}
-                  </button>
-                ));
-              }
-
-              // Calculate left and right siblings
-              const leftSiblingIndex = Math.max(currentPage - SIBLINGS, BOUNDARIES);
-              const rightSiblingIndex = Math.min(
-                currentPage + SIBLINGS,
-                totalPageCount - BOUNDARIES,
-              );
-
-              const shouldShowLeftDots = leftSiblingIndex > BOUNDARIES + 1;
-              const shouldShowRightDots = rightSiblingIndex < totalPageCount - BOUNDARIES;
-
-              // Case 2: Show left dots but no right dots
-              if (!shouldShowLeftDots && shouldShowRightDots) {
-                const leftItemCount = SIBLINGS * 2 + BOUNDARIES;
-                const leftRange = range(1, leftItemCount);
-
-                return (
-                  <>
-                    {leftRange.map((page) => (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page)}
-                        disabled={isLoading}
-                        className={`
-                          min-w-[2rem] px-3 py-1.5 cursor-pointer border-t border-b border-r
-                          ${
-                            currentPage === page
-                              ? 'bg-blue-600 text-white font-medium border-blue-700'
-                              : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-300'
-                          }
-                          ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                          transition-colors duration-200
-                        `}>
-                        {page}
-                      </button>
-                    ))}
-
-                    <button
-                      disabled
-                      className='border-t border-b border-r min-w-[2rem] px-3 py-1.5 bg-zinc-900 text-zinc-500 border-zinc-800 flex items-center justify-center'>
-                      <span className='text-center'>•••</span>
-                    </button>
-
-                    <button
-                      onClick={() => handlePageChange(totalPageCount)}
-                      disabled={isLoading}
-                      className={`
-                        min-w-[2rem] px-3 py-1.5 cursor-pointer border-t border-b border-r
-                        ${
-                          currentPage === totalPageCount
-                            ? 'bg-blue-600 text-white font-medium border-blue-700'
-                            : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-300'
-                        }
-                        ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                        transition-colors duration-200
-                      `}>
-                      {totalPageCount}
-                    </button>
-                  </>
-                );
-              }
-
-              // Case 3: Show right dots but no left dots
-              if (shouldShowLeftDots && !shouldShowRightDots) {
-                const rightItemCount = SIBLINGS * 2 + BOUNDARIES;
-                const rightRange = range(totalPageCount - rightItemCount + 1, totalPageCount);
-
-                return (
-                  <>
-                    <button
-                      onClick={() => handlePageChange(1)}
-                      disabled={isLoading}
-                      className={`
-                        min-w-[2rem] px-3 py-1.5 cursor-pointer border-t border-b border-r
-                        ${
-                          currentPage === 1
-                            ? 'bg-blue-600 text-white font-medium border-blue-700'
-                            : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-300'
-                        }
-                        ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                        transition-colors duration-200
-                      `}>
-                      1
-                    </button>
-
-                    <button
-                      disabled
-                      className='border-t border-b border-r min-w-[2rem] px-3 py-1.5 bg-zinc-900 text-zinc-500 border-zinc-800 flex items-center justify-center'>
-                      <span className='text-center'>•••</span>
-                    </button>
-
-                    {rightRange.map((page) => (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page)}
-                        disabled={isLoading}
-                        className={`
-                          min-w-[2rem] px-3 py-1.5 cursor-pointer border-t border-b border-r
-                          ${
-                            currentPage === page
-                              ? 'bg-blue-600 text-white font-medium border-blue-700'
-                              : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-300'
-                          }
-                          ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                          transition-colors duration-200
-                        `}>
-                        {page}
-                      </button>
-                    ))}
-                  </>
-                );
-              }
-
-              // Case 4: Show both left and right dots
-              if (shouldShowLeftDots && shouldShowRightDots) {
-                const middleRange = range(leftSiblingIndex, rightSiblingIndex);
-
-                return (
-                  <>
-                    <button
-                      onClick={() => handlePageChange(1)}
-                      disabled={isLoading}
-                      className={`
-                        min-w-[2rem] px-3 py-1.5 cursor-pointer border-t border-b border-r
-                        ${
-                          currentPage === 1
-                            ? 'bg-blue-600 text-white font-medium border-blue-700'
-                            : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-300'
-                        }
-                        ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                        transition-colors duration-200
-                      `}>
-                      1
-                    </button>
-
-                    <button
-                      disabled
-                      className='border-t border-b border-r min-w-[2rem] px-3 py-1.5 bg-zinc-900 text-zinc-500 border-zinc-800 flex items-center justify-center'>
-                      <span className='text-center'>•••</span>
-                    </button>
-
-                    {middleRange.map((page) => (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page)}
-                        disabled={isLoading}
-                        className={`
-                          min-w-[2rem] px-3 py-1.5 cursor-pointer border-t border-b border-r
-                          ${
-                            currentPage === page
-                              ? 'bg-blue-600 text-white font-medium border-blue-700'
-                              : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-300'
-                          }
-                          ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                          transition-colors duration-200
-                        `}>
-                        {page}
-                      </button>
-                    ))}
-
-                    <button
-                      disabled
-                      className='border-t border-b border-r min-w-[2rem] px-3 py-1.5 bg-zinc-900 text-zinc-500 border-zinc-800 flex items-center justify-center'>
-                      <span className='text-center'>•••</span>
-                    </button>
-
-                    <button
-                      onClick={() => handlePageChange(totalPageCount)}
-                      disabled={isLoading}
-                      className={`
-                        min-w-[2rem] px-3 py-1.5 cursor-pointer border-t border-b border-r
-                        ${
-                          currentPage === totalPageCount
-                            ? 'bg-blue-600 text-white font-medium border-blue-700'
-                            : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-300'
-                        }
-                        ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                        transition-colors duration-200
-                      `}>
-                      {totalPageCount}
-                    </button>
-                  </>
-                );
-              }
-            })()}
-
-            {/* Next button */}
-            <button
-              onClick={() => handlePageChange(Math.min(pagination.totalPages, currentPage + 1))}
-              disabled={isLoading || currentPage === pagination.totalPages}
-              className={`
-                flex items-center justify-center
-                px-2 py-1.5 rounded-r-md border-t border-r border-b cursor-pointer
-                ${currentPage === pagination.totalPages ? 'opacity-50 cursor-not-allowed' : ''}
-                bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-300
-                transition-colors duration-200
-              `}>
-              <ChevronRight className='h-3 w-3' />
-            </button>
-          </div>
+      {/* Use the Pagination component */}
+      {!isLoading && !error && visibleComments.length > 0 && pagination.totalPages > 1 && (
+        <div className='mt-8'>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+            isLoading={isLoading}
+          />
         </div>
       )}
     </div>

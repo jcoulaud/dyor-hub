@@ -18,7 +18,7 @@ import {
 import { plainToInstance } from 'class-transformer';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { OptionalAuthGuard } from '../auth/optional-auth.guard';
+import { Public } from '../users/users.controller';
 import { CommentsService } from './comments.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CommentThreadResponseDto } from './dto/comment-thread-response.dto';
@@ -32,8 +32,8 @@ export class CommentsController {
 
   constructor(private readonly commentsService: CommentsService) {}
 
+  @Public()
   @Get()
-  @UseGuards(OptionalAuthGuard)
   async getComments(
     @Query('tokenMintAddress') tokenMintAddress: string,
     @Query('page') page = '1',
@@ -74,8 +74,8 @@ export class CommentsController {
     };
   }
 
+  @Public()
   @Get('latest')
-  @UseGuards(OptionalAuthGuard)
   async getLatestComments(
     @Query('limit') limit = '5',
   ): Promise<LatestCommentResponseDto[]> {
@@ -90,8 +90,8 @@ export class CommentsController {
     );
   }
 
+  @Public()
   @Get(':id')
-  @UseGuards(OptionalAuthGuard)
   async getCommentById(
     @Param('id') id: string,
     @CurrentUser() user?: { id: string },
@@ -177,8 +177,8 @@ export class CommentsController {
     return this.commentsService.vote(id, user.id, type);
   }
 
+  @Public()
   @Get('/thread/:id')
-  @UseGuards(OptionalAuthGuard)
   async getCommentThread(
     @Param('id') id: string,
     @CurrentUser() user?: { id: string },

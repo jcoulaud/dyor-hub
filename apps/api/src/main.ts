@@ -16,13 +16,19 @@ async function bootstrap() {
     console.error('Failed to initialize database:', error);
   }
 
-  const app = await NestFactory.create(AppModule);
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+
+  const app = await NestFactory.create(AppModule, {
+    logger: isDevelopment
+      ? ['log', 'debug', 'error', 'verbose', 'warn']
+      : ['error', 'warn'],
+  });
+
   const configService = app.get(ConfigService);
   const sessionService = app.get(SessionService);
 
   const port = configService.get('PORT') ?? 3001;
   const clientUrl = configService.get('CLIENT_URL') || 'http://localhost:3000';
-  const isDevelopment = configService.get('NODE_ENV') !== 'production';
 
   // Load origins from env vars
   const allowedOriginsStr = configService.get('ALLOWED_ORIGINS') || '';

@@ -19,6 +19,9 @@ export interface UserStats {
   replies: number;
   upvotes: number;
   downvotes: number;
+  currentStreak?: number;
+  longestStreak?: number;
+  reputation?: number;
 }
 
 export interface UserActivity {

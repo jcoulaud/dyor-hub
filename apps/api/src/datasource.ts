@@ -1,13 +1,24 @@
 import { config } from 'dotenv';
 import * as path from 'path';
 import { DataSource, DataSourceOptions } from 'typeorm';
-import { CommentVoteEntity } from './entities/comment-vote.entity';
-import { CommentEntity } from './entities/comment.entity';
-import { TokenWatchlistEntity } from './entities/token-watchlist.entity';
-import { TokenEntity } from './entities/token.entity';
-import { TwitterUsernameHistoryEntity } from './entities/twitter-username-history.entity';
-import { UserEntity } from './entities/user.entity';
-import { WalletEntity } from './entities/wallet.entity';
+import {
+  BadgeEntity,
+  CommentEntity,
+  CommentVoteEntity,
+  LeaderboardEntity,
+  NotificationEntity,
+  NotificationPreferenceEntity,
+  TokenEntity,
+  TokenWatchlistEntity,
+  TwitterUsernameHistoryEntity,
+  // Gamification entities
+  UserActivityEntity,
+  UserBadgeEntity,
+  UserEntity,
+  UserReputationEntity,
+  UserStreakEntity,
+  WalletEntity,
+} from './entities';
 
 config(); // Load .env file
 
@@ -30,12 +41,24 @@ export const dataSourceOptions: DataSourceOptions = {
     TwitterUsernameHistoryEntity,
     WalletEntity,
     TokenWatchlistEntity,
+    // Gamification entities
+    UserActivityEntity,
+    UserStreakEntity,
+    BadgeEntity,
+    UserBadgeEntity,
+    UserReputationEntity,
+    NotificationEntity,
+    NotificationPreferenceEntity,
+    LeaderboardEntity,
   ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',
-  migrationsRun: isProduction,
+  migrationsRun: true,
   synchronize: false,
-  logging: isProduction ? ['error', 'warn'] : true, // Only log errors and warnings in production
+  logging:
+    process.env.NODE_ENV === 'production'
+      ? ['error', 'warn']
+      : ['error', 'warn', 'info'],
   logger: 'advanced-console',
 };
 

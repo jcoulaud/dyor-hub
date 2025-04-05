@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
+import { GamificationEvent } from '../gamification/services/activity-hooks.service';
 import { AuthConfigService } from './config/auth.config';
 import {
   InvalidTokenException,
@@ -18,6 +20,7 @@ export class AuthService {
     private readonly userRepository: Repository<UserEntity>,
     private readonly jwtService: JwtService,
     private readonly authConfigService: AuthConfigService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async validateTwitterUser(profile: any): Promise<UserEntity> {
@@ -69,6 +72,10 @@ export class AuthService {
       sub: user.id,
       username: user.username,
     };
+
+    this.eventEmitter.emit(GamificationEvent.USER_LOGGED_IN, {
+      userId: user.id,
+    });
 
     return this.jwtService.sign(payload, {
       secret: this.authConfigService.jwtSecret,

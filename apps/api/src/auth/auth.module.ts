@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from '../entities/user.entity';
+import { GamificationModule } from '../gamification/gamification.module';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
@@ -31,6 +32,7 @@ import { TwitterStrategy } from './twitter.strategy';
       inject: [ConfigService],
     }),
     TypeOrmModule.forFeature([UserEntity]),
+    forwardRef(() => GamificationModule),
   ],
   providers: [
     AuthConfigService,
