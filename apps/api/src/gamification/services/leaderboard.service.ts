@@ -2,9 +2,11 @@ import {
   LeaderboardCategory,
   LeaderboardResponse,
   LeaderboardTimeframe,
+  NotificationEventType,
   UserReputation,
 } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, Repository } from 'typeorm';
@@ -12,11 +14,9 @@ import {
   CommentEntity,
   CommentVoteEntity,
   LeaderboardEntity,
-  NotificationType,
   UserActivityEntity,
   UserEntity,
 } from '../../entities';
-import { NotificationsService } from '../../notifications/notifications.service';
 
 @Injectable()
 export class LeaderboardService {
@@ -33,7 +33,7 @@ export class LeaderboardService {
     private commentRepository: Repository<CommentEntity>,
     @InjectRepository(CommentVoteEntity)
     private commentVoteRepository: Repository<CommentVoteEntity>,
-    private readonly notificationsService: NotificationsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -135,13 +135,8 @@ export class LeaderboardService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async updateAllLeaderboards(): Promise<void> {
-    this.logger.log('Starting leaderboard update process');
-
     try {
       const validCategories = Object.values(LeaderboardCategory);
-      this.logger.log(
-        `Updating leaderboards for categories: ${validCategories.join(', ')}`,
-      );
 
       // Update each category and timeframe
       for (const category of validCategories) {
@@ -149,8 +144,6 @@ export class LeaderboardService {
           await this.updateLeaderboard(category, timeframe);
         }
       }
-
-      this.logger.log('Leaderboard update completed successfully');
     } catch (error) {
       this.logger.error(
         `Leaderboard update process failed: ${error.message}`,
@@ -166,8 +159,6 @@ export class LeaderboardService {
     category: LeaderboardCategory,
     timeframe: LeaderboardTimeframe,
   ): Promise<void> {
-    this.logger.log(`Updating ${category} leaderboard for ${timeframe}`);
-
     try {
       // Validate that the category is actually in the enum
       const validCategories = Object.values(LeaderboardCategory);
@@ -237,10 +228,6 @@ export class LeaderboardService {
       }
 
       await this.leaderboardRepository.save(updatedEntries);
-
-      this.logger.log(
-        `Updated ${updatedEntries.length} entries for ${category}/${timeframe}`,
-      );
     } catch (error) {
       this.logger.error(
         `Failed to update ${category}/${timeframe} leaderboard: ${error.message}`,
@@ -444,9 +431,6 @@ export class LeaderboardService {
     }
   }
 
-  /**
-   * Send notification for significant rank improvements
-   */
   private async notifyRankImprovement(
     userId: string,
     category: LeaderboardCategory,
@@ -455,16 +439,21 @@ export class LeaderboardService {
     oldRank: number,
   ): Promise<void> {
     try {
-      const improvement = oldRank - newRank;
+      // Only notify for significant improvements (10+ positions)
+      if (oldRank - newRank < 10) {
+        return;
+      }
 
-      await this.notificationsService.createNotification(
-        userId,
-        NotificationType.LEADERBOARD_CHANGE,
-        `You moved up ${improvement} positions in the ${timeframe} ${category} leaderboard! You're now ranked #${newRank}.`,
-      );
-
-      this.logger.log(
-        `Sent rank improvement notification to user ${userId}: from #${oldRank} to #${newRank} in ${category}/${timeframe}`,
+      // Emit event for notification service to handle
+      this.eventEmitter.emit(
+        NotificationEventType.LEADERBOARD_POSITION_CHANGE,
+        {
+          userId,
+          newPosition: newRank,
+          previousPosition: oldRank,
+          category,
+          timeframe,
+        },
       );
     } catch (error) {
       this.logger.error(
@@ -479,8 +468,6 @@ export class LeaderboardService {
    */
   @Cron(CronExpression.EVERY_WEEK)
   async resetWeeklyLeaderboards(): Promise<void> {
-    this.logger.log('Resetting weekly leaderboards');
-
     try {
       // For each weekly leaderboard, store current ranks as previous ranks
       for (const category of Object.values(LeaderboardCategory)) {
@@ -497,8 +484,6 @@ export class LeaderboardService {
           await this.leaderboardRepository.save(entry);
         }
       }
-
-      this.logger.log('Weekly leaderboard reset completed');
     } catch (error) {
       this.logger.error(
         `Weekly leaderboard reset failed: ${error.message}`,

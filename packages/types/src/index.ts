@@ -1,5 +1,6 @@
 export * from './badge';
 export * from './comment';
+export * from './notification';
 export * from './reputation';
 export * from './token';
 export * from './user';

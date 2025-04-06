@@ -6,6 +6,7 @@ import {
   Controller,
   Delete,
   Get,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
   Param,
@@ -31,6 +32,87 @@ export class CommentsController {
   private readonly logger = new Logger(CommentsController.name);
 
   constructor(private readonly commentsService: CommentsService) {}
+
+  @Public()
+  @Get('token-info')
+  async getTokenInfo(
+    @Query('id') id: string,
+    @Query('type') type: string,
+  ): Promise<{ mintAddress: string }> {
+    if (!id || !type) {
+      throw new BadRequestException('Missing required parameters: id and type');
+    }
+
+    if (type !== 'comment' && type !== 'vote') {
+      throw new BadRequestException('Type must be either "comment" or "vote"');
+    }
+
+    let mintAddress = null;
+
+    try {
+      if (type === 'comment') {
+        const comment = await this.commentsService.findOne(id);
+        if (!comment) {
+          throw new NotFoundException(`Comment with ID ${id} not found`);
+        }
+        mintAddress = comment.tokenMintAddress;
+      } else {
+        const vote = await this.commentsService.findVote(id);
+        if (!vote) {
+          throw new NotFoundException(`Vote with ID ${id} not found`);
+        }
+
+        const comment = await this.commentsService.findOne(vote.commentId);
+        if (!comment) {
+          throw new NotFoundException(`Comment for vote ${id} not found`);
+        }
+        mintAddress = comment.tokenMintAddress;
+      }
+
+      return { mintAddress };
+    } catch (error) {
+      this.logger.error(
+        `Error in getTokenInfo - id: ${id}, type: ${type}, error: ${error.message}`,
+        error.stack,
+      );
+
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        `Error fetching token info: ${error.message}`,
+      );
+    }
+  }
+
+  @Public()
+  @Get('/thread/:id')
+  async getCommentThread(
+    @Param('id') id: string,
+    @CurrentUser() user?: { id: string },
+  ): Promise<CommentThreadResponseDto> {
+    try {
+      const threadData = await this.commentsService.findCommentThread(
+        id,
+        user?.id,
+      );
+
+      return plainToInstance(CommentThreadResponseDto, threadData, {
+        excludeExtraneousValues: true,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error fetching comment thread: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Could not fetch comment thread: ${error.message}`,
+      );
+    }
+  }
 
   @Public()
   @Get()
@@ -175,34 +257,5 @@ export class CommentsController {
       throw new BadRequestException('Invalid vote type');
     }
     return this.commentsService.vote(id, user.id, type);
-  }
-
-  @Public()
-  @Get('/thread/:id')
-  async getCommentThread(
-    @Param('id') id: string,
-    @CurrentUser() user?: { id: string },
-  ): Promise<CommentThreadResponseDto> {
-    try {
-      const threadData = await this.commentsService.findCommentThread(
-        id,
-        user?.id,
-      );
-
-      return plainToInstance(CommentThreadResponseDto, threadData, {
-        excludeExtraneousValues: true,
-      });
-    } catch (error) {
-      this.logger.error(
-        `Error fetching comment thread: ${error.message}`,
-        error.stack,
-      );
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new BadRequestException(
-        `Could not fetch comment thread: ${error.message}`,
-      );
-    }
   }
 }

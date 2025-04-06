@@ -30,6 +30,9 @@ export enum BadgeRequirement {
   UPVOTES_RECEIVED_COUNT = 'upvotes_received_count',
   UPVOTES_GIVEN_COUNT = 'upvotes_given_count',
   COMMENTS_RECEIVED_COUNT = 'comments_received_count',
+  COMMENT_MIN_UPVOTES = 'comment_min_upvotes',
+  POST_MIN_UPVOTES = 'post_min_upvotes',
+  TOP_PERCENT_WEEKLY = 'top_percent_weekly',
 }
 
 export interface CreateBadgeRequest {

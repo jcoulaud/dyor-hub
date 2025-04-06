@@ -46,11 +46,13 @@ const isApiSubdomain = (() => {
 
 export class ApiError extends Error {
   status: number;
+  data?: unknown;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, data?: unknown) {
     super(message);
     this.status = status;
     this.name = 'ApiError';
+    this.data = data;
   }
 }
 
@@ -156,18 +158,24 @@ const publicApi = async <T>(endpoint: string, options: ApiOptions = {}): Promise
       }
 
       let message = `HTTP error ${statusCode}`;
+      let errorData: { message?: string | string[] } | string | null = null;
+
       try {
-        const errorData = await response.json();
+        errorData = await response.json();
         if (errorData && typeof errorData === 'object' && errorData.message) {
-          message = Array.isArray(errorData.message)
-            ? errorData.message.join(', ')
-            : errorData.message;
+          if (typeof errorData.message === 'string') {
+            message = errorData.message;
+          } else if (Array.isArray(errorData.message)) {
+            message = errorData.message.join(', ');
+          }
+        } else if (typeof errorData === 'string') {
+          message = errorData;
         }
       } catch {
         // Keep default message if JSON parsing fails
       }
 
-      throw new ApiError(statusCode, message);
+      throw new ApiError(statusCode, message, errorData);
     }
 
     if (response.status === 204) {
@@ -185,7 +193,7 @@ const publicApi = async <T>(endpoint: string, options: ApiOptions = {}): Promise
       throw error;
     }
     if (error instanceof Error) {
-      throw new ApiError(0, `Network error: ${error.message}`);
+      throw new ApiError(500, `Network error: ${error.message}`);
     }
 
     // Unexpected errors
@@ -256,7 +264,8 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
         message = 'Unauthorized';
       }
 
-      throw new ApiError(statusCode, message);
+      const error = new ApiError(statusCode, message, errorData);
+      throw error;
     }
 
     if (response.status === 204) {
@@ -274,7 +283,7 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
       throw error;
     }
     if (error instanceof Error) {
-      throw new ApiError(0, `Network error: ${error.message}`);
+      throw new ApiError(500, `Network error: ${error.message}`);
     }
 
     // Unexpected errors
@@ -305,6 +314,26 @@ export const comments = {
   get: async (commentId: string): Promise<Comment> => {
     const response = await api<Comment>(`comments/${commentId}`);
     return response;
+  },
+
+  getTokenInfo: async (
+    entityId: string,
+    entityType: 'comment' | 'vote',
+  ): Promise<{ mintAddress: string }> => {
+    if (!entityId || !entityType) {
+      throw new Error('Missing required parameters: entityId and entityType must be provided');
+    }
+
+    try {
+      // Ensure we're using the same exact format that the controller expects
+      const response = await api<{ mintAddress: string }>(
+        `comments/token-info?id=${encodeURIComponent(entityId)}&type=${encodeURIComponent(entityType)}`,
+      );
+      return response;
+    } catch (error) {
+      console.error(`Error fetching token info for ${entityType} ${entityId}:`, error);
+      throw error;
+    }
   },
 
   latest: async (limit: number = 5): Promise<LatestComment[]> => {
@@ -1307,6 +1336,66 @@ export const admin = {
   recalculateLeaderboards: async (): Promise<{ message: string }> => {
     return api<{ message: string }>('leaderboards/recalculate', {
       method: 'POST',
+    });
+  },
+};
+
+export const notifications = {
+  async getNotifications(unreadOnly: boolean = true): Promise<{
+    notifications: Array<{
+      id: string;
+      userId: string;
+      type: string;
+      message: string;
+      isRead: boolean;
+      relatedEntityId: string | null;
+      relatedEntityType: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    unreadCount: number;
+  }> {
+    return api(`/notifications?unreadOnly=${unreadOnly}`);
+  },
+
+  async markAsRead(notificationId: string): Promise<{
+    id: string;
+    isRead: boolean;
+  }> {
+    return api(`/notifications/${notificationId}/read`, { method: 'POST' });
+  },
+
+  async markAllAsRead(): Promise<{ success: boolean }> {
+    return api('/notifications/read-all', { method: 'POST' });
+  },
+
+  async getPreferences(): Promise<
+    Record<
+      string,
+      {
+        inApp: boolean;
+        email: boolean;
+        telegram: boolean;
+      }
+    >
+  > {
+    return api('/notifications/preferences');
+  },
+
+  async updatePreference(
+    type: string,
+    settings: { inApp?: boolean; email?: boolean; telegram?: boolean },
+  ): Promise<{
+    id: string;
+    userId: string;
+    notificationType: string;
+    inAppEnabled: boolean;
+    emailEnabled: boolean;
+    telegramEnabled: boolean;
+  }> {
+    return api(`/notifications/preferences/${type}`, {
+      method: 'POST',
+      body: settings,
     });
   },
 };

@@ -1,11 +1,8 @@
+import { NotificationType } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  NotificationEntity,
-  NotificationPreferenceEntity,
-  NotificationType,
-} from '../entities';
+import { NotificationEntity, NotificationPreferenceEntity } from '../entities';
 
 @Injectable()
 export class NotificationsService {
@@ -54,13 +51,23 @@ export class NotificationsService {
     }
   }
 
-  async getUserNotifications(userId: string): Promise<{
+  async getUserNotifications(
+    userId: string,
+    unreadOnly: boolean = false,
+  ): Promise<{
     notifications: NotificationEntity[];
     unreadCount: number;
   }> {
     try {
+      const whereCondition: any = { userId };
+
+      // If unreadOnly is true, only get unread notifications
+      if (unreadOnly) {
+        whereCondition.isRead = false;
+      }
+
       const notifications = await this.notificationRepository.find({
-        where: { userId },
+        where: whereCondition,
         order: { createdAt: 'DESC' },
       });
 
@@ -146,7 +153,7 @@ export class NotificationsService {
 
   async getUserNotificationPreferences(userId: string): Promise<
     Record<
-      NotificationType,
+      string,
       {
         inApp: boolean;
         email: boolean;
@@ -161,16 +168,16 @@ export class NotificationsService {
 
       // Create default map with all notification types
       const preferencesMap: Record<
-        NotificationType,
+        string,
         {
           inApp: boolean;
           email: boolean;
           telegram: boolean;
         }
-      > = {} as any;
+      > = {};
 
       // Initialize with defaults
-      Object.values(NotificationType).forEach((type) => {
+      (Object.values(NotificationType) as string[]).forEach((type) => {
         preferencesMap[type] = {
           inApp: true,
           email: false,

@@ -1,3 +1,4 @@
+import { NotificationEventType } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -111,8 +112,17 @@ export class ActivityTrackingService {
 
       await this.userStreakRepository.save(streak);
 
-      // Check for streak milestones
-      this.checkStreakMilestones(userId, previousStreak, streak.currentStreak);
+      // If streak reached a milestone, emit event
+      const streakMilestones = [3, 7, 14, 30, 60, 100, 365];
+      if (
+        streakMilestones.includes(streak.currentStreak) &&
+        streak.currentStreak > previousStreak
+      ) {
+        this.eventEmitter.emit(NotificationEventType.STREAK_MILESTONE, {
+          userId,
+          currentStreak: streak.currentStreak,
+        });
+      }
 
       return streak;
     } catch (error) {
@@ -121,37 +131,6 @@ export class ActivityTrackingService {
         error.stack,
       );
       throw error;
-    }
-  }
-
-  private checkStreakMilestones(
-    userId: string,
-    previousStreak: number,
-    currentStreak: number,
-  ): void {
-    try {
-      // Only check for milestone if streak increased
-      if (currentStreak <= previousStreak) {
-        return;
-      }
-
-      // Check for milestone days (7, 30, 100, etc.)
-      const milestones = [3, 7, 14, 30, 60, 100, 180, 365];
-
-      for (const milestone of milestones) {
-        if (previousStreak < milestone && currentStreak >= milestone) {
-          this.eventEmitter.emit('streak.milestone', {
-            userId,
-            currentStreak,
-          });
-          break;
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `Failed to check streak milestones for user ${userId}: ${error.message}`,
-        error.stack,
-      );
     }
   }
 

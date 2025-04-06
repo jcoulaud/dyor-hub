@@ -1,8 +1,13 @@
-import { UpdateCommentDto, VoteType } from '@dyor-hub/types';
+import {
+  NotificationEventType,
+  UpdateCommentDto,
+  VoteType,
+} from '@dyor-hub/types';
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -11,6 +16,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
+import { TokenEntity } from '../entities/token.entity';
+import { UserEntity } from '../entities/user.entity';
 import { GamificationEvent } from '../gamification/services/activity-hooks.service';
 import { PerspectiveService } from '../services/perspective.service';
 import { TelegramNotificationService } from '../services/telegram-notification.service';
@@ -23,12 +30,17 @@ import { VoteResponseDto } from './dto/vote-response.dto';
 export class CommentsService {
   // Edit window duration for a comment
   private readonly EDIT_WINDOW_MS = 15 * 60 * 1000;
+  private readonly logger = new Logger(CommentsService.name);
 
   constructor(
     @InjectRepository(CommentEntity)
     private readonly commentRepository: Repository<CommentEntity>,
     @InjectRepository(CommentVoteEntity)
     private readonly voteRepository: Repository<CommentVoteEntity>,
+    @InjectRepository(TokenEntity)
+    private readonly tokenRepository: Repository<TokenEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
     private readonly perspectiveService: PerspectiveService,
     private readonly telegramService: TelegramNotificationService,
     private readonly eventEmitter: EventEmitter2,
@@ -250,54 +262,89 @@ export class CommentsService {
     createCommentDto: CreateCommentDto,
     userId: string,
   ): Promise<CommentEntity> {
-    if (!userId) {
-      throw new UnauthorizedException('Invalid user data');
+    try {
+      // Find token by mint address
+      const token = await this.tokenRepository.findOne({
+        where: { mintAddress: createCommentDto.tokenMintAddress },
+      });
+
+      if (!token) {
+        throw new BadRequestException(
+          `Token with mint address ${createCommentDto.tokenMintAddress} not found`,
+        );
+      }
+
+      // Find user
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      // Check for toxicity using Perspective API
+      try {
+        const analysis = await this.perspectiveService.analyzeText(
+          createCommentDto.content,
+        );
+        if (analysis.isToxic) {
+          throw new BadRequestException(
+            'Comment contains toxic content and cannot be posted',
+          );
+        }
+      } catch (error) {
+        this.logger.warn(`Perspective API error: ${error.message}`);
+      }
+
+      const comment = new CommentEntity();
+      comment.content = createCommentDto.content;
+      comment.user = user;
+      comment.userId = userId;
+      comment.tokenMintAddress = createCommentDto.tokenMintAddress;
+      comment.token = token;
+      comment.parentId = createCommentDto.parentId || null;
+
+      const savedComment = await this.commentRepository.save(comment);
+
+      // Send notification to telegram channel
+      try {
+        await this.telegramService.notifyNewComment(savedComment);
+      } catch (error) {
+        this.logger.error(
+          `Failed to send telegram notification: ${error.message}`,
+          error.stack,
+        );
+      }
+
+      // Emit gamification event
+      this.eventEmitter.emit(GamificationEvent.COMMENT_CREATED, {
+        userId,
+        commentId: savedComment.id,
+      });
+
+      // If this is a reply, emit the notification event
+      if (createCommentDto.parentId) {
+        const parentComment = await this.commentRepository.findOne({
+          where: { id: createCommentDto.parentId },
+          relations: ['user'],
+        });
+
+        if (parentComment && parentComment.user.id !== userId) {
+          // Don't notify for self-replies
+          this.eventEmitter.emit(NotificationEventType.COMMENT_REPLY, {
+            userId: parentComment.user.id, // Parent comment owner gets notified
+            commentId: savedComment.id,
+            replyAuthor: user.displayName || user.username,
+            commentText: savedComment.content.substring(0, 100),
+          });
+        }
+      }
+
+      return savedComment;
+    } catch (error) {
+      throw error;
     }
-
-    // Validate content with content moderation API
-    const contentAnalysis = await this.perspectiveService.analyzeText(
-      createCommentDto.content,
-    );
-
-    if (contentAnalysis.isSpam) {
-      throw new BadRequestException('This comment has been detected as spam');
-    }
-
-    if (contentAnalysis.isToxic) {
-      throw new BadRequestException(
-        'This comment contains inappropriate content',
-      );
-    }
-
-    const comment = this.commentRepository.create({
-      content: createCommentDto.content,
-      tokenMintAddress: createCommentDto.tokenMintAddress,
-      parentId: createCommentDto.parentId,
-      userId,
-      upvotes: 0,
-      downvotes: 0,
-    });
-
-    const savedComment = await this.commentRepository.save(comment);
-
-    // Get comment with user relationship populated
-    const populatedComment = await this.commentRepository.findOne({
-      where: { id: savedComment.id },
-      relations: {
-        user: true,
-        token: true,
-      },
-    });
-
-    // Notify admins via Telegram about the new comment
-    this.telegramService.notifyNewComment(populatedComment);
-
-    this.eventEmitter.emit(GamificationEvent.COMMENT_CREATED, {
-      userId,
-      commentId: savedComment.id,
-    });
-
-    return populatedComment;
   }
 
   async update(id: string, dto: UpdateCommentDto, userId: string) {
@@ -358,13 +405,11 @@ export class CommentsService {
   ): Promise<VoteResponseDto> {
     const comment = await this.commentRepository.findOne({
       where: { id: commentId },
-      relations: {
-        votes: true,
-      },
+      relations: ['user'],
     });
 
     if (!comment) {
-      throw new NotFoundException('Comment not found');
+      throw new NotFoundException(`Comment with ID ${commentId} not found`);
     }
 
     // Check if user has already voted this way
@@ -411,11 +456,35 @@ export class CommentsService {
     // Update comment with new vote counts
     await this.commentRepository.update(commentId, { upvotes, downvotes });
 
+    // Emit gamification event
     this.eventEmitter.emit(GamificationEvent.COMMENT_VOTED, {
       userId,
       commentId,
       voteType: type,
     });
+
+    // If this is an upvote, emit notification event for the comment owner
+    if (type === 'upvote' && comment.user.id !== userId) {
+      // Find voter's name - we only need this for the notification message
+      const userInfo = await this.commentRepository.manager
+        .createQueryBuilder()
+        .select('user.displayName')
+        .addSelect('user.username')
+        .from('UserEntity', 'user')
+        .where('user.id = :userId', { userId })
+        .getRawOne();
+
+      if (userInfo) {
+        const voterName = userInfo.user_displayName || userInfo.user_username;
+
+        // Emit notification specific event
+        this.eventEmitter.emit(NotificationEventType.COMMENT_UPVOTED, {
+          userId: comment.user.id,
+          commentId: comment.id,
+          voterName: voterName,
+        });
+      }
+    }
 
     return {
       upvotes,
@@ -637,5 +706,25 @@ export class CommentsService {
       comments: commentDTOs,
       focusedCommentId: commentId,
     };
+  }
+
+  async findOne(id: string): Promise<CommentEntity | null> {
+    try {
+      return await this.commentRepository.findOne({
+        where: { id },
+      });
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async findVote(id: string): Promise<CommentVoteEntity | null> {
+    try {
+      return await this.voteRepository.findOne({
+        where: { id },
+      });
+    } catch (error) {
+      return null;
+    }
   }
 }

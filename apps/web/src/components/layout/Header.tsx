@@ -1,5 +1,6 @@
 'use client';
 
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -7,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DISCORD_URL } from '@/lib/constants';
+import { useAuthContext } from '@/providers/auth-provider';
 import { Home, Link as LinkIcon, Menu, MessageSquare, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -15,6 +17,7 @@ import { UserMenu } from '../auth/UserMenu';
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isAuthenticated } = useAuthContext();
 
   return (
     <header className='sticky top-0 z-50 w-full border-b border-white/10 bg-black/80 backdrop-blur-xl'>
@@ -103,6 +106,7 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+            {isAuthenticated && <NotificationBell />}
             <UserMenu />
           </div>
         </div>

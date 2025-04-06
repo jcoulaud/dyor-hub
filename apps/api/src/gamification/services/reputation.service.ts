@@ -1,5 +1,6 @@
 import {
   ActivityPointsConfig,
+  NotificationEventType,
   UserReputation,
   UserReputationTrends,
 } from '@dyor-hub/types';
@@ -56,6 +57,10 @@ export class ReputationService {
       const pointsToAward = ACTIVITY_POINTS[activityType] || 0;
 
       if (pointsToAward > 0) {
+        // Store the previous point total to check for milestones
+        const previousPoints = reputation.totalPoints;
+
+        // Update points
         reputation.totalPoints += pointsToAward;
         reputation.weeklyPoints += pointsToAward;
 
@@ -64,11 +69,18 @@ export class ReputationService {
         // Emit event for reputation change
         this.eventEmitter.emit('reputation.changed', {
           userId,
-          oldTotal: reputation.totalPoints - pointsToAward,
+          oldTotal: previousPoints,
           newTotal: reputation.totalPoints,
           change: pointsToAward,
           reason: `${activityType} activity`,
         });
+
+        // Check if user has reached a reputation milestone
+        this.checkReputationMilestones(
+          userId,
+          previousPoints,
+          reputation.totalPoints,
+        );
       }
 
       return reputation;
@@ -78,6 +90,41 @@ export class ReputationService {
         error.stack,
       );
       throw error;
+    }
+  }
+
+  /**
+   * Check if user has reached any reputation milestones
+   */
+  private async checkReputationMilestones(
+    userId: string,
+    previousPoints: number,
+    currentPoints: number,
+  ): Promise<void> {
+    try {
+      // Define milestone reputation levels
+      const milestones = [
+        100, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000,
+      ];
+
+      // Check if user has crossed any milestones
+      for (const milestone of milestones) {
+        if (previousPoints < milestone && currentPoints >= milestone) {
+          // Emit milestone event for notification
+          this.eventEmitter.emit(NotificationEventType.REPUTATION_MILESTONE, {
+            userId,
+            reputation: milestone,
+          });
+
+          // Only emit for the highest milestone crossed
+          break;
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to check reputation milestones: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -117,6 +164,9 @@ export class ReputationService {
           });
         }
 
+        // Store previous points to check for milestones
+        const previousPoints = reputation.totalPoints;
+
         reputation.totalPoints += bonusPoints;
         reputation.weeklyPoints += bonusPoints;
 
@@ -125,11 +175,18 @@ export class ReputationService {
         // Emit event for streak bonus
         this.eventEmitter.emit('reputation.changed', {
           userId,
-          oldTotal: reputation.totalPoints - bonusPoints,
+          oldTotal: previousPoints,
           newTotal: reputation.totalPoints,
           change: bonusPoints,
           reason: `${currentStreak}-day streak bonus`,
         });
+
+        // Check if user reached a milestone
+        this.checkReputationMilestones(
+          userId,
+          previousPoints,
+          reputation.totalPoints,
+        );
       }
     } catch (error) {
       this.logger.error(
@@ -145,8 +202,6 @@ export class ReputationService {
   @Cron(CronExpression.EVERY_WEEK)
   async applyWeeklyPointReduction(): Promise<void> {
     try {
-      this.logger.log('Starting weekly point reduction process');
-
       // Get all user reputations
       const userReputations = await this.userReputationRepository.find();
 
@@ -166,9 +221,6 @@ export class ReputationService {
 
           // Skip reduction if user meets the minimum activity threshold
           if (activityCount >= MIN_WEEKLY_ACTIVITY_TO_PAUSE_REDUCTION) {
-            this.logger.log(
-              `Skipping reduction for user ${reputation.userId} - met minimum activity threshold (${activityCount} activities)`,
-            );
             continue;
           }
 
@@ -234,10 +286,6 @@ export class ReputationService {
               change: -(oldTotal - reputation.totalPoints),
               reason: `Weekly point reduction (${appliedCap} tier, ${reductionAmount} points)`,
             });
-
-            this.logger.log(
-              `Applied ${reductionAmount} point reduction to user ${reputation.userId} (${appliedCap} tier)`,
-            );
           }
         } catch (userError) {
           this.logger.error(
@@ -246,8 +294,6 @@ export class ReputationService {
           );
         }
       }
-
-      this.logger.log('Weekly point reduction process completed');
     } catch (error) {
       this.logger.error(
         `Failed to apply weekly point reduction: ${error.message}`,

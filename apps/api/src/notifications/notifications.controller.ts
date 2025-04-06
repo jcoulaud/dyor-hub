@@ -1,7 +1,15 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { NotificationType } from '@dyor-hub/types';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { NotificationType } from '../entities';
 import { NotificationsService } from './notifications.service';
 
 @Controller('notifications')
@@ -10,8 +18,15 @@ export class NotificationsController {
 
   @Get()
   @UseGuards(AuthGuard)
-  async getUserNotifications(@CurrentUser() user: { id: string }) {
-    return this.notificationsService.getUserNotifications(user.id);
+  async getUserNotifications(
+    @CurrentUser() user: { id: string },
+    @Query('unreadOnly') unreadOnly?: string,
+  ) {
+    const getOnlyUnread = unreadOnly === 'true';
+    return this.notificationsService.getUserNotifications(
+      user.id,
+      getOnlyUnread,
+    );
   }
 
   @Post(':id/read')

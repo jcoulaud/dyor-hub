@@ -1,6 +1,6 @@
+import { NotificationEventType, NotificationType } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { NotificationType } from '../entities';
 import { NotificationsService } from './notifications.service';
 
 @Injectable()
@@ -9,7 +9,7 @@ export class NotificationEventsService {
 
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  @OnEvent('streak.at_risk')
+  @OnEvent(NotificationEventType.STREAK_AT_RISK)
   async handleStreakAtRisk(payload: { userId: string; currentStreak: number }) {
     try {
       await this.notificationsService.createNotification(
@@ -25,7 +25,7 @@ export class NotificationEventsService {
     }
   }
 
-  @OnEvent('streak.broken')
+  @OnEvent(NotificationEventType.STREAK_BROKEN)
   async handleStreakBroken(payload: {
     userId: string;
     previousStreak: number;
@@ -44,7 +44,7 @@ export class NotificationEventsService {
     }
   }
 
-  @OnEvent('streak.milestone')
+  @OnEvent(NotificationEventType.STREAK_MILESTONE)
   async handleStreakMilestone(payload: {
     userId: string;
     currentStreak: number;
@@ -63,8 +63,7 @@ export class NotificationEventsService {
     }
   }
 
-  // Badge-related notifications
-  @OnEvent('badge.earned')
+  @OnEvent(NotificationEventType.BADGE_EARNED)
   async handleBadgeEarned(payload: {
     userId: string;
     badgeId: string;
@@ -86,7 +85,7 @@ export class NotificationEventsService {
     }
   }
 
-  @OnEvent('reputation.milestone')
+  @OnEvent(NotificationEventType.REPUTATION_MILESTONE)
   async handleReputationMilestone(payload: {
     userId: string;
     reputation: number;
@@ -105,7 +104,7 @@ export class NotificationEventsService {
     }
   }
 
-  @OnEvent('comment.reply')
+  @OnEvent(NotificationEventType.COMMENT_REPLY)
   async handleCommentReply(payload: {
     userId: string;
     commentId: string;
@@ -128,7 +127,7 @@ export class NotificationEventsService {
     }
   }
 
-  @OnEvent('comment.upvoted')
+  @OnEvent(NotificationEventType.COMMENT_UPVOTED)
   async handleCommentUpvoted(payload: {
     userId: string;
     commentId: string;
@@ -150,17 +149,45 @@ export class NotificationEventsService {
     }
   }
 
-  @OnEvent('leaderboard.position_change')
+  @OnEvent(NotificationEventType.LEADERBOARD_POSITION_CHANGE)
   async handleLeaderboardPositionChange(payload: {
     userId: string;
     newPosition: number;
     previousPosition: number;
+    category?: string;
+    timeframe?: string;
   }) {
     try {
+      let leaderboardName = 'leaderboard';
+
+      if (payload.timeframe) {
+        const timeframeDisplay =
+          {
+            weekly: 'Weekly',
+            monthly: 'Monthly',
+            all_time: 'All-Time',
+          }[payload.timeframe] || payload.timeframe;
+
+        leaderboardName = `${timeframeDisplay} ${leaderboardName}`;
+      }
+
+      if (payload.category) {
+        const categoryDisplay =
+          {
+            reputation: 'Reputation',
+            comments: 'Comments',
+            posts: 'Posts',
+            upvotes_given: 'Upvotes Given',
+            upvotes_received: 'Upvotes Received',
+          }[payload.category] || payload.category;
+
+        leaderboardName = `${categoryDisplay} ${leaderboardName}`;
+      }
+
       const message =
         payload.newPosition < payload.previousPosition
-          ? `You've moved up to position #${payload.newPosition} on the leaderboard!`
-          : `Your position on the leaderboard has changed to #${payload.newPosition}.`;
+          ? `You've moved up to position #${payload.newPosition} on the ${leaderboardName}!`
+          : `Your position on the ${leaderboardName} has changed to #${payload.newPosition}.`;
 
       await this.notificationsService.createNotification(
         payload.userId,

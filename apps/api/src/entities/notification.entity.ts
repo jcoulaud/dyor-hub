@@ -1,3 +1,4 @@
+import { NotificationType } from '@dyor-hub/types';
 import {
   Column,
   CreateDateColumn,
@@ -8,18 +9,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserEntity } from './user.entity';
-
-export enum NotificationType {
-  STREAK_AT_RISK = 'streak_at_risk',
-  STREAK_ACHIEVED = 'streak_achieved',
-  STREAK_BROKEN = 'streak_broken',
-  BADGE_EARNED = 'badge_earned',
-  LEADERBOARD_CHANGE = 'leaderboard_change',
-  REPUTATION_MILESTONE = 'reputation_milestone',
-  COMMENT_REPLY = 'comment_reply',
-  UPVOTE_RECEIVED = 'upvote_received',
-  SYSTEM = 'system',
-}
 
 @Entity('notifications')
 export class NotificationEntity {

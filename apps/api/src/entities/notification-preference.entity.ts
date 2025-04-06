@@ -1,3 +1,4 @@
+import { NotificationType } from '@dyor-hub/types';
 import {
   Column,
   CreateDateColumn,
@@ -8,7 +9,6 @@ import {
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
-import { NotificationType } from './notification.entity';
 import { UserEntity } from './user.entity';
 
 @Entity('notification_preferences')

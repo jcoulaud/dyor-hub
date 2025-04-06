@@ -41,29 +41,29 @@ export class SeedBadges1717500000001 implements MigrationInterface {
     await queryRunner.query(`
       INSERT INTO badges (name, description, category, requirement, threshold_value, is_active)
       VALUES 
-        ('First Vote', 'Cast your first vote', 'voting', 'VOTES_CAST_COUNT', 1, true),
-        ('10 Votes', 'Cast 10 votes', 'voting', 'VOTES_CAST_COUNT', 10, true),
-        ('50 Votes', 'Cast 50 votes', 'voting', 'VOTES_CAST_COUNT', 50, true),
-        ('500 Votes', 'Cast 500 votes', 'voting', 'VOTES_CAST_COUNT', 500, true)
+        ('First Upvote', 'Gave your first upvote', '${BadgeCategory.VOTING}', 'upvotes_given_count', 1, true),
+        ('25 Upvotes', 'Gave 25 upvotes', '${BadgeCategory.VOTING}', 'upvotes_given_count', 25, true),
+        ('100 Upvotes', 'Gave 100 upvotes', '${BadgeCategory.VOTING}', 'upvotes_given_count', 100, true),
+        ('500 Upvotes', 'Gave 500 upvotes', '${BadgeCategory.VOTING}', 'upvotes_given_count', 500, true)
     `);
 
     // Reception Badges
     await queryRunner.query(`
       INSERT INTO badges (name, description, category, requirement, threshold_value, is_active)
       VALUES 
-        ('First Upvote', 'Receive your first upvote', 'reception', 'UPVOTES_RECEIVED_COUNT', 1, true),
-        ('10 Upvotes', 'Receive 10 upvotes', 'reception', 'UPVOTES_RECEIVED_COUNT', 10, true),
-        ('50 Upvotes', 'Receive 50 upvotes', 'reception', 'UPVOTES_RECEIVED_COUNT', 50, true),
-        ('100 Upvotes', 'Receive 100 upvotes', 'reception', 'UPVOTES_RECEIVED_COUNT', 100, true)
+        ('First Upvote Received', 'Received your first upvote', '${BadgeCategory.RECEPTION}', 'upvotes_received_count', 1, true),
+        ('10 Upvotes Received', 'Received 10 upvotes', '${BadgeCategory.RECEPTION}', 'upvotes_received_count', 10, true),
+        ('50 Upvotes Received', 'Received 50 upvotes', '${BadgeCategory.RECEPTION}', 'upvotes_received_count', 50, true),
+        ('100 Upvotes Received', 'Received 100 upvotes', '${BadgeCategory.RECEPTION}', 'upvotes_received_count', 100, true)
     `);
 
     // Quality Badges
     await queryRunner.query(`
       INSERT INTO badges (name, description, category, requirement, threshold_value, is_active)
       VALUES 
-        ('Rising Star', 'Achieve a post with 5 upvotes', 'quality', 'MAX_POST_UPVOTES', 5, true),
-        ('Top Contributor', 'Achieve a post with 20 upvotes', 'quality', 'MAX_POST_UPVOTES', 20, true),
-        ('Community Star', 'Achieve a post with 50 upvotes', 'quality', 'MAX_POST_UPVOTES', 50, true)
+        ('Insightful', 'Created a comment that received 5+ upvotes', '${BadgeCategory.QUALITY}', 'comment_min_upvotes', 5, true),
+        ('Popular', 'Created a top-level comment that received 10+ upvotes', '${BadgeCategory.QUALITY}', 'post_min_upvotes', 10, true),
+        ('Trend Setter', 'Ranked in the top 5% for weekly reputation or content engagement', '${BadgeCategory.QUALITY}', 'top_percent_weekly', 5, true)
     `);
   }
 

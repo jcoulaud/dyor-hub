@@ -1,3 +1,4 @@
+import { NotificationEventType } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cron } from '@nestjs/schedule';
@@ -24,11 +25,8 @@ export class StreakSchedulerService {
   @Cron('0 8-23 * * *')
   async checkStreaksAtRisk() {
     try {
-      this.logger.log('Checking for streaks at risk...');
-
       const streaksAtRisk =
         await this.activityTrackingService.getStreaksAtRisk();
-      this.logger.log(`Found ${streaksAtRisk.length} streaks at risk`);
 
       for (const streak of streaksAtRisk) {
         // Check if the user is actually at risk (20+ hours since last activity)
@@ -38,7 +36,7 @@ export class StreakSchedulerService {
 
         if (isAtRisk) {
           // Emit event for notification service to handle
-          this.eventEmitter.emit('streak.at_risk', {
+          this.eventEmitter.emit(NotificationEventType.STREAK_AT_RISK, {
             userId: streak.userId,
             currentStreak: streak.currentStreak,
           });
@@ -59,8 +57,6 @@ export class StreakSchedulerService {
   @Cron('1 0 * * *')
   async resetBrokenStreaks() {
     try {
-      this.logger.log('Resetting broken streaks...');
-
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -75,11 +71,9 @@ export class StreakSchedulerService {
         },
       });
 
-      this.logger.log(`Found ${brokenStreaks.length} broken streaks to reset`);
-
       for (const streak of brokenStreaks) {
         // Emit event for notification service to handle
-        this.eventEmitter.emit('streak.broken', {
+        this.eventEmitter.emit(NotificationEventType.STREAK_BROKEN, {
           userId: streak.userId,
           previousStreak: streak.currentStreak,
         });
