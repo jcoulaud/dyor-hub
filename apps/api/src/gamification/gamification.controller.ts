@@ -9,10 +9,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { BadgeCategory, UserActivityEntity, UserEntity } from '../entities';
+import {
+  ActivityType,
+  BadgeCategory,
+  UserActivityEntity,
+  UserEntity,
+} from '../entities';
 import { ACTIVITY_POINTS } from './constants/reputation-points';
 import { ActivityPointsResponseDto } from './dto/reputation.dto';
 import { ActivityTrackingService } from './services/activity-tracking.service';
@@ -24,7 +29,7 @@ export class GamificationController {
     private readonly activityTrackingService: ActivityTrackingService,
     private readonly badgeService: BadgeService,
     @InjectRepository(UserActivityEntity)
-    private userActivityRepository: Repository<UserActivityEntity>,
+    private readonly userActivityRepository: Repository<UserActivityEntity>,
   ) {}
 
   @Get('streak')
@@ -133,5 +138,48 @@ export class GamificationController {
       activityType: activity.activityType,
       points: ACTIVITY_POINTS[activity.activityType] || 0,
     }));
+  }
+
+  /**
+   * Endpoint for daily check-ins when users visit the site
+   * This will register a login activity only if the user hasn't already
+   * performed one today, maintaining their streak.
+   */
+  @Post('check-in')
+  @UseGuards(AuthGuard)
+  async checkIn(@CurrentUser() user: UserEntity) {
+    try {
+      // Get today's start and end timestamps
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Check if user already had login activity today
+      const existingLoginActivity = await this.userActivityRepository.findOne({
+        where: {
+          userId: user.id,
+          activityType: ActivityType.LOGIN,
+          createdAt: Between(today, tomorrow),
+        },
+      });
+
+      // If no login activity today, register one
+      if (!existingLoginActivity) {
+        await this.activityTrackingService.trackActivity(
+          user.id,
+          ActivityType.LOGIN,
+        );
+        return { success: true, message: 'Daily check-in successful' };
+      }
+
+      return { success: true, message: 'Already checked in today' };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to check in',
+        error: error.message,
+      };
+    }
   }
 }

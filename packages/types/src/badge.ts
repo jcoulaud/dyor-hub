@@ -13,6 +13,35 @@ export interface Badge {
   updatedAt: string;
 }
 
+export interface AvailableBadge extends Omit<Badge, 'awardCount'> {
+  progress: number;
+  isAchieved: boolean;
+  currentValue: number;
+}
+
+export interface UserBadge {
+  id: string;
+  userId: string;
+  badgeId: string;
+  earnedAt: string;
+  isDisplayed: boolean;
+  badge: {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    imageUrl?: string;
+    requirement: string;
+    thresholdValue: number;
+  };
+}
+
+export interface BadgeSummary {
+  totalBadges: number;
+  byCategory: Record<string, number>;
+  recentBadges: UserBadge[];
+}
+
 export enum BadgeCategory {
   STREAK = 'streak',
   CONTENT = 'content',
@@ -23,16 +52,16 @@ export enum BadgeCategory {
 }
 
 export enum BadgeRequirement {
-  CURRENT_STREAK = 'current_streak',
-  MAX_STREAK = 'max_streak',
-  POSTS_COUNT = 'posts_count',
-  COMMENTS_COUNT = 'comments_count',
-  UPVOTES_RECEIVED_COUNT = 'upvotes_received_count',
-  UPVOTES_GIVEN_COUNT = 'upvotes_given_count',
-  COMMENTS_RECEIVED_COUNT = 'comments_received_count',
-  COMMENT_MIN_UPVOTES = 'comment_min_upvotes',
-  POST_MIN_UPVOTES = 'post_min_upvotes',
-  TOP_PERCENT_WEEKLY = 'top_percent_weekly',
+  CURRENT_STREAK = 'CURRENT_STREAK',
+  MAX_STREAK = 'MAX_STREAK',
+  POSTS_COUNT = 'POSTS_COUNT',
+  COMMENTS_COUNT = 'COMMENTS_COUNT',
+  UPVOTES_RECEIVED_COUNT = 'UPVOTES_RECEIVED_COUNT',
+  VOTES_CAST_COUNT = 'VOTES_CAST_COUNT',
+  COMMENTS_RECEIVED_COUNT = 'COMMENTS_RECEIVED_COUNT',
+  MAX_COMMENT_UPVOTES = 'MAX_COMMENT_UPVOTES',
+  MAX_POST_UPVOTES = 'MAX_POST_UPVOTES',
+  TOP_PERCENT_WEEKLY = 'TOP_PERCENT_WEEKLY',
 }
 
 export interface CreateBadgeRequest {

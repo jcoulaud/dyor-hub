@@ -154,11 +154,18 @@ export function CreateBadgeDialog({ open, onOpenChange, onSuccess }: CreateBadge
                     <SelectItem value={BadgeRequirement.UPVOTES_RECEIVED_COUNT}>
                       Upvotes Received
                     </SelectItem>
-                    <SelectItem value={BadgeRequirement.UPVOTES_GIVEN_COUNT}>
-                      Upvotes Given
-                    </SelectItem>
+                    <SelectItem value={BadgeRequirement.VOTES_CAST_COUNT}>Votes Cast</SelectItem>
                     <SelectItem value={BadgeRequirement.COMMENTS_RECEIVED_COUNT}>
                       Comments Received
+                    </SelectItem>
+                    <SelectItem value={BadgeRequirement.MAX_COMMENT_UPVOTES}>
+                      Max Comment Upvotes
+                    </SelectItem>
+                    <SelectItem value={BadgeRequirement.MAX_POST_UPVOTES}>
+                      Max Post Upvotes
+                    </SelectItem>
+                    <SelectItem value={BadgeRequirement.TOP_PERCENT_WEEKLY}>
+                      Top Percent Weekly
                     </SelectItem>
                   </SelectContent>
                 </Select>

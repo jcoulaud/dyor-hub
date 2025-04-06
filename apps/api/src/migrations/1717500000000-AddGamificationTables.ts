@@ -57,7 +57,6 @@ export class AddGamificationTables1717500000000 implements MigrationInterface {
         "name" character varying NOT NULL,
         "description" text NOT NULL,
         "category" "public"."badges_category_enum" NOT NULL,
-        "image_url" character varying,
         "requirement" character varying NOT NULL,
         "threshold_value" integer NOT NULL DEFAULT 0,
         "is_active" boolean NOT NULL DEFAULT true,

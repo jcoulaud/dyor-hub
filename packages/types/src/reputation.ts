@@ -75,3 +75,13 @@ export interface UserRankEntry {
   score: number;
   previousRank: number | null;
 }
+
+export interface UserRankings {
+  categories: {
+    category: string;
+    timeframe: string;
+    rank: number;
+    score: number;
+    previousRank: number | null;
+  }[];
+}

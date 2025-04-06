@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { comments, notifications } from '@/lib/api';
+import { comments, gamification, notifications } from '@/lib/api';
 import { NotificationType } from '@dyor-hub/types';
 import { formatDistanceToNow } from 'date-fns';
 import { AnimatePresence } from 'framer-motion';
@@ -60,7 +60,7 @@ export function NotificationBell() {
 
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const data = await notifications.getNotifications();
+      const data = await notifications.getNotifications(true);
       setNotificationData((prev) => ({
         ...prev,
         unreadCount: data.unreadCount,
@@ -75,7 +75,7 @@ export function NotificationBell() {
   const fetchNotifications = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await notifications.getNotifications();
+      const data = await notifications.getNotifications(true);
 
       setNotificationData({
         notifications: data.notifications,
@@ -118,6 +118,16 @@ export function NotificationBell() {
       fetchNotifications();
     }
   }, [isOpen, fetchNotifications]);
+
+  useEffect(() => {
+    const hasBadgeNotification = notificationData.notifications.some(
+      (notification) => notification.type === NotificationType.BADGE_EARNED && !notification.isRead,
+    );
+
+    if (hasBadgeNotification) {
+      gamification.badges.clearBadgesCache();
+    }
+  }, [notificationData.notifications]);
 
   useEffect(() => {
     fetchUnreadCount();
@@ -188,7 +198,8 @@ export function NotificationBell() {
         return '/';
 
       case NotificationType.BADGE_EARNED:
-        return '/account/badges';
+        gamification.badges.clearBadgesCache();
+        return `/account/badges`;
 
       case NotificationType.STREAK_ACHIEVED:
       case NotificationType.STREAK_AT_RISK:
@@ -286,6 +297,10 @@ export function NotificationBell() {
 
                     try {
                       startProcessing(notification.id);
+
+                      if (notification.type === NotificationType.BADGE_EARNED) {
+                        gamification.badges.clearBadgesCache();
+                      }
 
                       const [mintAddress] = await Promise.all([
                         (notification.type === NotificationType.COMMENT_REPLY ||

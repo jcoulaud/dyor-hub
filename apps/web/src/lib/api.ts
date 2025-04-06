@@ -1,27 +1,41 @@
-import type {
+import {
   ActivityPointsConfig,
-  Badge,
+  AdminBadge,
+  AvailableBadge,
+  BadgeActivity,
+  BadgeCategory,
+  BadgeFormValues,
+  BadgeRequirement,
+  BadgeSummary,
   Comment,
-  CreateBadgeRequest,
   CreateCommentDto,
   LatestComment,
-  LeaderboardCategory,
+  LeaderboardEntry,
   LeaderboardResponse,
-  LeaderboardTimeframe,
+  NotificationsResponse,
+  StreakMilestone,
+  StreakMilestonesResponse,
+  StreakOverview,
   Token,
   TokenStats,
+  TopStreakUsers,
   TwitterUsernameHistoryEntity,
-  UpdateBadgeRequest,
   User,
   UserActivity,
+  UserBadge,
   UserPreferences,
-  UserRankEntry,
+  UserRankings,
   UserReputation,
-  UserReputationTrends,
   UserStats,
+  UserStreak,
   VoteType,
   WalletResponse,
 } from '@dyor-hub/types';
+
+interface PublicWalletInfo {
+  address: string;
+  isVerified: boolean;
+}
 
 // Use configured API URL for cross-domain requests
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -842,32 +856,300 @@ export const watchlist = {
     try {
       const endpoint = `watchlist/tokens/${mintAddress}/status`;
       const cacheKey = `api:${endpoint}`;
-
-      // Check cache first with very short TTL
-      const cachedData = getCache<{ isWatchlisted: boolean }>(cacheKey);
+      const cachedData = getCache<boolean>(cacheKey);
       if (cachedData) {
-        return cachedData.isWatchlisted;
+        return cachedData;
       }
 
-      // Fetch fresh data
-      const data = await api<{ isWatchlisted: boolean }>(endpoint);
-
-      // Update cache with very short TTL (10 seconds)
-      setCache(cacheKey, data, 10 * 1000);
-
-      return data.isWatchlisted;
+      const data = await api<boolean>(endpoint);
+      setCache(cacheKey, data, 30 * 1000);
+      return data;
     } catch (error) {
-      console.error('[isTokenWatchlisted] Error checking token watchlist status:', error);
-      return false;
+      console.error(`Error checking token watchlist status for ${mintAddress}:`, error);
+      throw error;
     }
   },
 };
 
-interface PublicWalletInfo {
-  address: string;
-  isVerified: boolean;
-}
+export const gamification = {
+  badges: {
+    async getUserBadges(userId?: string): Promise<UserBadge[]> {
+      const endpoint = userId ? `gamification/users/${userId}/badges` : 'gamification/badges';
+      const cacheKey = `api:${endpoint}`;
 
+      try {
+        // Check cache first
+        const cachedData = getCache<UserBadge[]>(cacheKey);
+        if (cachedData) {
+          return cachedData;
+        }
+
+        const data = await api<UserBadge[]>(endpoint);
+        setCache(cacheKey, data, 30 * 1000); // 30 seconds cache
+        return data;
+      } catch (error) {
+        console.error('Error fetching user badges:', error);
+        throw error;
+      }
+    },
+
+    async getAvailableBadges(): Promise<AvailableBadge[]> {
+      const cacheKey = 'api:gamification/badges/available';
+
+      try {
+        // Check cache first
+        const cachedData = getCache<AvailableBadge[]>(cacheKey);
+        if (cachedData) {
+          return cachedData;
+        }
+
+        interface ServerBadgeResponse {
+          id: string;
+          name: string;
+          description: string;
+          category: string;
+          imageUrl?: string;
+          requirement: string;
+          thresholdValue: number;
+          progress: number;
+          earned: boolean;
+          isActive: boolean;
+          createdAt: string;
+          updatedAt: string;
+        }
+
+        interface BadgeCategoryResponse {
+          category: string;
+          badges: ServerBadgeResponse[];
+        }
+
+        const data = await api<BadgeCategoryResponse[]>('gamification/badges/available');
+
+        const processedData = data.flatMap((categoryGroup) =>
+          categoryGroup.badges.map((badge) => ({
+            id: badge.id,
+            name: badge.name,
+            description: badge.description,
+            category: badge.category as BadgeCategory,
+            imageUrl: badge.imageUrl,
+            requirement: badge.requirement as BadgeRequirement,
+            thresholdValue: badge.thresholdValue,
+            isActive: badge.isActive,
+            createdAt: badge.createdAt,
+            updatedAt: badge.updatedAt,
+            progress: badge.progress || 0,
+            isAchieved: badge.earned,
+            // Set 0 as default; the frontend will use the fix to set the actual value
+            // based on the badge requirements and progress
+            currentValue: 0,
+          })),
+        );
+
+        setCache(cacheKey, processedData, 30 * 1000); // 30 seconds cache
+        return processedData;
+      } catch (error) {
+        console.error('Error fetching available badges:', error);
+        throw error;
+      }
+    },
+
+    async getUserBadgeSummary(userId?: string): Promise<BadgeSummary> {
+      const endpoint = userId
+        ? `gamification/users/${userId}/badges/summary`
+        : 'gamification/badges/summary';
+      const cacheKey = `api:${endpoint}`;
+
+      try {
+        // Check cache first
+        const cachedData = getCache<BadgeSummary>(cacheKey);
+        if (cachedData) {
+          return cachedData;
+        }
+
+        const data = await api<BadgeSummary>(endpoint);
+        setCache(cacheKey, data, 30 * 1000); // 30 seconds cache
+        return data;
+      } catch (error) {
+        console.error('Error fetching badge summary:', error);
+        throw error;
+      }
+    },
+
+    clearBadgesCache(userId?: string): void {
+      // Clear all badge-related cache entries
+      const keyPrefixes = [
+        'api:gamification/badges',
+        'api:gamification/badges/available',
+        'api:gamification/badges/summary',
+      ];
+
+      if (userId) {
+        keyPrefixes.push(`api:gamification/users/${userId}/badges`);
+        keyPrefixes.push(`api:gamification/users/${userId}/badges/summary`);
+      }
+
+      // Delete matching cache entries
+      for (const [key] of apiCache.entries()) {
+        if (keyPrefixes.some((prefix) => key.startsWith(prefix))) {
+          apiCache.delete(key);
+        }
+      }
+    },
+
+    async checkAndAwardBadges(): Promise<{ success: boolean }> {
+      try {
+        await api('gamification/badges/check', {
+          method: 'POST',
+        });
+        // Clear cache after checking badges
+        this.clearBadgesCache();
+        return { success: true };
+      } catch (error) {
+        console.error('Error checking and awarding badges:', error);
+        return { success: false };
+      }
+    },
+  },
+
+  streaks: {
+    async getUserStreak(userId?: string): Promise<UserStreak> {
+      const endpoint = userId ? `gamification/users/${userId}/streak` : 'gamification/streak';
+      const cacheKey = `api:${endpoint}`;
+
+      try {
+        // Check cache first
+        const cachedData = getCache<UserStreak>(cacheKey);
+        if (cachedData) return cachedData;
+
+        // Fetch from API
+        const data = await api<UserStreak>(endpoint);
+        setCache<UserStreak>(cacheKey, data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching user streak:', error);
+        throw error;
+      }
+    },
+
+    async getMilestones(): Promise<StreakMilestone[]> {
+      const endpoint = 'gamification/streaks/milestones';
+      const cacheKey = `api:${endpoint}`;
+
+      try {
+        // Check cache first
+        const cachedData = getCache<StreakMilestonesResponse>(cacheKey);
+        if (cachedData) return cachedData.milestones;
+
+        // Fetch from API
+        const data = await api<StreakMilestonesResponse>(endpoint);
+        setCache<StreakMilestonesResponse>(cacheKey, data);
+        return data.milestones;
+      } catch (error) {
+        console.error('Error fetching streak milestones:', error);
+        throw error;
+      }
+    },
+
+    clearStreakCache(userId?: string): void {
+      // Clear specific user streak
+      if (userId) {
+        apiCache.delete(`api:gamification/users/${userId}/streak`);
+      }
+      // Clear current user streak
+      apiCache.delete('api:gamification/streak');
+      // Clear milestones cache
+      apiCache.delete('api:gamification/streaks/milestones');
+    },
+
+    /**
+     * Perform a daily check-in to maintain streak
+     * This will be called automatically when users visit the site while logged in
+     */
+    async checkIn(): Promise<{ success: boolean; message: string }> {
+      try {
+        const response = await api<{ success: boolean; message: string }>('gamification/check-in', {
+          method: 'POST',
+        });
+
+        // Clear cache to ensure updated streak info is fetched next time
+        this.clearStreakCache();
+
+        return response;
+      } catch (error) {
+        console.error('Error during check-in:', error);
+        return { success: false, message: 'Failed to check in' };
+      }
+    },
+  },
+};
+
+// Notifications API methods
+export const notifications = {
+  getNotifications: async (onlyUnread = false) => {
+    return api<NotificationsResponse>(`notifications?unreadOnly=${onlyUnread}`);
+  },
+
+  markAsRead: async (id: string) => {
+    return api<{ success: boolean }>(`notifications/${id}/read`, {
+      method: 'POST',
+    });
+  },
+
+  markAllAsRead: async () => {
+    return api<{ success: boolean }>('notifications/read-all', {
+      method: 'POST',
+    });
+  },
+
+  getPreferences: async () => {
+    return api<{ preferences: Record<string, boolean> }>('notifications/preferences');
+  },
+
+  updatePreference: async (
+    type: string,
+    settings: { inApp?: boolean; email?: boolean; telegram?: boolean },
+  ) => {
+    return api<{ success: boolean }>(`notifications/preferences/${type}`, {
+      method: 'POST',
+      body: settings,
+    });
+  },
+};
+
+// Leaderboards API methods
+export const leaderboards = {
+  getLeaderboard: async (category: string, timeframe: string, limit = 10) => {
+    return api<LeaderboardEntry[]>(
+      `leaderboards?category=${category}&timeframe=${timeframe}&limit=${limit}`,
+    );
+  },
+
+  getPaginatedLeaderboard: async (category: string, timeframe: string, page = 1, pageSize = 20) => {
+    return api<LeaderboardResponse>(
+      `leaderboards?category=${category}&timeframe=${timeframe}&page=${page}&pageSize=${pageSize}`,
+    );
+  },
+
+  getUserPosition: async (category: string, timeframe: string) => {
+    return api<{ rank: number; points: number }>(
+      `leaderboards/user-position?category=${category}&timeframe=${timeframe}`,
+    );
+  },
+
+  getUserRanking: async (userId: string) => {
+    return api<UserRankings>(`leaderboards/user/${userId}`);
+  },
+
+  admin: {
+    recalculateLeaderboards: async () => {
+      return api<{ success: boolean }>('leaderboards/recalculate', {
+        method: 'POST',
+      });
+    },
+  },
+};
+
+// Wallets API methods
 export const wallets = {
   connect: async (address: string) => {
     return api<WalletResponse>('wallets/connect', {
@@ -912,490 +1194,42 @@ export const wallets = {
   },
 };
 
+// Export admin-specific APIs directly
 export const badges = {
-  async getAllBadges(): Promise<Badge[]> {
-    const cacheKey = 'badges:all';
-    const cached = getCache<Badge[]>(cacheKey);
-    if (cached) return cached;
-
-    try {
-      const data = await api<Badge[]>('gamification/badges');
-      setCache(cacheKey, data, 5 * 60 * 1000); // 5 minutes cache
-      return data;
-    } catch (error) {
-      console.error('Error fetching badges:', error);
-      throw error;
-    }
-  },
-
-  async getBadge(id: string): Promise<Badge> {
-    const cacheKey = `badge:${id}`;
-    const cached = getCache<Badge>(cacheKey);
-    if (cached) return cached;
-
-    try {
-      const data = await api<Badge>(`gamification/badges/${id}`);
-      setCache(cacheKey, data, 5 * 60 * 1000); // 5 minutes cache
-      return data;
-    } catch (error) {
-      console.error(`Error fetching badge ${id}:`, error);
-      throw error;
-    }
-  },
-
-  // Admin-only API functions
   admin: {
-    async getAllBadges(): Promise<Badge[]> {
-      try {
-        return await api<Badge[]>('admin/badges');
-      } catch (error) {
-        console.error('Error fetching badges as admin:', error);
-        throw error;
-      }
+    getAllBadges: async () => {
+      return api<AdminBadge[]>('admin/badges');
     },
-
-    async getBadge(id: string): Promise<Badge> {
-      try {
-        return await api<Badge>(`admin/badges/${id}`);
-      } catch (error) {
-        console.error(`Error fetching badge ${id} as admin:`, error);
-        throw error;
-      }
+    getRecentBadgeActivity: async (limit = 10) => {
+      return api<BadgeActivity[]>(`admin/badges/activity/recent?limit=${limit}`);
     },
-
-    async getRecentBadgeActivity(limit: number = 10): Promise<
-      Array<{
-        id: string;
-        userId: string;
-        badgeId: string;
-        earnedAt: string;
-        user: {
-          id: string;
-          username: string;
-          displayName: string;
-        };
-        badge: Badge;
-      }>
-    > {
-      try {
-        return await api<
-          Array<{
-            id: string;
-            userId: string;
-            badgeId: string;
-            earnedAt: string;
-            user: {
-              id: string;
-              username: string;
-              displayName: string;
-            };
-            badge: Badge;
-          }>
-        >(`admin/badges/activity/recent?limit=${limit}`);
-      } catch (error) {
-        console.error('Error fetching recent badge activity:', error);
-        throw error;
-      }
-    },
-
-    async createBadge(badge: CreateBadgeRequest): Promise<Badge> {
-      try {
-        const result = await api<Badge>('admin/badges', {
-          method: 'POST',
-          body: badge,
-        });
-
-        // Invalidate badges cache
-        apiCache.delete('badges:all');
-        return result;
-      } catch (error) {
-        console.error('Error creating badge:', error);
-        throw error;
-      }
-    },
-
-    async updateBadge(id: string, badge: UpdateBadgeRequest): Promise<Badge> {
-      try {
-        const result = await api<Badge>(`admin/badges/${id}`, {
-          method: 'PUT',
-          body: badge,
-        });
-
-        // Invalidate caches
-        apiCache.delete('badges:all');
-        apiCache.delete(`badge:${id}`);
-        return result;
-      } catch (error) {
-        console.error(`Error updating badge ${id}:`, error);
-        throw error;
-      }
-    },
-
-    async deleteBadge(id: string): Promise<boolean> {
-      try {
-        await api<void>(`admin/badges/${id}`, {
-          method: 'DELETE',
-        });
-
-        // Invalidate caches
-        apiCache.delete('badges:all');
-        apiCache.delete(`badge:${id}`);
-        return true;
-      } catch (error) {
-        console.error(`Error deleting badge ${id}:`, error);
-        throw error;
-      }
-    },
-
-    async getBadgeStats(id: string): Promise<{
-      badge: Badge;
-      awardCount: number;
-      recentActivity: Array<{
-        id: string;
-        userId: string;
-        badgeId: string;
-        earnedAt: string;
-        user: {
-          id: string;
-          username: string;
-          displayName: string;
-        };
-      }>;
-    }> {
-      try {
-        return await api<{
-          badge: Badge;
-          awardCount: number;
-          recentActivity: Array<{
-            id: string;
-            userId: string;
-            badgeId: string;
-            earnedAt: string;
-            user: {
-              id: string;
-              username: string;
-              displayName: string;
-            };
-          }>;
-        }>(`admin/badges/${id}/stats`);
-      } catch (error) {
-        console.error(`Error fetching badge stats for ${id}:`, error);
-        throw error;
-      }
-    },
-
-    async awardBadgeToUsers(
-      id: string,
-      userIds: string[],
-    ): Promise<{
-      success: Array<{
-        id: string;
-        userId: string;
-        badgeId: string;
-        earnedAt: string;
-      }>;
-      failed: Array<{ userId: string; reason: string }>;
-    }> {
-      try {
-        return await api<{
-          success: Array<{
-            id: string;
-            userId: string;
-            badgeId: string;
-            earnedAt: string;
-          }>;
-          failed: Array<{ userId: string; reason: string }>;
-        }>(`admin/badges/${id}/award-bulk`, {
-          method: 'POST',
-          body: { userIds },
-        });
-      } catch (error) {
-        console.error(`Error awarding badge ${id} to users:`, error);
-        throw error;
-      }
+    createBadge: async (badgeData: BadgeFormValues) => {
+      return api<AdminBadge>('admin/badges', {
+        method: 'POST',
+        body: badgeData,
+      });
     },
   },
 };
-
-export interface StreakOverview {
-  activeStreaksCount: number;
-  streaksAtRiskCount: number;
-  milestoneCounts: Record<number, number>;
-}
-
-export interface StreakUser {
-  id: string;
-  userId: string;
-  username: string;
-  currentStreak?: number;
-  longestStreak?: number;
-  lastActivityDate?: Date | null;
-}
-
-export interface TopStreakUsers {
-  topCurrentStreaks: StreakUser[];
-  topAllTimeStreaks: StreakUser[];
-}
 
 export const streaks = {
   admin: {
-    async getStreakOverview(): Promise<StreakOverview> {
-      try {
-        return await api<StreakOverview>('admin/streaks/overview');
-      } catch (error) {
-        console.error('Error fetching streak overview:', error);
-        throw error;
-      }
+    getStreakOverview: async () => {
+      return api<StreakOverview>('admin/streaks/overview');
     },
-
-    async getTopStreakUsers(limit: number = 10): Promise<TopStreakUsers> {
-      try {
-        return await api<TopStreakUsers>(`admin/streaks/top-users?limit=${limit}`);
-      } catch (error) {
-        console.error('Error fetching top streak users:', error);
-        throw error;
-      }
-    },
-  },
-};
-
-interface EnhancedUserReputation {
-  userId: string;
-  username: string;
-  avatarUrl?: string | null;
-  totalPoints: number;
-  weeklyPoints: number;
-}
-
-interface PaginatedLeaderboardResponse {
-  users: EnhancedUserReputation[];
-  timestamp: Date;
-  meta?: {
-    total: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-  };
-}
-
-export const leaderboards = {
-  getLeaderboard: async (
-    category: LeaderboardCategory,
-    timeframe: LeaderboardTimeframe,
-    limit: number = 10,
-  ): Promise<LeaderboardResponse> => {
-    try {
-      return await api<LeaderboardResponse>(
-        `leaderboards?category=${category}&timeframe=${timeframe}&limit=${limit}`,
-      );
-    } catch (error) {
-      console.error('Error fetching leaderboard:', error);
-      throw error;
-    }
-  },
-
-  getPaginatedLeaderboard: async (
-    category: LeaderboardCategory,
-    timeframe: LeaderboardTimeframe,
-    page: number = 1,
-    pageSize: number = 20,
-  ): Promise<PaginatedLeaderboardResponse> => {
-    try {
-      return await api<PaginatedLeaderboardResponse>(
-        `leaderboards?category=${category}&timeframe=${timeframe}&page=${page}&pageSize=${pageSize}`,
-      );
-    } catch (error) {
-      console.error('Error fetching paginated leaderboard:', error);
-      throw error;
-    }
-  },
-
-  getUserPosition: async (
-    category: LeaderboardCategory,
-    timeframe: LeaderboardTimeframe,
-  ): Promise<{ rank: number; points: number }> => {
-    try {
-      return await api<{ rank: number; points: number }>(
-        `leaderboards/user-position?category=${category}&timeframe=${timeframe}`,
-      );
-    } catch (error) {
-      console.error('Error fetching user position:', error);
-      throw error;
-    }
-  },
-
-  getCurrentUserRanks: async (): Promise<UserRankEntry[]> => {
-    try {
-      return await api<UserRankEntry[]>('leaderboards/user');
-    } catch (error) {
-      console.error('Error fetching current user ranks:', error);
-      throw error;
-    }
-  },
-
-  getUserRanks: async (userId: string): Promise<UserRankEntry[]> => {
-    try {
-      return await api<UserRankEntry[]>(`leaderboards/user/${userId}`);
-    } catch (error) {
-      console.error('Error fetching user ranks:', error);
-      throw error;
-    }
-  },
-
-  admin: {
-    async recalculateLeaderboards(): Promise<{ message: string }> {
-      try {
-        return await api<{ message: string }>('leaderboards/recalculate', {
-          method: 'POST',
-        });
-      } catch (error) {
-        console.error('Error recalculating leaderboards:', error);
-        throw error;
-      }
+    getTopStreakUsers: async (limit = 10) => {
+      return api<{ topCurrentStreaks: TopStreakUsers[] }>(`admin/streaks/top-users?limit=${limit}`);
     },
   },
 };
 
 export const reputation = {
-  getUserReputationTrends: async (userId: string): Promise<UserReputationTrends> => {
-    const cacheKey = `reputation_trends_${userId}`;
-    const cached = getCache<UserReputationTrends>(cacheKey);
-    if (cached) return cached;
-
-    try {
-      const data = await api<UserReputationTrends>(`reputation/user/${userId}`);
-      setCache(cacheKey, data, PROFILE_CACHE_TTL);
-      return data;
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 404) {
-        throw new ApiError(404, 'Reputation data not found');
-      }
-      throw error;
-    }
-  },
-
-  getTopUsers: async (
-    limit: number = 10,
-  ): Promise<{ users: UserReputation[]; lastUpdated: Date }> => {
-    const cacheKey = `reputation_top_users_${limit}`;
-    const cached = getCache<{ users: UserReputation[]; lastUpdated: Date }>(cacheKey);
-    if (cached) return cached;
-
-    try {
-      const data = await api<{ users: UserReputation[]; lastUpdated: Date }>(
-        `reputation/leaderboard?limit=${limit}`,
-      );
-      setCache(cacheKey, data, CACHE_TTL);
-      return data;
-    } catch (error) {
-      console.error('Failed to get top users by reputation:', error);
-      throw error;
-    }
-  },
-
   admin: {
-    getActivityPointValues: async (): Promise<ActivityPointsConfig> => {
-      const cacheKey = 'reputation_point_values';
-      const cached = getCache<ActivityPointsConfig>(cacheKey);
-      if (cached) return cached;
-
-      try {
-        const data = await api<ActivityPointsConfig>('admin/reputation/activities/points');
-        setCache(cacheKey, data, CACHE_TTL);
-        return data;
-      } catch (error) {
-        console.error('Failed to get activity point values:', error);
-        throw error;
-      }
-    },
-
-    getTopUsers: async (
-      limit: number = 10,
-    ): Promise<{ users: UserReputation[]; timestamp: Date }> => {
-      const cacheKey = `reputation_admin_top_users_${limit}`;
-      const cached = getCache<{ users: UserReputation[]; timestamp: Date }>(cacheKey);
-      if (cached) return cached;
-
-      try {
-        const data = await api<{ users: UserReputation[]; timestamp: Date }>(
-          `admin/reputation/top-users?limit=${limit}`,
-        );
-        setCache(cacheKey, data, CACHE_TTL);
-        return data;
-      } catch (error) {
-        console.error('Failed to get top users as admin:', error);
-        throw error;
-      }
+    getActivityPointValues: async () => {
+      return api<ActivityPointsConfig>('admin/reputation/points-config');
     },
   },
-};
-
-export const admin = {
-  // ... existing admin methods ...
-
-  recalculateLeaderboards: async (): Promise<{ message: string }> => {
-    return api<{ message: string }>('leaderboards/recalculate', {
-      method: 'POST',
-    });
-  },
-};
-
-export const notifications = {
-  async getNotifications(unreadOnly: boolean = true): Promise<{
-    notifications: Array<{
-      id: string;
-      userId: string;
-      type: string;
-      message: string;
-      isRead: boolean;
-      relatedEntityId: string | null;
-      relatedEntityType: string | null;
-      createdAt: string;
-      updatedAt: string;
-    }>;
-    unreadCount: number;
-  }> {
-    return api(`/notifications?unreadOnly=${unreadOnly}`);
-  },
-
-  async markAsRead(notificationId: string): Promise<{
-    id: string;
-    isRead: boolean;
-  }> {
-    return api(`/notifications/${notificationId}/read`, { method: 'POST' });
-  },
-
-  async markAllAsRead(): Promise<{ success: boolean }> {
-    return api('/notifications/read-all', { method: 'POST' });
-  },
-
-  async getPreferences(): Promise<
-    Record<
-      string,
-      {
-        inApp: boolean;
-        email: boolean;
-        telegram: boolean;
-      }
-    >
-  > {
-    return api('/notifications/preferences');
-  },
-
-  async updatePreference(
-    type: string,
-    settings: { inApp?: boolean; email?: boolean; telegram?: boolean },
-  ): Promise<{
-    id: string;
-    userId: string;
-    notificationType: string;
-    inAppEnabled: boolean;
-    emailEnabled: boolean;
-    telegramEnabled: boolean;
-  }> {
-    return api(`/notifications/preferences/${type}`, {
-      method: 'POST',
-      body: settings,
-    });
+  getTopUsers: async (limit = 10) => {
+    return api<{ users: UserReputation[] }>(`admin/reputation/top-users?limit=${limit}`);
   },
 };

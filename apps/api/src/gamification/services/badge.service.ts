@@ -115,7 +115,7 @@ export class BadgeService {
             ActivityType.COMMENT,
             badge.thresholdValue,
           );
-        case BadgeRequirement.UPVOTES_GIVEN_COUNT:
+        case BadgeRequirement.VOTES_CAST_COUNT:
           return this.checkActivityCountRequirement(
             userId,
             ActivityType.UPVOTE,
@@ -131,12 +131,12 @@ export class BadgeService {
             userId,
             badge.thresholdValue,
           );
-        case BadgeRequirement.COMMENT_MIN_UPVOTES:
+        case BadgeRequirement.MAX_COMMENT_UPVOTES:
           return this.checkCommentMinUpvotesRequirement(
             userId,
             badge.thresholdValue,
           );
-        case BadgeRequirement.POST_MIN_UPVOTES:
+        case BadgeRequirement.MAX_POST_UPVOTES:
           return this.checkPostMinUpvotesRequirement(
             userId,
             badge.thresholdValue,
@@ -230,7 +230,7 @@ export class BadgeService {
     const result = await this.commentRepository
       .createQueryBuilder('comment')
       .where(
-        'comment.parentId IN (SELECT id FROM comment WHERE userId = :userId)',
+        'comment.parentId IN (SELECT id FROM comments WHERE user_id = :userId)',
         { userId },
       )
       .select('COUNT(comment.id)', 'replyCount')
@@ -461,7 +461,13 @@ export class BadgeService {
   async getAvailableBadges(userId: string): Promise<
     {
       category: BadgeCategory;
-      badges: Array<BadgeEntity & { earned: boolean; progress?: number }>;
+      badges: Array<
+        BadgeEntity & {
+          isAchieved: boolean;
+          progress?: number;
+          currentValue: number;
+        }
+      >;
     }[]
   > {
     try {
@@ -480,33 +486,42 @@ export class BadgeService {
       // Group badges by category
       const badgesByCategory = badges.reduce(
         (result, badge) => {
-          const earned = earnedBadgeIds.includes(badge.id);
+          const isAchieved = earnedBadgeIds.includes(badge.id);
           const category = badge.category;
 
           if (!result[category]) {
             result[category] = [];
           }
 
-          // Clone the badge and add earned status
           result[category].push({
             ...badge,
-            earned,
+            isAchieved,
+            currentValue: 0,
           });
 
           return result;
         },
         {} as Record<
           BadgeCategory,
-          Array<BadgeEntity & { earned: boolean; progress?: number }>
+          Array<
+            BadgeEntity & {
+              isAchieved: boolean;
+              progress?: number;
+              currentValue: number;
+            }
+          >
         >,
       );
 
-      // Calculate progress for unearnedBadges
+      // Calculate progress for badges
       for (const category in badgesByCategory) {
         for (const badge of badgesByCategory[category]) {
-          if (!badge.earned) {
-            badge.progress = await this.calculateBadgeProgress(userId, badge);
-          }
+          const { progress, currentValue } = await this.calculateBadgeProgress(
+            userId,
+            badge,
+          );
+          badge.progress = progress;
+          badge.currentValue = currentValue;
         }
       }
 
@@ -527,9 +542,9 @@ export class BadgeService {
   private async calculateBadgeProgress(
     userId: string,
     badge: BadgeEntity,
-  ): Promise<number> {
+  ): Promise<{ progress: number; currentValue: number }> {
     try {
-      let current = 0;
+      let currentValue = 0;
       const target = badge.thresholdValue;
 
       switch (badge.requirement) {
@@ -542,49 +557,74 @@ export class BadgeService {
           const result = await this.userActivityRepository.query(query, [
             userId,
           ]);
-          current =
+          currentValue =
             result.length > 0 ? parseInt(result[0].current_streak, 10) : 0;
           break;
         }
+        case BadgeRequirement.MAX_STREAK: {
+          const query = `
+            SELECT longest_streak 
+            FROM user_streaks 
+            WHERE user_id = $1
+          `;
+          const result = await this.userActivityRepository.query(query, [
+            userId,
+          ]);
+          currentValue =
+            result.length > 0 ? parseInt(result[0].longest_streak, 10) : 0;
+          break;
+        }
         case BadgeRequirement.POSTS_COUNT:
-          current = await this.userActivityRepository.count({
+          currentValue = await this.userActivityRepository.count({
             where: { userId, activityType: ActivityType.POST },
           });
           break;
         case BadgeRequirement.COMMENTS_COUNT:
-          current = await this.userActivityRepository.count({
+          currentValue = await this.userActivityRepository.count({
             where: { userId, activityType: ActivityType.COMMENT },
           });
           break;
-        case BadgeRequirement.UPVOTES_GIVEN_COUNT:
-          current = await this.userActivityRepository.count({
+        case BadgeRequirement.VOTES_CAST_COUNT:
+          currentValue = await this.userActivityRepository.count({
             where: { userId, activityType: ActivityType.UPVOTE },
           });
           break;
-        case BadgeRequirement.POST_MIN_UPVOTES: {
+        case BadgeRequirement.UPVOTES_RECEIVED_COUNT: {
+          const result = await this.commentRepository
+            .createQueryBuilder('comment')
+            .leftJoin('comment.votes', 'votes', 'votes.type = :voteType', {
+              voteType: 'upvote',
+            })
+            .where('comment.userId = :userId', { userId })
+            .select('COUNT(votes.id)', 'upvoteCount')
+            .getRawOne();
+
+          currentValue =
+            result && result.upvoteCount ? parseInt(result.upvoteCount, 10) : 0;
+          break;
+        }
+        case BadgeRequirement.MAX_POST_UPVOTES: {
           // Get max upvotes on any top-level comment (post)
           const result = await this.commentRepository
             .createQueryBuilder('comment')
             .where('comment.userId = :userId', { userId })
             .andWhere('comment.parentId IS NULL') // Only top-level comments
-            .orderBy('comment.upvotes', 'DESC')
-            .select('MAX(comment.upvotes)', 'maxUpvotes')
+            .select('MAX(comment.upvotes_count)', 'maxUpvotes')
             .getRawOne();
 
-          current =
+          currentValue =
             result && result.maxUpvotes ? parseInt(result.maxUpvotes, 10) : 0;
           break;
         }
-        case BadgeRequirement.COMMENT_MIN_UPVOTES: {
+        case BadgeRequirement.MAX_COMMENT_UPVOTES: {
           // Get max upvotes on any comment
           const result = await this.commentRepository
             .createQueryBuilder('comment')
             .where('comment.userId = :userId', { userId })
-            .orderBy('comment.upvotes', 'DESC')
-            .select('MAX(comment.upvotes)', 'maxUpvotes')
+            .select('MAX(comment.upvotes_count)', 'maxUpvotes')
             .getRawOne();
 
-          current =
+          currentValue =
             result && result.maxUpvotes ? parseInt(result.maxUpvotes, 10) : 0;
           break;
         }
@@ -602,7 +642,7 @@ export class BadgeService {
             where: { userId },
           });
 
-          if (!userRep) return 0;
+          if (!userRep) return { progress: 0, currentValue: 0 };
 
           // Get all users with some weekly points
           const reputations = await this.userReputationRepository.find({
@@ -614,32 +654,38 @@ export class BadgeService {
             },
           });
 
-          if (reputations.length === 0) return 0;
+          if (reputations.length === 0) return { progress: 0, currentValue: 0 };
 
           // Find user's position
           const userIndex = reputations.findIndex((r) => r.userId === userId);
-          if (userIndex === -1) return 0;
+          if (userIndex === -1) return { progress: 0, currentValue: 0 };
 
           // Calculate percentile (lower is better)
           const percentile = (userIndex / reputations.length) * 100;
+          currentValue = Math.round(percentile); // Current percentile
 
-          // Convert to progress (100 - percentile ensures higher percentages for better ranks)
+          // Calculate progress toward target percentile
           // If target is 5% (top 5%), then being in top 1% would be 100% progress
           // Being in top 10% would be 50% progress toward top 5% goal
-          return Math.min(100, Math.round((target / percentile) * 100));
+          const progress = Math.min(
+            100,
+            Math.round((target / percentile) * 100),
+          );
+          return { progress, currentValue };
         }
         default:
-          return 0;
+          return { progress: 0, currentValue: 0 };
       }
 
       // Calculate percentage (0-100)
-      return Math.min(100, Math.round((current / target) * 100));
+      const progress = Math.min(100, Math.round((currentValue / target) * 100));
+      return { progress, currentValue };
     } catch (error) {
       this.logger.error(
         `Error calculating badge progress: ${error.message}`,
         error.stack,
       );
-      return 0;
+      return { progress: 0, currentValue: 0 };
     }
   }
 

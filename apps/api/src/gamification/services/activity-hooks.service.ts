@@ -49,7 +49,7 @@ export class ActivityHooksService {
         event.userId,
         ActivityType.COMMENT,
         event.commentId,
-        'comment',
+        'comments',
       );
 
       await this.reputationService.awardPointsForActivity(
@@ -78,7 +78,7 @@ export class ActivityHooksService {
         event.userId,
         activityType,
         event.commentId,
-        'comment',
+        'comments',
       );
 
       await this.reputationService.awardPointsForActivity(
@@ -102,7 +102,7 @@ export class ActivityHooksService {
         event.userId,
         ActivityType.POST,
         event.postId,
-        'post',
+        'comments',
       );
 
       await this.reputationService.awardPointsForActivity(

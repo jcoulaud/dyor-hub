@@ -17,6 +17,7 @@ import {
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LeaderboardController } from './controllers/leaderboard.controller';
 import { ReputationController } from './controllers/reputation.controller';
+import { StreakController } from './controllers/streak.controller';
 import { GamificationController } from './gamification.controller';
 import { ActivityHooksService } from './services/activity-hooks.service';
 import { ActivityTrackingService } from './services/activity-tracking.service';
@@ -47,6 +48,7 @@ import { StreakSchedulerService } from './services/streak-scheduler.service';
     GamificationController,
     ReputationController,
     LeaderboardController,
+    StreakController,
   ],
   providers: [
     ActivityTrackingService,

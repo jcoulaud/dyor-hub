@@ -33,9 +33,6 @@ export class BadgeEntity {
   })
   category: BadgeCategory;
 
-  @Column({ name: 'image_url', type: 'varchar', nullable: true })
-  imageUrl: string | null;
-
   @Column({ name: 'requirement', type: 'varchar' })
   requirement: string;
 

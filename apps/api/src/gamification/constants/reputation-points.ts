@@ -21,6 +21,7 @@ export const STREAK_MILESTONE_BONUS = {
   30: 75, // 30-day streak: 75 bonus points
   60: 150, // 60-day streak: 150 bonus points
   100: 300, // 100-day streak: 300 bonus points
+  365: 1000, // 365-day streak: 1000 bonus points
 };
 
 /**

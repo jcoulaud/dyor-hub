@@ -26,3 +26,20 @@ export interface NotificationPreference {
   email: boolean;
   telegram: boolean;
 }
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  type: string;
+  message: string;
+  isRead: boolean;
+  relatedEntityId: string | null;
+  relatedEntityType: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationsResponse {
+  notifications: NotificationItem[];
+  unreadCount: number;
+}

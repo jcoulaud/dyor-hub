@@ -110,7 +110,7 @@ export function BadgeDetailsDialog({
     }
   };
 
-  const getRequirementLabel = (requirement: string) => {
+  const getRequirementLabel = (requirement: string): string => {
     switch (requirement) {
       case BadgeRequirement.CURRENT_STREAK:
         return 'Current Streak';
@@ -122,10 +122,16 @@ export function BadgeDetailsDialog({
         return 'Comments Count';
       case BadgeRequirement.UPVOTES_RECEIVED_COUNT:
         return 'Upvotes Received';
-      case BadgeRequirement.UPVOTES_GIVEN_COUNT:
-        return 'Upvotes Given';
+      case BadgeRequirement.VOTES_CAST_COUNT:
+        return 'Votes Cast';
       case BadgeRequirement.COMMENTS_RECEIVED_COUNT:
         return 'Comments Received';
+      case BadgeRequirement.MAX_COMMENT_UPVOTES:
+        return 'Max Comment Upvotes';
+      case BadgeRequirement.MAX_POST_UPVOTES:
+        return 'Max Post Upvotes';
+      case BadgeRequirement.TOP_PERCENT_WEEKLY:
+        return 'Top Percent Weekly';
       default:
         return requirement;
     }
@@ -243,11 +249,18 @@ export function BadgeDetailsDialog({
                       <SelectItem value={BadgeRequirement.UPVOTES_RECEIVED_COUNT}>
                         Upvotes Received
                       </SelectItem>
-                      <SelectItem value={BadgeRequirement.UPVOTES_GIVEN_COUNT}>
-                        Upvotes Given
-                      </SelectItem>
+                      <SelectItem value={BadgeRequirement.VOTES_CAST_COUNT}>Votes Cast</SelectItem>
                       <SelectItem value={BadgeRequirement.COMMENTS_RECEIVED_COUNT}>
                         Comments Received
+                      </SelectItem>
+                      <SelectItem value={BadgeRequirement.MAX_COMMENT_UPVOTES}>
+                        Max Comment Upvotes
+                      </SelectItem>
+                      <SelectItem value={BadgeRequirement.MAX_POST_UPVOTES}>
+                        Max Post Upvotes
+                      </SelectItem>
+                      <SelectItem value={BadgeRequirement.TOP_PERCENT_WEEKLY}>
+                        Top Percent Weekly
                       </SelectItem>
                     </SelectContent>
                   </Select>
