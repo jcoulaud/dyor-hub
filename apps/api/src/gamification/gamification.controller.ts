@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
@@ -12,14 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import {
-  ActivityType,
-  BadgeCategory,
-  UserActivityEntity,
-  UserEntity,
-} from '../entities';
-import { ACTIVITY_POINTS } from './constants/reputation-points';
-import { ActivityPointsResponseDto } from './dto/reputation.dto';
+import { ActivityType, UserActivityEntity, UserEntity } from '../entities';
 import { ActivityTrackingService } from './services/activity-tracking.service';
 import { BadgeService } from './services/badge.service';
 
@@ -86,16 +78,6 @@ export class GamificationController {
     return this.badgeService.getUserBadgeSummary(user.id);
   }
 
-  @Get('badges/categories')
-  async getBadgeCategories() {
-    return this.badgeService.getAllBadgeCategories();
-  }
-
-  @Get('badges/category/:category')
-  async getBadgesByCategory(@Param('category') category: BadgeCategory) {
-    return this.badgeService.getBadgesByCategory(category);
-  }
-
   @Get('users/:userId/badges')
   @UseGuards(AuthGuard)
   async getUserBadges(@Param('userId') userId: string) {
@@ -122,22 +104,6 @@ export class GamificationController {
     @Body() { isDisplayed }: { isDisplayed: boolean },
   ) {
     return this.badgeService.toggleBadgeDisplay(user.id, badgeId, isDisplayed);
-  }
-
-  @Get('users/:userId/activities/points')
-  @UseGuards(AuthGuard)
-  async getUserActivitiesWithPoints(
-    @Param('userId', ParseUUIDPipe) userId: string,
-  ): Promise<ActivityPointsResponseDto[]> {
-    const activities = await this.userActivityRepository.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-      take: 20,
-    });
-    return activities.map((activity) => ({
-      activityType: activity.activityType,
-      points: ACTIVITY_POINTS[activity.activityType] || 0,
-    }));
   }
 
   /**

@@ -17,6 +17,13 @@ import {
 @Injectable()
 export class BadgeService {
   private readonly logger = new Logger(BadgeService.name);
+  // Rate limiting cache to track when users were last checked
+  private userCheckCache = new Map<
+    string,
+    { lastCheck: Date; inProgress: boolean }
+  >();
+  // Rate limit duration in milliseconds (default: 1 minute)
+  private readonly rateLimitDuration = 1 * 60 * 1000;
 
   constructor(
     @InjectRepository(BadgeEntity)
@@ -34,8 +41,69 @@ export class BadgeService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
+  /**
+   * Check if the user's badge check is rate limited
+   * @param userId The user ID to check
+   * @returns true if rate limited, false if allowed to proceed
+   */
+  private isRateLimited(userId: string): boolean {
+    const userCache = this.userCheckCache.get(userId);
+
+    if (!userCache) {
+      return false;
+    }
+
+    // If there's an ongoing check, rate limit
+    if (userCache.inProgress) {
+      return true;
+    }
+
+    const now = new Date();
+    const timeSinceLastCheck = now.getTime() - userCache.lastCheck.getTime();
+
+    return timeSinceLastCheck < this.rateLimitDuration;
+  }
+
+  /**
+   * Mark a user as currently being checked
+   * @param userId The user ID
+   */
+  private markCheckInProgress(userId: string): void {
+    this.userCheckCache.set(userId, {
+      lastCheck: new Date(),
+      inProgress: true,
+    });
+  }
+
+  /**
+   * Mark a user's check as complete
+   * @param userId The user ID
+   */
+  private markCheckComplete(userId: string): void {
+    const userCache = this.userCheckCache.get(userId);
+    if (userCache) {
+      userCache.inProgress = false;
+    } else {
+      this.userCheckCache.set(userId, {
+        lastCheck: new Date(),
+        inProgress: false,
+      });
+    }
+  }
+
   async checkAndAwardBadges(userId: string): Promise<UserBadgeEntity[]> {
     try {
+      // Check if rate limited
+      if (this.isRateLimited(userId)) {
+        this.logger.log(
+          `Badge check for user ${userId} skipped due to rate limiting`,
+        );
+        return [];
+      }
+
+      // Mark check as in progress
+      this.markCheckInProgress(userId);
+
       // Get all available badges
       const badges = await this.badgeRepository.find({
         where: { isActive: true },
@@ -54,6 +122,8 @@ export class BadgeService {
       );
 
       if (availableBadges.length === 0) {
+        // Mark check as complete
+        this.markCheckComplete(userId);
         return [];
       }
 
@@ -83,14 +153,30 @@ export class BadgeService {
         }
       }
 
+      // Mark check as complete
+      this.markCheckComplete(userId);
+
       return newlyAwardedBadges;
     } catch (error) {
       this.logger.error(
         `Failed to check and award badges for user ${userId}: ${error.message}`,
         error.stack,
       );
+
+      // Mark check as complete even in case of error
+      this.markCheckComplete(userId);
+
       throw error;
     }
+  }
+
+  // Force check badges for a user regardless of rate limiting
+  async forceCheckAndAwardBadges(userId: string): Promise<UserBadgeEntity[]> {
+    // Clear any rate limiting for this user
+    this.userCheckCache.delete(userId);
+
+    // Proceed with normal badge check
+    return this.checkAndAwardBadges(userId);
   }
 
   private async checkBadgeEligibility(
@@ -433,25 +519,6 @@ export class BadgeService {
     } catch (error) {
       this.logger.error(
         `Failed to toggle badge display for user ${userId}, badge ${badgeId}: ${error.message}`,
-        error.stack,
-      );
-      throw error;
-    }
-  }
-
-  async getAllBadgeCategories(): Promise<BadgeCategory[]> {
-    return Object.values(BadgeCategory);
-  }
-
-  async getBadgesByCategory(category: BadgeCategory): Promise<BadgeEntity[]> {
-    try {
-      return this.badgeRepository.find({
-        where: { category, isActive: true },
-        order: { thresholdValue: 'ASC' },
-      });
-    } catch (error) {
-      this.logger.error(
-        `Failed to get badges for category ${category}: ${error.message}`,
         error.stack,
       );
       throw error;

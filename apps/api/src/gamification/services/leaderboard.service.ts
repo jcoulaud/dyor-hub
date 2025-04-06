@@ -131,6 +131,158 @@ export class LeaderboardService {
   }
 
   /**
+   * Daily calculation of all leaderboards (runs at midnight)
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async calculateDailyLeaderboards(): Promise<void> {
+    const startTime = new Date();
+    this.logger.log(
+      `Starting daily leaderboard calculation job at ${startTime.toISOString()}`,
+    );
+
+    try {
+      // Calculate for each timeframe and category combination
+      for (const timeframe of Object.values(LeaderboardTimeframe)) {
+        for (const category of Object.values(LeaderboardCategory)) {
+          try {
+            await this.updateLeaderboard(category, timeframe);
+            this.logger.log(
+              `Successfully calculated ${timeframe} ${category} leaderboard`,
+            );
+          } catch (error) {
+            this.logger.error(
+              `Error calculating ${timeframe} ${category} leaderboard: ${error.message}`,
+              error.stack,
+            );
+          }
+        }
+      }
+
+      const endTime = new Date();
+      const duration = endTime.getTime() - startTime.getTime();
+      const totalLeaderboards =
+        Object.values(LeaderboardTimeframe).length *
+        Object.values(LeaderboardCategory).length;
+
+      this.logger.log(
+        `Completed daily leaderboard calculation job in ${duration}ms. ` +
+          `Processed ${totalLeaderboards} leaderboards.`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to run daily leaderboard calculations: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Weekly notification of position changes (runs every Monday)
+   */
+  @Cron(CronExpression.EVERY_WEEK)
+  async notifyWeeklyPositionChanges() {
+    const startTime = new Date();
+    this.logger.log(
+      `Starting weekly leaderboard position notification job at ${startTime.toISOString()}`,
+    );
+
+    try {
+      // For each user with a non-trivial ranking, check if there's been a significant change
+      const users = await this.userRepository.find({
+        select: ['id'],
+      });
+
+      this.logger.log(
+        `Found ${users.length} users to check for significant ranking changes`,
+      );
+
+      let notificationsCount = 0;
+      let usersWithChanges = 0;
+      let usersProcessed = 0;
+
+      for (const user of users) {
+        try {
+          usersProcessed++;
+          const userId = user.id;
+
+          // Get the user's current rankings
+          const currentRankings = await this.getUserRanks(userId);
+          if (!currentRankings || currentRankings.length === 0) continue;
+
+          // Get previous ranks from user's rankings
+          const previousRankings = currentRankings.filter(
+            (rank) => rank.previousRank !== null,
+          );
+          if (previousRankings.length === 0) continue;
+
+          let userHasChanges = false;
+
+          // Check each ranking for meaningful changes
+          for (const ranking of currentRankings) {
+            const { category, timeframe, rank, previousRank } = ranking;
+
+            if (previousRank === null) continue;
+
+            // Check if ranking has changed significantly (more than 5 positions)
+            // or the user has moved into or out of the top 10
+            const significant =
+              Math.abs(rank - previousRank) > 5 ||
+              (rank <= 10 && previousRank > 10) ||
+              (rank > 10 && previousRank <= 10);
+
+            // Check if the ranking has improved to a meaningful milestone
+            // (top 50, top 25, top 10, top 5, or #1)
+            const milestone =
+              (rank === 1 && previousRank > 1) ||
+              (rank <= 5 && previousRank > 5) ||
+              (rank <= 10 && previousRank > 10) ||
+              (rank <= 25 && previousRank > 25) ||
+              (rank <= 50 && previousRank > 50);
+
+            if (significant || milestone) {
+              // Send notification about ranking change
+              this.eventEmitter.emit(
+                NotificationEventType.LEADERBOARD_POSITION_CHANGE,
+                {
+                  userId,
+                  newPosition: rank,
+                  previousPosition: previousRank,
+                  category,
+                  timeframe,
+                },
+              );
+              notificationsCount++;
+              userHasChanges = true;
+            }
+          }
+
+          if (userHasChanges) {
+            usersWithChanges++;
+          }
+        } catch (userError) {
+          this.logger.error(
+            `Error processing ranking changes for user ${user.id}: ${userError.message}`,
+            userError.stack,
+          );
+        }
+      }
+
+      const endTime = new Date();
+      const duration = endTime.getTime() - startTime.getTime();
+      this.logger.log(
+        `Completed weekly leaderboard position notification job in ${duration}ms. ` +
+          `Processed ${usersProcessed} users, found ${usersWithChanges} users with significant changes, ` +
+          `sent ${notificationsCount} notifications.`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to notify weekly position changes: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
    * Update all leaderboards - runs automatically via cron but can also be triggered manually
    */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)

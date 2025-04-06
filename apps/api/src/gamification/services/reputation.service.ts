@@ -201,16 +201,31 @@ export class ReputationService {
    */
   @Cron(CronExpression.EVERY_WEEK)
   async applyWeeklyPointReduction(): Promise<void> {
+    const startTime = new Date();
+    this.logger.log(
+      `Starting weekly point reduction job at ${startTime.toISOString()}`,
+    );
+
     try {
       // Get all user reputations
       const userReputations = await this.userReputationRepository.find();
+      this.logger.log(
+        `Found ${userReputations.length} user reputation records to process`,
+      );
 
       // Get time threshold for weekly activity check
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
+      let processedUsers = 0;
+      let reducedUsers = 0;
+      let totalPointsReduced = 0;
+      let skippedUsers = 0;
+
       for (const reputation of userReputations) {
         try {
+          processedUsers++;
+
           // Check if user has enough activity to pause reduction
           const activityCount = await this.userActivityRepository.count({
             where: {
@@ -221,6 +236,7 @@ export class ReputationService {
 
           // Skip reduction if user meets the minimum activity threshold
           if (activityCount >= MIN_WEEKLY_ACTIVITY_TO_PAUSE_REDUCTION) {
+            skippedUsers++;
             continue;
           }
 
@@ -278,6 +294,9 @@ export class ReputationService {
 
             await this.userReputationRepository.save(reputation);
 
+            reducedUsers++;
+            totalPointsReduced += reductionAmount;
+
             // Emit event for point reduction
             this.eventEmitter.emit('reputation.changed', {
               userId: reputation.userId,
@@ -294,6 +313,15 @@ export class ReputationService {
           );
         }
       }
+
+      const endTime = new Date();
+      const duration = endTime.getTime() - startTime.getTime();
+      this.logger.log(
+        `Completed weekly point reduction job in ${duration}ms. ` +
+          `Processed ${processedUsers} users, reduced points for ${reducedUsers} users, ` +
+          `skipped ${skippedUsers} users due to activity level. ` +
+          `Total points reduced: ${totalPointsReduced}.`,
+      );
     } catch (error) {
       this.logger.error(
         `Failed to apply weekly point reduction: ${error.message}`,
