@@ -525,7 +525,7 @@ export class BadgeService {
         .select('COUNT(reply.id)', 'replyCount')
         // Check where the parentId matches an ID from the subquery
         .where(
-          'reply.parentId IN (SELECT c.id FROM comments c WHERE c.userId = :userId)',
+          'reply.parentId IN (SELECT c.id FROM comments c WHERE c.user_id = :userId)',
           { userId },
         )
         .getRawOne();
