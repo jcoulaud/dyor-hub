@@ -37,9 +37,16 @@ export interface NotificationItem {
   relatedEntityType: string | null;
   createdAt: string;
   updatedAt: string;
+  relatedMetadata?: Record<string, any> | null;
 }
 
 export interface NotificationsResponse {
   notifications: NotificationItem[];
   unreadCount: number;
+  meta?: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
 }

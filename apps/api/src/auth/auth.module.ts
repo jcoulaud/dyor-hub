@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from '../entities/user.entity';
 import { GamificationModule } from '../gamification/gamification.module';
+import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
@@ -33,6 +34,7 @@ import { TwitterStrategy } from './twitter.strategy';
     }),
     TypeOrmModule.forFeature([UserEntity]),
     forwardRef(() => GamificationModule),
+    UsersModule,
   ],
   providers: [
     AuthConfigService,

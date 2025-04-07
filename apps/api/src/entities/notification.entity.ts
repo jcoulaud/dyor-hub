@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -11,6 +12,7 @@ import {
 import { UserEntity } from './user.entity';
 
 @Entity('notifications')
+@Index(['userId', 'isRead', 'createdAt'])
 export class NotificationEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -36,6 +38,9 @@ export class NotificationEntity {
 
   @Column({ name: 'related_entity_type', type: 'varchar', nullable: true })
   relatedEntityType: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  relatedMetadata: Record<string, any> | null;
 
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

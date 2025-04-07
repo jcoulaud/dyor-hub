@@ -1,5 +1,9 @@
 import { NotificationEventType } from '@dyor-hub/types';
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, Repository } from 'typeorm';
@@ -8,6 +12,15 @@ import {
   UserActivityEntity,
   UserStreakEntity,
 } from '../../entities';
+
+/**
+ * Helper function to get the start of the day in UTC
+ */
+const getUTCDayStart = (date: Date): Date => {
+  const newDate = new Date(date);
+  newDate.setUTCHours(0, 0, 0, 0);
+  return newDate;
+};
 
 @Injectable()
 export class ActivityTrackingService {
@@ -47,7 +60,7 @@ export class ActivityTrackingService {
         `Failed to track activity for user ${userId}: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException('Failed to track user activity');
     }
   }
 
@@ -66,8 +79,9 @@ export class ActivityTrackingService {
         });
       }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Normalize to start of day
+      // Use UTC for all date comparisons
+      const nowUTC = new Date();
+      const todayUTCStart = getUTCDayStart(nowUTC);
 
       const previousStreak = streak.currentStreak;
 
@@ -75,25 +89,26 @@ export class ActivityTrackingService {
       if (!streak.lastActivityDate) {
         streak.currentStreak = 1;
         streak.longestStreak = 1;
-        streak.lastActivityDate = today;
+        streak.lastActivityDate = todayUTCStart;
       } else {
-        const lastActivityDate = new Date(streak.lastActivityDate);
-        lastActivityDate.setHours(0, 0, 0, 0); // Normalize to start of day
+        const lastActivityDateUTC = new Date(streak.lastActivityDate);
+        const lastActivityUTCStart = getUTCDayStart(lastActivityDateUTC);
 
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayUTCStart = new Date(todayUTCStart);
+        yesterdayUTCStart.setUTCDate(yesterdayUTCStart.getUTCDate() - 1);
 
-        // Calculate time difference in days
-        const timeDiff = Math.floor(
-          (today.getTime() - lastActivityDate.getTime()) / (1000 * 3600 * 24),
+        // Calculate time difference in days based on UTC start dates
+        const timeDiffDays = Math.floor(
+          (todayUTCStart.getTime() - lastActivityUTCStart.getTime()) /
+            (1000 * 60 * 60 * 24),
         );
 
-        // If today is the same as last activity date, no streak update needed
-        if (timeDiff === 0) {
+        // If today is the same as last activity date (UTC), no streak update needed
+        if (timeDiffDays === 0) {
           // Already recorded for today
         }
-        // If yesterday was the last activity, increment streak
-        if (timeDiff === 1) {
+        // If yesterday (UTC) was the last activity, increment streak
+        else if (timeDiffDays === 1) {
           streak.currentStreak += 1;
 
           // Update longest streak if current is now longer
@@ -101,12 +116,12 @@ export class ActivityTrackingService {
             streak.longestStreak = streak.currentStreak;
           }
 
-          streak.lastActivityDate = today;
+          streak.lastActivityDate = todayUTCStart;
         }
         // If more than one day has passed, reset streak
         else {
           streak.currentStreak = 1; // Reset to 1 for today's activity
-          streak.lastActivityDate = today;
+          streak.lastActivityDate = todayUTCStart;
         }
       }
 
@@ -130,7 +145,7 @@ export class ActivityTrackingService {
         `Failed to update streak for user ${userId}: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException('Failed to update user streak');
     }
   }
 
@@ -144,53 +159,56 @@ export class ActivityTrackingService {
         `Failed to get streak for user ${userId}: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException('Failed to retrieve user streak');
     }
   }
 
+  /**
+   * Checks if a user's streak is at risk of ending.
+   * A streak is considered at risk if the last recorded activity
+   * occurred during the previous UTC day.
+   */
   async checkStreakAtRisk(userId: string): Promise<boolean> {
     try {
       const streak = await this.getUserStreak(userId);
 
-      if (!streak || streak.currentStreak === 0) {
+      // No risk if no streak, streak is 0, or no activity recorded yet.
+      if (!streak || streak.currentStreak === 0 || !streak.lastActivityDate) {
         return false;
       }
 
-      // If no streak or last activity date, not at risk
-      if (!streak.lastActivityDate) {
-        return false;
-      }
+      // lastActivityDate is stored normalized to the start of the UTC day.
+      const lastActivityUTCStart = getUTCDayStart(
+        new Date(streak.lastActivityDate),
+      );
 
-      const lastActivity = new Date(streak.lastActivityDate);
-      const now = new Date();
+      // Get the start of yesterday UTC.
+      const yesterdayUTCStart = getUTCDayStart(new Date());
+      yesterdayUTCStart.setUTCDate(yesterdayUTCStart.getUTCDate() - 1);
 
-      // Calculate hours since last activity
-      const hoursSinceLastActivity =
-        (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
-
-      // At risk if more than 20 hours since last activity
-      return hoursSinceLastActivity >= 20 && hoursSinceLastActivity < 24;
+      // The streak is at risk if the last recorded activity day (UTC start) was yesterday.
+      return lastActivityUTCStart.getTime() === yesterdayUTCStart.getTime();
     } catch (error) {
       this.logger.error(
         `Failed to check streak at risk for user ${userId}: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException(
+        'Failed to check streak risk status',
+      );
     }
   }
 
   async getStreaksAtRisk(): Promise<UserStreakEntity[]> {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // Find streaks where last activity was yesterday and streak is > 0
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
+      // Find streaks where last activity was yesterday (UTC)
+      const todayUTCStart = getUTCDayStart(new Date());
+      const yesterdayUTCStart = new Date(todayUTCStart);
+      yesterdayUTCStart.setUTCDate(yesterdayUTCStart.getUTCDate() - 1);
 
       return this.userStreakRepository.find({
         where: {
-          lastActivityDate: yesterday,
+          lastActivityDate: yesterdayUTCStart, // Check for exact match to start of yesterday UTC
           currentStreak: MoreThan(0),
         },
       });
@@ -199,7 +217,9 @@ export class ActivityTrackingService {
         `Failed to get streaks at risk: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException(
+        'Failed to retrieve streaks at risk',
+      );
     }
   }
 }

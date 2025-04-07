@@ -4,7 +4,11 @@ import {
   UserReputation,
   UserReputationTrends,
 } from '@dyor-hub/types';
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -89,7 +93,9 @@ export class ReputationService {
         `Failed to award points to user ${userId}: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException(
+        `Failed to award points for activity ${activityType}`,
+      );
     }
   }
 

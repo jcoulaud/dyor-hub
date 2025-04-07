@@ -916,6 +916,7 @@ export const gamification = {
           isActive: boolean;
           createdAt: string;
           updatedAt: string;
+          currentValue?: number;
         }
 
         interface BadgeCategoryResponse {
@@ -939,9 +940,7 @@ export const gamification = {
             updatedAt: badge.updatedAt,
             progress: badge.progress || 0,
             isAchieved: badge.earned,
-            // Set 0 as default; the frontend will use the fix to set the actual value
-            // based on the badge requirements and progress
-            currentValue: 0,
+            currentValue: badge.currentValue || 0,
           })),
         );
 
@@ -1087,6 +1086,10 @@ export const gamification = {
 export const notifications = {
   getNotifications: async (onlyUnread = false) => {
     return api<NotificationsResponse>(`notifications?unreadOnly=${onlyUnread}`);
+  },
+
+  getPaginatedNotifications: async (page: number, pageSize: number) => {
+    return api<NotificationsResponse>(`notifications?page=${page}&pageSize=${pageSize}`);
   },
 
   markAsRead: async (id: string) => {

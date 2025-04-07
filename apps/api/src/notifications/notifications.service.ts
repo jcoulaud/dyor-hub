@@ -1,8 +1,18 @@
-import { NotificationType } from '@dyor-hub/types';
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  NotificationItem,
+  NotificationsResponse,
+  NotificationType,
+} from '@dyor-hub/types';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { NotificationEntity, NotificationPreferenceEntity } from '../entities';
+import { NotificationsGateway } from './notifications.gateway';
 
 @Injectable()
 export class NotificationsService {
@@ -13,6 +23,7 @@ export class NotificationsService {
     private notificationRepository: Repository<NotificationEntity>,
     @InjectRepository(NotificationPreferenceEntity)
     private notificationPreferenceRepository: Repository<NotificationPreferenceEntity>,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async createNotification(
@@ -21,6 +32,7 @@ export class NotificationsService {
     message: string,
     relatedEntityId?: string,
     relatedEntityType?: string,
+    relatedMetadata?: Record<string, any> | null,
   ): Promise<NotificationEntity> {
     try {
       // Check if user has disabled this notification type
@@ -39,50 +51,96 @@ export class NotificationsService {
         relatedEntityId: relatedEntityId || null,
         relatedEntityType: relatedEntityType || null,
         isRead: false,
+        relatedMetadata: relatedMetadata || null,
       });
 
-      return this.notificationRepository.save(notification);
+      const savedNotification =
+        await this.notificationRepository.save(notification);
+
+      // Send notification via WebSocket if saved successfully
+      if (savedNotification) {
+        this.notificationsGateway.sendNotificationToUser(
+          userId,
+          savedNotification,
+        );
+      }
+
+      return savedNotification;
     } catch (error) {
       this.logger.error(
         `Failed to create notification for user ${userId}: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException('Failed to create notification');
     }
   }
 
   async getUserNotifications(
     userId: string,
-    unreadOnly: boolean = false,
-  ): Promise<{
-    notifications: NotificationEntity[];
-    unreadCount: number;
-  }> {
+    unreadOnly = false,
+    page = 1,
+    pageSize = 10,
+  ): Promise<NotificationsResponse> {
     try {
-      const whereCondition: any = { userId };
+      const skip = (page - 1) * pageSize;
+      const take = pageSize;
 
-      // If unreadOnly is true, only get unread notifications
+      const whereOptions: FindOptionsWhere<NotificationEntity> = { userId };
       if (unreadOnly) {
-        whereCondition.isRead = false;
+        whereOptions.isRead = false;
       }
 
-      const notifications = await this.notificationRepository.find({
-        where: whereCondition,
-        order: { createdAt: 'DESC' },
+      // Get total count matching filter
+      const totalCount = await this.notificationRepository.count({
+        where: whereOptions,
       });
 
-      const unreadCount = notifications.filter((n) => !n.isRead).length;
+      // Get unread count separately
+      const unreadCount = await this.notificationRepository.count({
+        where: { userId, isRead: false },
+      });
+
+      // Get paginated notifications
+      const notifications = await this.notificationRepository.find({
+        where: whereOptions,
+        order: { createdAt: 'DESC' },
+        skip: skip,
+        take: take,
+      });
+
+      const totalPages = Math.ceil(totalCount / pageSize);
+
+      const notificationItems: NotificationItem[] = notifications.map((n) => ({
+        id: n.id,
+        userId: n.userId,
+        type: n.type,
+        message: n.message,
+        isRead: n.isRead,
+        relatedEntityId: n.relatedEntityId,
+        relatedEntityType: n.relatedEntityType,
+        createdAt: n.createdAt.toISOString(),
+        updatedAt: n.updatedAt.toISOString(),
+        relatedMetadata: n.relatedMetadata,
+      }));
 
       return {
-        notifications,
+        notifications: notificationItems,
         unreadCount,
+        meta: {
+          total: totalCount,
+          page,
+          pageSize,
+          totalPages,
+        },
       };
     } catch (error) {
       this.logger.error(
         `Failed to get notifications for user ${userId}: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException(
+        'Failed to retrieve notifications',
+      );
     }
   }
 
@@ -90,25 +148,44 @@ export class NotificationsService {
     userId: string,
     notificationId: string,
   ): Promise<NotificationEntity> {
+    let notification: NotificationEntity;
     try {
-      const notification = await this.notificationRepository.findOne({
+      notification = await this.notificationRepository.findOne({
         where: { id: notificationId, userId },
       });
-
-      if (!notification) {
-        throw new Error(
-          `Notification not found or does not belong to user ${userId}`,
-        );
-      }
-
-      notification.isRead = true;
-      return this.notificationRepository.save(notification);
     } catch (error) {
       this.logger.error(
-        `Failed to mark notification as read: ${error.message}`,
+        `DB error fetching notification ${notificationId} for user ${userId}: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException(
+        'Error finding notification to mark as read',
+      );
+    }
+
+    if (!notification) {
+      throw new NotFoundException(
+        `Notification #${notificationId} not found or access denied`,
+      );
+    }
+
+    try {
+      notification.isRead = true;
+      const updatedNotification =
+        await this.notificationRepository.save(notification);
+
+      // After marking as read, send the updated unread count
+      await this.sendUpdatedUnreadCount(userId);
+
+      return updatedNotification;
+    } catch (error) {
+      this.logger.error(
+        `Failed to save read status for notification ${notificationId}: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Failed to mark notification as read',
+      );
     }
   }
 
@@ -118,12 +195,31 @@ export class NotificationsService {
         { userId, isRead: false },
         { isRead: true },
       );
+      // After marking all as read, send the updated unread count (which should be 0)
+      await this.sendUpdatedUnreadCount(userId);
     } catch (error) {
       this.logger.error(
         `Failed to mark all notifications as read: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException(
+        'Failed to mark all notifications as read',
+      );
+    }
+  }
+
+  private async sendUpdatedUnreadCount(userId: string): Promise<void> {
+    try {
+      const unreadCount = await this.notificationRepository.count({
+        where: { userId, isRead: false },
+      });
+      this.notificationsGateway.sendUnreadCountToUser(userId, unreadCount);
+    } catch (countError) {
+      this.logger.error(
+        `Failed to get or send unread count for user ${userId} after update: ${countError.message}`,
+        countError.stack,
+      );
+      // Don't throw, as the primary operation (mark as read) succeeded
     }
   }
 
@@ -147,7 +243,9 @@ export class NotificationsService {
         `Failed to check notification preferences: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException(
+        'Failed to check notification preference',
+      );
     }
   }
 
@@ -200,7 +298,9 @@ export class NotificationsService {
         `Failed to get notification preferences: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException(
+        'Failed to retrieve notification preferences',
+      );
     }
   }
 
@@ -245,7 +345,9 @@ export class NotificationsService {
         `Failed to update notification preference: ${error.message}`,
         error.stack,
       );
-      throw error;
+      throw new InternalServerErrorException(
+        'Failed to update notification preference',
+      );
     }
   }
 }

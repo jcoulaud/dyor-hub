@@ -2,8 +2,11 @@ import { NotificationType } from '@dyor-hub/types';
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Get,
   Param,
+  ParseBoolPipe,
+  ParseIntPipe,
   Post,
   Query,
   UseGuards,
@@ -20,12 +23,16 @@ export class NotificationsController {
   @UseGuards(AuthGuard)
   async getUserNotifications(
     @CurrentUser() user: { id: string },
-    @Query('unreadOnly') unreadOnly?: string,
+    @Query('unreadOnly', new DefaultValuePipe(false), ParseBoolPipe)
+    unreadOnly: boolean,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe) pageSize: number,
   ) {
-    const getOnlyUnread = unreadOnly === 'true';
     return this.notificationsService.getUserNotifications(
       user.id,
-      getOnlyUnread,
+      unreadOnly,
+      page,
+      pageSize,
     );
   }
 

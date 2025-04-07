@@ -2,7 +2,7 @@ import { ProfileStats } from '@/components/profile/ProfileStats';
 import { ShareButton } from '@/components/share/ShareButton';
 import { TwitterShareButton } from '@/components/share/TwitterShareButton';
 import { WalletBadge } from '@/components/wallet/WalletBadge';
-import { users, wallets } from '@/lib/api';
+import { users } from '@/lib/api';
 import { getHighResAvatar } from '@/lib/utils';
 import type { User, UserActivity, UserStats } from '@dyor-hub/types';
 import { MessageSquare, Reply, ThumbsDown, ThumbsUp, Twitter } from 'lucide-react';
@@ -98,13 +98,6 @@ export default async function UserProfilePage({ params }: UserPageProps) {
       console.error('Error fetching user activities:', error);
     }
 
-    let walletInfo = null;
-    try {
-      walletInfo = await wallets.getPublicInfo(user.id);
-    } catch {
-      // Continue without wallet info
-    }
-
     const avatarUrl = getHighResAvatar(user.avatarUrl) || null;
 
     return (
@@ -162,14 +155,9 @@ export default async function UserProfilePage({ params }: UserPageProps) {
                       </div>
 
                       <div className='flex items-center gap-3 mt-3 md:mt-1 mx-auto md:mx-0'>
-                        {user.preferences?.showWalletAddress &&
-                          walletInfo &&
-                          walletInfo.isVerified && (
-                            <WalletBadge
-                              address={walletInfo.address}
-                              isVerified={walletInfo.isVerified}
-                            />
-                          )}
+                        {user.preferences?.showWalletAddress && user.primaryWalletAddress && (
+                          <WalletBadge address={user.primaryWalletAddress} isVerified={true} />
+                        )}
 
                         <Link
                           href={`https://twitter.com/${user.username}`}

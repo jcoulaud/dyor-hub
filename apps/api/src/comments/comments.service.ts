@@ -318,19 +318,11 @@ export class CommentsService {
       }
 
       // Emit gamification event
-      if (createCommentDto.parentId) {
-        // This is a reply
-        this.eventEmitter.emit(GamificationEvent.COMMENT_CREATED, {
-          userId,
-          commentId: savedComment.id,
-        });
-      } else {
-        // This is a top-level post
-        this.eventEmitter.emit(GamificationEvent.POST_CREATED, {
-          userId,
-          postId: savedComment.id,
-        });
-      }
+      this.eventEmitter.emit(GamificationEvent.COMMENT_CREATED, {
+        userId,
+        commentId: savedComment.id,
+        parentId: createCommentDto.parentId || null,
+      });
 
       // If this is a reply, emit the notification event
       if (createCommentDto.parentId) {
@@ -467,7 +459,8 @@ export class CommentsService {
 
     // Emit gamification event
     this.eventEmitter.emit(GamificationEvent.COMMENT_VOTED, {
-      userId,
+      voterUserId: userId,
+      commentOwnerUserId: comment.user.id,
       commentId,
       voteType: type,
     });

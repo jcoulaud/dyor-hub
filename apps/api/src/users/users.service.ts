@@ -53,7 +53,11 @@ export class UsersService {
           'user.avatarUrl',
           'user.isAdmin',
           'user.preferences',
+          'wallets.address',
+          'wallets.isPrimary',
+          'wallets.isVerified',
         ])
+        .leftJoin('user.wallets', 'wallets')
         .where('LOWER(user.username) = LOWER(:username)', { username })
         .getOne();
 
@@ -303,5 +307,17 @@ export class UsersService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async findById(id: string): Promise<UserEntity | null> {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id },
+      });
+      return user;
+    } catch (error) {
+      this.logger.error(`Error finding user with id ${id}:`, error);
+      return null;
+    }
   }
 }

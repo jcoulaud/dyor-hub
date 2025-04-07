@@ -7,6 +7,15 @@ import { LessThan, MoreThan, Repository } from 'typeorm';
 import { UserStreakEntity } from '../../entities';
 import { ActivityTrackingService } from './activity-tracking.service';
 
+/**
+ * Helper function to get the start of the day in UTC
+ */
+const getUTCDayStart = (date: Date): Date => {
+  const newDate = new Date(date);
+  newDate.setUTCHours(0, 0, 0, 0);
+  return newDate;
+};
+
 @Injectable()
 export class StreakSchedulerService {
   private readonly logger = new Logger(StreakSchedulerService.name);
@@ -68,6 +77,8 @@ export class StreakSchedulerService {
         `Failed to complete streak at-risk check job: ${error.message}`,
         error.stack,
       );
+      // Don't throw here, allow scheduler to continue if possible
+      // throw new InternalServerErrorException('Streak at-risk check failed');
     }
   }
 
@@ -81,15 +92,15 @@ export class StreakSchedulerService {
     this.logger.log(`Starting streak reset job at ${startTime.toISOString()}`);
 
     try {
-      // Get yesterday's date
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      yesterday.setHours(0, 0, 0, 0);
+      // Get yesterday's date (start of day UTC)
+      const todayUTCStart = getUTCDayStart(new Date());
+      const yesterdayUTCStart = new Date(todayUTCStart);
+      yesterdayUTCStart.setUTCDate(yesterdayUTCStart.getUTCDate() - 1);
 
-      // Find all streaks that haven't had activity since before yesterday
+      // Find all streaks that haven't had activity since before yesterday UTC start
       const lapsedStreaks = await this.userStreakRepository.find({
         where: {
-          lastActivityDate: LessThan(yesterday),
+          lastActivityDate: LessThan(yesterdayUTCStart), // Less than start of yesterday UTC
           currentStreak: MoreThan(0), // Only reset non-zero streaks
         },
       });
@@ -130,6 +141,8 @@ export class StreakSchedulerService {
         `Failed to complete streak reset job: ${error.message}`,
         error.stack,
       );
+      // Don't throw here, allow scheduler to continue if possible
+      // throw new InternalServerErrorException('Streak reset job failed');
     }
   }
 }

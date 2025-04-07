@@ -1,11 +1,38 @@
 'use client';
 
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { gamification } from '@/lib/api';
-import { AvailableBadge } from '@dyor-hub/types';
+import { AvailableBadge, BadgeRequirement } from '@dyor-hub/types';
 import { Award, BadgeCheck, Clock, Lock, Medal, Star, Trophy } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+// Helper function to get description based on requirement
+const getDescriptionForRequirement = (requirement: BadgeRequirement): string => {
+  switch (requirement) {
+    case BadgeRequirement.CURRENT_STREAK:
+    case BadgeRequirement.MAX_STREAK:
+      return 'Log in daily to maintain your streak';
+    case BadgeRequirement.POSTS_COUNT:
+      return 'Create posts on the platform';
+    case BadgeRequirement.COMMENTS_COUNT:
+      return 'Comment on posts and interact with the community';
+    case BadgeRequirement.VOTES_CAST_COUNT:
+      return 'Upvote and curate content';
+    case BadgeRequirement.UPVOTES_RECEIVED_COUNT:
+      return 'Receive upvotes on your content';
+    case BadgeRequirement.COMMENTS_RECEIVED_COUNT:
+      return 'Receive replies on your comments';
+    case BadgeRequirement.MAX_POST_UPVOTES:
+    case BadgeRequirement.MAX_COMMENT_UPVOTES:
+      return 'Create high-quality content that gets recognized';
+    case BadgeRequirement.TOP_PERCENT_WEEKLY:
+      return 'Achieve top ranking on leaderboards';
+    default:
+      return 'Complete tasks and contribute';
+  }
+};
 
 export default function BadgesPage() {
   const [badges, setBadges] = useState<AvailableBadge[]>([]);
@@ -46,7 +73,6 @@ export default function BadgesPage() {
   const categoryInfo = {
     streak: {
       label: 'Streak',
-      description: 'Log in daily to maintain your streak',
       icon: <Clock className='h-5 w-5' />,
       color: 'text-orange-500 stroke-orange-500',
       bgColor: 'bg-orange-500/10',
@@ -56,7 +82,6 @@ export default function BadgesPage() {
     },
     content: {
       label: 'Content Creation',
-      description: 'Create posts on the platform',
       icon: <Award className='h-5 w-5' />,
       color: 'text-blue-500 stroke-blue-500',
       bgColor: 'bg-blue-500/10',
@@ -66,7 +91,6 @@ export default function BadgesPage() {
     },
     engagement: {
       label: 'Community Engagement',
-      description: 'Comment on posts and interact with the community',
       icon: <Star className='h-5 w-5' />,
       color: 'text-green-500 stroke-green-500',
       bgColor: 'bg-green-500/10',
@@ -76,7 +100,6 @@ export default function BadgesPage() {
     },
     voting: {
       label: 'Voting & Curation',
-      description: 'Upvote and curate content',
       icon: <BadgeCheck className='h-5 w-5' />,
       color: 'text-purple-500 stroke-purple-500',
       bgColor: 'bg-purple-500/10',
@@ -86,7 +109,6 @@ export default function BadgesPage() {
     },
     reception: {
       label: 'Content Reception',
-      description: 'Receive upvotes on your content',
       icon: <Medal className='h-5 w-5' />,
       color: 'text-pink-500 stroke-pink-500',
       bgColor: 'bg-pink-500/10',
@@ -96,7 +118,6 @@ export default function BadgesPage() {
     },
     quality: {
       label: 'Quality Contribution',
-      description: 'Create high-quality content',
       icon: <Trophy className='h-5 w-5' />,
       color: 'text-yellow-500 stroke-yellow-500',
       bgColor: 'bg-yellow-500/10',
@@ -104,39 +125,60 @@ export default function BadgesPage() {
       gradientFrom: 'from-yellow-500/60',
       gradientTo: 'to-yellow-500/80',
     },
+    ranking: {
+      label: 'Leaderboard Ranking',
+      icon: <Trophy className='h-5 w-5' />,
+      color: 'text-teal-500 stroke-teal-500',
+      bgColor: 'bg-teal-500/10',
+      borderColor: 'border-teal-500/30',
+      gradientFrom: 'from-teal-500/60',
+      gradientTo: 'to-teal-500/80',
+    },
   };
 
-  // Group badges by category and sort them
-  const badgesByCategory = () => {
-    const result: Record<string, AvailableBadge[]> = {};
+  // Group badges by category and then by requirement, and sort them
+  const badgesByGroup = useMemo(() => {
+    if (isLoading || !badges.length) return {};
+
+    const result: Record<string, Record<string, AvailableBadge[]>> = {};
 
     badges.forEach((badge) => {
-      if (!result[badge.category]) {
-        result[badge.category] = [];
+      const categoryKey = badge.category;
+      const requirementKey = badge.requirement;
+
+      if (!result[categoryKey]) {
+        result[categoryKey] = {};
       }
-      result[badge.category].push(badge);
+      if (!result[categoryKey][requirementKey]) {
+        result[categoryKey][requirementKey] = [];
+      }
+      result[categoryKey][requirementKey].push(badge);
     });
 
-    // Sort badges within categories by threshold
-    Object.keys(result).forEach((category) => {
-      result[category].sort((a, b) => (a.thresholdValue || 0) - (b.thresholdValue || 0));
+    // Sort badges within each category/requirement group by threshold
+    Object.values(result).forEach((categoryGroup) => {
+      Object.values(categoryGroup).forEach((requirementGroup) => {
+        requirementGroup.sort((a, b) => (a.thresholdValue || 0) - (b.thresholdValue || 0));
+      });
     });
 
     return result;
-  };
-
-  const grouped = isLoading ? {} : badgesByCategory();
+  }, [badges, isLoading]);
 
   // Sort categories to have ones with earned badges first
-  const sortedCategories = Object.entries(grouped).sort(([, badgesA], [, badgesB]) => {
-    const earnedInA = badgesA.filter((b) => b.isAchieved).length;
-    const earnedInB = badgesB.filter((b) => b.isAchieved).length;
-    // First sort by whether any are earned
-    if (earnedInA > 0 && earnedInB === 0) return -1;
-    if (earnedInA === 0 && earnedInB > 0) return 1;
-    // Then sort by number of earned badges
-    return earnedInB - earnedInA;
-  });
+  const sortedCategories = useMemo(() => {
+    return Object.entries(badgesByGroup).sort(([, reqGroupA], [, reqGroupB]) => {
+      const earnedInA = Object.values(reqGroupA)
+        .flat()
+        .filter((b) => b.isAchieved).length;
+      const earnedInB = Object.values(reqGroupB)
+        .flat()
+        .filter((b) => b.isAchieved).length;
+      if (earnedInA > 0 && earnedInB === 0) return -1;
+      if (earnedInA === 0 && earnedInB > 0) return 1;
+      return earnedInB - earnedInA;
+    });
+  }, [badgesByGroup]);
 
   if (isLoading) {
     return (
@@ -167,191 +209,130 @@ export default function BadgesPage() {
         </p>
       </div>
 
-      {/* Badge categories */}
+      {/* Iterate over sorted categories */}
       <div className='space-y-6'>
-        {sortedCategories.map(([category, categoryBadges]) => {
-          const info = categoryInfo[category as keyof typeof categoryInfo];
-          const earnedInCategory = categoryBadges.filter((b) => b.isAchieved).length;
-          const nextUnearned = categoryBadges.find((b) => !b.isAchieved);
+        {sortedCategories.map(([category, requirementGroups]) => {
+          const categoryMeta = categoryInfo[category as keyof typeof categoryInfo];
+          if (!categoryMeta) return null; // Skip if no meta info for category
 
           return (
-            <section key={category} className='border rounded-xl shadow-sm overflow-hidden'>
-              {/* Category header */}
-              <div className={`p-3 border-b ${info.bgColor}`}>
-                <div className='flex justify-between items-center'>
-                  <div className='flex items-center gap-3'>
-                    <div className={`bg-background/20 p-2 rounded-full ${info.color}`}>
-                      {info.icon}
-                    </div>
-                    <div>
-                      <h2 className='text-lg font-semibold'>{info.label}</h2>
-                      <p className='text-muted-foreground text-sm'>{info.description}</p>
-                    </div>
-                  </div>
-                  <div className='text-sm font-medium px-2 py-1 rounded-lg bg-background/20'>
-                    {earnedInCategory}/{categoryBadges.length} earned
-                  </div>
-                </div>
-              </div>
+            <div key={category} className='space-y-4'>
+              {/* Iterate over requirement groups within the category */}
+              {Object.entries(requirementGroups).map(([requirement, requirementBadges]) => {
+                const requirementEnum = requirement as BadgeRequirement;
+                const earnedInGroup = requirementBadges.filter((b) => b.isAchieved).length;
+                const nextUnearned = requirementBadges.find((b) => !b.isAchieved);
+                const description = getDescriptionForRequirement(requirementEnum);
 
-              <div className='p-3 space-y-4'>
-                {/* Badge progress path */}
-                <div className='relative py-6'>
-                  {/* Progress background */}
-                  <div className='absolute h-2 bg-muted/40 top-1/2 -translate-y-1/2 left-0 right-0 rounded-full'></div>
-
-                  {/* Badge nodes */}
-                  <div className='flex justify-between items-center relative'>
-                    {categoryBadges.map((badge, index) => {
-                      const isAchieved = badge.isAchieved;
-                      const isNextUp =
-                        !isAchieved && !categoryBadges.slice(0, index).some((b) => !b.isAchieved);
-
-                      return (
-                        <div
-                          key={badge.id}
-                          className='flex items-center justify-center w-full relative'>
+                return (
+                  <section
+                    key={`${category}-${requirement}`}
+                    className='border rounded-xl shadow-sm overflow-hidden'>
+                    {/* Requirement group header */}
+                    <div className={`p-3 border-b ${categoryMeta.bgColor}`}>
+                      <div className='flex justify-between items-center'>
+                        <div className='flex items-center gap-3'>
                           <div
-                            className={`
-                              w-10 h-10 rounded-full flex items-center justify-center relative z-20
-                              ${
-                                isAchieved
-                                  ? `${info.bgColor} ${info.color} border-2 ${info.borderColor} shadow-sm`
-                                  : isNextUp
-                                    ? 'bg-background border-2 border-primary/60 text-primary shadow-sm'
-                                    : 'bg-muted/80 text-muted-foreground'
-                              }
-                              transition-all hover:scale-105
-                            `}>
-                            {isAchieved ? (
-                              <BadgeCheck className='h-5 w-5' />
-                            ) : isNextUp ? (
-                              <span className='text-sm font-semibold'>{badge.thresholdValue}</span>
-                            ) : (
-                              <Lock className='h-4 w-4' />
-                            )}
+                            className={`bg-background/20 p-2 rounded-full ${categoryMeta.color}`}>
+                            {categoryMeta.icon}
                           </div>
-
-                          {/* Progress line overlay (achieved) - connect to next badge */}
-                          {isAchieved && index < categoryBadges.length - 1 && (
-                            <div
-                              className={`absolute h-3 ${info.bgColor} right-0 left-1/2 top-1/2 -translate-y-1/2 rounded-full z-10`}
-                              style={{ opacity: 0.8 }}></div>
-                          )}
-
-                          {/* Progress line overlay (previous achieved) - connect to previous badge */}
-                          {isAchieved && index > 0 && (
-                            <div
-                              className={`absolute h-3 ${info.bgColor} left-0 right-1/2 top-1/2 -translate-y-1/2 rounded-full z-10`}
-                              style={{ opacity: 0.8 }}></div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Current/next milestones */}
-                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-                  {/* Most recent earned badge */}
-                  {earnedInCategory > 0 && (
-                    <div
-                      className={`rounded-lg border ${info.borderColor} ${info.bgColor} p-3 backdrop-blur-sm transition-all`}>
-                      <div className='flex items-start justify-between'>
-                        <div className='space-y-1'>
-                          <div className='text-xs text-muted-foreground'>Latest achievement</div>
-                          <div className='font-semibold'>
-                            {
-                              [...categoryBadges]
-                                .filter((b) => b.isAchieved)
-                                .sort(
-                                  (a, b) => (b.thresholdValue || 0) - (a.thresholdValue || 0),
-                                )[0]?.name
-                            }
-                          </div>
-                          <div className='text-xs text-muted-foreground/80 line-clamp-2 mt-1'>
-                            {
-                              [...categoryBadges]
-                                .filter((b) => b.isAchieved)
-                                .sort(
-                                  (a, b) => (b.thresholdValue || 0) - (a.thresholdValue || 0),
-                                )[0]?.description
-                            }
+                          <div>
+                            <h2 className='text-lg font-semibold'>{categoryMeta.label}</h2>
+                            <p className='text-muted-foreground text-sm'>{description}</p>
                           </div>
                         </div>
-                        <div
-                          className={`${info.color} p-1.5 rounded-full bg-background/30 shadow-inner`}>
-                          <BadgeCheck className='h-5 w-5' />
-                        </div>
+                        <Badge variant='outline' className='bg-background/30 border-none'>
+                          {earnedInGroup}/{requirementBadges.length} earned
+                        </Badge>
                       </div>
                     </div>
-                  )}
 
-                  {/* Next milestone to earn */}
-                  {nextUnearned && (
-                    <div className='rounded-lg border border-muted bg-card p-3 backdrop-blur-sm transition-all'>
-                      <div className='space-y-2'>
-                        <div className='flex items-start justify-between'>
-                          <div className='space-y-1'>
-                            <div className='text-xs text-muted-foreground'>Next milestone</div>
-                            <div className='font-semibold'>{nextUnearned.name}</div>
-                            <div className='text-xs text-muted-foreground/80 line-clamp-2 mt-1'>
-                              {nextUnearned.description}
-                            </div>
-                          </div>
-                          <div className='text-muted-foreground p-1.5 rounded-full bg-muted/90 shadow-inner'>
-                            <Clock className='h-5 w-5' />
-                          </div>
-                        </div>
+                    <div className='p-3 space-y-4'>
+                      {/* Badge progress path */}
+                      <div className='relative py-6'>
+                        <div className='absolute h-2 bg-muted/40 top-1/2 -translate-y-1/2 left-0 right-0 rounded-full'></div>
+                        <div className='flex justify-between items-center relative'>
+                          {/* Render milestone nodes for requirementBadges */}
+                          {requirementBadges.map((badge, index) => {
+                            const isAchieved = badge.isAchieved;
+                            const isNextUp =
+                              !isAchieved &&
+                              !requirementBadges.slice(0, index).some((b) => !b.isAchieved);
+                            return (
+                              <div
+                                key={badge.id}
+                                className='flex items-center justify-center w-full relative group'>
+                                <div
+                                  className={`
+                                    w-10 h-10 rounded-full flex items-center justify-center relative z-20 transition-all hover:scale-105 cursor-help
+                                    ${
+                                      isAchieved
+                                        ? `${categoryMeta.bgColor} ${categoryMeta.color} border-2 ${categoryMeta.borderColor} shadow-sm`
+                                        : isNextUp
+                                          ? 'bg-background border-2 border-primary/60 text-primary shadow-sm'
+                                          : 'bg-muted/80 text-muted-foreground'
+                                    }
+                                  `}>
+                                  {isAchieved ? (
+                                    <BadgeCheck className='h-5 w-5' />
+                                  ) : isNextUp ? (
+                                    <span className='text-sm font-semibold'>
+                                      {badge.thresholdValue}
+                                    </span>
+                                  ) : (
+                                    <Lock className='h-4 w-4' />
+                                  )}
+                                </div>
+                                {/* Tooltip for badge name/desc */}
+                                <div className='absolute bottom-full mb-2 w-max max-w-xs p-2 text-xs bg-black text-white rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 text-center'>
+                                  {badge.name}
+                                  <br />
+                                  <span className='text-muted-foreground text-[10px]'>
+                                    {badge.description}
+                                  </span>
+                                </div>
 
-                        {nextUnearned.currentValue > 0 && (
-                          <div className='space-y-1'>
-                            <div className='flex justify-between text-xs'>
-                              <span>
-                                {nextUnearned.currentValue} / {nextUnearned.thresholdValue}
-                              </span>
-                              <span>
-                                {Math.min(
-                                  Math.round(
-                                    (nextUnearned.currentValue /
-                                      (nextUnearned.thresholdValue || 1)) *
-                                      100,
-                                  ),
-                                  99,
+                                {/* Progress line overlay (achieved) - connect to next badge */}
+                                {isAchieved && index < requirementBadges.length - 1 && (
+                                  <div
+                                    className={`absolute h-3 ${categoryMeta.bgColor} right-0 left-1/2 top-1/2 -translate-y-1/2 rounded-full z-10`}
+                                    style={{ opacity: 0.8 }}></div>
                                 )}
-                                %
-                              </span>
-                            </div>
-                            <Progress
-                              value={Math.min(
-                                (nextUnearned.currentValue / (nextUnearned.thresholdValue || 1)) *
-                                  100,
-                                99,
-                              )}
-                              className='h-2 rounded-full overflow-hidden'
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Optional: If all badges in category are earned */}
-                  {earnedInCategory === categoryBadges.length && earnedInCategory > 0 && (
-                    <div className='rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 backdrop-blur-sm transition-all'>
-                      <div className='flex items-center gap-3'>
-                        <div className='bg-emerald-500/20 p-1.5 rounded-full'>
-                          <Trophy className='h-5 w-5 text-emerald-500' />
+                                {/* Progress line overlay (previous achieved) - connect to previous badge */}
+                                {isAchieved && index > 0 && (
+                                  <div
+                                    className={`absolute h-3 ${categoryMeta.bgColor} left-0 right-1/2 top-1/2 -translate-y-1/2 rounded-full z-10`}
+                                    style={{ opacity: 0.8 }}></div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                        <span className='font-medium text-emerald-500'>
-                          All {info.label} badges achieved!
-                        </span>
                       </div>
+
+                      {/* Next milestone info */}
+                      {nextUnearned && (
+                        <div className='bg-muted/30 p-3 rounded-lg flex items-center justify-between text-sm'>
+                          <div>
+                            <p className='text-muted-foreground text-xs mb-0.5'>Next milestone</p>
+                            <p className='font-medium'>{nextUnearned.name}</p>
+                            <p className='text-muted-foreground text-xs mt-0.5'>
+                              {nextUnearned.description}
+                            </p>
+                          </div>
+                          <div className='text-right'>
+                            <p className='font-semibold text-lg'>
+                              {nextUnearned.currentValue}/{nextUnearned.thresholdValue}
+                            </p>
+                            <Progress value={nextUnearned.progress} className='h-1.5 w-16 mt-1' />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
-            </section>
+                  </section>
+                );
+              })}
+            </div>
           );
         })}
       </div>

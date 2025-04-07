@@ -21,6 +21,7 @@ import { StreakController } from './controllers/streak.controller';
 import { GamificationController } from './gamification.controller';
 import { ActivityHooksService } from './services/activity-hooks.service';
 import { ActivityTrackingService } from './services/activity-tracking.service';
+import { BadgeSchedulerService } from './services/badge-scheduler.service';
 import { BadgeService } from './services/badge.service';
 import { LeaderboardService } from './services/leaderboard.service';
 import { ReputationService } from './services/reputation.service';
@@ -57,6 +58,7 @@ import { StreakSchedulerService } from './services/streak-scheduler.service';
     BadgeService,
     ReputationService,
     LeaderboardService,
+    BadgeSchedulerService,
   ],
   exports: [
     ActivityTrackingService,

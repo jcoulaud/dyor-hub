@@ -1,4 +1,5 @@
-import { UserPreferences } from '@dyor-hub/types';
+import { UserPreferences, defaultUserPreferences } from '@dyor-hub/types';
+import { UserEntity } from '../../entities';
 
 export class UserResponseDto {
   id: string;
@@ -6,19 +7,32 @@ export class UserResponseDto {
   username: string;
   avatarUrl: string;
   isAdmin: boolean;
-  // Optional, but only populate specific keys publicly
   preferences?: Partial<UserPreferences>;
+  primaryWalletAddress?: string;
 
   constructor(partial: Partial<UserResponseDto>) {
     Object.assign(this, partial);
   }
 
-  static fromEntity(user: any): UserResponseDto {
-    // Selectively build the preferences object for public view
-    const publicPreferences: Partial<UserPreferences> = {};
-    if (user.preferences?.showWalletAddress !== undefined) {
-      publicPreferences.showWalletAddress = user.preferences.showWalletAddress;
+  static fromEntity(user: UserEntity): UserResponseDto {
+    // Find the primary verified wallet address
+    let primaryAddress: string | undefined = undefined;
+    if (
+      user.wallets &&
+      Array.isArray(user.wallets) &&
+      user.wallets.length > 0
+    ) {
+      const primaryWallet = user.wallets.find(
+        (w) => w.isPrimary && w.isVerified,
+      );
+      // Only use the address if a wallet is both primary AND verified.
+      primaryAddress = primaryWallet?.address;
     }
+
+    const showAddressPref = user.preferences?.showWalletAddress;
+
+    const finalAddress =
+      showAddressPref && primaryAddress ? primaryAddress : undefined;
 
     return new UserResponseDto({
       id: user.id,
@@ -26,7 +40,8 @@ export class UserResponseDto {
       username: user.username,
       avatarUrl: user.avatarUrl,
       isAdmin: user.isAdmin || false,
-      preferences: publicPreferences,
+      preferences: { ...defaultUserPreferences, ...(user.preferences || {}) },
+      primaryWalletAddress: finalAddress,
     });
   }
 }

@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import cookieParser from 'cookie-parser';
 import { json } from 'express';
 import session from 'express-session';
@@ -23,6 +24,8 @@ async function bootstrap() {
       ? ['log', 'debug', 'error', 'verbose', 'warn']
       : ['error', 'warn'],
   });
+
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   const configService = app.get(ConfigService);
   const sessionService = app.get(SessionService);

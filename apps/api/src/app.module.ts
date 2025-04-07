@@ -1,12 +1,12 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
-import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
+import { OptionalAuthGuard } from './auth/optional-auth.guard';
 import { CommentsModule } from './comments/comments.module';
 import dataSource from './datasource';
 import {
@@ -29,7 +29,6 @@ import {
 } from './entities';
 import { GamificationModule } from './gamification/gamification.module';
 import { HealthModule } from './health/health.module';
-import { PublicRouteMiddleware } from './middlewares/global.middleware';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SessionModule } from './session/session.module';
 import { SolanaModule } from './solana/solana.module';
@@ -78,13 +77,8 @@ import { WatchlistModule } from './watchlist/watchlist.module';
   providers: [
     {
       provide: APP_GUARD,
-      useClass: AuthGuard,
+      useClass: OptionalAuthGuard,
     },
   ],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    // Apply public route middleware to all routes
-    consumer.apply(PublicRouteMiddleware).forRoutes('*');
-  }
-}
+export class AppModule {}

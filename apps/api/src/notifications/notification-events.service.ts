@@ -1,28 +1,54 @@
 import { NotificationEventType, NotificationType } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { CommentEntity } from '../entities';
+import { NotificationsGateway } from './notifications.gateway';
 import { NotificationsService } from './notifications.service';
 
 @Injectable()
 export class NotificationEventsService {
   private readonly logger = new Logger(NotificationEventsService.name);
 
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly notificationsGateway: NotificationsGateway,
+    @InjectRepository(CommentEntity)
+    private readonly commentRepository: Repository<CommentEntity>,
+  ) {}
 
-  @OnEvent(NotificationEventType.STREAK_AT_RISK)
-  async handleStreakAtRisk(payload: { userId: string; currentStreak: number }) {
+  private async createAndEmitNotification(
+    userId: string,
+    type: NotificationType,
+    message: string,
+    relatedEntityId?: string,
+    relatedEntityType?: string,
+    relatedMetadata?: Record<string, any> | null,
+  ) {
     try {
       await this.notificationsService.createNotification(
-        payload.userId,
-        NotificationType.STREAK_AT_RISK,
-        `Your ${payload.currentStreak} day streak is at risk! Log in now to keep it going.`,
+        userId,
+        type,
+        message,
+        relatedEntityId,
+        relatedEntityType,
+        relatedMetadata,
       );
     } catch (error) {
       this.logger.error(
-        `Failed to create streak at risk notification: ${error.message}`,
-        error.stack,
+        `Failed to create ${type} notification event for user ${userId}: ${error.message}`,
       );
     }
+  }
+
+  @OnEvent(NotificationEventType.STREAK_AT_RISK)
+  async handleStreakAtRisk(payload: { userId: string; currentStreak: number }) {
+    await this.createAndEmitNotification(
+      payload.userId,
+      NotificationType.STREAK_AT_RISK,
+      `Your ${payload.currentStreak} day streak is at risk! Log in now to keep it going.`,
+    );
   }
 
   @OnEvent(NotificationEventType.STREAK_BROKEN)
@@ -30,18 +56,11 @@ export class NotificationEventsService {
     userId: string;
     previousStreak: number;
   }) {
-    try {
-      await this.notificationsService.createNotification(
-        payload.userId,
-        NotificationType.STREAK_BROKEN,
-        `Your ${payload.previousStreak} day streak has been reset. Start a new streak today!`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to create streak broken notification: ${error.message}`,
-        error.stack,
-      );
-    }
+    await this.createAndEmitNotification(
+      payload.userId,
+      NotificationType.STREAK_BROKEN,
+      `Your ${payload.previousStreak} day streak has been reset. Start a new streak today!`,
+    );
   }
 
   @OnEvent(NotificationEventType.STREAK_MILESTONE)
@@ -49,18 +68,11 @@ export class NotificationEventsService {
     userId: string;
     currentStreak: number;
   }) {
-    try {
-      await this.notificationsService.createNotification(
-        payload.userId,
-        NotificationType.STREAK_ACHIEVED,
-        `Congratulations! You've reached a ${payload.currentStreak} day streak!`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to create streak milestone notification: ${error.message}`,
-        error.stack,
-      );
-    }
+    await this.createAndEmitNotification(
+      payload.userId,
+      NotificationType.STREAK_ACHIEVED,
+      `Congratulations! You've reached a ${payload.currentStreak} day streak!`,
+    );
   }
 
   @OnEvent(NotificationEventType.BADGE_EARNED)
@@ -69,20 +81,13 @@ export class NotificationEventsService {
     badgeId: string;
     badgeName: string;
   }) {
-    try {
-      await this.notificationsService.createNotification(
-        payload.userId,
-        NotificationType.BADGE_EARNED,
-        `You've earned the "${payload.badgeName}" badge!`,
-        payload.badgeId,
-        'badge',
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to create badge earned notification: ${error.message}`,
-        error.stack,
-      );
-    }
+    await this.createAndEmitNotification(
+      payload.userId,
+      NotificationType.BADGE_EARNED,
+      `You've earned the "${payload.badgeName}" badge!`,
+      payload.badgeId,
+      'badge',
+    );
   }
 
   @OnEvent(NotificationEventType.REPUTATION_MILESTONE)
@@ -90,18 +95,11 @@ export class NotificationEventsService {
     userId: string;
     reputation: number;
   }) {
-    try {
-      await this.notificationsService.createNotification(
-        payload.userId,
-        NotificationType.REPUTATION_MILESTONE,
-        `Congratulations! Your reputation has reached ${payload.reputation} points.`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to create reputation milestone notification: ${error.message}`,
-        error.stack,
-      );
-    }
+    await this.createAndEmitNotification(
+      payload.userId,
+      NotificationType.REPUTATION_MILESTONE,
+      `Congratulations! Your reputation has reached ${payload.reputation} points.`,
+    );
   }
 
   @OnEvent(NotificationEventType.COMMENT_REPLY)
@@ -111,20 +109,27 @@ export class NotificationEventsService {
     replyAuthor: string;
     commentText: string;
   }) {
+    let tokenMintAddress: string | null = null;
     try {
-      await this.notificationsService.createNotification(
-        payload.userId,
-        NotificationType.COMMENT_REPLY,
-        `${payload.replyAuthor} replied to your comment: "${payload.commentText.substring(0, 50)}${payload.commentText.length > 50 ? '...' : ''}"`,
-        payload.commentId,
-        'comment',
-      );
-    } catch (error) {
+      const comment = await this.commentRepository.findOne({
+        where: { id: payload.commentId },
+        select: ['tokenMintAddress'],
+      });
+      tokenMintAddress = comment?.tokenMintAddress;
+    } catch (e) {
       this.logger.error(
-        `Failed to create comment reply notification: ${error.message}`,
-        error.stack,
+        `Failed to get token address for comment ${payload.commentId} on reply event`,
       );
     }
+
+    await this.createAndEmitNotification(
+      payload.userId,
+      NotificationType.COMMENT_REPLY,
+      `${payload.replyAuthor} replied to your comment: "${payload.commentText.substring(0, 50)}${payload.commentText.length > 50 ? '...' : ''}"`,
+      payload.commentId,
+      'comment',
+      tokenMintAddress ? { tokenMintAddress } : null,
+    );
   }
 
   @OnEvent(NotificationEventType.COMMENT_UPVOTED)
@@ -133,20 +138,27 @@ export class NotificationEventsService {
     commentId: string;
     voterName: string;
   }) {
+    let tokenMintAddress: string | null = null;
     try {
-      await this.notificationsService.createNotification(
-        payload.userId,
-        NotificationType.UPVOTE_RECEIVED,
-        `${payload.voterName} upvoted your comment`,
-        payload.commentId,
-        'comment',
-      );
-    } catch (error) {
+      const comment = await this.commentRepository.findOne({
+        where: { id: payload.commentId },
+        select: ['tokenMintAddress'],
+      });
+      tokenMintAddress = comment?.tokenMintAddress;
+    } catch (e) {
       this.logger.error(
-        `Failed to create upvote notification: ${error.message}`,
-        error.stack,
+        `Failed to get token address for comment ${payload.commentId} on upvote event`,
       );
     }
+
+    await this.createAndEmitNotification(
+      payload.userId,
+      NotificationType.UPVOTE_RECEIVED,
+      `${payload.voterName} upvoted your comment`,
+      payload.commentId,
+      'comment',
+      tokenMintAddress ? { tokenMintAddress } : null,
+    );
   }
 
   @OnEvent(NotificationEventType.LEADERBOARD_POSITION_CHANGE)
@@ -157,48 +169,41 @@ export class NotificationEventsService {
     category?: string;
     timeframe?: string;
   }) {
-    try {
-      let leaderboardName = 'leaderboard';
+    let leaderboardName = 'leaderboard';
 
-      if (payload.timeframe) {
-        const timeframeDisplay =
-          {
-            weekly: 'Weekly',
-            monthly: 'Monthly',
-            all_time: 'All-Time',
-          }[payload.timeframe] || payload.timeframe;
+    if (payload.timeframe) {
+      const timeframeDisplay =
+        {
+          weekly: 'Weekly',
+          monthly: 'Monthly',
+          all_time: 'All-Time',
+        }[payload.timeframe] || payload.timeframe;
 
-        leaderboardName = `${timeframeDisplay} ${leaderboardName}`;
-      }
-
-      if (payload.category) {
-        const categoryDisplay =
-          {
-            reputation: 'Reputation',
-            comments: 'Comments',
-            posts: 'Posts',
-            upvotes_given: 'Upvotes Given',
-            upvotes_received: 'Upvotes Received',
-          }[payload.category] || payload.category;
-
-        leaderboardName = `${categoryDisplay} ${leaderboardName}`;
-      }
-
-      const message =
-        payload.newPosition < payload.previousPosition
-          ? `You've moved up to position #${payload.newPosition} on the ${leaderboardName}!`
-          : `Your position on the ${leaderboardName} has changed to #${payload.newPosition}.`;
-
-      await this.notificationsService.createNotification(
-        payload.userId,
-        NotificationType.LEADERBOARD_CHANGE,
-        message,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to create leaderboard notification: ${error.message}`,
-        error.stack,
-      );
+      leaderboardName = `${timeframeDisplay} ${leaderboardName}`;
     }
+
+    if (payload.category) {
+      const categoryDisplay =
+        {
+          reputation: 'Reputation',
+          comments: 'Comments',
+          posts: 'Posts',
+          upvotes_given: 'Upvotes Given',
+          upvotes_received: 'Upvotes Received',
+        }[payload.category] || payload.category;
+
+      leaderboardName = `${categoryDisplay} ${leaderboardName}`;
+    }
+
+    const message =
+      payload.newPosition < payload.previousPosition
+        ? `You've moved up to position #${payload.newPosition} on the ${leaderboardName}!`
+        : `Your position on the ${leaderboardName} has changed to #${payload.newPosition}.`;
+
+    await this.createAndEmitNotification(
+      payload.userId,
+      NotificationType.LEADERBOARD_CHANGE,
+      message,
+    );
   }
 }

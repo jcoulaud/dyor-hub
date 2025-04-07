@@ -85,7 +85,6 @@ export class CommentsController {
     }
   }
 
-  @Public()
   @Get('/thread/:id')
   async getCommentThread(
     @Param('id') id: string,
@@ -114,7 +113,6 @@ export class CommentsController {
     }
   }
 
-  @Public()
   @Get()
   async getComments(
     @Query('tokenMintAddress') tokenMintAddress: string,
@@ -172,7 +170,6 @@ export class CommentsController {
     );
   }
 
-  @Public()
   @Get(':id')
   async getCommentById(
     @Param('id') id: string,

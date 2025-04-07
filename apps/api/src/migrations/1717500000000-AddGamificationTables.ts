@@ -48,7 +48,14 @@ export class AddGamificationTables1717500000000 implements MigrationInterface {
     // Badges table
     await queryRunner.query(`
       CREATE TYPE "public"."badges_category_enum" AS ENUM(
-        'streak', 'content', 'engagement', 'voting', 'reception', 'quality'
+        'streak', 'content', 'engagement', 'voting', 'reception', 'quality', 'ranking'
+      )
+    `);
+    await queryRunner.query(`
+      CREATE TYPE "public"."badges_requirement_enum" AS ENUM(
+        'CURRENT_STREAK', 'MAX_STREAK', 'POSTS_COUNT', 'COMMENTS_COUNT',
+        'UPVOTES_RECEIVED_COUNT', 'VOTES_CAST_COUNT', 'COMMENTS_RECEIVED_COUNT',
+        'MAX_COMMENT_UPVOTES', 'MAX_POST_UPVOTES', 'TOP_PERCENT_WEEKLY'
       )
     `);
     await queryRunner.query(`
@@ -227,6 +234,7 @@ export class AddGamificationTables1717500000000 implements MigrationInterface {
     // Drop badges
     await queryRunner.query(`DROP TABLE "badges"`);
     await queryRunner.query(`DROP TYPE "public"."badges_category_enum"`);
+    await queryRunner.query(`DROP TYPE "public"."badges_requirement_enum"`);
 
     // Drop user streaks
     await queryRunner.query(

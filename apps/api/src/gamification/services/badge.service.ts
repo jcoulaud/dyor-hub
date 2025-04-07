@@ -1,8 +1,13 @@
-import { BadgeRequirement, NotificationEventType } from '@dyor-hub/types';
+import {
+  BadgeRequirement,
+  LeaderboardCategory,
+  LeaderboardTimeframe,
+  NotificationEventType,
+} from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { In, IsNull, MoreThanOrEqual, Repository } from 'typeorm';
 import {
   ActivityType,
   BadgeCategory,
@@ -10,9 +15,9 @@ import {
   CommentEntity,
   UserActivityEntity,
   UserBadgeEntity,
-  UserReputationEntity,
   UserStreakEntity,
 } from '../../entities';
+import { LeaderboardService } from './leaderboard.service';
 
 @Injectable()
 export class BadgeService {
@@ -36,8 +41,7 @@ export class BadgeService {
     private readonly userStreakRepository: Repository<UserStreakEntity>,
     @InjectRepository(CommentEntity)
     private readonly commentRepository: Repository<CommentEntity>,
-    @InjectRepository(UserReputationEntity)
-    private readonly userReputationRepository: Repository<UserReputationEntity>,
+    private readonly leaderboardService: LeaderboardService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -91,56 +95,239 @@ export class BadgeService {
     }
   }
 
-  async checkAndAwardBadges(userId: string): Promise<UserBadgeEntity[]> {
+  /**
+   * Checks ALL potential badges for a user, EXCLUDING weekly specific ones.
+   * Called by the periodic scheduler.
+   */
+  async checkAllUserBadges(userId: string): Promise<UserBadgeEntity[]> {
     try {
-      // Check if rate limited
       if (this.isRateLimited(userId)) {
         this.logger.log(
-          `Badge check for user ${userId} skipped due to rate limiting`,
+          `Full badge check for user ${userId} skipped due to rate limiting`,
         );
         return [];
       }
-
-      // Mark check as in progress
       this.markCheckInProgress(userId);
 
-      // Get all available badges
       const badges = await this.badgeRepository.find({
-        where: { isActive: true },
+        where: {
+          isActive: true,
+          // Exclude weekly badges from this frequent check
+        },
       });
 
-      // Get badges that user already has
-      const userBadges = await this.userBadgeRepository.find({
-        where: { userId },
-        relations: ['badge'],
-      });
-
-      // Find badges the user doesn't have yet
-      const userBadgeIds = userBadges.map((ub) => ub.badgeId);
-      const availableBadges = badges.filter(
-        (badge) => !userBadgeIds.includes(badge.id),
+      const badgesToCheck = badges.filter(
+        (b) => b.requirement !== BadgeRequirement.TOP_PERCENT_WEEKLY,
       );
 
-      if (availableBadges.length === 0) {
-        // Mark check as complete
-        this.markCheckComplete(userId);
-        return [];
-      }
+      const awardedBadges = await this.processBadgeEligibility(
+        userId,
+        badgesToCheck,
+      );
 
-      const newlyAwardedBadges: UserBadgeEntity[] = [];
+      this.markCheckComplete(userId);
+      return awardedBadges;
+    } catch (error) {
+      this.logger.error(
+        `Failed to check all badges for user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      this.markCheckComplete(userId);
+      throw error;
+    }
+  }
 
-      // Check each badge requirement
-      for (const badge of availableBadges) {
-        const isEligible = await this.checkBadgeEligibility(userId, badge);
+  /**
+   * Checks badges related to specific activity counts (posts, comments, votes cast).
+   */
+  async checkActivityCountBadges(
+    userId: string,
+    activityType: ActivityType,
+  ): Promise<UserBadgeEntity[]> {
+    const relevantRequirements = {
+      [ActivityType.POST]: [BadgeRequirement.POSTS_COUNT],
+      [ActivityType.COMMENT]: [BadgeRequirement.COMMENTS_COUNT],
+      [ActivityType.UPVOTE]: [BadgeRequirement.VOTES_CAST_COUNT],
+      // Add other activity types if they have count badges
+    };
 
-        if (isEligible) {
-          // Award the badge
-          const userBadge = this.userBadgeRepository.create({
-            userId,
-            badgeId: badge.id,
-            earnedAt: new Date(),
-          });
+    const requirementsToCheck = relevantRequirements[activityType];
+    if (!requirementsToCheck || requirementsToCheck.length === 0) {
+      return [];
+    }
 
+    try {
+      const badgesToCheck = await this.badgeRepository.find({
+        where: {
+          isActive: true,
+          requirement: In(requirementsToCheck),
+        },
+      });
+
+      return this.processBadgeEligibility(userId, badgesToCheck);
+    } catch (error) {
+      this.logger.error(
+        `Failed to check ${activityType} count badges for user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      // Don't throw, allow originating action to succeed
+      return [];
+    }
+  }
+
+  /**
+   * Checks badges related to streaks (current, max).
+   */
+  async checkStreakBadges(userId: string): Promise<UserBadgeEntity[]> {
+    const requirementsToCheck = [
+      BadgeRequirement.CURRENT_STREAK,
+      BadgeRequirement.MAX_STREAK,
+    ];
+    try {
+      const badgesToCheck = await this.badgeRepository.find({
+        where: {
+          isActive: true,
+          requirement: In(requirementsToCheck),
+        },
+      });
+      return this.processBadgeEligibility(userId, badgesToCheck);
+    } catch (error) {
+      this.logger.error(
+        `Failed to check streak badges for user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Checks badges related to receiving interactions (upvotes, comments).
+   */
+  async checkReceivedInteractionBadges(
+    userId: string,
+  ): Promise<UserBadgeEntity[]> {
+    const requirementsToCheck = [
+      BadgeRequirement.UPVOTES_RECEIVED_COUNT,
+      BadgeRequirement.COMMENTS_RECEIVED_COUNT,
+    ];
+    try {
+      const badgesToCheck = await this.badgeRepository.find({
+        where: {
+          isActive: true,
+          requirement: In(requirementsToCheck),
+        },
+      });
+      return this.processBadgeEligibility(userId, badgesToCheck);
+    } catch (error) {
+      this.logger.error(
+        `Failed to check received interaction badges for user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Checks badges related to the quality/reception of a specific comment (e.g., min upvotes).
+   */
+  async checkCommentQualityBadges(
+    userId: string, // Owner of the comment
+    commentId: string,
+  ): Promise<UserBadgeEntity[]> {
+    const requirementsToCheck = [BadgeRequirement.MAX_COMMENT_UPVOTES];
+    try {
+      const badgesToCheck = await this.badgeRepository.find({
+        where: {
+          isActive: true,
+          requirement: In(requirementsToCheck),
+        },
+      });
+      // Pass commentId context if necessary for eligibility check
+      return this.processBadgeEligibility(userId, badgesToCheck, { commentId });
+    } catch (error) {
+      this.logger.error(
+        `Failed to check comment quality badges for user ${userId}, comment ${commentId}: ${error.message}`,
+        error.stack,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Checks badges related to the quality/reception of a specific post (e.g., min upvotes).
+   */
+  async checkPostQualityBadges(
+    userId: string, // Owner of the post
+    postId: string, // ID of the top-level comment representing the post
+  ): Promise<UserBadgeEntity[]> {
+    const requirementsToCheck = [BadgeRequirement.MAX_POST_UPVOTES];
+    try {
+      const badgesToCheck = await this.badgeRepository.find({
+        where: {
+          isActive: true,
+          requirement: In(requirementsToCheck),
+        },
+      });
+      // Pass postId if needed later
+      return this.processBadgeEligibility(userId, badgesToCheck);
+    } catch (error) {
+      this.logger.error(
+        `Failed to check post quality badges for user ${userId}, post ${postId}: ${error.message}`,
+        error.stack,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Processes eligibility for a list of badges for a given user.
+   * Optional context can be passed for specific checks.
+   */
+  private async processBadgeEligibility(
+    userId: string,
+    badges: BadgeEntity[],
+    context?: { commentId?: string },
+  ): Promise<UserBadgeEntity[]> {
+    if (badges.length === 0) {
+      return [];
+    }
+
+    // Get badges the user already has to avoid re-checking/re-awarding
+    const userBadges = await this.userBadgeRepository.find({
+      where: { userId, badgeId: In(badges.map((b) => b.id)) },
+      select: ['badgeId'],
+    });
+    const userBadgeIds = userBadges.map((ub) => ub.badgeId);
+
+    // Filter out badges the user already possesses
+    const badgesToReallyCheck = badges.filter(
+      (badge) => !userBadgeIds.includes(badge.id),
+    );
+
+    if (badgesToReallyCheck.length === 0) {
+      return [];
+    }
+
+    const newlyAwardedBadges: UserBadgeEntity[] = [];
+
+    // Check each remaining badge requirement
+    for (const badge of badgesToReallyCheck) {
+      // Pass the context flag to the eligibility checker
+      const isEligible = await this.checkSingleBadgeEligibility(
+        userId,
+        badge,
+        context,
+      );
+
+      if (isEligible) {
+        // Award the badge
+        const userBadge = this.userBadgeRepository.create({
+          userId,
+          badgeId: badge.id,
+          earnedAt: new Date(),
+        });
+
+        try {
           await this.userBadgeRepository.save(userBadge);
           newlyAwardedBadges.push(userBadge);
 
@@ -150,39 +337,45 @@ export class BadgeService {
             badgeId: badge.id,
             badgeName: badge.name,
           });
+        } catch (saveError) {
+          // Handle potential race condition if badge was awarded by another process
+          // between the check and the save (e.g., unique constraint violation)
+          if (saveError.code === '23505') {
+            // Check for typical unique constraint error code
+            this.logger.warn(
+              `Attempted to award badge ${badge.name} to user ${userId}, but it was already awarded (likely race condition).`,
+            );
+          } else {
+            this.logger.error(
+              `Failed to save awarded badge ${badge.name} for user ${userId}: ${saveError.message}`,
+              saveError.stack,
+            );
+          }
         }
       }
-
-      // Mark check as complete
-      this.markCheckComplete(userId);
-
-      return newlyAwardedBadges;
-    } catch (error) {
-      this.logger.error(
-        `Failed to check and award badges for user ${userId}: ${error.message}`,
-        error.stack,
-      );
-
-      // Mark check as complete even in case of error
-      this.markCheckComplete(userId);
-
-      throw error;
     }
+    return newlyAwardedBadges;
   }
 
   // Force check badges for a user regardless of rate limiting
   async forceCheckAndAwardBadges(userId: string): Promise<UserBadgeEntity[]> {
-    // Clear any rate limiting for this user
     this.userCheckCache.delete(userId);
-
-    // Proceed with normal badge check
-    return this.checkAndAwardBadges(userId);
+    return this.checkAllUserBadges(userId);
   }
 
-  private async checkBadgeEligibility(
+  private async checkSingleBadgeEligibility(
     userId: string,
     badge: BadgeEntity,
+    context?: { commentId?: string },
   ): Promise<boolean> {
+    // Early exit if checking the wrong type of badge for the context
+    if (badge.requirement === BadgeRequirement.TOP_PERCENT_WEEKLY && !context) {
+      return false; // Don't check weekly badges during regular checks
+    }
+    if (badge.requirement !== BadgeRequirement.TOP_PERCENT_WEEKLY && context) {
+      return false; // Only check weekly badges during the weekly check
+    }
+
     try {
       switch (badge.requirement) {
         case BadgeRequirement.CURRENT_STREAK:
@@ -190,47 +383,41 @@ export class BadgeService {
         case BadgeRequirement.MAX_STREAK:
           return this.checkMaxStreakRequirement(userId, badge.thresholdValue);
         case BadgeRequirement.POSTS_COUNT:
-          return this.checkActivityCountRequirement(
+          return this.checkActivityCount(
             userId,
             ActivityType.POST,
             badge.thresholdValue,
           );
         case BadgeRequirement.COMMENTS_COUNT:
-          return this.checkActivityCountRequirement(
+          return this.checkActivityCount(
             userId,
             ActivityType.COMMENT,
             badge.thresholdValue,
           );
         case BadgeRequirement.VOTES_CAST_COUNT:
-          return this.checkActivityCountRequirement(
+          return this.checkActivityCount(
             userId,
             ActivityType.UPVOTE,
             badge.thresholdValue,
           );
         case BadgeRequirement.UPVOTES_RECEIVED_COUNT:
-          return this.checkUpvotesReceivedRequirement(
-            userId,
-            badge.thresholdValue,
-          );
+          return this.checkTotalUpvotesReceived(userId, badge.thresholdValue);
         case BadgeRequirement.COMMENTS_RECEIVED_COUNT:
-          return this.checkCommentsReceivedRequirement(
-            userId,
-            badge.thresholdValue,
-          );
+          return this.checkTotalCommentsReceived(userId, badge.thresholdValue);
         case BadgeRequirement.MAX_COMMENT_UPVOTES:
-          return this.checkCommentMinUpvotesRequirement(
+          return this.checkCommentMinUpvotes(
+            context?.commentId,
             userId,
             badge.thresholdValue,
           );
         case BadgeRequirement.MAX_POST_UPVOTES:
-          return this.checkPostMinUpvotesRequirement(
-            userId,
-            badge.thresholdValue,
-          );
+          return this.checkPostMinUpvotes(userId, badge.thresholdValue);
         case BadgeRequirement.TOP_PERCENT_WEEKLY:
-          return this.checkTopPercentWeeklyRequirement(
+          return this.checkLeaderboardPercentile(
             userId,
             badge.thresholdValue,
+            LeaderboardCategory.REPUTATION,
+            LeaderboardTimeframe.ALL_TIME,
           );
         default:
           this.logger.warn(
@@ -278,202 +465,140 @@ export class BadgeService {
     return userStreak.longestStreak >= requiredStreak;
   }
 
-  private async checkActivityCountRequirement(
+  private async checkActivityCount(
     userId: string,
     activityType: ActivityType,
-    requiredCount: number,
-  ): Promise<boolean> {
-    const count = await this.userActivityRepository.count({
-      where: {
-        userId,
-        activityType,
-      },
-    });
-
-    return count >= requiredCount;
-  }
-
-  private async checkUpvotesReceivedRequirement(
-    userId: string,
-    requiredCount: number,
-  ): Promise<boolean> {
-    const result = await this.commentRepository
-      .createQueryBuilder('comment')
-      .leftJoin('comment.votes', 'votes', 'votes.type = :voteType', {
-        voteType: 'upvote',
-      })
-      .where('comment.userId = :userId', { userId })
-      .select('COUNT(votes.id)', 'upvoteCount')
-      .getRawOne();
-
-    return result && parseInt(result.upvoteCount, 10) >= requiredCount;
-  }
-
-  private async checkCommentsReceivedRequirement(
-    userId: string,
-    requiredCount: number,
-  ): Promise<boolean> {
-    const result = await this.commentRepository
-      .createQueryBuilder('comment')
-      .where(
-        'comment.parentId IN (SELECT id FROM comments WHERE user_id = :userId)',
-        { userId },
-      )
-      .select('COUNT(comment.id)', 'replyCount')
-      .getRawOne();
-
-    return result && parseInt(result.replyCount, 10) >= requiredCount;
-  }
-
-  private async checkCommentMinUpvotesRequirement(
-    userId: string,
-    minUpvotes: number,
-  ): Promise<boolean> {
-    const result = await this.commentRepository
-      .createQueryBuilder('comment')
-      .where('comment.userId = :userId', { userId })
-      .andWhere('comment.upvotes >= :minUpvotes', { minUpvotes })
-      .getCount();
-
-    return result > 0;
-  }
-
-  private async checkPostMinUpvotesRequirement(
-    userId: string,
-    minUpvotes: number,
+    threshold: number,
   ): Promise<boolean> {
     try {
-      // Use comments that represent top-level posts (without a parent)
-      // and have enough upvotes
-      const posts = await this.commentRepository
-        .createQueryBuilder('comment')
-        .where('comment.userId = :userId', { userId })
-        .andWhere('comment.parentId IS NULL') // Only top-level comments (posts)
-        .andWhere('comment.upvotes >= :minUpvotes', { minUpvotes })
-        .getCount();
-
-      return posts > 0;
+      const count = await this.userActivityRepository.count({
+        where: {
+          userId,
+          activityType,
+        },
+      });
+      return count >= threshold;
     } catch (error) {
       this.logger.error(
-        `Error checking post min upvotes requirement: ${error.message}`,
-        error.stack,
+        `Error checking ${activityType} count for user ${userId}: ${error.message}`,
       );
       return false;
     }
   }
 
-  private async checkTopPercentWeeklyRequirement(
+  private async checkTotalUpvotesReceived(
     userId: string,
-    percentThreshold: number,
+    requiredCount: number,
   ): Promise<boolean> {
     try {
-      // Get start of current week (Monday)
-      const now = new Date();
-      const startOfWeek = new Date(now);
-      const day = startOfWeek.getDay();
-      const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-      startOfWeek.setDate(diff);
-      startOfWeek.setHours(0, 0, 0, 0);
+      const result = await this.commentRepository
+        .createQueryBuilder('comment')
+        .leftJoin('comment.votes', 'votes', 'votes.type = :voteType', {
+          voteType: 'upvote',
+        })
+        .where('comment.userId = :userId', { userId })
+        .select('COUNT(votes.id)', 'upvoteCount')
+        .getRawOne();
 
-      // Step 1: Check weekly reputation ranking
-      const weeklyUserReputations = await this.userReputationRepository.find({
+      const count =
+        result && result.upvoteCount ? parseInt(result.upvoteCount, 10) : 0;
+      this.logger.debug(
+        `User ${userId} received ${count} upvotes (Threshold: ${requiredCount})`,
+      );
+      return count >= requiredCount;
+    } catch (error) {
+      this.logger.error(
+        `Error checking total upvotes received for user ${userId}: ${error.message}`,
+      );
+      return false;
+    }
+  }
+
+  private async checkTotalCommentsReceived(
+    userId: string,
+    requiredCount: number,
+  ): Promise<boolean> {
+    try {
+      // Use subquery to count replies to user's comments
+      const result = await this.commentRepository
+        .createQueryBuilder('reply') // Alias the reply comment
+        .select('COUNT(reply.id)', 'replyCount')
+        // Check where the parentId matches an ID from the subquery
+        .where(
+          'reply.parentId IN (SELECT c.id FROM comments c WHERE c.userId = :userId)',
+          { userId },
+        )
+        .getRawOne();
+
+      const count =
+        result && result.replyCount ? parseInt(result.replyCount, 10) : 0;
+      this.logger.debug(
+        `User ${userId} received replies on ${count} comments (Threshold: ${requiredCount})`,
+      );
+      return count >= requiredCount;
+    } catch (error) {
+      this.logger.error(
+        `Error checking comments received count for user ${userId}: ${error.message}`,
+      );
+      return false;
+    }
+  }
+
+  private async checkCommentMinUpvotes(
+    commentId: string,
+    userId: string,
+    minUpvotes: number,
+  ): Promise<boolean> {
+    try {
+      // Find the specific comment by its ID
+      const comment = await this.commentRepository.findOne({
         where: {
-          weeklyPoints: MoreThanOrEqual(1), // Only users with some weekly points
+          id: commentId,
         },
-        order: {
-          weeklyPoints: 'DESC',
-        },
+        select: ['id', 'upvotes'], // Select upvotes count
       });
 
-      if (weeklyUserReputations.length === 0) {
+      if (!comment) {
+        this.logger.warn(
+          `Comment ${commentId} not found for MAX_COMMENT_UPVOTES check.`,
+        );
         return false;
       }
 
-      // Calculate percentile ranking based on reputation
-      const totalUsers = weeklyUserReputations.length;
-      const userRepIndex = weeklyUserReputations.findIndex(
-        (rep) => rep.userId === userId,
+      this.logger.debug(
+        `Comment ${commentId} (User ${userId}) has ${comment.upvotes} upvotes (Threshold: ${minUpvotes})`,
       );
-
-      if (userRepIndex === -1) {
-        return false; // User not found in the rankings
-      }
-
-      const repPercentile = (userRepIndex / totalUsers) * 100;
-
-      // Step 2: Check for engagement on user's content this week
-      // Get all comments by user created this week
-      const userComments = await this.commentRepository.find({
-        where: {
-          userId,
-          createdAt: MoreThanOrEqual(startOfWeek),
-        },
-      });
-
-      if (userComments.length === 0) {
-        return false; // No comments created this week
-      }
-
-      // Sum upvotes on content created this week
-      const weeklyUpvotes = userComments.reduce(
-        (sum, comment) => sum + comment.upvotes,
-        0,
-      );
-
-      // Get average upvotes per content
-      const avgUpvotesPerContent = weeklyUpvotes / userComments.length;
-
-      // Get all other users' comments created this week
-      const allWeeklyComments = await this.commentRepository.find({
-        where: {
-          createdAt: MoreThanOrEqual(startOfWeek),
-        },
-      });
-
-      // Group comments by users to calculate their average
-      const userUpvoteAverages = new Map<
-        string,
-        { total: number; count: number }
-      >();
-
-      allWeeklyComments.forEach((comment) => {
-        if (!userUpvoteAverages.has(comment.userId)) {
-          userUpvoteAverages.set(comment.userId, { total: 0, count: 0 });
-        }
-        const stats = userUpvoteAverages.get(comment.userId)!;
-        stats.total += comment.upvotes;
-        stats.count++;
-      });
-
-      // Convert to array of average upvotes per content
-      const averageUpvotes = Array.from(userUpvoteAverages.entries())
-        .map(([uid, stats]) => ({
-          userId: uid,
-          average: stats.count > 0 ? stats.total / stats.count : 0,
-        }))
-        .filter((item) => item.average > 0) // Only include users with some upvotes
-        .sort((a, b) => b.average - a.average); // Sort by highest average first
-
-      // Calculate upvote percentile
-      const userUpvoteIndex = averageUpvotes.findIndex(
-        (item) => item.userId === userId,
-      );
-
-      if (userUpvoteIndex === -1 || averageUpvotes.length === 0) {
-        return false; // User not found or no valid data
-      }
-
-      const upvotePercentile = (userUpvoteIndex / averageUpvotes.length) * 100;
-
-      // Final decision: User must be in top X% for either reputation or upvotes
-      return (
-        repPercentile <= percentThreshold ||
-        upvotePercentile <= percentThreshold
-      );
+      // Check if the comment's upvotes meet the threshold
+      return comment.upvotes >= minUpvotes;
     } catch (error) {
       this.logger.error(
-        `Error checking top percent requirement for user ${userId}: ${error.message}`,
-        error.stack,
+        `Error checking min upvotes for comment ${commentId} (User ${userId}): ${error.message}`,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Checks if the user has at least one post (comment with no parent) with a minimum number of upvotes.
+   */
+  private async checkPostMinUpvotes(
+    userId: string,
+    minUpvotes: number,
+  ): Promise<boolean> {
+    try {
+      // Query for a comment by the user with parentId = NULL and enough upvotes
+      const postComment = await this.commentRepository.findOne({
+        where: {
+          userId: userId,
+          parentId: IsNull(), // Check for top-level comments (posts)
+          upvotes: MoreThanOrEqual(minUpvotes),
+        },
+        select: ['id'], // Only need to know if one exists
+      });
+      return !!postComment; // Return true if a matching post comment was found
+    } catch (error) {
+      this.logger.error(
+        `Error checking post min upvotes for user ${userId}: ${error.message}`,
       );
       return false;
     }
@@ -647,8 +772,8 @@ export class BadgeService {
           });
           break;
         case BadgeRequirement.COMMENTS_COUNT:
-          currentValue = await this.userActivityRepository.count({
-            where: { userId, activityType: ActivityType.COMMENT },
+          currentValue = await this.commentRepository.count({
+            where: { userId },
           });
           break;
         case BadgeRequirement.VOTES_CAST_COUNT:
@@ -696,49 +821,38 @@ export class BadgeService {
           break;
         }
         case BadgeRequirement.TOP_PERCENT_WEEKLY: {
-          // For TOP_PERCENT_WEEKLY, we'll show progress based on reputation ranking
-          const now = new Date();
-          const startOfWeek = new Date(now);
-          const day = startOfWeek.getDay();
-          const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-          startOfWeek.setDate(diff);
-          startOfWeek.setHours(0, 0, 0, 0);
+          // Calculate progress towards top X% of All-Time Reputation
+          try {
+            const userPos = await this.leaderboardService.getUserPosition(
+              userId,
+              LeaderboardCategory.REPUTATION,
+              LeaderboardTimeframe.ALL_TIME,
+            );
+            const meta = await this.leaderboardService.getLeaderboard(
+              LeaderboardCategory.REPUTATION,
+              LeaderboardTimeframe.ALL_TIME,
+              1,
+              1,
+            );
+            const total = meta.meta?.total;
 
-          // Get user's weekly reputation
-          const userRep = await this.userReputationRepository.findOne({
-            where: { userId },
-          });
+            if (!userPos || userPos.rank <= 0 || !total || total === 0) {
+              return { progress: 0, currentValue: 0 };
+            }
 
-          if (!userRep) return { progress: 0, currentValue: 0 };
+            const currentPercentile = (userPos.rank / total) * 100;
+            const targetPercentile = badge.thresholdValue;
 
-          // Get all users with some weekly points
-          const reputations = await this.userReputationRepository.find({
-            where: {
-              weeklyPoints: MoreThanOrEqual(1),
-            },
-            order: {
-              weeklyPoints: 'DESC',
-            },
-          });
+            // Progress: 100% if at or better than target.
+            const progress = currentPercentile <= targetPercentile ? 100 : 0;
 
-          if (reputations.length === 0) return { progress: 0, currentValue: 0 };
-
-          // Find user's position
-          const userIndex = reputations.findIndex((r) => r.userId === userId);
-          if (userIndex === -1) return { progress: 0, currentValue: 0 };
-
-          // Calculate percentile (lower is better)
-          const percentile = (userIndex / reputations.length) * 100;
-          currentValue = Math.round(percentile); // Current percentile
-
-          // Calculate progress toward target percentile
-          // If target is 5% (top 5%), then being in top 1% would be 100% progress
-          // Being in top 10% would be 50% progress toward top 5% goal
-          const progress = Math.min(
-            100,
-            Math.round((target / percentile) * 100),
-          );
-          return { progress, currentValue };
+            return {
+              progress: progress,
+              currentValue: Math.round(currentPercentile),
+            };
+          } catch {
+            return { progress: 0, currentValue: 0 };
+          }
         }
         default:
           return { progress: 0, currentValue: 0 };
@@ -788,6 +902,103 @@ export class BadgeService {
         error.stack,
       );
       throw error;
+    }
+  }
+
+  /**
+   * Checks if a user ranks within the top X percentile of a specific leaderboard.
+   * @param userId User ID
+   * @param percentileThreshold The target percentile (e.g., 5 for top 5%)
+   * @param category Leaderboard category
+   * @param timeframe Leaderboard timeframe
+   * @returns Promise<boolean> True if the user is within the percentile threshold.
+   */
+  private async checkLeaderboardPercentile(
+    userId: string,
+    percentileThreshold: number,
+    category: LeaderboardCategory,
+    timeframe: LeaderboardTimeframe,
+  ): Promise<boolean> {
+    if (percentileThreshold <= 0 || percentileThreshold > 100) {
+      this.logger.warn(
+        `Invalid percentile threshold ${percentileThreshold} for leaderboard check.`,
+      );
+      return false;
+    }
+    try {
+      // 1. Get user's rank
+      const userPosition = await this.leaderboardService.getUserPosition(
+        userId,
+        category,
+        timeframe,
+      );
+
+      // User not ranked or rank is 0, cannot be in top percentile
+      if (!userPosition || userPosition.rank <= 0) {
+        // this.logger.debug(`User ${userId} not ranked in ${category}/${timeframe}.`);
+        return false;
+      }
+      const userRank = userPosition.rank;
+
+      // 2. Get total ranked users
+      const leaderboardMeta = await this.leaderboardService.getLeaderboard(
+        category,
+        timeframe,
+        1, // page 1
+        1, // pageSize 1 (only need meta)
+      );
+
+      const totalRanked = leaderboardMeta.meta?.total;
+      if (totalRanked === undefined || totalRanked === 0) {
+        this.logger.warn(
+          `Total ranked users is 0 for ${category}/${timeframe}.`,
+        );
+        return false; // Avoid division by zero
+      }
+
+      // 3. Calculate percentile
+      const percentile = (userRank / totalRanked) * 100;
+
+      // 4. Check against threshold
+      const isEligible = percentile <= percentileThreshold;
+
+      this.logger.debug(
+        `Leaderboard Check: User ${userId}, Rank ${userRank}/${totalRanked} (${percentile.toFixed(2)}%) in ${category}/${timeframe}. Target <= ${percentileThreshold}%. Eligible: ${isEligible}`,
+      );
+
+      return isEligible;
+    } catch (error) {
+      this.logger.error(
+        `Error checking leaderboard percentile for User ${userId} (${category}/${timeframe}): ${error.message}`,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Checks badges related ONLY to weekly percentile requirements for a user.
+   * Intended to be called by the weekly scheduler.
+   */
+  async checkWeeklyPercentBadges(userId: string): Promise<UserBadgeEntity[]> {
+    try {
+      this.logger.debug(`Checking weekly percent badges for user ${userId}`);
+      const weeklyPercentBadges = await this.badgeRepository.find({
+        where: {
+          isActive: true,
+          requirement: BadgeRequirement.TOP_PERCENT_WEEKLY,
+        },
+      });
+
+      if (weeklyPercentBadges.length === 0) {
+        return [];
+      }
+
+      return this.processBadgeEligibility(userId, weeklyPercentBadges);
+    } catch (error) {
+      this.logger.error(
+        `Failed to check weekly percent badges for user ${userId}: ${error.message}`,
+      );
+      return [];
     }
   }
 }

@@ -11,7 +11,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { ActivityType, UserActivityEntity, UserEntity } from '../entities';
+import { UserBadgeEntity } from '../entities/user-badge.entity';
 import { ActivityTrackingService } from './services/activity-tracking.service';
 import { BadgeService } from './services/badge.service';
 
@@ -36,14 +38,14 @@ export class GamificationController {
     };
   }
 
+  @Public()
   @Get('users/:userId/streak')
-  @UseGuards(AuthGuard)
   async getUserStreak(@Param('userId') userId: string) {
     return this.activityTrackingService.getUserStreak(userId);
   }
 
+  @Public()
   @Get('streaks/at-risk')
-  @UseGuards(AuthGuard)
   async getStreaksAtRisk() {
     return this.activityTrackingService.getStreaksAtRisk();
   }
@@ -66,10 +68,10 @@ export class GamificationController {
     return this.badgeService.getUserBadges(user.id);
   }
 
+  @Public()
   @Get('badges/available')
-  @UseGuards(AuthGuard)
-  async getAvailableBadges(@CurrentUser() user: UserEntity) {
-    return this.badgeService.getAvailableBadges(user.id);
+  async getAvailableBadges(@CurrentUser() user?: UserEntity) {
+    return this.badgeService.getAvailableBadges(user?.id);
   }
 
   @Get('badges/summary')
@@ -78,22 +80,24 @@ export class GamificationController {
     return this.badgeService.getUserBadgeSummary(user.id);
   }
 
+  @Public()
   @Get('users/:userId/badges')
-  @UseGuards(AuthGuard)
   async getUserBadges(@Param('userId') userId: string) {
     return this.badgeService.getUserBadges(userId);
   }
 
+  @Public()
   @Get('users/:userId/badges/summary')
-  @UseGuards(AuthGuard)
   async getOtherUserBadgeSummary(@Param('userId') userId: string) {
     return this.badgeService.getUserBadgeSummary(userId);
   }
 
   @Post('badges/check')
   @UseGuards(AuthGuard)
-  async checkAndAwardBadges(@CurrentUser() user: UserEntity) {
-    return this.badgeService.checkAndAwardBadges(user.id);
+  async checkBadges(
+    @CurrentUser() user: UserEntity,
+  ): Promise<UserBadgeEntity[]> {
+    return this.badgeService.forceCheckAndAwardBadges(user.id);
   }
 
   @Patch('badges/:badgeId/display')
