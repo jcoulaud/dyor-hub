@@ -1,39 +1,72 @@
-import type {
+import {
+  ActivityPointsConfig,
+  AdminBadge,
+  AvailableBadge,
+  BadgeActivity,
+  BadgeCategory,
+  BadgeFormValues,
+  BadgeRequirement,
+  BadgeSummary,
   Comment,
   CreateCommentDto,
   LatestComment,
+  LeaderboardEntry,
+  LeaderboardResponse,
+  NotificationsResponse,
+  StreakMilestone,
+  StreakMilestonesResponse,
+  StreakOverview,
   Token,
   TokenStats,
+  TopStreakUsers,
   TwitterUsernameHistoryEntity,
   User,
   UserActivity,
+  UserBadge,
   UserPreferences,
+  UserRankings,
+  UserReputation,
   UserStats,
+  UserStreak,
   VoteType,
+  WalletResponse,
 } from '@dyor-hub/types';
 
-// Use configured API URL for cross-domain requests
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+interface PublicWalletInfo {
+  address: string;
+  isVerified: boolean;
+}
 
-// Detect if we're using subdomain (api.domain.com) or path-based (/api) routing
+// Use configured API URL for cross-domain requests
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3001';
+
+// Define additional cache TTLs
+const TOKEN_CACHE_TTL = 60 * 1000; // 1 minute for token data
+const TOKEN_STATS_CACHE_TTL = 60 * 1000; // 1 minute for token stats
+const TOKEN_PRICE_HISTORY_CACHE_TTL = 60 * 1000; // 1 minute for price history
+const TOKEN_LIST_CACHE_TTL = 60 * 1000; // 1 minute for token lists
+
+type TokenWithWatchlistStatus = Token & { isWatchlisted?: boolean };
+type TokenListItem = Token;
+
 const isApiSubdomain = (() => {
   try {
     const url = new URL(API_BASE_URL);
     return url.hostname.startsWith('api.');
   } catch {
-    // Silent fail in production, default to path-based routing
     return false;
   }
 })();
 
-// API error with HTTP status code
 export class ApiError extends Error {
   status: number;
+  data?: unknown;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, data?: unknown) {
     super(message);
     this.status = status;
     this.name = 'ApiError';
+    this.data = data;
   }
 }
 
@@ -56,7 +89,10 @@ interface CacheItem<T> {
 
 const apiCache = new Map<string, CacheItem<unknown>>();
 const pendingRequests = new Map<string, Promise<unknown>>();
-const CACHE_TTL = 60 * 1000; // 1 minute TTL
+const CACHE_TTL = 60 * 1000; // 1 minute default TTL
+const PROFILE_CACHE_TTL = 60 * 1000; // 1 minute for profiles
+const STATS_CACHE_TTL = 60 * 1000; // 1 minute for stats
+const ACTIVITY_CACHE_TTL = 60 * 1000; // 1 minute for activity
 
 const getCache = <T>(key: string): T | undefined => {
   const cached = apiCache.get(key);
@@ -77,7 +113,113 @@ const setCache = <T>(key: string, data: T, ttl: number = CACHE_TTL): void => {
   });
 };
 
+// Helper function to determine if an endpoint is for public user data
+const isPublicUserRoute = (endpoint: string): boolean => {
+  const normalizedEndpoint = endpoint.replace(/^\/+/, '');
+  return (
+    normalizedEndpoint.startsWith('users/') && // User profiles
+    !normalizedEndpoint.startsWith('users/me/') // Exclude my profile
+  );
+};
+
+// Helper function to determine if an endpoint is for public token data
+const isPublicTokenRoute = (endpoint: string): boolean => {
+  const normalizedEndpoint = endpoint.replace(/^\/+/, '');
+  return normalizedEndpoint.startsWith('tokens/');
+};
+
+// Handle public endpoints separately with a no-auth approach
+const publicApi = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
+  let apiEndpoint = endpoint;
+  if (!isApiSubdomain) {
+    apiEndpoint = endpoint.startsWith('/api/') ? endpoint : `/api/${endpoint.replace(/^\//, '')}`;
+  } else {
+    apiEndpoint = endpoint.startsWith('/api/') ? endpoint.substring(5) : endpoint;
+  }
+  if (!apiEndpoint.startsWith('/')) {
+    apiEndpoint = `/${apiEndpoint}`;
+  }
+  const url = `${API_BASE_URL}${apiEndpoint}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+  try {
+    const config: RequestInit = {
+      ...options,
+      credentials: 'omit',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(typeof window !== 'undefined' && { Origin: window.location.origin }),
+        ...options.headers,
+      },
+      signal: controller.signal,
+    };
+
+    if (options.body) {
+      config.body = JSON.stringify(options.body);
+    }
+
+    const response = await fetch(url, config);
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const statusCode = response.status;
+
+      if (statusCode === 401 || statusCode === 403) {
+        console.warn(`Authentication error (${statusCode}) accessing public endpoint: ${endpoint}`);
+        throw new ApiError(statusCode, 'Authentication required');
+      }
+
+      let message = `HTTP error ${statusCode}`;
+      let errorData: { message?: string | string[] } | string | null = null;
+
+      try {
+        errorData = await response.json();
+        if (errorData && typeof errorData === 'object' && errorData.message) {
+          if (typeof errorData.message === 'string') {
+            message = errorData.message;
+          } else if (Array.isArray(errorData.message)) {
+            message = errorData.message.join(', ');
+          }
+        } else if (typeof errorData === 'string') {
+          message = errorData;
+        }
+      } catch {
+        // Keep default message if JSON parsing fails
+      }
+
+      throw new ApiError(statusCode, message, errorData);
+    }
+
+    if (response.status === 204) {
+      return null as T;
+    }
+
+    return await response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError(408, 'Request timeout');
+    }
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    if (error instanceof Error) {
+      throw new ApiError(500, `Network error: ${error.message}`);
+    }
+
+    // Unexpected errors
+    throw new ApiError(500, 'An unknown error occurred');
+  }
+};
+
 const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
+  if (isPublicUserRoute(endpoint) || isPublicTokenRoute(endpoint)) {
+    return publicApi<T>(endpoint, options);
+  }
+
   // Format endpoint based on API routing strategy (Subdomain vs Path)
   let apiEndpoint = endpoint;
   if (!isApiSubdomain) {
@@ -136,7 +278,8 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
         message = 'Unauthorized';
       }
 
-      throw new ApiError(statusCode, message);
+      const error = new ApiError(statusCode, message, errorData);
+      throw error;
     }
 
     if (response.status === 204) {
@@ -154,7 +297,7 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
       throw error;
     }
     if (error instanceof Error) {
-      throw new ApiError(0, `Network error: ${error.message}`);
+      throw new ApiError(500, `Network error: ${error.message}`);
     }
 
     // Unexpected errors
@@ -185,6 +328,26 @@ export const comments = {
   get: async (commentId: string): Promise<Comment> => {
     const response = await api<Comment>(`comments/${commentId}`);
     return response;
+  },
+
+  getTokenInfo: async (
+    entityId: string,
+    entityType: 'comment' | 'vote',
+  ): Promise<{ mintAddress: string }> => {
+    if (!entityId || !entityType) {
+      throw new Error('Missing required parameters: entityId and entityType must be provided');
+    }
+
+    try {
+      // Ensure we're using the same exact format that the controller expects
+      const response = await api<{ mintAddress: string }>(
+        `comments/token-info?id=${encodeURIComponent(entityId)}&type=${encodeURIComponent(entityType)}`,
+      );
+      return response;
+    } catch (error) {
+      console.error(`Error fetching token info for ${entityType} ${entityId}:`, error);
+      throw error;
+    }
   },
 
   latest: async (limit: number = 5): Promise<LatestComment[]> => {
@@ -262,88 +425,70 @@ export const auth = {
 };
 
 interface PriceHistoryItem {
-  unixTime: number;
-  value: number;
+  time: string;
+  price: number;
 }
 
-interface PriceHistoryResponse {
-  items: PriceHistoryItem[];
-}
+type PriceHistoryResponse = PriceHistoryItem[];
 
 export const tokens = {
-  list: async (): Promise<Token[]> => {
+  list: async (
+    page: number = 1,
+    limit: number = 10,
+    sortBy: string = '',
+    filter: string = '',
+  ): Promise<TokenListItem[]> => {
     try {
-      const endpoint = 'tokens';
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      if (sortBy) params.append('sortBy', sortBy);
+      if (filter) params.append('filter', filter);
+
+      const endpoint = `tokens?${params.toString()}`;
       const cacheKey = `api:${endpoint}`;
 
-      // Check cache first
-      const cachedData = getCache<Token[]>(cacheKey);
+      // Short cache for token list
+      const cachedData = getCache<TokenListItem[]>(cacheKey);
       if (cachedData) {
         return cachedData;
       }
 
-      // Check if there's a pending request
-      if (pendingRequests.has(cacheKey)) {
-        return pendingRequests.get(cacheKey) as Promise<Token[]>;
-      }
-
-      // Fetch fresh data
-      const requestPromise = api<Token[]>(endpoint)
-        .then((data) => {
-          // Update cache
-          setCache(cacheKey, data);
-          return data;
-        })
-        .finally(() => {
-          pendingRequests.delete(cacheKey);
-        });
-
-      // Store the pending request
-      pendingRequests.set(cacheKey, requestPromise);
-      return requestPromise;
+      const data = await api<TokenListItem[]>(endpoint);
+      setCache(cacheKey, data, TOKEN_LIST_CACHE_TTL);
+      return data;
     } catch (error) {
+      console.error(`Error fetching token list:`, error);
       throw error;
     }
   },
 
-  getByMintAddress: async (mintAddress: string): Promise<Token> => {
+  getByMintAddress: async (mintAddress: string): Promise<TokenWithWatchlistStatus> => {
     try {
-      const endpoint = `tokens/${mintAddress}`;
+      const sanitizedMintAddress = encodeURIComponent(mintAddress);
+      const endpoint = `tokens/${sanitizedMintAddress}`;
       const cacheKey = `api:${endpoint}`;
 
       // Check cache first
-      const cachedData = getCache<Token>(cacheKey);
+      const cachedData = getCache<TokenWithWatchlistStatus>(cacheKey);
       if (cachedData) {
         return cachedData;
       }
 
-      // Check if there's a pending request
-      if (pendingRequests.has(cacheKey)) {
-        return pendingRequests.get(cacheKey) as Promise<Token>;
-      }
-
-      // Fetch fresh data
-      const requestPromise = api<Token>(endpoint)
-        .then((data) => {
-          // Update cache
-          setCache(cacheKey, data);
-          return data;
-        })
-        .finally(() => {
-          pendingRequests.delete(cacheKey);
-        });
-
-      // Store the pending request
-      pendingRequests.set(cacheKey, requestPromise);
-      return requestPromise;
+      // Create a new request
+      const data = await api<TokenWithWatchlistStatus>(endpoint);
+      setCache(cacheKey, data, TOKEN_CACHE_TTL);
+      return data;
     } catch (error) {
+      console.error(`Error fetching token by mint address ${mintAddress}:`, error);
       throw error;
     }
   },
 
   getTokenStats: async (mintAddress: string): Promise<TokenStats> => {
     try {
-      const endpoint = `tokens/${mintAddress}/stats`;
+      const sanitizedMintAddress = encodeURIComponent(mintAddress);
+      const endpoint = `tokens/${sanitizedMintAddress}/stats`;
       const cacheKey = `api:${endpoint}`;
 
       // Check cache first
@@ -352,61 +497,52 @@ export const tokens = {
         return cachedData;
       }
 
-      // Check if there's a pending request
-      if (pendingRequests.has(cacheKey)) {
-        return pendingRequests.get(cacheKey) as Promise<TokenStats>;
-      }
-
-      // Fetch fresh data
-      const requestPromise = api<TokenStats>(endpoint)
-        .then((data) => {
-          // Update cache
-          setCache(cacheKey, data);
-          return data;
-        })
-        .finally(() => {
-          pendingRequests.delete(cacheKey);
-        });
-
-      // Store the pending request
-      pendingRequests.set(cacheKey, requestPromise);
-      return requestPromise;
+      // Create a new request
+      const data = await api<TokenStats>(endpoint);
+      setCache(cacheKey, data, TOKEN_STATS_CACHE_TTL);
+      return data;
     } catch (error) {
+      console.error(`Error fetching token stats for ${mintAddress}:`, error);
       throw error;
     }
   },
 
   getTwitterHistory: async (mintAddress: string): Promise<TwitterUsernameHistoryEntity | null> => {
     try {
-      const endpoint = `tokens/${mintAddress}/twitter-history`;
+      const sanitizedMintAddress = encodeURIComponent(mintAddress);
+      const endpoint = `tokens/${sanitizedMintAddress}/twitter-history`;
       const cacheKey = `api:${endpoint}`;
 
-      // Check cache first
       const cachedData = getCache<TwitterUsernameHistoryEntity>(cacheKey);
       if (cachedData) {
         return cachedData;
       }
 
-      // Check if there's a pending request
-      if (pendingRequests.has(cacheKey)) {
-        return pendingRequests.get(cacheKey) as Promise<TwitterUsernameHistoryEntity | null>;
+      const data = await api<TwitterUsernameHistoryEntity>(endpoint);
+      setCache(cacheKey, data, TOKEN_STATS_CACHE_TTL);
+      return data;
+    } catch (error) {
+      console.error(`Error fetching token twitter history for ${mintAddress}:`, error);
+      throw error;
+    }
+  },
+
+  getTokenPriceHistory: async (mintAddress: string): Promise<PriceHistoryResponse> => {
+    try {
+      const sanitizedMintAddress = encodeURIComponent(mintAddress);
+      const endpoint = `tokens/${sanitizedMintAddress}/price-history`;
+      const cacheKey = `api:${endpoint}`;
+
+      const cachedData = getCache<PriceHistoryResponse>(cacheKey);
+      if (cachedData) {
+        return cachedData;
       }
 
-      // Fetch fresh data
-      const requestPromise = api<TwitterUsernameHistoryEntity>(endpoint)
-        .then((data) => {
-          // Update cache
-          setCache(cacheKey, data);
-          return data;
-        })
-        .finally(() => {
-          pendingRequests.delete(cacheKey);
-        });
-
-      // Store the pending request
-      pendingRequests.set(cacheKey, requestPromise);
-      return requestPromise;
+      const data = await api<PriceHistoryResponse>(endpoint);
+      setCache(cacheKey, data, TOKEN_PRICE_HISTORY_CACHE_TTL);
+      return data;
     } catch (error) {
+      console.error(`Error fetching token price history for ${mintAddress}:`, error);
       throw error;
     }
   },
@@ -421,47 +557,6 @@ export const tokens = {
     apiCache.delete(twitterHistoryCacheKey);
 
     return api<void>(`tokens/${mintAddress}/refresh`, { method: 'POST' });
-  },
-
-  getTokenPriceHistory: async (
-    mintAddress: string,
-    signal?: AbortSignal,
-  ): Promise<PriceHistoryResponse> => {
-    try {
-      const endpoint = `tokens/${mintAddress}/price-history`;
-      const cacheKey = `api:${endpoint}`;
-
-      // Check cache first - but with a shorter TTL for price data
-      const cachedData = getCache<PriceHistoryResponse>(cacheKey);
-      if (cachedData) {
-        return cachedData;
-      }
-
-      // Check if there's a pending request
-      if (pendingRequests.has(cacheKey) && !signal?.aborted) {
-        return pendingRequests.get(cacheKey) as Promise<PriceHistoryResponse>;
-      }
-
-      // Fetch fresh data
-      const requestPromise = api<PriceHistoryResponse>(endpoint, { signal })
-        .then((data) => {
-          // Update cache with 5 minutes TTL
-          setCache(cacheKey, data, 5 * 60 * 1000);
-          return data;
-        })
-        .finally(() => {
-          pendingRequests.delete(cacheKey);
-        });
-
-      // Only store the pending request if not aborted
-      if (!signal?.aborted) {
-        pendingRequests.set(cacheKey, requestPromise);
-      }
-
-      return requestPromise;
-    } catch (error) {
-      throw error;
-    }
   },
 };
 
@@ -478,14 +573,15 @@ export const users = {
         return cachedData;
       }
 
-      // Fetch fresh data
+      // Fetch fresh data using api function
       const data = await api<User>(endpoint);
 
       // Update cache
-      setCache(cacheKey, data);
+      setCache(cacheKey, data, PROFILE_CACHE_TTL);
 
       return data;
     } catch (error) {
+      console.error(`Error fetching user by username ${username}:`, error);
       throw error;
     }
   },
@@ -494,10 +590,13 @@ export const users = {
     try {
       const sanitizedUsername = encodeURIComponent(username);
       const endpoint = `users/${sanitizedUsername}/primary-wallet`;
-
       const cacheKey = `api:${endpoint}`;
 
-      apiCache.delete(cacheKey);
+      // Check cache first
+      const cachedData = getCache<WalletResponse>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
 
       const data = await api<WalletResponse | null>(endpoint);
 
@@ -507,8 +606,8 @@ export const users = {
 
       return data;
     } catch (error) {
-      console.error('[getUserPrimaryWallet] Error fetching primary wallet:', error);
-      return null;
+      console.error(`Error fetching primary wallet for user ${username}:`, error);
+      throw error;
     }
   },
 
@@ -518,20 +617,40 @@ export const users = {
       const endpoint = `users/${sanitizedUsername}/stats`;
       const cacheKey = `api:${endpoint}`;
 
-      // Check cache first with shorter TTL for stats
+      // Check cache first with appropriate TTL for stats
       const cachedData = getCache<UserStats>(cacheKey);
       if (cachedData) {
         return cachedData;
       }
 
-      // Fetch fresh data
-      const data = await api<UserStats>(endpoint);
+      // Implement request deduplication - if there's already a request in flight, wait for it
+      const pendingRequest = pendingRequests.get(cacheKey) as Promise<UserStats> | undefined;
+      if (pendingRequest) {
+        return pendingRequest;
+      }
 
-      // Update cache with shorter TTL (30 seconds)
-      setCache(cacheKey, data, 30 * 1000);
+      // Create a new request and store it
+      const requestPromise = api<UserStats>(endpoint)
+        .then((data) => {
+          // Update cache with appropriate TTL
+          setCache(cacheKey, data, STATS_CACHE_TTL);
+          // Remove from pending requests when done
+          pendingRequests.delete(cacheKey);
+          return data;
+        })
+        .catch((error) => {
+          // Remove from pending requests on error too
+          pendingRequests.delete(cacheKey);
+          throw error;
+        });
 
-      return data;
+      // Store the pending request
+      pendingRequests.set(cacheKey, requestPromise);
+
+      // Wait for the result
+      return requestPromise;
     } catch (error) {
+      console.error(`Error fetching stats for user ${username}:`, error);
       throw error;
     }
   },
@@ -563,7 +682,7 @@ export const users = {
       const endpoint = `users/${sanitizedUsername}/activity?${params.toString()}`;
       const cacheKey = `api:${endpoint}`;
 
-      // Check cache first with shorter TTL
+      // Check cache first with appropriate TTL
       const cachedData = getCache<{
         data: UserActivity[];
         meta: {
@@ -578,8 +697,23 @@ export const users = {
         return cachedData;
       }
 
-      // Fetch fresh data
-      const data = await api<{
+      const pendingRequest = pendingRequests.get(cacheKey) as
+        | Promise<{
+            data: UserActivity[];
+            meta: {
+              total: number;
+              page: number;
+              limit: number;
+              totalPages: number;
+            };
+          }>
+        | undefined;
+
+      if (pendingRequest) {
+        return pendingRequest;
+      }
+
+      const requestPromise = api<{
         data: UserActivity[];
         meta: {
           total: number;
@@ -587,13 +721,22 @@ export const users = {
           limit: number;
           totalPages: number;
         };
-      }>(endpoint);
+      }>(endpoint)
+        .then((data) => {
+          setCache(cacheKey, data, ACTIVITY_CACHE_TTL);
+          pendingRequests.delete(cacheKey);
+          return data;
+        })
+        .catch((error) => {
+          pendingRequests.delete(cacheKey);
+          throw error;
+        });
 
-      // Update cache with shorter TTL (30 seconds)
-      setCache(cacheKey, data, 30 * 1000);
+      pendingRequests.set(cacheKey, requestPromise);
 
-      return data;
+      return requestPromise;
     } catch (error) {
+      console.error(`Error fetching activity for user ${username}:`, error);
       throw error;
     }
   },
@@ -713,39 +856,303 @@ export const watchlist = {
     try {
       const endpoint = `watchlist/tokens/${mintAddress}/status`;
       const cacheKey = `api:${endpoint}`;
-
-      // Check cache first with very short TTL
-      const cachedData = getCache<{ isWatchlisted: boolean }>(cacheKey);
+      const cachedData = getCache<boolean>(cacheKey);
       if (cachedData) {
-        return cachedData.isWatchlisted;
+        return cachedData;
       }
 
-      // Fetch fresh data
-      const data = await api<{ isWatchlisted: boolean }>(endpoint);
-
-      // Update cache with very short TTL (10 seconds)
-      setCache(cacheKey, data, 10 * 1000);
-
-      return data.isWatchlisted;
+      const data = await api<boolean>(endpoint);
+      setCache(cacheKey, data, 30 * 1000);
+      return data;
     } catch (error) {
-      console.error('[isTokenWatchlisted] Error checking token watchlist status:', error);
-      return false;
+      console.error(`Error checking token watchlist status for ${mintAddress}:`, error);
+      throw error;
     }
   },
 };
 
-interface WalletResponse {
-  id: string;
-  address: string;
-  isVerified: boolean;
-  isPrimary: boolean;
-}
+export const gamification = {
+  badges: {
+    async getUserBadges(userId?: string): Promise<UserBadge[]> {
+      const endpoint = userId ? `gamification/users/${userId}/badges` : 'gamification/badges';
+      const cacheKey = `api:${endpoint}`;
 
-interface PublicWalletInfo {
-  address: string;
-  isVerified: boolean;
-}
+      try {
+        // Check cache first
+        const cachedData = getCache<UserBadge[]>(cacheKey);
+        if (cachedData) {
+          return cachedData;
+        }
 
+        const data = await api<UserBadge[]>(endpoint);
+        setCache(cacheKey, data, 30 * 1000); // 30 seconds cache
+        return data;
+      } catch (error) {
+        console.error('Error fetching user badges:', error);
+        throw error;
+      }
+    },
+
+    async getAvailableBadges(): Promise<AvailableBadge[]> {
+      const cacheKey = 'api:gamification/badges/available';
+
+      try {
+        // Check cache first
+        const cachedData = getCache<AvailableBadge[]>(cacheKey);
+        if (cachedData) {
+          return cachedData;
+        }
+
+        interface ServerBadgeResponse {
+          id: string;
+          name: string;
+          description: string;
+          category: string;
+          imageUrl?: string;
+          requirement: string;
+          thresholdValue: number;
+          progress: number;
+          earned: boolean;
+          isActive: boolean;
+          createdAt: string;
+          updatedAt: string;
+          currentValue?: number;
+        }
+
+        interface BadgeCategoryResponse {
+          category: string;
+          badges: ServerBadgeResponse[];
+        }
+
+        const data = await api<BadgeCategoryResponse[]>('gamification/badges/available');
+
+        const processedData = data.flatMap((categoryGroup) =>
+          categoryGroup.badges.map((badge) => ({
+            id: badge.id,
+            name: badge.name,
+            description: badge.description,
+            category: badge.category as BadgeCategory,
+            imageUrl: badge.imageUrl,
+            requirement: badge.requirement as BadgeRequirement,
+            thresholdValue: badge.thresholdValue,
+            isActive: badge.isActive,
+            createdAt: badge.createdAt,
+            updatedAt: badge.updatedAt,
+            progress: badge.progress || 0,
+            isAchieved: badge.earned,
+            currentValue: badge.currentValue || 0,
+          })),
+        );
+
+        setCache(cacheKey, processedData, 30 * 1000); // 30 seconds cache
+        return processedData;
+      } catch (error) {
+        console.error('Error fetching available badges:', error);
+        throw error;
+      }
+    },
+
+    async getUserBadgeSummary(userId?: string): Promise<BadgeSummary> {
+      const endpoint = userId
+        ? `gamification/users/${userId}/badges/summary`
+        : 'gamification/badges/summary';
+      const cacheKey = `api:${endpoint}`;
+
+      try {
+        // Check cache first
+        const cachedData = getCache<BadgeSummary>(cacheKey);
+        if (cachedData) {
+          return cachedData;
+        }
+
+        const data = await api<BadgeSummary>(endpoint);
+        setCache(cacheKey, data, 30 * 1000); // 30 seconds cache
+        return data;
+      } catch (error) {
+        console.error('Error fetching badge summary:', error);
+        throw error;
+      }
+    },
+
+    clearBadgesCache(userId?: string): void {
+      // Clear all badge-related cache entries
+      const keyPrefixes = [
+        'api:gamification/badges',
+        'api:gamification/badges/available',
+        'api:gamification/badges/summary',
+      ];
+
+      if (userId) {
+        keyPrefixes.push(`api:gamification/users/${userId}/badges`);
+        keyPrefixes.push(`api:gamification/users/${userId}/badges/summary`);
+      }
+
+      // Delete matching cache entries
+      for (const [key] of apiCache.entries()) {
+        if (keyPrefixes.some((prefix) => key.startsWith(prefix))) {
+          apiCache.delete(key);
+        }
+      }
+    },
+
+    async checkAndAwardBadges(): Promise<{ success: boolean }> {
+      try {
+        await api('gamification/badges/check', {
+          method: 'POST',
+        });
+        // Clear cache after checking badges
+        this.clearBadgesCache();
+        return { success: true };
+      } catch (error) {
+        console.error('Error checking and awarding badges:', error);
+        return { success: false };
+      }
+    },
+  },
+
+  streaks: {
+    async getUserStreak(userId?: string): Promise<UserStreak> {
+      const endpoint = userId ? `gamification/users/${userId}/streak` : 'gamification/streak';
+      const cacheKey = `api:${endpoint}`;
+
+      try {
+        // Check cache first
+        const cachedData = getCache<UserStreak>(cacheKey);
+        if (cachedData) return cachedData;
+
+        // Fetch from API
+        const data = await api<UserStreak>(endpoint);
+        setCache<UserStreak>(cacheKey, data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching user streak:', error);
+        throw error;
+      }
+    },
+
+    async getMilestones(): Promise<StreakMilestone[]> {
+      const endpoint = 'gamification/streaks/milestones';
+      const cacheKey = `api:${endpoint}`;
+
+      try {
+        // Check cache first
+        const cachedData = getCache<StreakMilestonesResponse>(cacheKey);
+        if (cachedData) return cachedData.milestones;
+
+        // Fetch from API
+        const data = await api<StreakMilestonesResponse>(endpoint);
+        setCache<StreakMilestonesResponse>(cacheKey, data);
+        return data.milestones;
+      } catch (error) {
+        console.error('Error fetching streak milestones:', error);
+        throw error;
+      }
+    },
+
+    clearStreakCache(userId?: string): void {
+      // Clear specific user streak
+      if (userId) {
+        apiCache.delete(`api:gamification/users/${userId}/streak`);
+      }
+      // Clear current user streak
+      apiCache.delete('api:gamification/streak');
+      // Clear milestones cache
+      apiCache.delete('api:gamification/streaks/milestones');
+    },
+
+    /**
+     * Perform a daily check-in to maintain streak
+     * This will be called automatically when users visit the site while logged in
+     */
+    async checkIn(): Promise<{ success: boolean; message: string }> {
+      try {
+        const response = await api<{ success: boolean; message: string }>('gamification/check-in', {
+          method: 'POST',
+        });
+
+        // Clear cache to ensure updated streak info is fetched next time
+        this.clearStreakCache();
+
+        return response;
+      } catch (error) {
+        console.error('Error during check-in:', error);
+        return { success: false, message: 'Failed to check in' };
+      }
+    },
+  },
+};
+
+// Notifications API methods
+export const notifications = {
+  getNotifications: async (onlyUnread = false) => {
+    return api<NotificationsResponse>(`notifications?unreadOnly=${onlyUnread}`);
+  },
+
+  getPaginatedNotifications: async (page: number, pageSize: number) => {
+    return api<NotificationsResponse>(`notifications?page=${page}&pageSize=${pageSize}`);
+  },
+
+  markAsRead: async (id: string) => {
+    return api<{ success: boolean }>(`notifications/${id}/read`, {
+      method: 'POST',
+    });
+  },
+
+  markAllAsRead: async () => {
+    return api<{ success: boolean }>('notifications/read-all', {
+      method: 'POST',
+    });
+  },
+
+  getPreferences: async () => {
+    return api<{ preferences: Record<string, boolean> }>('notifications/preferences');
+  },
+
+  updatePreference: async (
+    type: string,
+    settings: { inApp?: boolean; email?: boolean; telegram?: boolean },
+  ) => {
+    return api<{ success: boolean }>(`notifications/preferences/${type}`, {
+      method: 'POST',
+      body: settings,
+    });
+  },
+};
+
+// Leaderboards API methods
+export const leaderboards = {
+  getLeaderboard: async (category: string, timeframe: string, limit = 10) => {
+    return api<LeaderboardEntry[]>(
+      `leaderboards?category=${category}&timeframe=${timeframe}&limit=${limit}`,
+    );
+  },
+
+  getPaginatedLeaderboard: async (category: string, timeframe: string, page = 1, pageSize = 20) => {
+    return api<LeaderboardResponse>(
+      `leaderboards?category=${category}&timeframe=${timeframe}&page=${page}&pageSize=${pageSize}`,
+    );
+  },
+
+  getUserPosition: async (category: string, timeframe: string) => {
+    return api<{ rank: number; points: number }>(
+      `leaderboards/user-position?category=${category}&timeframe=${timeframe}`,
+    );
+  },
+
+  getUserRanking: async (userId: string) => {
+    return api<UserRankings>(`leaderboards/user/${userId}`);
+  },
+
+  admin: {
+    recalculateLeaderboards: async () => {
+      return api<{ success: boolean }>('leaderboards/recalculate', {
+        method: 'POST',
+      });
+    },
+  },
+};
+
+// Wallets API methods
 export const wallets = {
   connect: async (address: string) => {
     return api<WalletResponse>('wallets/connect', {
@@ -787,5 +1194,45 @@ export const wallets = {
     return api<{ success: boolean; message: string }>(`wallets/${id}`, {
       method: 'DELETE',
     });
+  },
+};
+
+// Export admin-specific APIs directly
+export const badges = {
+  admin: {
+    getAllBadges: async () => {
+      return api<AdminBadge[]>('admin/badges');
+    },
+    getRecentBadgeActivity: async (limit = 10) => {
+      return api<BadgeActivity[]>(`admin/badges/activity/recent?limit=${limit}`);
+    },
+    createBadge: async (badgeData: BadgeFormValues) => {
+      return api<AdminBadge>('admin/badges', {
+        method: 'POST',
+        body: badgeData,
+      });
+    },
+  },
+};
+
+export const streaks = {
+  admin: {
+    getStreakOverview: async () => {
+      return api<StreakOverview>('admin/streaks/overview');
+    },
+    getTopStreakUsers: async (limit = 10) => {
+      return api<{ topCurrentStreaks: TopStreakUsers[] }>(`admin/streaks/top-users?limit=${limit}`);
+    },
+  },
+};
+
+export const reputation = {
+  admin: {
+    getActivityPointValues: async () => {
+      return api<ActivityPointsConfig>('admin/reputation/points-config');
+    },
+  },
+  getTopUsers: async (limit = 10) => {
+    return api<{ users: UserReputation[] }>(`admin/reputation/top-users?limit=${limit}`);
   },
 };

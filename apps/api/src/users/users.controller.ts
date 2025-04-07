@@ -3,6 +3,8 @@ import {
   Body,
   Controller,
   Get,
+  Injectable,
+  Logger,
   NotFoundException,
   Param,
   Patch,
@@ -10,27 +12,18 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { Public } from '../auth/decorators/public.decorator';
 import { UserResponseDto } from '../auth/dto/user-response.dto';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { PaginatedResult, UsersService } from './users.service';
 
+@Injectable()
 @Controller('users')
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
+
   constructor(private readonly usersService: UsersService) {}
-
-  @Get(':username')
-  async getUserByUsername(
-    @Param('username') username: string,
-  ): Promise<UserResponseDto> {
-    const user = await this.usersService.findByUsername(username);
-
-    if (!user) {
-      throw new NotFoundException(`User with username ${username} not found`);
-    }
-
-    return UserResponseDto.fromEntity(user);
-  }
 
   @UseGuards(OptionalAuthGuard)
   @Get('me/preferences')
@@ -57,6 +50,22 @@ export class UsersController {
     );
   }
 
+  @Public()
+  @Get(':username')
+  async getUserByUsername(
+    @Param('username') username: string,
+  ): Promise<UserResponseDto> {
+    const user = await this.usersService.findByUsername(username);
+
+    if (!user) {
+      this.logger.warn(`User with username ${username} not found`);
+      throw new NotFoundException(`User with username ${username} not found`);
+    }
+
+    return UserResponseDto.fromEntity(user);
+  }
+
+  @Public()
   @Get(':username/stats')
   async getUserStats(@Param('username') username: string): Promise<UserStats> {
     const user = await this.usersService.findByUsername(username);
@@ -65,9 +74,12 @@ export class UsersController {
       throw new NotFoundException(`User with username ${username} not found`);
     }
 
-    return this.usersService.getUserStats(user.id);
+    const stats = await this.usersService.getUserStats(user.id);
+
+    return stats;
   }
 
+  @Public()
   @Get(':username/activity')
   async getUserActivity(
     @Param('username') username: string,
@@ -79,6 +91,7 @@ export class UsersController {
     const user = await this.usersService.findByUsername(username);
 
     if (!user) {
+      this.logger.warn(`User with username ${username} not found for activity`);
       throw new NotFoundException(`User with username ${username} not found`);
     }
 

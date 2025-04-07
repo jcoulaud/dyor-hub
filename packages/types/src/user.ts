@@ -1,10 +1,13 @@
+import { UserPreferences } from './user-preferences';
+
 export interface User {
   id: string;
   username: string;
   displayName: string;
   avatarUrl?: string;
   isAdmin: boolean;
-  preferences?: Record<string, any>;
+  preferences?: Partial<UserPreferences>;
+  primaryWalletAddress?: string;
 }
 
 export interface UserProfile extends User {
@@ -19,6 +22,9 @@ export interface UserStats {
   replies: number;
   upvotes: number;
   downvotes: number;
+  currentStreak?: number;
+  longestStreak?: number;
+  reputation?: number;
 }
 
 export interface UserActivity {

@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Request } from 'express';
 import { Strategy } from 'passport-jwt';
+import { Repository } from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
 import { AuthService } from './auth.service';
 import { AuthConfigService } from './config/auth.config';
@@ -14,15 +16,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly authConfigService: AuthConfigService,
     private readonly authService: AuthService,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
   ) {
     super({
       jwtFromRequest: (req: Request) => {
-        const token = req?.cookies?.jwt;
-        return token || null;
+        // Always skip JWT extraction for public routes
+        if (req && (req as any).isPublicRoute) {
+          return null;
+        }
+
+        // Regular JWT extraction from cookies
+        if (!req || !req.cookies) return null;
+        return req.cookies.jwt;
       },
       ignoreExpiration: false,
       secretOrKey: authConfigService.jwtSecret,
-      passReqToCallback: false,
+      passReqToCallback: true,
     });
   }
 
@@ -35,22 +45,27 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
   }
 
-  async validate(payload: JwtPayload): Promise<UserEntity | null> {
+  async validate(
+    req: Request,
+    payload: JwtPayload,
+  ): Promise<UserEntity | null> {
+    // For public routes, we allow null user (unauthenticated access)
+    if (req && (req as any).isPublicRoute) {
+      return null;
+    }
+
     try {
-      if (!payload?.sub) {
-        this.logger.error('Invalid payload - missing sub');
+      if (!payload || !payload.sub) {
+        this.logger.debug('Invalid JWT payload');
         return null;
       }
 
-      const user = await this.authService
-        .validateJwtPayload(payload)
-        .catch((error) => {
-          this.logger.error('Failed to validate JWT payload', { error });
-          return null;
-        });
+      const user = await this.userRepository.findOne({
+        where: { id: payload.sub },
+      });
 
-      if (!user?.id) {
-        this.logger.error('No user found for payload');
+      if (!user) {
+        this.logger.debug(`No user found for sub: ${payload.sub}`);
         return null;
       }
 

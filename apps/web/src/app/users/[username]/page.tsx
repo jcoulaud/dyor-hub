@@ -1,8 +1,10 @@
+import { ProfileStats } from '@/components/profile/ProfileStats';
 import { ShareButton } from '@/components/share/ShareButton';
 import { TwitterShareButton } from '@/components/share/TwitterShareButton';
 import { WalletBadge } from '@/components/wallet/WalletBadge';
-import { users, wallets } from '@/lib/api';
-import type { User, UserActivity } from '@dyor-hub/types';
+import { users } from '@/lib/api';
+import { getHighResAvatar } from '@/lib/utils';
+import type { User, UserActivity, UserStats } from '@dyor-hub/types';
 import { MessageSquare, Reply, ThumbsDown, ThumbsUp, Twitter } from 'lucide-react';
 import { Metadata } from 'next';
 import Image from 'next/image';
@@ -58,23 +60,45 @@ export default async function UserProfilePage({ params }: UserPageProps) {
 
   try {
     const { username } = await params;
-    user = await users.getByUsername(username);
-
-    const userStats = await users.getUserStats(username);
-    const userActivities = await users.getUserActivity(username, 1, 10);
-    const userComments = userActivities.data;
-
-    let walletInfo = null;
     try {
-      walletInfo = await wallets.getPublicInfo(user.id);
-    } catch {
-      // Continue without wallet info
+      user = await users.getByUsername(username);
+    } catch (error) {
+      console.error(`Failed to fetch user ${username}:`, error);
+      notFound();
     }
 
-    const avatarUrl = user.avatarUrl ? user.avatarUrl.replace('_normal', '') : null;
+    // Fetch stats with error handling
+    let userStats: UserStats = {
+      comments: 0,
+      replies: 0,
+      upvotes: 0,
+      downvotes: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      reputation: 0,
+    };
 
-    const totalActivities =
-      userStats.comments + userStats.replies + userStats.upvotes + userStats.downvotes;
+    try {
+      userStats = await users.getUserStats(username);
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      // Use default values from initialization
+    }
+
+    // Fetch activities with error handling
+    let userComments: UserActivity[] = [];
+    let totalActivities = 0;
+
+    try {
+      const userActivities = await users.getUserActivity(username, 1, 10);
+      userComments = userActivities.data;
+      totalActivities =
+        userStats.comments + userStats.replies + userStats.upvotes + userStats.downvotes;
+    } catch (error) {
+      console.error('Error fetching user activities:', error);
+    }
+
+    const avatarUrl = getHighResAvatar(user.avatarUrl) || null;
 
     return (
       <div className='min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black'>
@@ -112,46 +136,41 @@ export default async function UserProfilePage({ params }: UserPageProps) {
 
                   {/* User Info */}
                   <div className='text-center md:text-left flex-1'>
-                    <div className='flex flex-col md:flex-row md:items-center md:justify-between'>
+                    <div className='flex flex-col md:flex-row md:items-start md:justify-between'>
                       <div>
                         <div className='flex items-center gap-1 mb-1 md:hidden justify-center w-full'>
                           <ShareButton />
                           <TwitterShareButton displayName={user.displayName} />
                         </div>
-                        <h1 className='text-2xl font-bold text-white md:flex md:items-center md:gap-2 text-center md:text-left'>
-                          {user.displayName}
-                          <div className='hidden md:flex items-center gap-1'>
-                            <ShareButton />
-                            <TwitterShareButton displayName={user.displayName} />
-                          </div>
-                        </h1>
-                        <p className='text-zinc-400 text-sm text-center md:text-left'>
-                          @{user.username}
-                        </p>
-                      </div>
-
-                      <div className='flex flex-col md:flex-row items-center gap-3 mt-3 md:mt-0'>
-                        <div className='flex items-center gap-2'>
-                          {user.preferences?.showWalletAddress &&
-                            walletInfo &&
-                            walletInfo.isVerified && (
-                              <WalletBadge
-                                address={walletInfo.address}
-                                isVerified={walletInfo.isVerified}
-                              />
-                            )}
-
-                          <Link
-                            href={`https://twitter.com/${user.username}`}
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                            title='Twitter'>
-                            <Twitter className='h-4 w-4 text-blue-400' />
-                          </Link>
+                        <div className='flex flex-col items-center md:items-start'>
+                          <h1 className='text-2xl font-bold text-white flex items-center gap-2'>
+                            {user.displayName}
+                            <div className='hidden md:flex items-center gap-1'>
+                              <ShareButton />
+                              <TwitterShareButton displayName={user.displayName} />
+                            </div>
+                          </h1>
+                          <p className='text-zinc-400 text-sm'>@{user.username}</p>
                         </div>
                       </div>
+
+                      <div className='flex items-center gap-3 mt-3 md:mt-1 mx-auto md:mx-0'>
+                        {user.preferences?.showWalletAddress && user.primaryWalletAddress && (
+                          <WalletBadge address={user.primaryWalletAddress} isVerified={true} />
+                        )}
+
+                        <Link
+                          href={`https://twitter.com/${user.username}`}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                          title='Twitter'>
+                          <Twitter className='h-4 w-4 text-blue-400' />
+                        </Link>
+                      </div>
                     </div>
+
+                    <ProfileStats userId={user.id} />
                   </div>
                 </div>
               </div>
@@ -201,7 +220,8 @@ export default async function UserProfilePage({ params }: UserPageProps) {
         </div>
       </div>
     );
-  } catch {
+  } catch (error) {
+    console.error('Error rendering user profile page:', error);
     notFound();
   }
 }

@@ -175,7 +175,6 @@ export default function SettingsPage() {
 
         {/* Preferences Section */}
         <div className='space-y-4'>
-          <h3 className='text-xl font-semibold text-foreground'>Preferences</h3>
           <Card className='transition-all hover:shadow-md'>
             <CardHeader>
               <div className='flex items-center justify-between'>
@@ -235,7 +234,6 @@ export default function SettingsPage() {
 
         {/* Privacy Section */}
         <div className='space-y-4'>
-          <h3 className='text-xl font-semibold text-foreground'>Privacy</h3>
           <Card className='transition-all hover:shadow-md'>
             <CardHeader>
               <div className='flex items-center justify-between'>

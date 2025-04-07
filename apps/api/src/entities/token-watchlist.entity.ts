@@ -34,10 +34,10 @@ export class TokenWatchlistEntity {
   })
   token: TokenEntity;
 
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
-  @Column({ name: 'token_mint_address' })
+  @Column({ name: 'token_mint_address', type: 'varchar' })
   tokenMintAddress: string;
 
   @CreateDateColumn({ name: 'created_at' })

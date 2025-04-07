@@ -2,10 +2,13 @@
 
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { Separator } from '@/components/ui/separator';
-import { Settings, UserCog } from 'lucide-react';
+import { BellRing, Settings, UserCog } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
   return (
     <RequireAuth>
       <div className='container mx-auto px-4 py-12 max-w-5xl'>
@@ -24,14 +27,20 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             <nav className='flex flex-col space-y-1'>
               <Link
                 href='/settings'
-                className={`flex items-center gap-2 p-3 rounded-md bg-primary/10 text-primary font-medium hover:bg-primary/15 transition-colors`}>
+                className={`flex items-center gap-2 p-3 rounded-md ${pathname === '/settings' ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-secondary/50'} transition-colors`}>
                 <Settings className='h-4 w-4' />
                 <span>Preferences</span>
+              </Link>
+              <Link
+                href='/settings/notifications'
+                className={`flex items-center gap-2 p-3 rounded-md ${pathname === '/settings/notifications' ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-secondary/50'} transition-colors`}>
+                <BellRing className='h-4 w-4' />
+                <span>Notifications</span>
               </Link>
             </nav>
           </aside>
 
-          <main className='bg-card/50 rounded-lg p-6 border border-border/50 shadow-sm'>
+          <main className='bg-card/50 rounded-lg p-6 border border-white/10 shadow-sm'>
             {children}
           </main>
         </div>

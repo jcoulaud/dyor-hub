@@ -1,9 +1,12 @@
 import { UserPreferences, defaultUserPreferences } from '@dyor-hub/types';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
+import { UserReputationEntity } from '../entities/user-reputation.entity';
+import { UserStreakEntity } from '../entities/user-streak.entity';
 import { UserEntity } from '../entities/user.entity';
 import { UserActivityDto } from './dto/user-activity.dto';
 import { UserStatsDto } from './dto/user-stats.dto';
@@ -20,6 +23,9 @@ export interface PaginatedResult<T> {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+  private readonly isProduction: boolean;
+
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
@@ -27,21 +33,43 @@ export class UsersService {
     private readonly commentRepository: Repository<CommentEntity>,
     @InjectRepository(CommentVoteEntity)
     private readonly commentVoteRepository: Repository<CommentVoteEntity>,
-  ) {}
+    @InjectRepository(UserReputationEntity)
+    private readonly userReputationRepository: Repository<UserReputationEntity>,
+    @InjectRepository(UserStreakEntity)
+    private readonly userStreakRepository: Repository<UserStreakEntity>,
+    private readonly configService: ConfigService,
+  ) {
+    this.isProduction = this.configService.get('NODE_ENV') === 'production';
+  }
 
   async findByUsername(username: string): Promise<UserEntity | null> {
-    return this.userRepository
-      .createQueryBuilder('user')
-      .select([
-        'user.id',
-        'user.username',
-        'user.displayName',
-        'user.avatarUrl',
-        'user.isAdmin',
-        'user.preferences',
-      ])
-      .where('LOWER(user.username) = LOWER(:username)', { username })
-      .getOne();
+    try {
+      const user = await this.userRepository
+        .createQueryBuilder('user')
+        .select([
+          'user.id',
+          'user.username',
+          'user.displayName',
+          'user.avatarUrl',
+          'user.isAdmin',
+          'user.preferences',
+          'wallets.address',
+          'wallets.isPrimary',
+          'wallets.isVerified',
+        ])
+        .leftJoin('user.wallets', 'wallets')
+        .where('LOWER(user.username) = LOWER(:username)', { username })
+        .getOne();
+
+      if (!user && !this.isProduction) {
+        this.logger.debug(`User with username ${username} not found`);
+      }
+
+      return user;
+    } catch (error) {
+      this.logger.error(`Error finding user with username ${username}:`, error);
+      throw error;
+    }
   }
 
   async getUserPreferences(userId: string): Promise<Partial<UserPreferences>> {
@@ -105,11 +133,34 @@ export class UsersService {
       },
     });
 
+    // Get streak data if available
+    let streak = null;
+    try {
+      streak = await this.userStreakRepository.findOne({
+        where: { userId },
+      });
+    } catch (error) {
+      this.logger.error(`Error retrieving streak data: ${error.message}`);
+    }
+
+    // Get reputation data if available
+    let reputation = null;
+    try {
+      reputation = await this.userReputationRepository.findOne({
+        where: { userId },
+      });
+    } catch (error) {
+      this.logger.error(`Error retrieving reputation data: ${error.message}`);
+    }
+
     return UserStatsDto.fromRaw({
       comments: commentsCount,
       replies: repliesCount,
       upvotes: upvotesCount,
       downvotes: downvotesCount,
+      currentStreak: streak?.currentStreak || 0,
+      longestStreak: streak?.longestStreak || 0,
+      reputation: reputation?.totalPoints || 0,
     });
   }
 
@@ -256,5 +307,17 @@ export class UsersService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async findById(id: string): Promise<UserEntity | null> {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id },
+      });
+      return user;
+    } catch (error) {
+      this.logger.error(`Error finding user with id ${id}:`, error);
+      return null;
+    }
   }
 }

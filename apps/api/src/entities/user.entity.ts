@@ -4,12 +4,20 @@ import {
   CreateDateColumn,
   Entity,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { CommentVoteEntity } from './comment-vote.entity';
 import { CommentEntity } from './comment.entity';
+import { LeaderboardEntity } from './leaderboard.entity';
+import { NotificationPreferenceEntity } from './notification-preference.entity';
+import { NotificationEntity } from './notification.entity';
 import { TokenWatchlistEntity } from './token-watchlist.entity';
+import { UserActivityEntity } from './user-activity.entity';
+import { UserBadgeEntity } from './user-badge.entity';
+import { UserReputationEntity } from './user-reputation.entity';
+import { UserStreakEntity } from './user-streak.entity';
 import { WalletEntity } from './wallet.entity';
 
 @Entity('users')
@@ -60,6 +68,31 @@ export class UserEntity {
     eager: false,
   })
   watchlistedTokens: TokenWatchlistEntity[];
+
+  // Gamification relationships
+  @OneToMany(() => UserActivityEntity, (activity) => activity.user)
+  activities: UserActivityEntity[];
+
+  @OneToOne(() => UserStreakEntity, (streak) => streak.user)
+  streak: UserStreakEntity;
+
+  @OneToOne(() => UserReputationEntity, (reputation) => reputation.user)
+  reputation: UserReputationEntity;
+
+  @OneToMany(() => UserBadgeEntity, (badge) => badge.user)
+  badges: UserBadgeEntity[];
+
+  @OneToMany(() => NotificationEntity, (notification) => notification.user)
+  notifications: NotificationEntity[];
+
+  @OneToMany(
+    () => NotificationPreferenceEntity,
+    (preference) => preference.user,
+  )
+  notificationPreferences: NotificationPreferenceEntity[];
+
+  @OneToMany(() => LeaderboardEntity, (leaderboard) => leaderboard.user)
+  leaderboardRankings: LeaderboardEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

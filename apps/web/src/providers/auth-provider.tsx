@@ -1,7 +1,7 @@
 'use client';
 
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/api';
+import { auth, gamification } from '@/lib/api';
 import type { User } from '@dyor-hub/types';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
@@ -35,7 +35,7 @@ export const useAuthContext = () => {
   return context;
 };
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] = useState<AuthState>({
     isAuthenticated: false,
     isLoading: true,
@@ -93,7 +93,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Update cache
             cachedState.current = newState;
             cacheTimestamp.current = Date.now();
+
+            // If authenticated, perform a daily check-in
+            if (response.authenticated && response.user) {
+              gamification.streaks.checkIn();
+            }
           } catch (error) {
+            console.error('Failed to fetch profile:', error);
             clearAuth();
           }
         })();
@@ -158,4 +164,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
+};

@@ -4,34 +4,28 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { JwtStrategy } from './jwt.strategy';
+import { IS_PUBLIC_KEY } from './decorators/public.decorator';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly jwtStrategy: JwtStrategy) {}
+  constructor(private readonly reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request>();
-    const token = request.cookies?.jwt;
-
-    if (!token) {
-      throw new UnauthorizedException('No token provided');
-    }
-
-    try {
-      const user = await this.jwtStrategy.validate(
-        this.jwtStrategy.extractJwtPayload(token),
-      );
-
-      if (!user) {
-        throw new UnauthorizedException('Invalid token');
-      }
-
-      request.user = user;
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) {
       return true;
-    } catch (error) {
-      throw new UnauthorizedException('Invalid token');
     }
+
+    const request = context.switchToHttp().getRequest<Request>();
+    if (request.user) {
+      return true;
+    }
+
+    throw new UnauthorizedException('Authentication required');
   }
 }
