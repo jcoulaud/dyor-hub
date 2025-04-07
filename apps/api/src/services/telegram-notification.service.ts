@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import TelegramBot from 'node-telegram-bot-api';
 import { CommentEntity } from '../entities/comment.entity';
+import { sanitizeHtml } from '../utils/utils';
 
 @Injectable()
 export class TelegramNotificationService implements OnModuleInit {
@@ -55,27 +56,16 @@ export class TelegramNotificationService implements OnModuleInit {
     return url;
   }
 
-  private sanitizeHtml(text: string): string {
-    if (!text) return '';
-
-    const withoutTags = text.replace(/<\/?[^>]+(>|$)/g, '');
-
-    return withoutTags
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-  }
-
   async notifyNewComment(comment: CommentEntity): Promise<void> {
     if (!this.enabled) return;
 
-    const sanitizedContent = this.sanitizeHtml(comment.content);
+    const sanitizedContent = sanitizeHtml(comment.content);
     const truncatedContent =
       sanitizedContent.length > 100
         ? `${sanitizedContent.substring(0, 100)}...`
         : sanitizedContent;
 
-    const displayName = this.sanitizeHtml(
+    const displayName = sanitizeHtml(
       comment.user?.displayName || comment.userId,
     );
 
