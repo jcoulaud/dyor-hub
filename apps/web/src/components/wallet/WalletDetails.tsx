@@ -82,6 +82,10 @@ export function WalletDetails() {
             });
             setDbWallet(newWallet);
             setIsPrimary(newWallet.isPrimary === true);
+            walletEvents.emit('wallet-added', {
+              walletId: newWallet.id,
+              address: newWallet.address,
+            });
           } catch (connectErr: unknown) {
             const alreadyConnectedMsg = 'Wallet address already connected to another account';
             let backendErrorMessage = '';
@@ -164,6 +168,10 @@ export function WalletDetails() {
           description: `Wallet ${truncateAddress(walletAddress)} is now primary.`,
         });
         refreshWalletData(false);
+        walletEvents.emit('wallet-updated', {
+          walletId: dbWallet.id,
+          address: walletAddress,
+        });
       } else {
         throw new Error('API indicated failure setting primary wallet');
       }
@@ -273,7 +281,7 @@ export function WalletDetails() {
         <div className='flex flex-col divide-y divide-border'>
           <div className='p-4 md:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-muted/30'>
             <div>
-              <div className='text-xs text-muted-foreground mb-1'>Connected Wallet</div>
+              <div className='text-xs text-muted-foreground mb-1'>Currently Connected Wallet</div>
               <div className='flex items-center gap-2'>
                 <span className='font-mono text-lg font-medium'>
                   {truncateAddress(walletAddress)}
@@ -348,15 +356,28 @@ export function WalletDetails() {
           )}
 
           {dbWallet && !associationConflictError && (
-            <div className='p-4 md:p-6 border-t border-border'>
+            <div
+              className={`p-4 md:p-6 border-t border-border ${!dbWallet.isVerified ? 'bg-yellow-500/5 border-l-4 border-l-yellow-500' : ''}`}>
               <div className='flex flex-col gap-1.5'>
                 <div className='text-sm font-medium text-muted-foreground flex items-center gap-1.5'>
                   <ShieldIcon className='h-3.5 w-3.5' />
                   Verification Status
                 </div>
+                {!dbWallet.isVerified && (
+                  <p className='text-xs text-yellow-200/80 mb-2'>
+                    Verification is required to display your wallet address publicly and to access
+                    token gated features.
+                  </p>
+                )}
                 <WalletVerification
                   dbWallet={dbWallet}
-                  onVerificationSuccess={() => refreshWalletData(true)}
+                  onVerificationSuccess={() => {
+                    refreshWalletData(true);
+                    walletEvents.emit('wallet-updated', {
+                      walletId: dbWallet.id,
+                      address: dbWallet.address,
+                    });
+                  }}
                 />
               </div>
             </div>
