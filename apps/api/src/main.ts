@@ -21,16 +21,24 @@ async function bootstrap() {
 
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
-  // --- Define HTTPS options ---
-  const secretsPath = path.join(__dirname, '..', '..', '..', 'secrets');
-  const httpsOptions = {
-    key: fs.readFileSync(path.join(secretsPath, 'localhost+2-key.pem')),
-    cert: fs.readFileSync(path.join(secretsPath, 'localhost+2.pem')),
-  };
-  // --- End HTTPS options ---
+  // Define HTTPS options only for development
+  let httpsOptions;
+  if (isDevelopment) {
+    const secretsPath = path.join(__dirname, '..', '..', '..', 'secrets');
+    try {
+      httpsOptions = {
+        key: fs.readFileSync(path.join(secretsPath, 'localhost+2-key.pem')),
+        cert: fs.readFileSync(path.join(secretsPath, 'localhost+2.pem')),
+      };
+    } catch (error) {
+      console.warn(
+        'SSL certificates not found, falling back to HTTP in development',
+      );
+    }
+  }
 
   const app = await NestFactory.create(AppModule, {
-    httpsOptions,
+    ...(httpsOptions && { httpsOptions }),
     logger: isDevelopment
       ? ['log', 'debug', 'error', 'verbose', 'warn']
       : ['error', 'warn'],
