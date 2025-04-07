@@ -327,9 +327,18 @@ export function Activity({
             const details = getActivityDetails(comment);
             return (
               <Link
-                href={`/tokens/${comment.tokenMintAddress}?comment=${comment.id}`}
+                href={
+                  comment.isRemoved
+                    ? '#'
+                    : `/tokens/${comment.tokenMintAddress}?comment=${comment.id}`
+                }
                 key={comment.id}
-                className={`block p-4 bg-zinc-900/30 backdrop-blur-sm border ${details.borderColor} rounded-lg hover:bg-zinc-900/50 transition-all duration-200`}>
+                className={`block p-4 bg-zinc-900/30 backdrop-blur-sm border ${details.borderColor} rounded-lg ${comment.isRemoved ? 'opacity-60 cursor-not-allowed' : 'hover:bg-zinc-900/50'} transition-all duration-200`}
+                onClick={(e) => {
+                  if (comment.isRemoved) e.preventDefault();
+                }}
+                aria-disabled={comment.isRemoved}
+                tabIndex={comment.isRemoved ? -1 : undefined}>
                 <div className='flex items-start gap-3'>
                   <div
                     className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-zinc-800/80 ${details.color}`}>
@@ -351,18 +360,22 @@ export function Activity({
                       )}
                     </div>
 
+                    {/* Simply render the content from the backend */}
                     <CommentContent html={comment.content} />
 
-                    <div className='flex items-center gap-3 mt-1.5 text-xs'>
-                      <div className='flex items-center gap-1 text-green-400/90'>
-                        <ThumbsUp className='h-3 w-3' />
-                        <span>{comment.upvotes || 0}</span>
+                    {/* Keep the conditional rendering for votes */}
+                    {!comment.isRemoved && ( // Hide votes if comment is removed
+                      <div className='flex items-center gap-3 mt-1.5 text-xs'>
+                        <div className='flex items-center gap-1 text-green-400/90'>
+                          <ThumbsUp className='h-3 w-3' />
+                          <span>{comment.upvotes || 0}</span>
+                        </div>
+                        <div className='flex items-center gap-1 text-red-400/90'>
+                          <ThumbsDown className='h-3 w-3' />
+                          <span>{comment.downvotes || 0}</span>
+                        </div>
                       </div>
-                      <div className='flex items-center gap-1 text-red-400/90'>
-                        <ThumbsDown className='h-3 w-3' />
-                        <span>{comment.downvotes || 0}</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </Link>

@@ -188,7 +188,8 @@ export class UsersService {
         false as "isUpvote",
         false as "isDownvote",
         c.parent_id as "parentCommentId",
-        CASE WHEN c.removed_by_id IS NOT NULL THEN true ELSE false END as "isRemoved",
+        c.removed_by_id as "removedById",
+        c.user_id as "commentUserId",
         'comment' as type
       FROM comments c
       LEFT JOIN tokens t ON c.token_mint_address = t.mint_address
@@ -208,7 +209,8 @@ export class UsersService {
         CASE WHEN cv.vote_type = 'upvote' THEN true ELSE false END as "isUpvote",
         CASE WHEN cv.vote_type = 'downvote' THEN true ELSE false END as "isDownvote",
         c.parent_id as "parentCommentId",
-        CASE WHEN c.removed_by_id IS NOT NULL THEN true ELSE false END as "isRemoved",
+        c.removed_by_id as "removedById",
+        c.user_id as "commentUserId",
         'vote' as type
       FROM comment_votes cv
       JOIN comments c ON c.id = cv.comment_id
@@ -272,13 +274,18 @@ export class UsersService {
     );
 
     const result: UserActivityDto[] = rawResults.map((raw) => {
+      const isRemoved = !!raw.removedById;
+      const content = isRemoved
+        ? `Comment removed by ${raw.removedById === raw.commentUserId ? 'user' : 'moderator'}`
+        : raw.content;
+
       return new UserActivityDto({
         id: raw.id,
-        content: raw.content,
+        content: content,
         tokenMintAddress: raw.tokenMintAddress,
         createdAt: new Date(raw.createdAt).toISOString(),
-        upvotes: parseInt(raw.upvotes, 10),
-        downvotes: parseInt(raw.downvotes, 10),
+        upvotes: parseInt(raw.upvotes, 10) || 0,
+        downvotes: parseInt(raw.downvotes, 10) || 0,
         tokenSymbol: raw.tokenSymbol || '',
         isReply:
           raw.isReply === true || raw.isReply === 'true' || raw.isReply === 1,
@@ -291,10 +298,7 @@ export class UsersService {
           raw.isDownvote === 'true' ||
           raw.isDownvote === 1,
         parentCommentId: raw.parentCommentId,
-        isRemoved:
-          raw.isRemoved === true ||
-          raw.isRemoved === 'true' ||
-          raw.isRemoved === 1,
+        isRemoved: isRemoved,
       });
     });
 
