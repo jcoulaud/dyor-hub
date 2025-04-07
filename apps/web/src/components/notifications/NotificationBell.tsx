@@ -180,8 +180,8 @@ export function NotificationBell() {
       await notifications.markAsRead(id);
 
       setNotificationData((prev) => {
-        const updatedNotifications = prev.notifications.filter(
-          (notification) => notification.id !== id,
+        const updatedNotifications = prev.notifications.map((notification) =>
+          notification.id === id ? { ...notification, isRead: true } : notification,
         );
 
         return {
@@ -219,6 +219,44 @@ export function NotificationBell() {
       });
     } finally {
       setIsMarkingAll(false);
+    }
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    if (isProcessing(id)) return;
+
+    startProcessing(id);
+    let isDeleteSuccessful = false;
+
+    try {
+      const response = await notifications.deleteNotification(id);
+      isDeleteSuccessful = response.success;
+
+      if (isDeleteSuccessful) {
+        setNotificationData((prev) => {
+          const updatedNotifications = prev.notifications.filter(
+            (notification) => notification.id !== id,
+          );
+
+          return {
+            notifications: updatedNotifications,
+            unreadCount: prev.notifications.find((n) => n.id === id && !n.isRead)
+              ? prev.unreadCount - 1
+              : prev.unreadCount,
+          };
+        });
+      } else {
+        throw new Error('Failed to delete notification');
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to delete notification. Please try again.',
+      });
+    } finally {
+      stopProcessing(id);
     }
   };
 
@@ -317,7 +355,7 @@ export function NotificationBell() {
 
         <div
           ref={scrollContainerRef}
-          className='flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-800/30'>
+          className='flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-800/30 max-h-[calc(60px*7.5)]'>
           {isInitialLoading ? (
             <div className='p-4 text-center text-zinc-400 text-xs'>Loading...</div>
           ) : notificationData.notifications.length === 0 ? (
@@ -331,16 +369,23 @@ export function NotificationBell() {
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.2 }}
-                  className='flex items-start gap-3 px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors'>
-                  <div className='flex-1 overflow-hidden'>
+                  className={`flex items-start gap-3 px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors ${
+                    notification.isRead ? 'bg-opacity-50' : 'bg-zinc-800/10'
+                  }`}>
+                  <div
+                    className={`flex-1 overflow-hidden ${notification.isRead ? 'opacity-70' : ''}`}>
                     <Link
                       href={getNotificationLink(notification)}
                       className='block group'
                       onClick={() => {
-                        handleMarkAsRead(notification.id);
-                        setIsOpen(false);
+                        if (!notification.isRead) {
+                          handleMarkAsRead(notification.id);
+                        }
                       }}>
-                      <p className='text-xs text-zinc-200 leading-snug mb-0.5 group-hover:text-sky-300 transition-colors truncate'>
+                      <p
+                        className={`text-xs leading-snug mb-0.5 group-hover:text-sky-300 transition-colors truncate ${
+                          notification.isRead ? 'text-zinc-400' : 'text-zinc-200 font-medium'
+                        }`}>
                         {sanitizeHtml(notification.message)}
                       </p>
                       <p className='text-[10px] text-zinc-400'>
@@ -352,9 +397,9 @@ export function NotificationBell() {
                     variant='ghost'
                     size='icon'
                     className='h-6 w-6 text-zinc-500 hover:text-red-500 hover:bg-red-900/20 rounded disabled:opacity-50 flex-shrink-0'
-                    onClick={() => handleMarkAsRead(notification.id)}
+                    onClick={() => handleDeleteNotification(notification.id)}
                     disabled={isProcessing(notification.id)}
-                    aria-label='Mark notification as read'>
+                    aria-label='Delete notification'>
                     {isProcessing(notification.id) ? (
                       <Loader2 className='h-3 w-3 animate-spin' />
                     ) : (

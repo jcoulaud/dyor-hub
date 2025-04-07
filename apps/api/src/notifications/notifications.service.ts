@@ -195,16 +195,58 @@ export class NotificationsService {
         { userId, isRead: false },
         { isRead: true },
       );
-      // After marking all as read, send the updated unread count (which should be 0)
+
+      // After marking all as read, send the updated unread count (which is now 0)
       await this.sendUpdatedUnreadCount(userId);
     } catch (error) {
       this.logger.error(
-        `Failed to mark all notifications as read: ${error.message}`,
+        `Failed to mark all notifications as read for user ${userId}: ${error.message}`,
         error.stack,
       );
       throw new InternalServerErrorException(
         'Failed to mark all notifications as read',
       );
+    }
+  }
+
+  async deleteNotification(
+    userId: string,
+    notificationId: string,
+  ): Promise<boolean> {
+    try {
+      // First check if notification exists and belongs to user
+      const notification = await this.notificationRepository.findOne({
+        where: { id: notificationId, userId },
+      });
+
+      if (!notification) {
+        throw new NotFoundException(
+          `Notification #${notificationId} not found or access denied`,
+        );
+      }
+
+      // Delete the notification
+      const result = await this.notificationRepository.delete({
+        id: notificationId,
+        userId,
+      });
+
+      // If notification was unread, update the unread count
+      if (!notification.isRead) {
+        await this.sendUpdatedUnreadCount(userId);
+      }
+
+      return result.affected > 0;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      this.logger.error(
+        `Failed to delete notification ${notificationId} for user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException('Failed to delete notification');
     }
   }
 

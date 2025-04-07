@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
   Param,
   ParseBoolPipe,
@@ -36,6 +37,19 @@ export class NotificationsController {
     );
   }
 
+  @Get('preferences')
+  @UseGuards(AuthGuard)
+  async getNotificationPreferences(@CurrentUser() user: { id: string }) {
+    return this.notificationsService.getUserNotificationPreferences(user.id);
+  }
+
+  @Post('read-all')
+  @UseGuards(AuthGuard)
+  async markAllAsRead(@CurrentUser() user: { id: string }) {
+    await this.notificationsService.markAllNotificationsAsRead(user.id);
+    return { success: true };
+  }
+
   @Post(':id/read')
   @UseGuards(AuthGuard)
   async markAsRead(
@@ -46,19 +60,6 @@ export class NotificationsController {
       user.id,
       notificationId,
     );
-  }
-
-  @Post('read-all')
-  @UseGuards(AuthGuard)
-  async markAllAsRead(@CurrentUser() user: { id: string }) {
-    await this.notificationsService.markAllNotificationsAsRead(user.id);
-    return { success: true };
-  }
-
-  @Get('preferences')
-  @UseGuards(AuthGuard)
-  async getNotificationPreferences(@CurrentUser() user: { id: string }) {
-    return this.notificationsService.getUserNotificationPreferences(user.id);
   }
 
   @Post('preferences/:type')
@@ -73,5 +74,18 @@ export class NotificationsController {
       notificationType,
       settings,
     );
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard)
+  async deleteNotification(
+    @CurrentUser() user: { id: string },
+    @Param('id') notificationId: string,
+  ) {
+    const success = await this.notificationsService.deleteNotification(
+      user.id,
+      notificationId,
+    );
+    return { success };
   }
 }
