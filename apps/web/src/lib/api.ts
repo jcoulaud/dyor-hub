@@ -99,7 +99,6 @@ interface CacheItem<T> {
 const apiCache = new Map<string, CacheItem<unknown>>();
 const pendingRequests = new Map<string, Promise<unknown>>();
 const CACHE_TTL = 60 * 1000; // 1 minute default TTL
-const PROFILE_CACHE_TTL = 60 * 1000; // 1 minute for profiles
 const STATS_CACHE_TTL = 60 * 1000; // 1 minute for stats
 const ACTIVITY_CACHE_TTL = 60 * 1000; // 1 minute for activity
 
@@ -567,19 +566,7 @@ export const users = {
     try {
       const sanitizedUsername = encodeURIComponent(username);
       const endpoint = `users/${sanitizedUsername}`;
-      const cacheKey = `api:${endpoint}`;
-
-      // Check cache first
-      const cachedData = getCache<User>(cacheKey);
-      if (cachedData) {
-        return cachedData;
-      }
-
-      // Fetch fresh data using api function
       const data = await api<User>(endpoint);
-
-      // Update cache
-      setCache(cacheKey, data, PROFILE_CACHE_TTL);
 
       return data;
     } catch (error) {
@@ -764,6 +751,7 @@ export const users = {
 
   updateUserPreferences: async (
     preferences: Partial<UserPreferences>,
+    currentUsername?: string,
   ): Promise<Partial<UserPreferences>> => {
     try {
       const endpoint = 'users/me/preferences';
@@ -772,9 +760,22 @@ export const users = {
         body: { preferences: preferences },
       });
 
-      const cacheKey = `api:users/me/preferences`;
-      const currentPrefs = getCache<Partial<UserPreferences>>(cacheKey) || {};
-      setCache(cacheKey, { ...currentPrefs, ...data });
+      // Update preferences cache for the current user
+      const prefsCacheKey = `api:users/me/preferences`;
+      const currentPrefs = getCache<Partial<UserPreferences>>(prefsCacheKey) || {};
+      setCache(prefsCacheKey, { ...currentPrefs, ...data });
+
+      // Invalidate the main user cache for the current user
+      const userCacheKey = `api:users/me`;
+      apiCache.delete(userCacheKey);
+
+      // If the visibility preference changed AND we have the username, invalidate public profile cache
+      if (preferences.showWalletAddress !== undefined && currentUsername) {
+        const publicProfileCacheKey = `api:users/${encodeURIComponent(currentUsername)}`;
+        apiCache.delete(publicProfileCacheKey);
+        console.log('Invalidated public profile cache:', publicProfileCacheKey);
+      }
+
       return data;
     } catch (error) {
       console.error('[updateUserPreferences] Error updating user preferences:', error);
