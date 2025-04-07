@@ -1133,6 +1133,12 @@ export const notifications = {
     });
   },
 
+  deleteNotification: async (id: string) => {
+    return api<{ success: boolean }>(`notifications/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   getPreferences: async () => {
     return api<{ preferences: Record<string, boolean> }>('notifications/preferences');
   },
