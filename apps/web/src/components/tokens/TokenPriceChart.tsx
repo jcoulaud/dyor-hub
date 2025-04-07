@@ -111,14 +111,11 @@ const TokenPriceChartComponent = memo(({ tokenAddress, totalSupply }: TokenPrice
         setIsLoading(true);
         setError(null);
 
-        const priceHistory = await tokens.getTokenPriceHistory(
-          tokenAddress,
-          abortControllerRef.current.signal,
-        );
+        const priceHistory = await tokens.getTokenPriceHistory(tokenAddress);
 
-        if (priceHistory.items.length > 0) {
+        if (priceHistory && priceHistory.items && priceHistory.items.length > 0) {
           const supply = parseFloat(totalSupply);
-          const formatted = priceHistory.items.map((item) => ({
+          const formatted = priceHistory.items.map((item: { unixTime: number; value: number }) => ({
             time: formatTime(item.unixTime),
             price: item.value,
             marketCap: item.value * supply,

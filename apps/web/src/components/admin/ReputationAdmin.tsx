@@ -25,7 +25,7 @@ export const ReputationAdmin: React.FC = () => {
 
         const [pointsData, topUsersData] = await Promise.all([
           reputation.admin.getActivityPointValues(),
-          reputation.admin.getTopUsers(10),
+          reputation.getTopUsers(10),
         ]);
 
         setPointsConfig(pointsData);

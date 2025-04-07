@@ -31,8 +31,8 @@ export default function Page({ params, commentId }: PageProps) {
   const router = useRouter();
   const pathname = usePathname();
   const commentIdFromProps =
-    commentId || pathname.includes('/comments/')
-      ? pathname.split('/comments/')[1]?.split('/')[0]
+    commentId || (pathname && pathname.includes('/comments/'))
+      ? pathname?.split('/comments/')[1]?.split('/')[0]
       : undefined;
   const [address, setAddress] = useState('');
   const [error, setError] = useState('');

@@ -5,6 +5,7 @@ export interface WalletResponse {
   userId: string;
   createdAt: Date;
   updatedAt: Date;
+  isPrimary?: boolean;
 }
 
 export interface ConnectWalletDto {

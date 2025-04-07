@@ -2,15 +2,23 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { StreakOverview as StreakOverviewType, TopStreakUsers, streaks } from '@/lib/api';
+import { streaks } from '@/lib/api';
+import { StreakOverview as StreakOverviewTypeBase, TopStreakUsers } from '@dyor-hub/types';
 import { format } from 'date-fns';
 import { AlertCircle, Calendar, Flame, Medal, Trophy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+type TopUsersData = {
+  topCurrentStreaks: (TopStreakUsers & { id: string; lastActivityDate: Date | null })[];
+  topAllTimeStreaks: (TopStreakUsers & { id: string })[];
+};
+
+type StreakOverviewType = StreakOverviewTypeBase & { milestoneCounts: Record<number, number> };
+
 export default function StreaksAdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [overview, setOverview] = useState<StreakOverviewType | null>(null);
-  const [topUsers, setTopUsers] = useState<TopStreakUsers | null>(null);
+  const [topUsers, setTopUsers] = useState<TopUsersData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -141,30 +149,35 @@ export default function StreaksAdminPage() {
                   </CardHeader>
                   <CardContent>
                     <div className='space-y-2'>
-                      {topUsers?.topCurrentStreaks.map((user, index) => (
-                        <div
-                          key={user.id}
-                          className='flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-950/50 p-3'>
-                          <div className='flex items-center gap-3'>
-                            <div className='flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-sm font-medium'>
-                              {index + 1}
-                            </div>
-                            <div>
-                              <div className='font-medium text-white'>{user.username}</div>
-                              <div className='text-xs text-zinc-400'>
-                                Last active:{' '}
-                                {user.lastActivityDate
-                                  ? format(new Date(user.lastActivityDate), 'MMM d, yyyy')
-                                  : 'N/A'}
+                      {topUsers?.topCurrentStreaks.map(
+                        (
+                          user: TopStreakUsers & { id: string; lastActivityDate: Date | null },
+                          index: number,
+                        ) => (
+                          <div
+                            key={user.id}
+                            className='flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-950/50 p-3'>
+                            <div className='flex items-center gap-3'>
+                              <div className='flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-sm font-medium'>
+                                {index + 1}
+                              </div>
+                              <div>
+                                <div className='font-medium text-white'>{user.username}</div>
+                                <div className='text-xs text-zinc-400'>
+                                  Last active:{' '}
+                                  {user.lastActivityDate
+                                    ? format(new Date(user.lastActivityDate), 'MMM d, yyyy')
+                                    : 'N/A'}
+                                </div>
                               </div>
                             </div>
+                            <div className='flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-sm text-emerald-500'>
+                              <Flame className='h-3 w-3' />
+                              <span>{user.currentStreak} days</span>
+                            </div>
                           </div>
-                          <div className='flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-sm text-emerald-500'>
-                            <Flame className='h-3 w-3' />
-                            <span>{user.currentStreak} days</span>
-                          </div>
-                        </div>
-                      ))}
+                        ),
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -180,22 +193,24 @@ export default function StreaksAdminPage() {
                   </CardHeader>
                   <CardContent>
                     <div className='space-y-2'>
-                      {topUsers?.topAllTimeStreaks.map((user, index) => (
-                        <div
-                          key={user.id}
-                          className='flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-950/50 p-3'>
-                          <div className='flex items-center gap-3'>
-                            <div className='flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-sm font-medium'>
-                              {index + 1}
+                      {topUsers?.topAllTimeStreaks.map(
+                        (user: TopStreakUsers & { id: string }, index: number) => (
+                          <div
+                            key={user.id}
+                            className='flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-950/50 p-3'>
+                            <div className='flex items-center gap-3'>
+                              <div className='flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-sm font-medium'>
+                                {index + 1}
+                              </div>
+                              <div className='font-medium text-white'>{user.username}</div>
                             </div>
-                            <div className='font-medium text-white'>{user.username}</div>
+                            <div className='flex items-center gap-1 rounded-full bg-blue-500/10 px-3 py-1 text-sm text-blue-500'>
+                              <Trophy className='h-3 w-3' />
+                              <span>{user.longestStreak} days</span>
+                            </div>
                           </div>
-                          <div className='flex items-center gap-1 rounded-full bg-blue-500/10 px-3 py-1 text-sm text-blue-500'>
-                            <Trophy className='h-3 w-3' />
-                            <span>{user.longestStreak} days</span>
-                          </div>
-                        </div>
-                      ))}
+                        ),
+                      )}
                     </div>
                   </CardContent>
                 </Card>

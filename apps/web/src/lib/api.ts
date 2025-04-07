@@ -1,12 +1,12 @@
 import {
   ActivityPointsConfig,
-  AdminBadge,
   AvailableBadge,
   BadgeActivity,
   BadgeCategory,
   BadgeFormValues,
   BadgeRequirement,
   BadgeSummary,
+  Badge as BadgeType,
   Comment,
   CreateCommentDto,
   LatestComment,
@@ -35,6 +35,15 @@ import {
 interface PublicWalletInfo {
   address: string;
   isVerified: boolean;
+}
+
+interface PriceHistoryItem {
+  unixTime: number;
+  value: number;
+}
+
+interface PriceHistoryResponse {
+  items: PriceHistoryItem[];
 }
 
 // Use configured API URL for cross-domain requests
@@ -423,13 +432,6 @@ export const auth = {
     }
   },
 };
-
-interface PriceHistoryItem {
-  time: string;
-  price: number;
-}
-
-type PriceHistoryResponse = PriceHistoryItem[];
 
 export const tokens = {
   list: async (
@@ -1008,6 +1010,33 @@ export const gamification = {
         return { success: false };
       }
     },
+
+    createBadge: async (badgeData: BadgeFormValues) => {
+      return api<BadgeType>('admin/badges', {
+        method: 'POST',
+        body: badgeData,
+      });
+    },
+
+    updateBadge: async (badgeId: string, badgeData: BadgeFormValues) => {
+      return api<BadgeType>(`admin/badges/${badgeId}`, {
+        method: 'PUT',
+        body: badgeData,
+      });
+    },
+
+    deleteBadge: async (badgeId: string) => {
+      return api<{ success: boolean }>(`admin/badges/${badgeId}`, {
+        method: 'DELETE',
+      });
+    },
+
+    awardBadgeToUsers: async (badgeId: string, userIds: string[]) => {
+      return api<{ success: boolean }>(`admin/badges/${badgeId}/award`, {
+        method: 'POST',
+        body: { userIds },
+      });
+    },
   },
 
   streaks: {
@@ -1201,15 +1230,32 @@ export const wallets = {
 export const badges = {
   admin: {
     getAllBadges: async () => {
-      return api<AdminBadge[]>('admin/badges');
+      return api<BadgeType[]>('admin/badges');
     },
     getRecentBadgeActivity: async (limit = 10) => {
       return api<BadgeActivity[]>(`admin/badges/activity/recent?limit=${limit}`);
     },
     createBadge: async (badgeData: BadgeFormValues) => {
-      return api<AdminBadge>('admin/badges', {
+      return api<BadgeType>('admin/badges', {
         method: 'POST',
         body: badgeData,
+      });
+    },
+    updateBadge: async (badgeId: string, badgeData: BadgeFormValues) => {
+      return api<BadgeType>(`admin/badges/${badgeId}`, {
+        method: 'PUT',
+        body: badgeData,
+      });
+    },
+    deleteBadge: async (badgeId: string) => {
+      return api<{ success: boolean }>(`admin/badges/${badgeId}`, {
+        method: 'DELETE',
+      });
+    },
+    awardBadgeToUsers: async (badgeId: string, userIds: string[]) => {
+      return api<{ success: boolean }>(`admin/badges/${badgeId}/award`, {
+        method: 'POST',
+        body: { userIds },
       });
     },
   },
@@ -1218,10 +1264,16 @@ export const badges = {
 export const streaks = {
   admin: {
     getStreakOverview: async () => {
-      return api<StreakOverview>('admin/streaks/overview');
+      return api<StreakOverview & { milestoneCounts: Record<number, number> }>(
+        'admin/streaks/overview',
+      );
     },
     getTopStreakUsers: async (limit = 10) => {
-      return api<{ topCurrentStreaks: TopStreakUsers[] }>(`admin/streaks/top-users?limit=${limit}`);
+      type TopUsersData = {
+        topCurrentStreaks: (TopStreakUsers & { id: string; lastActivityDate: Date | null })[];
+        topAllTimeStreaks: (TopStreakUsers & { id: string })[];
+      };
+      return api<TopUsersData>(`admin/streaks/top-users?limit=${limit}`);
     },
   },
 };

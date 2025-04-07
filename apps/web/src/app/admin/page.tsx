@@ -11,25 +11,12 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { badges as badgesApi, reputation, streaks as streaksApi, TopStreakUsers } from '@/lib/api';
-import { Badge } from '@dyor-hub/types';
+import { badges as badgesApi, reputation, streaks as streaksApi } from '@/lib/api';
+import { BadgeActivity as ImportedBadgeActivity, TopStreakUsers } from '@dyor-hub/types';
 import { format } from 'date-fns';
 import { BadgeCheck, Calendar, Flame, Medal, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-
-type BadgeActivity = {
-  id: string;
-  userId: string;
-  badgeId: string;
-  earnedAt: string;
-  user: {
-    id: string;
-    username: string;
-    displayName: string;
-  };
-  badge: Badge;
-};
 
 type DashboardData = {
   badgeCount: string;
@@ -49,10 +36,10 @@ export default function AdminDashboard() {
     activeStreaks: '...',
     atRiskStreaks: 0,
   });
-  const [recentActivity, setRecentActivity] = useState<BadgeActivity[]>([]);
+  const [recentActivity, setRecentActivity] = useState<ImportedBadgeActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [topStreakUsers, setTopStreakUsers] = useState<TopStreakUsers['topCurrentStreaks']>([]);
+  const [topStreakUsers, setTopStreakUsers] = useState<TopStreakUsers[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -293,7 +280,7 @@ export default function AdminDashboard() {
                   </TableHeader>
                   <TableBody>
                     {topStreakUsers.slice(0, 5).map((user, index) => (
-                      <TableRow key={user.id}>
+                      <TableRow key={user.userId}>
                         <TableCell className='font-medium'>#{index + 1}</TableCell>
                         <TableCell>{user.username}</TableCell>
                         <TableCell className='flex items-center gap-2'>
