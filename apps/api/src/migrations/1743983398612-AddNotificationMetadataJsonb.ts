@@ -39,7 +39,6 @@ export class AddNotificationMetadataJsonb1743983398612
     await queryRunner.query(
       `ALTER TABLE "user_badges" DROP CONSTRAINT "UQ_user_badges_user_badge"`,
     );
-    await queryRunner.query(`ALTER TABLE "badges" DROP COLUMN "image_url"`);
     await queryRunner.query(
       `ALTER TABLE "notifications" ADD "relatedMetadata" jsonb`,
     );
@@ -145,9 +144,6 @@ export class AddNotificationMetadataJsonb1743983398612
     );
     await queryRunner.query(
       `ALTER TABLE "notifications" DROP COLUMN "relatedMetadata"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "badges" ADD "image_url" character varying`,
     );
     await queryRunner.query(
       `ALTER TABLE "user_badges" ADD CONSTRAINT "UQ_user_badges_user_badge" UNIQUE ("user_id", "badge_id")`,
