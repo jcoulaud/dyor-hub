@@ -119,25 +119,27 @@ export function NotificationBell() {
       return;
     }
 
-    const socketUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const socketUrl = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3001';
     const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
       `${socketUrl}/notifications`,
       {
-        query: { userId: user.id },
+        withCredentials: true,
         transports: ['websocket'],
       },
     );
 
     socket.on('connect', () => {
-      fetchNotifications(1);
+      console.log(
+        'WebSocket connected (using cookie credentials). Fetching initial notifications...',
+      );
     });
 
-    socket.on('disconnect', () => {
-      // console.log('Disconnected from Notifications WebSocket:', reason);
+    socket.on('disconnect', (reason) => {
+      console.log('Disconnected from Notifications WebSocket:', reason);
     });
 
     socket.on('connect_error', (error) => {
-      console.error('WebSocket Connection Error:', error); // Keep error log
+      console.error('WebSocket Connection Error:', error);
     });
 
     socket.on('new_notification', (newNotification) => {

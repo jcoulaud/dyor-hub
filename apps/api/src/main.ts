@@ -5,6 +5,8 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import cookieParser from 'cookie-parser';
 import { json } from 'express';
 import session from 'express-session';
+import * as fs from 'fs'; // Import Node's file system module
+import * as path from 'path'; // Import path module
 import 'reflect-metadata';
 import { AppModule } from './app.module';
 import { initializeDatabase } from './datasource';
@@ -19,7 +21,16 @@ async function bootstrap() {
 
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
+  // --- Define HTTPS options ---
+  const secretsPath = path.join(__dirname, '..', '..', '..', 'secrets');
+  const httpsOptions = {
+    key: fs.readFileSync(path.join(secretsPath, 'localhost+2-key.pem')),
+    cert: fs.readFileSync(path.join(secretsPath, 'localhost+2.pem')),
+  };
+  // --- End HTTPS options ---
+
   const app = await NestFactory.create(AppModule, {
+    httpsOptions,
     logger: isDevelopment
       ? ['log', 'debug', 'error', 'verbose', 'warn']
       : ['error', 'warn'],
@@ -31,7 +42,7 @@ async function bootstrap() {
   const sessionService = app.get(SessionService);
 
   const port = configService.get('PORT') ?? 3001;
-  const clientUrl = configService.get('CLIENT_URL') || 'http://localhost:3000';
+  const clientUrl = configService.get('CLIENT_URL') || 'https://localhost:3000';
 
   // Load origins from env vars
   const allowedOriginsStr = configService.get('ALLOWED_ORIGINS') || '';
@@ -51,8 +62,8 @@ async function bootstrap() {
   if (isDevelopment) {
     originsArray.push(
       clientUrl,
-      `http://localhost:${port}`,
-      'http://localhost:3000',
+      `https://localhost:${port}`,
+      'https://localhost:3000',
     );
   }
 
@@ -80,39 +91,8 @@ async function bootstrap() {
 
   // Set up CORS
   app.enableCors({
-    origin: (origin, callback) => {
-      // Allow null origins (mobile apps, curl)
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-
-      // Allow whitelisted origins
-      if (finalOrigins.includes(origin)) {
-        callback(null, true);
-        return;
-      }
-
-      // Strict origin checking in production
-      if (!isDevelopment && finalOrigins.length > 0) {
-        callback(null, false);
-        return;
-      }
-
-      // Permissive defaults for dev or empty origin list
-      callback(null, true);
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    origin: process.env.FRONTEND_URL || 'https://localhost:3000', // Use HTTPS for local frontend
     credentials: true,
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'Cookie',
-      'Accept',
-      'Origin',
-      'X-Requested-With',
-    ],
-    exposedHeaders: ['Set-Cookie'],
   });
 
   // Initialize session middleware
@@ -157,7 +137,7 @@ async function bootstrap() {
   });
 
   await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}`);
+  console.log(`Application is running securely on: ${await app.getUrl()}`); // Will show https://localhost:3001
 }
 
 bootstrap();

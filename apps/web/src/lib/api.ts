@@ -38,7 +38,7 @@ interface PublicWalletInfo {
 }
 
 // Use configured API URL for cross-domain requests
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3001';
 
 // Define additional cache TTLs
 const TOKEN_CACHE_TTL = 60 * 1000; // 1 minute for token data

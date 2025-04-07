@@ -88,6 +88,41 @@ Comments are automatically moderated using:
    - Copy `.env.example` to `.env` in both `apps/api` and `apps/web` directories
    - Configure the environment variables as needed
 
+### Local HTTPS Setup (Required)
+
+To ensure secure cookie handling and WebSocket authentication function correctly during local development (mirroring production behavior), you **must** run both the frontend and backend servers over HTTPS.
+
+**Why?** Modern browsers require secure connections (HTTPS) when using cookies with the `SameSite=None` attribute, which is necessary for cross-origin authentication (like `localhost:3000` talking to `localhost:3001`). Our secure WebSocket authentication relies on this.
+
+**Steps:**
+
+1.  **Install `mkcert`:** This tool simplifies creating locally trusted SSL certificates.
+    - **macOS:** `brew install mkcert`
+    - **Linux:** Use `brew` or follow instructions at [mkcert GitHub](https://github.com/FiloSottile/mkcert)
+    - **Windows:** `choco install mkcert` or `scoop install mkcert`
+2.  **Install Local CA:** Run this once per machine to make your system trust `mkcert`-generated certificates (might require admin password):
+    ```bash
+    mkcert -install
+    ```
+3.  **Generate Certificates:**
+    - Create a `secrets` directory at the project root: `mkdir secrets` (This directory is automatically ignored by Git via `.gitignore`).
+    - Navigate into it: `cd secrets`
+    - Generate the certificate files for `localhost`:
+      ```bash
+      mkcert localhost 127.0.0.1 ::1
+      ```
+      This will create `localhost+2.pem` (certificate) and `localhost+2-key.pem` (private key) inside the `secrets` directory.
+4.  **Configure Environment:**
+    - Ensure the `apps/web/.env.local` file has the correct API URL:
+      ```
+      NEXT_PUBLIC_API_URL=https://localhost:3001
+      ```
+5.  **Run Servers:**
+    - The project is pre-configured to use these certificates.
+    - Start the API server (e.g., `pnpm dev --filter=api`). It will automatically run on `https://localhost:3001`.
+    - Start the frontend server (`pnpm dev --filter=web`). The `dev` script in `apps/web/package.json` includes flags to use the generated certificates and run on `https://localhost:3000`.
+    - Access the application in your browser via **`https://localhost:3000`**.
+
 ### Running Locally
 
 To run the entire project in development mode:

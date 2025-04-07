@@ -93,13 +93,19 @@ export class AuthConfigService {
   getCookieConfig(isDevelopment: boolean): CookieConfig {
     const domain = this.configService.get<string>('COOKIE_DOMAIN');
 
+    // Use 'none' for sameSite to allow cross-origin (different port) requests.
+    // 'none' requires secure: true.
+    const useSecureCookies = true; // Always true when sameSite is 'none'
+    const sameSitePolicy = 'none';
+
     return {
       httpOnly: true,
-      secure: !isDevelopment,
-      sameSite: isDevelopment ? 'lax' : 'none',
+      secure: useSecureCookies,
+      sameSite: sameSitePolicy,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       path: '/',
-      domain: isDevelopment ? undefined : domain || undefined,
+      // Domain logic: Only set domain in production if COOKIE_DOMAIN env var is provided.
+      domain: !isDevelopment && domain ? domain : undefined,
     };
   }
 
