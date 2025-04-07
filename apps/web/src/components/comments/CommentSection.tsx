@@ -143,6 +143,28 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     [sortBy],
   );
 
+  const fetchThreadData = useCallback(
+    async (threadId: string) => {
+      try {
+        setIsLoadingSpecificComment(true);
+        const threadData = await comments.getThread(threadId);
+        setFocusedComment(threadData.rootComment);
+        setThreadComments(organizeComments(threadData.comments));
+      } catch {
+        setFocusedComment(null);
+        setThreadComments([]);
+        toast({
+          title: 'Error',
+          description: 'Could not load comment thread.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoadingSpecificComment(false);
+      }
+    },
+    [organizeComments, toast],
+  );
+
   const fetchComments = useCallback(
     async (page: number = 1) => {
       try {
@@ -349,17 +371,15 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         setNewComment('');
         setReplyingTo(null);
 
-        // If it's a reply, fetch all comments to maintain hierarchy
-        if (parentId) {
+        if (parentId && commentId) {
+          await fetchThreadData(commentId);
+        } else if (parentId) {
           await fetchComments();
         } else {
-          // For new top-level comments:
-          // 1. Store current sort if it's not 'new'
           if (sortBy !== 'new') {
             setPreviousSort(sortBy);
             setSortBy('new');
           }
-          // 2. Fetch all comments to ensure proper sorting
           await fetchComments();
         }
 
@@ -711,35 +731,8 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
 
   useEffect(() => {
     if (!commentId) return;
-
-    const fetchSpecificComment = async () => {
-      try {
-        setIsLoadingSpecificComment(true);
-
-        const threadData = await comments.getThread(commentId);
-
-        setFocusedComment(threadData.rootComment);
-
-        setThreadComments(organizeComments(threadData.comments));
-
-        // Scroll to the focused comment
-        setTimeout(() => {
-          const commentEl = commentRefs.current.get(commentId);
-          if (commentEl) {
-            commentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 100);
-      } catch (error) {
-        console.error('Error fetching specific comment:', error);
-        setFocusedComment(null);
-        setThreadComments([]);
-      } finally {
-        setIsLoadingSpecificComment(false);
-      }
-    };
-
-    fetchSpecificComment();
-  }, [commentId, organizeComments]);
+    fetchThreadData(commentId);
+  }, [commentId, fetchThreadData]);
 
   if (commentId) {
     if (isLoadingSpecificComment || (!isLoadingSpecificComment && !focusedComment)) {
