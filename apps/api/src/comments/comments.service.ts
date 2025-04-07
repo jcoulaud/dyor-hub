@@ -21,6 +21,7 @@ import { UserEntity } from '../entities/user.entity';
 import { GamificationEvent } from '../gamification/services/activity-hooks.service';
 import { PerspectiveService } from '../services/perspective.service';
 import { TelegramNotificationService } from '../services/telegram-notification.service';
+import { sanitizeHtml } from '../utils/utils';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { LatestCommentResponseDto } from './dto/latest-comment-response.dto';
@@ -543,11 +544,6 @@ export class CommentsService {
     return this.commentRepository.save(comment);
   }
 
-  private sanitizeHtml(html: string): string {
-    if (!html) return '';
-    return html.replace(/<[^>]*>?/gm, '');
-  }
-
   async findLatestComments(
     limit: number = 5,
   ): Promise<LatestCommentResponseDto[]> {
@@ -571,7 +567,7 @@ export class CommentsService {
 
     return comments.map((comment) => ({
       id: comment.id,
-      content: this.sanitizeHtml(comment.content),
+      content: sanitizeHtml(comment.content),
       createdAt: comment.createdAt,
       token: {
         tokenMintAddress: comment.tokenMintAddress,

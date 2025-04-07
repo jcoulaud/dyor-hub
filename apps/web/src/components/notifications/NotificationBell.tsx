@@ -10,6 +10,7 @@ import {
 import { useIntersectionObserver } from '@/hooks/use-intersection-observer';
 import { useToast } from '@/hooks/use-toast';
 import { gamification, notifications } from '@/lib/api';
+import { sanitizeHtml } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import { NotificationItem, NotificationType } from '@dyor-hub/types';
 import { formatDistanceToNow } from 'date-fns';
@@ -340,7 +341,7 @@ export function NotificationBell() {
                         setIsOpen(false);
                       }}>
                       <p className='text-xs text-zinc-200 leading-snug mb-0.5 group-hover:text-sky-300 transition-colors truncate'>
-                        {notification.message}
+                        {sanitizeHtml(notification.message)}
                       </p>
                       <p className='text-[10px] text-zinc-400'>
                         {getTimeAgo(notification.createdAt)}
