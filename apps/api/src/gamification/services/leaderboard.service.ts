@@ -379,7 +379,11 @@ export class LeaderboardService {
         }
       }
 
-      await this.leaderboardRepository.save(updatedEntries);
+      await this.leaderboardRepository.upsert(updatedEntries, [
+        'userId',
+        'category',
+        'timeframe',
+      ]);
     } catch (error) {
       this.logger.error(
         `Failed to update ${category}/${timeframe} leaderboard: ${error.message}`,
