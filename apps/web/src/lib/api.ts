@@ -1,6 +1,7 @@
 import {
   ActivityPointsConfig,
   AvailableBadge,
+  BadgeActivity,
   BadgeFormValues,
   BadgeSummary,
   Badge as BadgeType,
@@ -1169,6 +1170,9 @@ export const badges = {
         method: 'POST',
         body: { userIds },
       });
+    },
+    getRecentBadgeActivity: async (limit = 10) => {
+      return api<BadgeActivity[]>(`admin/badges/activity/recent?limit=${limit}`);
     },
   },
 };
