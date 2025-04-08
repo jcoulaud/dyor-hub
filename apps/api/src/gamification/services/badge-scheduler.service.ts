@@ -216,13 +216,12 @@ export class BadgeSchedulerService {
             `Awarding ${badge.name} to ${usersToAward.length} new users.`,
           );
 
-          // Award the badge directly
+          // Award the badge
           for (const userId of usersToAward) {
             try {
               const newUserBadge = this.userBadgeRepository.create({
                 userId: userId,
                 badgeId: badge.id,
-                isDisplayed: false,
               });
               await this.userBadgeRepository.save(newUserBadge);
               awardedForThisBadge++;
