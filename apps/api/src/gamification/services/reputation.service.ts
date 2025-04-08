@@ -377,6 +377,7 @@ export class ReputationService {
         return {
           userId: rep.userId,
           username: rep.user.username,
+          displayName: rep.user.displayName,
           totalPoints: rep.totalPoints,
           weeklyPoints: rep.weeklyPoints,
         };
