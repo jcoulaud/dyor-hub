@@ -3,7 +3,6 @@ import { sanitizeHtml } from '@/lib/utils';
 import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import React from 'react';
 
 export const alt = 'DYOR hub - New Comment';
 export const size = {
@@ -23,7 +22,10 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
 
     // Handle remote URLs
     if (url.startsWith('http')) {
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        cache: 'no-store',
+        next: { revalidate: 0 },
+      });
       if (!res.ok) return null;
 
       const arrayBuffer = await res.arrayBuffer();
@@ -50,28 +52,34 @@ export default async function Image({
   let commentContent = 'Check out this comment on DYOR hub';
   let username = 'User';
   let avatarUrl = '';
-  let tokenSymbol = 'Token';
+  let tokenSymbol = '';
   let tokenImageUrl = '';
 
   try {
-    const [commentData, tokenData] = await Promise.all([
+    const [commentResult, tokenResult] = await Promise.allSettled([
       comments.get(commentId),
       tokens.getByMintAddress(mintAddress),
     ]);
 
-    commentContent = sanitizeHtml(commentData.content, {
-      preserveLineBreaks: true,
-      maxLength: 220,
-    });
-    username = commentData.user.displayName || commentData.user.username || 'Anonymous';
-    avatarUrl = commentData.user.avatarUrl || '';
-    tokenSymbol = tokenData.symbol || tokenData.name || 'Token';
-    tokenImageUrl = tokenData.imageUrl || '';
+    if (commentResult.status === 'fulfilled' && commentResult.value) {
+      const commentData = commentResult.value;
+      commentContent = sanitizeHtml(commentData.content, {
+        preserveLineBreaks: true,
+        maxLength: 220,
+      });
+      username = commentData.user.displayName || commentData.user.username || 'Anonymous';
+      avatarUrl = commentData.user.avatarUrl || '';
+    }
+
+    if (tokenResult.status === 'fulfilled' && tokenResult.value) {
+      const tokenData = tokenResult.value;
+      tokenSymbol = tokenData.symbol || tokenData.name || '';
+      tokenImageUrl = tokenData.imageUrl || '';
+    }
   } catch {
-    // Use default values set above if fetching fails
+    // Continue with default values set above
   }
 
-  // Fetch images in parallel
   const [avatarSrc, tokenImageSrc, logoSrc] = await Promise.all([
     avatarUrl ? fetchImageAsDataUrl(avatarUrl) : Promise.resolve(null),
     tokenImageUrl ? fetchImageAsDataUrl(tokenImageUrl) : Promise.resolve(null),
@@ -209,13 +217,7 @@ export default async function Image({
                   display: 'flex',
                   marginRight: tokenImageSrc ? 16 : 0,
                 }}>
-                <span>
-                  {tokenSymbol
-                    ? `$${tokenSymbol}`
-                    : mintAddress.substring(0, 6) +
-                      '...' +
-                      mintAddress.substring(mintAddress.length - 4)}
-                </span>
+                <span>{tokenSymbol ? `$${tokenSymbol}` : ''}</span>
               </div>
               {tokenImageSrc && (
                 <img
@@ -242,16 +244,10 @@ export default async function Image({
               marginBottom: 24,
               flex: 1,
               display: 'flex',
+              whiteSpace: 'pre-line',
             }}>
             <span>
-              &ldquo;
-              {commentContent.split('\n').map((line, i) => (
-                <React.Fragment key={i}>
-                  {i > 0 && <br />}
-                  {line}
-                </React.Fragment>
-              ))}
-              &rdquo;{commentContent.length > 220 ? '...' : ''}
+              &ldquo;{commentContent}&rdquo;{commentContent.length > 220 ? '...' : ''}
             </span>
           </div>
         </div>
