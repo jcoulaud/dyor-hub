@@ -888,7 +888,7 @@ export const gamification = {
         }
 
         const data = await api<UserBadge[]>(endpoint);
-        setCache(cacheKey, data, 30 * 1000); // 30 seconds cache
+        setCache(cacheKey, data, 5 * 1000); // 5 seconds cache
         return data;
       } catch (error) {
         console.error('Error fetching user badges:', error);
@@ -969,7 +969,7 @@ export const gamification = {
         }
 
         const data = await api<BadgeSummary>(endpoint);
-        setCache(cacheKey, data, 30 * 1000); // 30 seconds cache
+        setCache(cacheKey, data, 5 * 1000); // 5 seconds cache
         return data;
       } catch (error) {
         console.error('Error fetching badge summary:', error);

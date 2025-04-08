@@ -20,14 +20,20 @@ export class TelegramNotificationService implements OnModuleInit {
     this.defaultAppUrl =
       this.configService.get<string>('DEFAULT_APP_URL') || '';
     this.appUrl = this.getValidUrl(configuredUrl);
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
 
-    if (token && this.chatId) {
+    if (token && this.chatId && isProduction) {
       this.bot = new TelegramBot(token, { polling: false });
       this.enabled = true;
-      this.logger.log('Telegram admin notifications enabled');
+      this.logger.log('Telegram admin notifications enabled for production');
+    } else if (token && this.chatId && !isProduction) {
+      this.logger.warn(
+        'Telegram admin notifications disabled in non-production environment.',
+      );
     } else {
       this.logger.warn(
-        'Telegram admin notifications disabled. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env to enable.',
+        'Telegram admin notifications disabled. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env and run in production mode to enable.',
       );
     }
   }
