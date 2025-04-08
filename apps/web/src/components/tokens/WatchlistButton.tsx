@@ -2,7 +2,7 @@ import { useToast } from '@/hooks/use-toast';
 import { watchlist } from '@/lib/api';
 import { useAuthContext } from '@/providers/auth-provider';
 import { Bookmark } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +34,10 @@ export function WatchlistButton({
   const [isWatchlisted, setIsWatchlisted] = useState(initialWatchlistStatus);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+
+  useEffect(() => {
+    setIsWatchlisted(initialWatchlistStatus);
+  }, [initialWatchlistStatus]);
 
   const sizes = {
     sm: 'w-5 h-5',

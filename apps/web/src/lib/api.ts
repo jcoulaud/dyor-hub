@@ -790,20 +790,7 @@ export const watchlist = {
   getWatchlistedTokens: async (): Promise<(Token & { addedAt: Date })[]> => {
     try {
       const endpoint = 'watchlist/tokens';
-      const cacheKey = `api:${endpoint}`;
-
-      // Check cache first with short TTL
-      const cachedData = getCache<(Token & { addedAt: Date })[]>(cacheKey);
-      if (cachedData) {
-        return cachedData;
-      }
-
-      // Fetch fresh data
       const data = await api<(Token & { addedAt: Date })[]>(endpoint);
-
-      // Update cache with short TTL (30 seconds)
-      setCache(cacheKey, data, 5 * 1000);
-
       return data;
     } catch (error) {
       console.error('[getWatchlistedTokens] Error fetching watchlisted tokens:', error);
@@ -818,10 +805,6 @@ export const watchlist = {
         method: 'POST',
       });
 
-      // Invalidate cache for watchlist
-      apiCache.delete('api:watchlist/tokens');
-
-      // Also invalidate the specific token cache since watchlist status changed
       apiCache.delete(`api:tokens/${mintAddress}`);
 
       return data;
@@ -838,10 +821,6 @@ export const watchlist = {
         method: 'DELETE',
       });
 
-      // Invalidate cache for watchlist
-      apiCache.delete('api:watchlist/tokens');
-
-      // Also invalidate the specific token cache since watchlist status changed
       apiCache.delete(`api:tokens/${mintAddress}`);
     } catch (error) {
       console.error('[removeTokenFromWatchlist] Error removing token from watchlist:', error);
@@ -852,14 +831,8 @@ export const watchlist = {
   isTokenWatchlisted: async (mintAddress: string): Promise<boolean> => {
     try {
       const endpoint = `watchlist/tokens/${mintAddress}/status`;
-      const cacheKey = `api:${endpoint}`;
-      const cachedData = getCache<boolean>(cacheKey);
-      if (cachedData) {
-        return cachedData;
-      }
 
       const data = await api<boolean>(endpoint);
-      setCache(cacheKey, data, 5 * 1000);
       return data;
     } catch (error) {
       console.error(`Error checking token watchlist status for ${mintAddress}:`, error);

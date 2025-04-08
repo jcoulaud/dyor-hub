@@ -9,8 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { tokens } from '@/lib/api';
+import { tokens, watchlist } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
+import { useAuthContext } from '@/providers/auth-provider';
 import { Token, TokenStats as TokenStatsType, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
 import { Copy, Globe, MessageSquare, Search, Shield, Sparkles, Twitter } from 'lucide-react';
 import Link from 'next/link';
@@ -30,6 +31,7 @@ export default function Page({ params, commentId }: PageProps) {
   const { mintAddress } = use(params);
   const router = useRouter();
   const pathname = usePathname();
+  const { isAuthenticated } = useAuthContext();
   const commentIdFromProps =
     commentId || (pathname && pathname.includes('/comments/'))
       ? pathname?.split('/comments/')[1]?.split('/')[0]
@@ -88,6 +90,19 @@ export default function Page({ params, commentId }: PageProps) {
 
         try {
           const token = await tokens.getByMintAddress(mintAddress);
+
+          // Always check watchlist status for authenticated users
+          if (isAuthenticated) {
+            try {
+              const isWatchlisted = await watchlist.isTokenWatchlisted(mintAddress);
+              token.isWatchlisted = isWatchlisted;
+            } catch {
+              token.isWatchlisted = false;
+            }
+          } else {
+            token.isWatchlisted = false;
+          }
+
           setTokenData(token);
           setIsHeaderLoaded(true);
 
@@ -225,6 +240,9 @@ export default function Page({ params, commentId }: PageProps) {
                       <WatchlistButton
                         mintAddress={tokenData.mintAddress}
                         initialWatchlistStatus={tokenData.isWatchlisted}
+                        onStatusChange={(isWatchlisted) => {
+                          setTokenData((prev) => (prev ? { ...prev, isWatchlisted } : null));
+                        }}
                         size='sm'
                         tokenSymbol={tokenData.symbol}
                       />
@@ -250,6 +268,11 @@ export default function Page({ params, commentId }: PageProps) {
                               <WatchlistButton
                                 mintAddress={tokenData.mintAddress}
                                 initialWatchlistStatus={tokenData.isWatchlisted}
+                                onStatusChange={(isWatchlisted) => {
+                                  setTokenData((prev) =>
+                                    prev ? { ...prev, isWatchlisted } : null,
+                                  );
+                                }}
                                 size='sm'
                                 tokenSymbol={tokenData.symbol}
                               />
