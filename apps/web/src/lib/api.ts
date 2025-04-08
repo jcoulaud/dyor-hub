@@ -894,7 +894,7 @@ export const gamification = {
     },
 
     async getAvailableBadges(): Promise<AvailableBadge[]> {
-      const endpoint = 'gamification/available-badges';
+      const endpoint = 'gamification/badges/available';
       const cacheKey = `api:${endpoint}`;
 
       try {
@@ -902,8 +902,8 @@ export const gamification = {
         const cachedData = getCache<AvailableBadge[]>(cacheKey);
         if (cachedData) return cachedData;
 
-        // Fetch from API
         const data = await api<AvailableBadge[]>(endpoint);
+
         // Add 5 second cache duration
         setCache<AvailableBadge[]>(cacheKey, data, 5 * 1000);
         return data;
@@ -917,7 +917,7 @@ export const gamification = {
     clearBadgesCache(userId?: string): void {
       const keyPrefixes = userId
         ? [`api:gamification/users/${userId}/badges`]
-        : ['api:gamification/badges', 'api:gamification/available-badges'];
+        : ['api:gamification/badges', 'api:gamification/badges/available'];
 
       for (const key of apiCache.keys()) {
         if (keyPrefixes.some((prefix) => key.startsWith(prefix))) {

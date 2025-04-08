@@ -651,16 +651,11 @@ export class BadgeService {
   }
 
   async getAvailableBadges(userId: string): Promise<
-    {
-      category: BadgeCategory;
-      badges: Array<
-        BadgeEntity & {
-          isAchieved: boolean;
-          progress?: number;
-          currentValue: number;
-        }
-      >;
-    }[]
+    (BadgeEntity & {
+      isAchieved: boolean;
+      progress?: number;
+      currentValue: number;
+    })[]
   > {
     try {
       // Get all active badges
@@ -675,53 +670,31 @@ export class BadgeService {
       });
       const earnedBadgeIds = userBadges.map((ub) => ub.badgeId);
 
-      // Group badges by category
-      const badgesByCategory = badges.reduce(
-        (result, badge) => {
-          const isAchieved = earnedBadgeIds.includes(badge.id);
-          const category = badge.category;
-
-          if (!result[category]) {
-            result[category] = [];
-          }
-
-          result[category].push({
-            ...badge,
-            isAchieved,
-            currentValue: 0,
-          });
-
-          return result;
-        },
-        {} as Record<
-          BadgeCategory,
-          Array<
-            BadgeEntity & {
-              isAchieved: boolean;
-              progress?: number;
-              currentValue: number;
-            }
-          >
-        >,
-      );
+      // Create array of badges with achievement status
+      const badgesWithStatus = badges.map((badge) => ({
+        ...badge,
+        isAchieved: earnedBadgeIds.includes(badge.id),
+        currentValue: 0,
+        progress: 0, // Initialize progress
+      })) as Array<
+        BadgeEntity & {
+          isAchieved: boolean;
+          progress: number;
+          currentValue: number;
+        }
+      >;
 
       // Calculate progress for badges
-      for (const category in badgesByCategory) {
-        for (const badge of badgesByCategory[category]) {
-          const { progress, currentValue } = await this.calculateBadgeProgress(
-            userId,
-            badge,
-          );
-          badge.progress = progress;
-          badge.currentValue = currentValue;
-        }
+      for (const badge of badgesWithStatus) {
+        const { progress, currentValue } = await this.calculateBadgeProgress(
+          userId,
+          badge,
+        );
+        badge.progress = progress;
+        badge.currentValue = currentValue;
       }
 
-      // Transform to array format
-      return Object.entries(badgesByCategory).map(([category, badges]) => ({
-        category: category as BadgeCategory,
-        badges,
-      }));
+      return badgesWithStatus;
     } catch (error) {
       this.logger.error(
         `Failed to get available badges for user ${userId}: ${error.message}`,
