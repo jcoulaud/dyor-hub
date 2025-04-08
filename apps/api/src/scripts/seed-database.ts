@@ -35,6 +35,67 @@ const NUM_WALLETS = 150;
 const NUM_ACTIVITIES = 800;
 const NUM_NOTIFICATIONS = 300;
 
+// Solana token addresses to use in seeding
+const TOKEN_ADDRESSES = [
+  'YbuURTses32NtSGyyWZzwaUWnoNTAbFjdYaC1nGpump',
+  'eL5fUxj2J4CiQsmW85k5FG9DvuQjjUoBHoQBi2Kpump',
+  'CniPCE4b3s8gSUPhUiyMjXnytrEqUrMfSsnbBjLCpump',
+  '9gyfbPVwwZx4y1hotNSLcqXCQNpNqqz6ZRvo8yTLpump',
+  'FtUEW73K6vEYHfbkfpdBZfWpxgQar2HipGdbutEhpump',
+  'CN162nCPpq3DxPCyKLbAvEJeB1aCxsnVTEG4ZU8vpump',
+  'h5NciPdMZ5QCB5BYETJMYBMpVx9ZuitR6HcVjyBhood',
+  '9CMi4UyHbhhmoqcf6thKUWSZ6rAuwafQJd7u2CB8pump',
+  '6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN',
+  'C7heQqfNzdMbUFQwcHkL9FvdwsFsDRBnfwZDDyWYCLTZ',
+  'GHichsGq8aPnqJyz6Jp1ASTK4PNLpB5KrD6XrfDjpump',
+  'GmMautNDHVBsaxt2W38SMi2kqAgrG1HZJkHhdE7Ypump',
+  'E1jCTXdkMRoawoWoqfbhiNkkLbxcSHPssMo36U84pump',
+  'GYTd9XbZTfwicCV28LGkwiDF4DgpXTTAi2UeCajfpump',
+  'GwkEDwePTa6aFosh9xzAniGK1zvLrQ5yPJfLnqwmuyhG',
+  '98mb39tPFKQJ4Bif8iVg9mYb9wsfPZgpgN1sxoVTpump',
+  '63LfDmNb3MQ8mw9MtZ2To9bEA2M71kZUUGq5tiJxcqj9',
+  'Hrh6QCmnGjtq3gqg4xZzncXS7wAWeVmu7SCRfQ4N5H6S',
+  'znv3FZt2HFAvzYf5LxzVyryh3mBXWuTRRng25gEZAjh',
+  'y1AZt42vceCmStjW4zetK3VoNarC1VxJ5iDjpiupump',
+  '9Y7myWuGEY9kT4Z9nKXPXWZEhRd2hJQ85nCK4Hjs8oX2',
+  'WPgmcrani3ZybubqiZmMRP4XWGyUkMu8DeBTq8Kpump',
+  'DP9WkSbYmNoLAoDA5ti8CLMoraneSM8ECVURkA5vKwnY',
+  '5vX4JdxapxpUfUdSy6gjatUSXbknfavqVbo1XVB69xUM',
+  '6gVJwfHxWov8HxdAZ4v4tt2RpZZst6du74y4bUCdpump',
+  '36fBDB9fNZkz6QcLAWXJ55nKrgrMcWh2KAXbMMZU2Mam',
+  'CoVHTmy5SrNbu4tG25qHPKk6FXJR11BqqZ3Nhd21pump',
+  '6q387cQFB2bobtdJGAMVVW5NoVL94KKmHXmEPgwUpump',
+  'D5xQLnpMGRcPmfE3dHKBkDdKPwdP9vVn5pwjXhAv5NCR',
+  '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+  'GAnBrQPmtqNwUNsnokMK9UnBAYXVpgW3zwLtJxnvpump',
+  'Am7JhDobbHyLQddddy6pGzRtpjXGTVu7gXdjJkZ8pump',
+  'DJ9WyFyL69ArymKC2Q6b8AGefDN2vWDvPozytVNApump',
+  'FAxgxFYM2bg9TpT815yForkPrSZf7hrCn8wK1eqEpump',
+  '24KWXRNGbBYjxuMt6xYsFqLhiVeToCr3Fei98QSWpump',
+  '8uBiBsBHHndwsVqtWCHvJ5qBY7iUvLwyAuVAxWBEpump',
+  '3T721bpRc5FNY84W36vWffxoKs4FLXhBpSaqwUCRpump',
+  'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump',
+  '61V8vBaqAGMpgDQi4JcAwo1dmBGHsyhzodcPqnEVpump',
+  'Cn5Ne1vmR9ctMGY9z5NC71A3NYFvopjXNyxYtfVYpump',
+  '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump',
+  '2oYvo4nJ5LgGob48RbJncFDoksicWKakTG1fsT36pump',
+  '2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv',
+  '8FSffhFjeAH5nbFsG6RGLDhaN5RmSzSorEKdG51mpump',
+  '34HDZNbUkTyTrgYKy2ox43yp2f8PJ5hoM7xsrfNApump',
+  'HN8yLhpHVkzAk1dLNxZTvPLoYwxrUusM7svbnSyLsPzQ',
+  '2MCmXsjSXHoQYR6ckg6Af4mhQKDMJMGy6JKh8C4Qpump',
+  'HNg5PYJmtqcmzXrv6S9zP1CDKk5BgDuyFBxbvNApump',
+  'CJtzt1ZHAPY7zGMv5PMZdvn6DdXmBPP86xNBRbkMpump',
+  'GAgsxGrx1cCekzGV1m96QTgV9Wy2JtcBAyKjTKhdpump',
+];
+
+// Verify that we have exactly NUM_TOKENS addresses
+if (TOKEN_ADDRESSES.length !== NUM_TOKENS) {
+  throw new Error(
+    `TOKEN_ADDRESSES length (${TOKEN_ADDRESSES.length}) does not match NUM_TOKENS (${NUM_TOKENS})`,
+  );
+}
+
 async function seedDatabase() {
   console.log('Starting database seeding...');
 
@@ -97,7 +158,7 @@ async function seedDatabase() {
     const tokens: TokenEntity[] = [];
     for (let i = 0; i < NUM_TOKENS; i++) {
       const token = new TokenEntity();
-      token.mintAddress = faker.string.alphanumeric(44); // Solana addresses are base58 encoded
+      token.mintAddress = TOKEN_ADDRESSES[i];
       token.name = faker.company.name() + ' Token';
       token.symbol = token.name.split(' ')[0].substring(0, 5).toUpperCase();
       token.description = faker.company.catchPhrase();
@@ -352,6 +413,36 @@ async function seedDatabase() {
         requirement: BadgeRequirement.MAX_POST_UPVOTES,
         thresholdValue: 50,
       },
+      {
+        name: 'Valuable Comment',
+        description: 'Achieve a comment with 10 upvotes',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.MAX_COMMENT_UPVOTES,
+        thresholdValue: 10,
+      },
+    ];
+
+    // Ranking Badges
+    const rankingBadges = [
+      {
+        name: 'Top 5% Reputation',
+        description:
+          'Achieved top 5% ranking on the all-time reputation leaderboard this week.',
+        category: BadgeCategory.RECEPTION,
+        requirement: BadgeRequirement.TOP_PERCENT_WEEKLY,
+        thresholdValue: 5,
+      },
+    ];
+
+    // Additional Reception Badges
+    const additionalReceptionBadges = [
+      {
+        name: 'Discussion Starter',
+        description: 'Receive replies on 10 different comments',
+        category: BadgeCategory.RECEPTION,
+        requirement: BadgeRequirement.COMMENTS_RECEIVED_COUNT,
+        thresholdValue: 10,
+      },
     ];
 
     // Combine all badge definitions
@@ -361,7 +452,9 @@ async function seedDatabase() {
       ...engagementBadges,
       ...votingBadges,
       ...receptionBadges,
+      ...additionalReceptionBadges,
       ...qualityBadges,
+      ...rankingBadges,
     ];
 
     // Create badge entities from definitions
@@ -540,6 +633,12 @@ async function seedDatabase() {
         'token',
       ]);
 
+      // Add relatedMetadata based on notification type
+      notification.relatedMetadata = generateNotificationMetadata(
+        notification.type,
+        notification.relatedEntityType,
+      );
+
       notifications.push(notification);
     }
     await notificationRepository.save(notifications);
@@ -651,6 +750,83 @@ function generateNotificationMessage(type: NotificationType): string {
       return 'System notification';
     default:
       return 'New notification';
+  }
+}
+
+// Helper function to generate notification metadata based on type
+function generateNotificationMetadata(
+  type: NotificationType,
+  entityType: string,
+): Record<string, any> | null {
+  switch (type) {
+    case NotificationType.COMMENT_REPLY:
+      return {
+        commentId: faker.string.uuid(),
+        tokenSymbol: faker.finance.currencyCode(),
+        tokenMintAddress: faker.string.alphanumeric(44),
+        replyContent: faker.lorem.sentence(),
+        replierUsername: faker.internet.username(),
+      };
+    case NotificationType.UPVOTE_RECEIVED:
+      return {
+        commentId: faker.string.uuid(),
+        tokenSymbol: faker.finance.currencyCode(),
+        upvotesCount: faker.number.int({ min: 1, max: 50 }),
+      };
+    case NotificationType.BADGE_EARNED:
+      return {
+        badgeName: faker.helpers.arrayElement([
+          'Community Star',
+          'First Comment',
+          '7-Day Streak',
+          'Discussion Starter',
+          'Top 5% Reputation',
+        ]),
+        badgeCategory: faker.helpers.arrayElement(Object.values(BadgeCategory)),
+      };
+    case NotificationType.STREAK_ACHIEVED:
+      return {
+        streakDays: faker.number.int({ min: 2, max: 100 }),
+        points: faker.number.int({ min: 10, max: 100 }),
+      };
+    case NotificationType.STREAK_AT_RISK:
+      return {
+        streakDays: faker.number.int({ min: 2, max: 100 }),
+        hoursLeft: faker.number.int({ min: 1, max: 23 }),
+      };
+    case NotificationType.LEADERBOARD_CHANGE:
+      return {
+        category: faker.helpers.arrayElement(
+          Object.values(LeaderboardCategory),
+        ),
+        timeframe: faker.helpers.arrayElement(
+          Object.values(LeaderboardTimeframe),
+        ),
+        oldRank: faker.number.int({ min: 5, max: 100 }),
+        newRank: faker.number.int({ min: 1, max: 4 }),
+      };
+    case NotificationType.REPUTATION_MILESTONE:
+      return {
+        milestone: faker.number.int({ min: 100, max: 10000 }),
+        level: faker.helpers.arrayElement([
+          'Bronze',
+          'Silver',
+          'Gold',
+          'Platinum',
+        ]),
+      };
+    case NotificationType.SYSTEM:
+      return {
+        title: 'System Update',
+        category: faker.helpers.arrayElement([
+          'maintenance',
+          'feature',
+          'announcement',
+        ]),
+        action: faker.helpers.arrayElement(['read', 'click', 'dismiss']),
+      };
+    default:
+      return null;
   }
 }
 
