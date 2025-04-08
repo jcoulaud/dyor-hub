@@ -200,31 +200,16 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
       try {
         setIsLoadingSpecificComment(true);
         const threadData = await comments.getThread(threadId);
-        setFocusedComment(threadData.rootComment);
-        const organizeAndSortThreadComments = (commentsToOrganize: Comment[]) => {
-          commentsToOrganize.sort(
-            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-          );
-          const commentMap = new Map<string, CommentType>();
-          const roots: CommentType[] = [];
-          commentsToOrganize.forEach((c) => commentMap.set(c.id, { ...c, replies: [] }));
-          commentsToOrganize.forEach((c) => {
-            const dto = commentMap.get(c.id)!;
-            if (c.parentId && commentMap.has(c.parentId)) {
-              commentMap.get(c.parentId)!.replies!.push(dto);
-            } else if (!c.parentId) {
-              roots.push(dto);
-            }
-          });
-          return roots;
-        };
-        setThreadComments(organizeAndSortThreadComments(threadData.comments));
-      } catch {
+        const rootCommentWithReplies = threadData.rootComment as CommentType;
+        setFocusedComment(rootCommentWithReplies);
+        setThreadComments([rootCommentWithReplies]);
+      } catch (error) {
+        console.error(`Failed loading thread ${threadId}:`, error);
         setFocusedComment(null);
         setThreadComments([]);
         toast({
           title: 'Error',
-          description: 'Could not load comment thread.',
+          description: error instanceof Error ? error.message : 'Could not load comment thread.',
           variant: 'destructive',
         });
       } finally {
@@ -818,7 +803,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   }, [commentId, fetchThreadData]);
 
   if (commentId) {
-    if (isLoadingSpecificComment || (!isLoadingSpecificComment && !focusedComment)) {
+    if (isLoadingSpecificComment) {
       return (
         <Card className='p-4 animate-pulse'>
           <div className='flex gap-3'>
@@ -848,9 +833,11 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
 
         <div className='space-y-4 w-full'>
           {threadComments.length > 0 ? (
-            threadComments.map((comment) => <Comment key={comment.id} comment={comment} />)
+            threadComments.map((rootComment) => (
+              <Comment key={rootComment.id} comment={rootComment} />
+            ))
           ) : (
-            <Comment comment={focusedComment!} />
+            <p className='text-center text-muted-foreground'>Could not load comment thread.</p>
           )}
         </div>
       </div>

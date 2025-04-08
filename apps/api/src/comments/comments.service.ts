@@ -690,144 +690,200 @@ export class CommentsService {
   async findCommentThread(
     threadCommentId: string,
     currentUserId?: string,
-  ): Promise<{
-    rootComment: CommentResponseDto;
-    comments: CommentResponseDto[];
-  }> {
-    // 1. Find the focused comment first
-    const focusedComment = await this.commentRepository.findOne({
-      where: { id: threadCommentId },
-      relations: ['user', 'removedBy'],
-    });
-
-    if (!focusedComment) {
-      throw new NotFoundException('Comment not found');
-    }
-
-    // 2. Find the root comment ID
-    let currentComment = focusedComment;
-    while (currentComment.parentId) {
-      const parent = await this.commentRepository.findOne({
-        where: { id: currentComment.parentId },
+    replySortBy: string = 'new',
+  ): Promise<{ rootComment: CommentResponseDto }> {
+    try {
+      // 1. Find the specific comment requested
+      const focusedComment = await this.commentRepository.findOne({
+        where: { id: threadCommentId },
+        relations: ['user'],
       });
-      if (!parent) {
-        this.logger.error(
-          `Comment thread integrity error: parent ${currentComment.parentId} not found for comment ${currentComment.id}`,
+
+      if (!focusedComment) {
+        throw new NotFoundException(
+          `Comment with ID ${threadCommentId} not found`,
         );
-        throw new Error('Comment thread integrity error: parent not found');
       }
-      currentComment = parent;
-    }
-    const rootCommentId = currentComment.id;
 
-    // 3. Get all comment IDs in the thread (root + descendants)
-    const recursiveQuery = `
-      WITH RECURSIVE comment_tree AS (
-        -- Anchor member: The root comment of the thread
-        SELECT
-          c.id, -- Select only ID, fetching full entity later
-          c."parent_id",
-          1 as depth
-        FROM comments c
-        WHERE c.id = $1 -- Start with the rootCommentId
+      // 2. Find the Root Comment ID
+      let rootCommentId = focusedComment.id;
+      let currentParentId = focusedComment.parentId;
+      while (currentParentId) {
+        const parent = await this.commentRepository.findOne({
+          select: ['id', 'parentId'], // Only select necessary fields for traversal
+          where: { id: currentParentId },
+        });
+        if (!parent) {
+          this.logger.error(
+            `Comment thread integrity error: parent ${currentParentId} not found for comment ${focusedComment.id}`,
+          );
+          throw new Error('Comment thread integrity error'); // Internal error
+        }
+        rootCommentId = parent.id;
+        currentParentId = parent.parentId;
+      }
 
-        UNION ALL
+      // 3. Fetch All Comment IDs in the Thread
+      const recursiveQuery = `
+        WITH RECURSIVE comment_tree AS (
+          -- Anchor: The root comment of the thread
+          SELECT c.id, c."parent_id" FROM comments c WHERE c.id = $1
+          UNION ALL
+          -- Recursive: Children of comments already in the tree
+          SELECT c.id, c."parent_id" FROM comments c JOIN comment_tree ct ON c."parent_id" = ct.id
+          -- Optional: Add depth limit \`WHERE ct.depth < N\` if needed
+        )
+        SELECT id FROM comment_tree;
+      `;
+      const threadCommentIdsResult = await this.commentRepository.query(
+        recursiveQuery,
+        [rootCommentId],
+      );
+      const threadCommentIds = threadCommentIdsResult.map((r) => r.id);
 
-        -- Recursive member: Children of comments already in the tree
-        SELECT
-          c.id,
-          c."parent_id",
-          ct.depth + 1
-        FROM comments c
-        JOIN comment_tree ct ON c."parent_id" = ct.id
-        WHERE ct.depth < 10 -- Limit recursion depth for safety
-      )
-      SELECT id FROM comment_tree;
-    `;
+      // 4. Fetch All Comment Entities
+      let allThreadComments: CommentEntity[] = [];
+      if (threadCommentIds.length > 0) {
+        allThreadComments = await this.commentRepository.find({
+          where: { id: In(threadCommentIds) },
+          relations: ['user', 'removedBy'],
+        });
+      } else {
+        throw new NotFoundException('Could not retrieve thread comments.');
+      }
 
-    const threadCommentIdsResult = await this.commentRepository.query(
-      recursiveQuery,
-      [rootCommentId],
-    );
-    const threadCommentIds = threadCommentIdsResult.map((r) => r.id);
+      // 5. Fetch User Votes
+      const userVotesMap = new Map<string, VoteType>();
+      if (currentUserId && threadCommentIds.length > 0) {
+        const votes = await this.voteRepository.find({
+          where: { userId: currentUserId, commentId: In(threadCommentIds) },
+        });
+        votes.forEach((v) => userVotesMap.set(v.commentId, v.type));
+      }
 
-    // 4. Fetch all comment entities for the thread
-    let allThreadComments: CommentEntity[] = [];
-    if (threadCommentIds.length > 0) {
-      allThreadComments = await this.commentRepository.find({
-        where: { id: In(threadCommentIds) },
-        relations: ['user', 'removedBy'],
+      // 6. Build Nested Tree & Map to DTOs
+      const commentDtoMap = new Map<string, CommentResponseDto>();
+
+      allThreadComments.forEach((comment) => {
+        const userDto = comment.user
+          ? {
+              id: comment.user.id,
+              username: comment.user.username,
+              displayName: comment.user.displayName,
+              avatarUrl: comment.user.avatarUrl,
+            }
+          : null;
+        if (!userDto) {
+          this.logger.warn(
+            `User data missing for comment ID during thread fetch: ${comment.id}`,
+          );
+          return;
+        }
+
+        commentDtoMap.set(comment.id, {
+          id: comment.id,
+          content: comment.content, // Handle removed content later
+          createdAt: comment.createdAt,
+          updatedAt: comment.updatedAt,
+          voteCount: comment.upvotes - comment.downvotes,
+          parentId: comment.parentId,
+          user: userDto,
+          userVoteType: userVotesMap.get(comment.id) || null,
+          isRemoved: !!comment.removedById,
+          isEdited: comment.isEdited,
+          removedBy:
+            comment.removedById && comment.removedBy
+              ? {
+                  id: comment.removedBy.id,
+                  isSelf: comment.removedBy.id === comment.userId,
+                }
+              : null,
+          replies: [],
+        });
       });
-    }
 
-    // 5. Fetch user votes for all comments in the thread
-    const userVotesMap = new Map<string, VoteType>();
-    if (currentUserId && threadCommentIds.length > 0) {
-      const votes = await this.voteRepository.find({
-        where: { userId: currentUserId, commentId: In(threadCommentIds) },
+      // Second pass: Build the tree structure
+      commentDtoMap.forEach((commentDto) => {
+        if (commentDto.parentId && commentDtoMap.has(commentDto.parentId)) {
+          commentDtoMap.get(commentDto.parentId)!.replies!.push(commentDto);
+        }
       });
-      votes.forEach((v) => userVotesMap.set(v.commentId, v.type));
-    }
 
-    // 6. Map all thread comments to DTOs
-    const commentDtoMap = new Map<string, CommentResponseDto>();
-    allThreadComments.forEach((comment) => {
-      const userDto = comment.user
-        ? {
-            id: comment.user.id,
-            username: comment.user.username,
-            displayName: comment.user.displayName,
-            avatarUrl: comment.user.avatarUrl,
+      // 7. Sort Replies Recursively
+      const sortCommentDtos = (
+        commentsToSort: CommentResponseDto[],
+        currentSortBy: string,
+      ) => {
+        let sortFn: (a: CommentResponseDto, b: CommentResponseDto) => number;
+        switch (currentSortBy) {
+          case 'old':
+            sortFn = (a, b) =>
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            break;
+          case 'new':
+          default:
+            sortFn = (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            break;
+        }
+        try {
+          commentsToSort.sort(sortFn);
+        } catch (e) {
+          this.logger.error(`Error sorting thread replies: ${e}`);
+          commentsToSort.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+        }
+        commentsToSort.forEach((c) => {
+          if (c.replies && c.replies.length > 0) {
+            sortCommentDtos(c.replies, currentSortBy);
           }
-        : null;
+        });
+      };
 
-      if (!userDto) {
-        this.logger.warn(
-          `User data missing for comment ID during thread fetch: ${comment.id}`,
+      // Get the root DTO
+      const rootCommentDto = commentDtoMap.get(rootCommentId);
+      if (!rootCommentDto) {
+        this.logger.error(
+          `Root comment DTO ${rootCommentId} not found after mapping thread comments.`,
         );
-        return;
+        throw new NotFoundException(
+          'Root comment of the thread could not be processed.',
+        );
       }
 
-      const dto: CommentResponseDto = {
-        id: comment.id,
-        content:
-          comment.removedById && comment.removedBy
-            ? `Comment removed by ${comment.removedBy.id === comment.userId ? 'user' : 'moderator'}`
-            : comment.content,
-        createdAt: comment.createdAt,
-        updatedAt: comment.updatedAt,
-        voteCount: comment.upvotes - comment.downvotes,
-        parentId: comment.parentId,
-        user: userDto,
-        userVoteType: userVotesMap.get(comment.id) || null,
-        isRemoved: !!comment.removedById,
-        isEdited: comment.isEdited,
-        removedBy:
-          comment.removedById && comment.removedBy
-            ? {
-                id: comment.removedBy.id,
-                isSelf: comment.removedBy.id === comment.userId,
-              }
-            : null,
+      // Sort the replies starting from the root
+      if (rootCommentDto.replies && rootCommentDto.replies.length > 0) {
+        sortCommentDtos(rootCommentDto.replies, replySortBy);
+      }
+
+      // 8. Final Content Mapping for Removed Comments
+      const finalMapContent = (comment: CommentResponseDto) => {
+        comment.content =
+          comment.isRemoved && comment.removedBy
+            ? `Comment removed by ${comment.removedBy.isSelf ? 'user' : 'moderator'}`
+            : comment.content;
+        if (comment.replies) {
+          comment.replies.forEach(finalMapContent);
+        }
       };
-      commentDtoMap.set(comment.id, dto);
-    });
+      finalMapContent(rootCommentDto);
 
-    // 7. Get the specific DTO for the root comment
-    const rootCommentDto = commentDtoMap.get(rootCommentId);
-    if (!rootCommentDto) {
+      // 9. Return Result
+      return {
+        rootComment: rootCommentDto,
+      };
+    } catch (error) {
       this.logger.error(
-        `Root comment DTO not found for ID ${rootCommentId} after mapping thread comments.`,
+        `Failed to find comment thread for ${threadCommentId}:`,
+        error,
       );
-      throw new NotFoundException(
-        'Root comment of the thread could not be processed.',
-      );
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new Error(`An error occurred while fetching the comment thread.`);
     }
-
-    return {
-      rootComment: rootCommentDto,
-      comments: Array.from(commentDtoMap.values()),
-    };
   }
 
   async findOne(id: string): Promise<CommentEntity | null> {
