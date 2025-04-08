@@ -11,8 +11,13 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { badges as badgesApi, reputation, streaks as streaksApi } from '@/lib/api';
-import { BadgeActivity as ImportedBadgeActivity, TopStreakUsers } from '@dyor-hub/types';
+import {
+  badges as badgesApi,
+  reputation,
+  streaks as streaksApi,
+  users as usersApi,
+} from '@/lib/api';
+import { BadgeActivity as ImportedBadgeActivity, TopStreakUsers, User } from '@dyor-hub/types';
 import { format } from 'date-fns';
 import { BadgeCheck, Calendar, Flame, Medal, Users } from 'lucide-react';
 import Link from 'next/link';
@@ -40,6 +45,7 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [topStreakUsers, setTopStreakUsers] = useState<TopStreakUsers[]>([]);
+  const [lastRegisteredUsers, setLastRegisteredUsers] = useState<User[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -117,6 +123,13 @@ export default function AdminDashboard() {
             topUserReputation: '0',
             topUsername: 'Unknown',
           }));
+        }
+
+        try {
+          const usersData = await usersApi.admin.getLastRegisteredUsers(20);
+          setLastRegisteredUsers(usersData || []);
+        } catch (err) {
+          console.error('Error fetching last registered users:', err);
         }
       } catch (err: unknown) {
         console.error('Error fetching dashboard data:', err);
@@ -301,9 +314,48 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value='users' className='space-y-4'>
-          <div className='text-sm text-center py-6 text-zinc-400 bg-black/80 border border-zinc-800/80 rounded-md'>
-            User management interface coming soon.
-          </div>
+          <Card className='bg-black/80 border-zinc-800/80'>
+            <CardHeader>
+              <CardTitle className='text-zinc-200'>Last 20 Registered Users</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className='text-sm text-center py-6 text-zinc-400'>Loading user data...</div>
+              ) : lastRegisteredUsers.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Username</TableHead>
+                      <TableHead>Display Name</TableHead>
+                      <TableHead>Registered At</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lastRegisteredUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <Link
+                            href={`/users/${user.username}`}
+                            className='hover:underline text-blue-400'>
+                            @{user.username}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{user.displayName}</TableCell>
+                        <TableCell className='flex items-center gap-2 text-zinc-400 text-xs'>
+                          <Calendar className='h-3 w-3' />
+                          {format(new Date(user.createdAt), 'MMM d, yyyy, h:mm a')}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className='text-sm text-center py-6 text-zinc-400'>
+                  No users registered yet.
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

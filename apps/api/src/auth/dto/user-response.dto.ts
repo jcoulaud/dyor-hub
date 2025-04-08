@@ -9,6 +9,7 @@ export class UserResponseDto {
   isAdmin: boolean;
   preferences?: Partial<UserPreferences>;
   primaryWalletAddress?: string;
+  createdAt: string;
 
   constructor(partial: Partial<UserResponseDto>) {
     Object.assign(this, partial);
@@ -42,6 +43,7 @@ export class UserResponseDto {
       isAdmin: user.isAdmin || false,
       preferences: { ...defaultUserPreferences, ...(user.preferences || {}) },
       primaryWalletAddress: finalAddress,
+      createdAt: user.createdAt.toISOString(),
     });
   }
 }

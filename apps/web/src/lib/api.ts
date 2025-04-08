@@ -784,6 +784,40 @@ export const users = {
     });
     return response;
   },
+
+  admin: {
+    getLastRegisteredUsers: async (limit: number): Promise<User[]> => {
+      try {
+        const endpoint = `admin/users/recent?limit=${limit}`;
+        const data = await api<User[]>(endpoint);
+        return data;
+      } catch (error) {
+        console.error(`Error fetching last registered users (limit ${limit}):`, error);
+        throw error;
+      }
+    },
+    getPaginatedUsers: async (
+      page: number = 1,
+      limit: number = 20,
+      search?: string,
+    ): Promise<{ users: User[]; total: number; totalPages: number }> => {
+      try {
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: limit.toString(),
+        });
+        if (search) {
+          params.append('search', search);
+        }
+        const endpoint = `admin/users?${params.toString()}`;
+        const data = await api<{ users: User[]; total: number; totalPages: number }>(endpoint);
+        return data;
+      } catch (error) {
+        console.error(`Error fetching paginated users:`, error);
+        throw error;
+      }
+    },
+  },
 };
 
 export const watchlist = {

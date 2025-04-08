@@ -8,6 +8,7 @@ export interface User {
   isAdmin: boolean;
   preferences?: Partial<UserPreferences>;
   primaryWalletAddress?: string;
+  createdAt: string;
 }
 
 export interface UserProfile extends User {

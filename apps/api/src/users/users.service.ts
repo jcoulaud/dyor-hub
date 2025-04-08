@@ -2,7 +2,7 @@ import { UserPreferences, defaultUserPreferences } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { ILike, IsNull, Not, Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
 import { UserReputationEntity } from '../entities/user-reputation.entity';
@@ -53,6 +53,7 @@ export class UsersService {
           'user.avatarUrl',
           'user.isAdmin',
           'user.preferences',
+          'user.createdAt',
           'wallets.address',
           'wallets.isPrimary',
           'wallets.isVerified',
@@ -322,6 +323,69 @@ export class UsersService {
     } catch (error) {
       this.logger.error(`Error finding user with id ${id}:`, error);
       return null;
+    }
+  }
+
+  // --- Admin Methods ---
+
+  async findRecentUsers(limit: number): Promise<UserEntity[]> {
+    try {
+      const users = await this.userRepository.find({
+        order: { createdAt: 'DESC' },
+        take: limit,
+        select: [
+          'id',
+          'username',
+          'displayName',
+          'avatarUrl',
+          'isAdmin',
+          'preferences',
+          'createdAt',
+        ],
+      });
+      return users;
+    } catch (error) {
+      this.logger.error(`Error finding recent users (limit ${limit}):`, error);
+      throw error;
+    }
+  }
+
+  async findPaginatedUsers(
+    page: number,
+    limit: number,
+    search?: string,
+  ): Promise<{ data: UserEntity[]; total: number }> {
+    try {
+      const skip = (page - 1) * limit;
+      const whereClause: any = {};
+
+      if (search) {
+        whereClause.username = ILike(`%${search}%`);
+      }
+
+      const [data, total] = await this.userRepository.findAndCount({
+        where: whereClause,
+        order: { createdAt: 'DESC' },
+        take: limit,
+        skip: skip,
+        select: [
+          'id',
+          'username',
+          'displayName',
+          'avatarUrl',
+          'isAdmin',
+          'preferences',
+          'createdAt',
+        ],
+      });
+
+      return { data, total };
+    } catch (error) {
+      this.logger.error(
+        `Error finding paginated users (page ${page}, limit ${limit}, search ${search}):`,
+        error,
+      );
+      throw error;
     }
   }
 }
