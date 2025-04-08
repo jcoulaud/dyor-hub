@@ -10,6 +10,7 @@ import { UserResponseDto } from '../../auth/dto/user-response.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UsersService } from '../../users/users.service';
 import { AdminGuard } from '../admin.guard';
+import { AdminUserListItemDto } from '../dto/admin-user-list-item.dto';
 
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, AdminGuard)
@@ -29,7 +30,11 @@ export class UserAdminController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('search') search?: string,
-  ): Promise<{ users: UserResponseDto[]; total: number; totalPages: number }> {
+  ): Promise<{
+    users: AdminUserListItemDto[];
+    total: number;
+    totalPages: number;
+  }> {
     const { data, total } = await this.usersService.findPaginatedUsers(
       page,
       limit,
@@ -38,7 +43,7 @@ export class UserAdminController {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      users: data.map(UserResponseDto.fromEntity),
+      users: data.map(AdminUserListItemDto.fromEntity),
       total,
       totalPages,
     };

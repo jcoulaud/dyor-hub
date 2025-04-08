@@ -53,7 +53,6 @@ export class UsersService {
           'user.avatarUrl',
           'user.isAdmin',
           'user.preferences',
-          'user.createdAt',
           'wallets.address',
           'wallets.isPrimary',
           'wallets.isVerified',
