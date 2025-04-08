@@ -1,7 +1,9 @@
 import { comments, tokens } from '@/lib/api';
+import { sanitizeHtml } from '@/lib/utils';
 import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import React from 'react';
 
 export const alt = 'DYOR hub - New Comment';
 export const size = {
@@ -57,7 +59,10 @@ export default async function Image({
       tokens.getByMintAddress(mintAddress),
     ]);
 
-    commentContent = commentData.content.replace(/<[^>]*>/g, '').substring(0, 220);
+    commentContent = sanitizeHtml(commentData.content, {
+      preserveLineBreaks: true,
+      maxLength: 220,
+    });
     username = commentData.user.displayName || commentData.user.username || 'Anonymous';
     avatarUrl = commentData.user.avatarUrl || '';
     tokenSymbol = tokenData.symbol || tokenData.name || 'Token';
@@ -239,7 +244,14 @@ export default async function Image({
               display: 'flex',
             }}>
             <span>
-              &ldquo;{commentContent}&rdquo;{commentContent.length > 220 ? '...' : ''}
+              &ldquo;
+              {commentContent.split('\n').map((line, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <br />}
+                  {line}
+                </React.Fragment>
+              ))}
+              &rdquo;{commentContent.length > 220 ? '...' : ''}
             </span>
           </div>
         </div>
