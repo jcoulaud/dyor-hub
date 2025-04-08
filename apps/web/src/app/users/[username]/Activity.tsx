@@ -330,7 +330,7 @@ export function Activity({
                 href={
                   comment.isRemoved
                     ? '#'
-                    : `/tokens/${comment.tokenMintAddress}?comment=${comment.id}`
+                    : `/tokens/${comment.tokenMintAddress}/comments/${comment.id}`
                 }
                 key={comment.id}
                 className={`block p-4 bg-zinc-900/30 backdrop-blur-sm border ${details.borderColor} rounded-lg ${comment.isRemoved ? 'opacity-60 cursor-not-allowed' : 'hover:bg-zinc-900/50'} transition-all duration-200`}
