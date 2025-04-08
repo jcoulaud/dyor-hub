@@ -1,0 +1,231 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild of staging environment'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache build artifacts
+        id: cache-build
+        uses: actions/cache@v4
+        with:
+          path: |
+            packages/types/dist
+            apps/api/dist
+            apps/web/.next
+            apps/web/dist
+          key: ${{ runner.os }}-build-staging-${{ github.sha }}-${{ hashFiles('**/pnpm-lock.yaml', 'packages/types/src/**', 'apps/api/src/**', 'apps/web/src/**', 'apps/web/app/**') }}
+          restore-keys: |
+            ${{ runner.os }}-build-staging-
+
+      - name: Build packages
+        if: steps.cache-build.outputs.cache-hit != 'true'
+        run: |
+          cd packages/types
+          pnpm build
+
+      - name: Build API and Web in parallel
+        if: steps.cache-build.outputs.cache-hit != 'true'
+        run: |
+          pnpm --filter "@dyor-hub/api" build &
+          pnpm --filter "@dyor-hub/web" build &
+          wait
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -t rsa,ecdsa,ed25519 ${{ secrets.DROPLET_IP }} >> ~/.ssh/known_hosts
+
+      - name: Copy deployment script
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          scp scripts/blue-green-deploy-staging.sh $DEPLOY_USER@$DROPLET_IP:/tmp/blue-green-deploy-staging.sh
+
+      - name: Smart Cleanup
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            echo "=== Smart cleanup to prevent disk bloat ==="
+
+            # Remove stopped containers older than 24h
+            docker container prune -f --filter "until=24h"
+
+            # Remove dangling images (not used by any container)
+            docker image prune -f
+
+            # Remove unused volumes older than 7 days
+            docker volume prune -f --filter "until=168h"
+
+      - name: Verify Nginx Configuration
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh $DEPLOY_USER@$DROPLET_IP "sudo test -f /etc/nginx/sites-enabled/dyor-hub-staging && sudo nginx -t" || {
+            echo "Nginx configuration issue detected. Please check manually."
+            exit 1
+          }
+
+      - name: Deploy to Staging
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          APP_DIR: /var/www/dyor-hub-staging
+          GITHUB_REPO: ${{ github.repository }}
+          FORCE_REBUILD: ${{ github.event.inputs.force_rebuild || 'true' }}
+        run: |
+          echo "Starting blue-green deployment for staging"
+          ssh $DEPLOY_USER@$DROPLET_IP "chmod +x /tmp/blue-green-deploy-staging.sh && sudo GITHUB_REPO=$GITHUB_REPO APP_DIR=$APP_DIR FORCE_REBUILD=$FORCE_REBUILD /tmp/blue-green-deploy-staging.sh"
+          echo "Staging deployment command executed successfully"
+
+      - name: Wait for services to stabilize
+        run: |
+          echo "Waiting for services to stabilize (30 seconds)..."
+          sleep 30
+
+      - name: Verify Deployment
+        if: always()
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          APP_DIR: /var/www/dyor-hub-staging
+        run: |
+          echo "Checking container status..."
+          ssh $DEPLOY_USER@$DROPLET_IP "docker ps -a | grep 'dyor-hub-staging'"
+
+          echo "Determining active environment..."
+          ACTIVE_ENV=$(ssh $DEPLOY_USER@$DROPLET_IP "grep -l '4100' /etc/nginx/sites-enabled/dyor-hub-staging >/dev/null && echo 'blue' || echo 'green'")
+          echo "Active environment is: $ACTIVE_ENV"
+
+          echo "Checking if containers are running..."
+          if ! ssh $DEPLOY_USER@$DROPLET_IP "docker ps | grep 'dyor-hub-staging-$ACTIVE_ENV'"; then
+            echo "ERROR: No containers for the active environment ($ACTIVE_ENV) are running!"
+            
+            # Show logs briefly
+            ssh $DEPLOY_USER@$DROPLET_IP "docker logs --tail=20 dyor-hub-staging-$ACTIVE_ENV-web 2>&1 || echo 'No web container logs available'"
+            ssh $DEPLOY_USER@$DROPLET_IP "docker logs --tail=20 dyor-hub-staging-$ACTIVE_ENV-api 2>&1 || echo 'No API container logs available'"
+            
+            exit 1
+          fi
+
+          # Quick health check
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            # Try multiple health endpoints - the main website, API health, or a known page
+            RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://staging.dyorhub.xyz/ || echo "failed")
+            echo "Website health check response: $RESPONSE_CODE"
+            
+            if [[ "$RESPONSE_CODE" == "200" ]]; then
+              echo "Website is responding successfully!"
+              break
+            fi
+            
+            echo "Trying API health check..."
+            RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://api.staging.dyorhub.xyz/health || echo "failed")
+            echo "API health check response: $RESPONSE_CODE"
+            
+            if [[ "$RESPONSE_CODE" == "200" ]]; then
+              echo "API is healthy!"
+              break
+            fi
+            
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "Retrying in 5 seconds... ($RETRY_COUNT/$MAX_RETRIES)"
+              sleep 5
+            fi
+          done
+
+          echo "Staging deployment verification successful!"
+
+      - name: Post Deployment to Discord
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commit = context.payload.head_commit;
+            const sender = context.payload.sender;
+            const environment = 'Staging';
+
+            const message = {
+              embeds: [{
+                title: `🚀 Staging Deployment Successful`,
+                description: `A new version has been deployed to ${environment}`,
+                color: 0x00ff00,
+                fields: [
+                  {
+                    name: 'Commit Message',
+                    value: commit.message,
+                    inline: false
+                  },
+                  {
+                    name: 'Deployed By',
+                    value: sender.login,
+                    inline: true
+                  }
+                ],
+                timestamp: new Date().toISOString()
+              }]
+            };
+
+            await fetch(process.env.DISCORD_WEBHOOK_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(message)
+            });
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
