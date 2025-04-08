@@ -866,8 +866,8 @@ export const watchlist = {
     try {
       const endpoint = `watchlist/tokens/${mintAddress}/status`;
 
-      const data = await api<boolean>(endpoint);
-      return data;
+      const data = await api<{ isWatchlisted: boolean }>(endpoint);
+      return data.isWatchlisted;
     } catch (error) {
       console.error(`Error checking token watchlist status for ${mintAddress}:`, error);
       throw error;
