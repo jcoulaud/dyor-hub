@@ -125,10 +125,10 @@ export function WatchlistButton({
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove from watchlist?</AlertDialogTitle>
+            <AlertDialogTitle className='text-red-500'>Remove from watchlist?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to remove {tokenSymbol ? `$${tokenSymbol}` : 'this token'} from
-              your watchlist?
+              your watchlist? You can add it back later if needed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -138,7 +138,7 @@ export function WatchlistButton({
             <AlertDialogAction
               onClick={handleRemoveFromWatchlist}
               disabled={isLoading}
-              className='cursor-pointer'>
+              className='bg-red-500/90 hover:bg-red-600 focus:ring-red-400 cursor-pointer text-white'>
               {isLoading ? 'Removing...' : `Yes, remove${tokenSymbol ? ` $${tokenSymbol}` : ''}`}
             </AlertDialogAction>
           </AlertDialogFooter>
