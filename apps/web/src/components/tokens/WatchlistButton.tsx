@@ -125,7 +125,7 @@ export function WatchlistButton({
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className='text-red-500'>Remove from watchlist?</AlertDialogTitle>
+            <AlertDialogTitle>Remove from watchlist?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to remove {tokenSymbol ? `$${tokenSymbol}` : 'this token'} from
               your watchlist? You can add it back later if needed.
