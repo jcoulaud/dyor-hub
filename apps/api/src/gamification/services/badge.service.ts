@@ -417,7 +417,7 @@ export class BadgeService {
             userId,
             badge.thresholdValue,
             LeaderboardCategory.REPUTATION,
-            LeaderboardTimeframe.ALL_TIME,
+            LeaderboardTimeframe.WEEKLY,
           );
         default:
           this.logger.warn(
@@ -794,16 +794,16 @@ export class BadgeService {
           break;
         }
         case BadgeRequirement.TOP_PERCENT_WEEKLY: {
-          // Calculate progress towards top X% of All-Time Reputation
+          // Calculate progress towards top X% of Weekly Reputation
           try {
             const userPos = await this.leaderboardService.getUserPosition(
               userId,
               LeaderboardCategory.REPUTATION,
-              LeaderboardTimeframe.ALL_TIME,
+              LeaderboardTimeframe.WEEKLY,
             );
             const meta = await this.leaderboardService.getLeaderboard(
               LeaderboardCategory.REPUTATION,
-              LeaderboardTimeframe.ALL_TIME,
+              LeaderboardTimeframe.WEEKLY,
               1,
               1,
             );

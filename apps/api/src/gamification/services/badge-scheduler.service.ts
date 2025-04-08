@@ -144,11 +144,11 @@ export class BadgeSchedulerService {
       );
       totalCheckedBadges = weeklyPercentBadges.length;
 
-      // 2. Get total ranked users for the relevant leaderboard (All-Time Reputation)
+      // 2. Get total ranked users for the relevant leaderboard (Weekly Reputation)
       const leaderboardMetaResponse =
         await this.leaderboardService.getLeaderboard(
           LeaderboardCategory.REPUTATION,
-          LeaderboardTimeframe.ALL_TIME,
+          LeaderboardTimeframe.WEEKLY,
           1,
           1, // Only need meta
         );
@@ -156,7 +156,7 @@ export class BadgeSchedulerService {
 
       if (totalRankedUsers === undefined || totalRankedUsers === 0) {
         this.logger.log(
-          'No users found on the All-Time Reputation leaderboard. Skipping weekly awards.',
+          'No users found on the Weekly Reputation leaderboard. Skipping weekly awards.',
         );
         this.isWeeklyJobRunning = false;
         return;
@@ -181,7 +181,7 @@ export class BadgeSchedulerService {
           // Fetch the exact users who fall into this top percentile
           const topUsersResponse = await this.leaderboardService.getLeaderboard(
             LeaderboardCategory.REPUTATION,
-            LeaderboardTimeframe.ALL_TIME,
+            LeaderboardTimeframe.WEEKLY,
             1, // Page 1
             targetCount, // Limit to the calculated top N users
           );
@@ -216,13 +216,12 @@ export class BadgeSchedulerService {
             `Awarding ${badge.name} to ${usersToAward.length} new users.`,
           );
 
-          // Award the badge directly
+          // Award the badge
           for (const userId of usersToAward) {
             try {
               const newUserBadge = this.userBadgeRepository.create({
                 userId: userId,
                 badgeId: badge.id,
-                isDisplayed: false,
               });
               await this.userBadgeRepository.save(newUserBadge);
               awardedForThisBadge++;
