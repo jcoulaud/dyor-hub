@@ -1,10 +1,7 @@
 import {
   ActivityPointsConfig,
   AvailableBadge,
-  BadgeActivity,
-  BadgeCategory,
   BadgeFormValues,
-  BadgeRequirement,
   BadgeSummary,
   Badge as BadgeType,
   Comment,
@@ -50,10 +47,7 @@ interface PriceHistoryResponse {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3001';
 
 // Define additional cache TTLs
-const TOKEN_CACHE_TTL = 60 * 1000; // 1 minute for token data
-const TOKEN_STATS_CACHE_TTL = 60 * 1000; // 1 minute for token stats
-const TOKEN_PRICE_HISTORY_CACHE_TTL = 60 * 1000; // 1 minute for price history
-const TOKEN_LIST_CACHE_TTL = 60 * 1000; // 1 minute for token lists
+// (Removed unused TTL constants)
 
 type TokenWithWatchlistStatus = Token & { isWatchlisted?: boolean };
 type TokenListItem = Token;
@@ -99,8 +93,7 @@ interface CacheItem<T> {
 const apiCache = new Map<string, CacheItem<unknown>>();
 const pendingRequests = new Map<string, Promise<unknown>>();
 const CACHE_TTL = 60 * 1000; // 1 minute default TTL
-const STATS_CACHE_TTL = 60 * 1000; // 1 minute for stats
-const ACTIVITY_CACHE_TTL = 60 * 1000; // 1 minute for activity
+// (Removed unused TTL constants)
 
 const getCache = <T>(key: string): T | undefined => {
   const cached = apiCache.get(key);
@@ -456,7 +449,7 @@ export const tokens = {
       }
 
       const data = await api<TokenListItem[]>(endpoint);
-      setCache(cacheKey, data, TOKEN_LIST_CACHE_TTL);
+      setCache(cacheKey, data, 5 * 1000);
       return data;
     } catch (error) {
       console.error(`Error fetching token list:`, error);
@@ -478,7 +471,7 @@ export const tokens = {
 
       // Create a new request
       const data = await api<TokenWithWatchlistStatus>(endpoint);
-      setCache(cacheKey, data, TOKEN_CACHE_TTL);
+      setCache(cacheKey, data, 5 * 1000);
       return data;
     } catch (error) {
       console.error(`Error fetching token by mint address ${mintAddress}:`, error);
@@ -500,7 +493,7 @@ export const tokens = {
 
       // Create a new request
       const data = await api<TokenStats>(endpoint);
-      setCache(cacheKey, data, TOKEN_STATS_CACHE_TTL);
+      setCache(cacheKey, data, 5 * 1000);
       return data;
     } catch (error) {
       console.error(`Error fetching token stats for ${mintAddress}:`, error);
@@ -520,7 +513,7 @@ export const tokens = {
       }
 
       const data = await api<TwitterUsernameHistoryEntity>(endpoint);
-      setCache(cacheKey, data, TOKEN_STATS_CACHE_TTL);
+      setCache(cacheKey, data, 5 * 1000);
       return data;
     } catch (error) {
       console.error(`Error fetching token twitter history for ${mintAddress}:`, error);
@@ -540,7 +533,7 @@ export const tokens = {
       }
 
       const data = await api<PriceHistoryResponse>(endpoint);
-      setCache(cacheKey, data, TOKEN_PRICE_HISTORY_CACHE_TTL);
+      setCache(cacheKey, data, 5 * 1000);
       return data;
     } catch (error) {
       console.error(`Error fetching token price history for ${mintAddress}:`, error);
@@ -590,7 +583,7 @@ export const users = {
       const data = await api<WalletResponse | null>(endpoint);
 
       if (data) {
-        setCache(cacheKey, data, 60 * 1000); // 1 minute cache
+        setCache(cacheKey, data, 5 * 1000);
       }
 
       return data;
@@ -622,7 +615,7 @@ export const users = {
       const requestPromise = api<UserStats>(endpoint)
         .then((data) => {
           // Update cache with appropriate TTL
-          setCache(cacheKey, data, STATS_CACHE_TTL);
+          setCache(cacheKey, data, 5 * 1000);
           // Remove from pending requests when done
           pendingRequests.delete(cacheKey);
           return data;
@@ -712,7 +705,7 @@ export const users = {
         };
       }>(endpoint)
         .then((data) => {
-          setCache(cacheKey, data, ACTIVITY_CACHE_TTL);
+          setCache(cacheKey, data, 5 * 1000);
           pendingRequests.delete(cacheKey);
           return data;
         })
@@ -741,7 +734,7 @@ export const users = {
       }
 
       const data = await api<Partial<UserPreferences>>(endpoint);
-      setCache(cacheKey, data, 30 * 1000);
+      setCache(cacheKey, data, 5 * 1000);
       return data;
     } catch (error) {
       console.error('[getUserPreferences] Error fetching user preferences:', error);
@@ -763,7 +756,7 @@ export const users = {
       // Update preferences cache for the current user
       const prefsCacheKey = `api:users/me/preferences`;
       const currentPrefs = getCache<Partial<UserPreferences>>(prefsCacheKey) || {};
-      setCache(prefsCacheKey, { ...currentPrefs, ...data });
+      setCache(prefsCacheKey, { ...currentPrefs, ...data }, 5 * 1000);
 
       // Invalidate the main user cache for the current user
       const userCacheKey = `api:users/me`;
@@ -808,7 +801,7 @@ export const watchlist = {
       const data = await api<(Token & { addedAt: Date })[]>(endpoint);
 
       // Update cache with short TTL (30 seconds)
-      setCache(cacheKey, data, 30 * 1000);
+      setCache(cacheKey, data, 5 * 1000);
 
       return data;
     } catch (error) {
@@ -865,7 +858,7 @@ export const watchlist = {
       }
 
       const data = await api<boolean>(endpoint);
-      setCache(cacheKey, data, 30 * 1000);
+      setCache(cacheKey, data, 5 * 1000);
       return data;
     } catch (error) {
       console.error(`Error checking token watchlist status for ${mintAddress}:`, error);
@@ -876,6 +869,9 @@ export const watchlist = {
 
 export const gamification = {
   badges: {
+    // Cache keys prefix
+    cachePrefix: 'api:gamification/badges',
+
     async getUserBadges(userId?: string): Promise<UserBadge[]> {
       const endpoint = userId ? `gamification/users/${userId}/badges` : 'gamification/badges';
       const cacheKey = `api:${endpoint}`;
@@ -883,12 +879,12 @@ export const gamification = {
       try {
         // Check cache first
         const cachedData = getCache<UserBadge[]>(cacheKey);
-        if (cachedData) {
-          return cachedData;
-        }
+        if (cachedData) return cachedData;
 
+        // Fetch from API
         const data = await api<UserBadge[]>(endpoint);
-        setCache(cacheKey, data, 5 * 1000); // 5 seconds cache
+        // Add 5 second cache duration
+        setCache<UserBadge[]>(cacheKey, data, 5 * 1000);
         return data;
       } catch (error) {
         console.error('Error fetching user badges:', error);
@@ -897,61 +893,35 @@ export const gamification = {
     },
 
     async getAvailableBadges(): Promise<AvailableBadge[]> {
-      const cacheKey = 'api:gamification/badges/available';
+      const endpoint = 'gamification/available-badges';
+      const cacheKey = `api:${endpoint}`;
 
       try {
         // Check cache first
         const cachedData = getCache<AvailableBadge[]>(cacheKey);
-        if (cachedData) {
-          return cachedData;
-        }
+        if (cachedData) return cachedData;
 
-        interface ServerBadgeResponse {
-          id: string;
-          name: string;
-          description: string;
-          category: string;
-          imageUrl?: string;
-          requirement: string;
-          thresholdValue: number;
-          progress: number;
-          earned: boolean;
-          isActive: boolean;
-          createdAt: string;
-          updatedAt: string;
-          currentValue?: number;
-        }
-
-        interface BadgeCategoryResponse {
-          category: string;
-          badges: ServerBadgeResponse[];
-        }
-
-        const data = await api<BadgeCategoryResponse[]>('gamification/badges/available');
-
-        const processedData = data.flatMap((categoryGroup) =>
-          categoryGroup.badges.map((badge) => ({
-            id: badge.id,
-            name: badge.name,
-            description: badge.description,
-            category: badge.category as BadgeCategory,
-            imageUrl: badge.imageUrl,
-            requirement: badge.requirement as BadgeRequirement,
-            thresholdValue: badge.thresholdValue,
-            isActive: badge.isActive,
-            createdAt: badge.createdAt,
-            updatedAt: badge.updatedAt,
-            progress: badge.progress || 0,
-            isAchieved: badge.earned,
-            currentValue: badge.currentValue || 0,
-          })),
-        );
-
-        setCache(cacheKey, processedData, 30 * 1000); // 30 seconds cache
-        return processedData;
+        // Fetch from API
+        const data = await api<AvailableBadge[]>(endpoint);
+        // Add 5 second cache duration
+        setCache<AvailableBadge[]>(cacheKey, data, 5 * 1000);
+        return data;
       } catch (error) {
         console.error('Error fetching available badges:', error);
         throw error;
+      }
+    },
+
+    // Function to clear user badges cache
+    clearBadgesCache(userId?: string): void {
+      const keyPrefixes = userId
+        ? [`api:gamification/users/${userId}/badges`]
+        : ['api:gamification/badges', 'api:gamification/available-badges'];
+
+      for (const key of apiCache.keys()) {
+        if (keyPrefixes.some((prefix) => key.startsWith(prefix))) {
+          apiCache.delete(key);
+        }
       }
     },
 
@@ -976,68 +946,6 @@ export const gamification = {
         throw error;
       }
     },
-
-    clearBadgesCache(userId?: string): void {
-      // Clear all badge-related cache entries
-      const keyPrefixes = [
-        'api:gamification/badges',
-        'api:gamification/badges/available',
-        'api:gamification/badges/summary',
-      ];
-
-      if (userId) {
-        keyPrefixes.push(`api:gamification/users/${userId}/badges`);
-        keyPrefixes.push(`api:gamification/users/${userId}/badges/summary`);
-      }
-
-      // Delete matching cache entries
-      for (const [key] of apiCache.entries()) {
-        if (keyPrefixes.some((prefix) => key.startsWith(prefix))) {
-          apiCache.delete(key);
-        }
-      }
-    },
-
-    async checkAndAwardBadges(): Promise<{ success: boolean }> {
-      try {
-        await api('gamification/badges/check', {
-          method: 'POST',
-        });
-        // Clear cache after checking badges
-        this.clearBadgesCache();
-        return { success: true };
-      } catch (error) {
-        console.error('Error checking and awarding badges:', error);
-        return { success: false };
-      }
-    },
-
-    createBadge: async (badgeData: BadgeFormValues) => {
-      return api<BadgeType>('admin/badges', {
-        method: 'POST',
-        body: badgeData,
-      });
-    },
-
-    updateBadge: async (badgeId: string, badgeData: BadgeFormValues) => {
-      return api<BadgeType>(`admin/badges/${badgeId}`, {
-        method: 'PUT',
-        body: badgeData,
-      });
-    },
-
-    deleteBadge: async (badgeId: string) => {
-      return api<{ success: boolean }>(`admin/badges/${badgeId}`, {
-        method: 'DELETE',
-      });
-    },
-
-    awardBadgeToUsers: async (badgeId: string, userIds: string[]) => {
-      return api<{ success: boolean }>(`admin/badges/${badgeId}/award`, {
-        method: 'POST',
-        body: { userIds },
-      });
-    },
   },
 
   streaks: {
@@ -1052,7 +960,7 @@ export const gamification = {
 
         // Fetch from API
         const data = await api<UserStreak>(endpoint);
-        setCache<UserStreak>(cacheKey, data);
+        setCache<UserStreak>(cacheKey, data, 5 * 1000);
         return data;
       } catch (error) {
         console.error('Error fetching user streak:', error);
@@ -1071,7 +979,7 @@ export const gamification = {
 
         // Fetch from API
         const data = await api<StreakMilestonesResponse>(endpoint);
-        setCache<StreakMilestonesResponse>(cacheKey, data);
+        setCache<StreakMilestonesResponse>(cacheKey, data, 5 * 1000);
         return data.milestones;
       } catch (error) {
         console.error('Error fetching streak milestones:', error);
@@ -1239,9 +1147,6 @@ export const badges = {
     getAllBadges: async () => {
       return api<BadgeType[]>('admin/badges');
     },
-    getRecentBadgeActivity: async (limit = 10) => {
-      return api<BadgeActivity[]>(`admin/badges/activity/recent?limit=${limit}`);
-    },
     createBadge: async (badgeData: BadgeFormValues) => {
       return api<BadgeType>('admin/badges', {
         method: 'POST',
@@ -1260,7 +1165,7 @@ export const badges = {
       });
     },
     awardBadgeToUsers: async (badgeId: string, userIds: string[]) => {
-      return api<{ success: boolean }>(`admin/badges/${badgeId}/award`, {
+      return api<{ success: boolean }>(`admin/badges/${badgeId}/award-bulk`, {
         method: 'POST',
         body: { userIds },
       });
