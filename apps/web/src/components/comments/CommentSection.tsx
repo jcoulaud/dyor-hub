@@ -87,82 +87,78 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   const [focusedComment, setFocusedComment] = useState<CommentType | null>(null);
   const [threadComments, setThreadComments] = useState<CommentType[]>([]);
 
-  const organizeComments = useCallback(
-    (comments: CommentType[]) => {
-      const commentMap = new Map<string, CommentType>();
-      const rootComments: CommentType[] = [];
-
-      // Create lookup map
-      comments.forEach((comment) => {
-        commentMap.set(comment.id, { ...comment, replies: [] });
-      });
-
-      // Organize into tree structure
-      comments.forEach((comment) => {
-        const processedComment = commentMap.get(comment.id)!;
-        if (comment.parentId) {
-          const parent = commentMap.get(comment.parentId);
-          if (parent) {
-            parent.replies?.push(processedComment);
-          }
-        } else {
-          rootComments.push(processedComment);
+  const updateCommentInState = useCallback(
+    (comments: CommentType[], commentId: string, newContent: string): CommentType[] => {
+      return comments.map((comment) => {
+        if (comment.id === commentId) {
+          return {
+            ...comment,
+            content: newContent,
+            isEdited: true,
+            updatedAt: new Date().toISOString(),
+          };
         }
-      });
-
-      // Sort function based on selected option
-      const sortFn = {
-        best: (a: CommentType, b: CommentType) => b.voteCount - a.voteCount,
-        new: (a: CommentType, b: CommentType) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        old: (a: CommentType, b: CommentType) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        controversial: (a: CommentType, b: CommentType) =>
-          Math.abs(a.voteCount) - Math.abs(b.voteCount),
-      }[sortBy];
-
-      // Only sort replies recursively
-      const sortReplies = (comments: CommentType[]) => {
-        comments.sort(sortFn);
-        comments.forEach((comment) => {
-          if (comment.replies?.length) {
-            sortReplies(comment.replies);
-          }
-        });
-      };
-
-      // Apply sorting to replies
-      rootComments.forEach((comment) => {
-        if (comment.replies?.length) {
-          sortReplies(comment.replies);
+        if (comment.replies && comment.replies.length > 0) {
+          return {
+            ...comment,
+            replies: updateCommentInState(comment.replies, commentId, newContent),
+          };
         }
+        return comment;
       });
-
-      return rootComments;
     },
-    [sortBy],
+    [],
   );
 
-  const fetchThreadData = useCallback(
-    async (threadId: string) => {
-      try {
-        setIsLoadingSpecificComment(true);
-        const threadData = await comments.getThread(threadId);
-        setFocusedComment(threadData.rootComment);
-        setThreadComments(organizeComments(threadData.comments));
-      } catch {
-        setFocusedComment(null);
-        setThreadComments([]);
-        toast({
-          title: 'Error',
-          description: 'Could not load comment thread.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoadingSpecificComment(false);
-      }
+  const markCommentAsRemovedInState = useCallback(
+    (
+      comments: CommentType[],
+      commentId: string,
+      removerId: string,
+      isSelf: boolean,
+    ): CommentType[] => {
+      return comments.map((comment) => {
+        if (comment.id === commentId) {
+          return {
+            ...comment,
+            content: '[removed]',
+            isRemoved: true,
+            userVoteType: null,
+            voteCount: 0,
+            removedBy: { id: removerId, isSelf },
+          };
+        }
+        if (comment.replies && comment.replies.length > 0) {
+          return {
+            ...comment,
+            replies: markCommentAsRemovedInState(comment.replies, commentId, removerId, isSelf),
+          };
+        }
+        return comment;
+      });
     },
-    [organizeComments, toast],
+    [],
+  );
+
+  const addReplyToState = useCallback(
+    (comments: CommentType[], parentId: string, newReply: CommentType): CommentType[] => {
+      return comments.map((comment) => {
+        if (comment.id === parentId) {
+          return {
+            ...comment,
+            replies: [newReply, ...(comment.replies ?? [])],
+          };
+        }
+        if (comment.replies && comment.replies.length > 0) {
+          return {
+            ...comment,
+            replies: addReplyToState(comment.replies, parentId, newReply),
+          };
+        }
+        return comment;
+      });
+    },
+    [],
   );
 
   const fetchComments = useCallback(
@@ -176,18 +172,12 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
 
         const response = await comments.list(tokenMintAddress, page, 10, sortBy);
 
-        const processedComments = response.data.map((comment) => ({
-          ...comment,
-          replies: [],
-        }));
+        const newComments = response.data as CommentType[];
 
         if (page === 1) {
-          setComments(organizeComments(processedComments));
+          setComments(newComments);
         } else {
-          setComments((prevComments) => {
-            const newComments = [...prevComments, ...organizeComments(processedComments)];
-            return newComments;
-          });
+          setComments((prevComments) => [...prevComments, ...newComments]);
         }
         setPagination(response.meta);
         setError(null);
@@ -202,7 +192,46 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         setIsLoadingMore(false);
       }
     },
-    [tokenMintAddress, organizeComments, sortBy],
+    [tokenMintAddress, sortBy],
+  );
+
+  const fetchThreadData = useCallback(
+    async (threadId: string) => {
+      try {
+        setIsLoadingSpecificComment(true);
+        const threadData = await comments.getThread(threadId);
+        setFocusedComment(threadData.rootComment);
+        const organizeAndSortThreadComments = (commentsToOrganize: Comment[]) => {
+          commentsToOrganize.sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          );
+          const commentMap = new Map<string, CommentType>();
+          const roots: CommentType[] = [];
+          commentsToOrganize.forEach((c) => commentMap.set(c.id, { ...c, replies: [] }));
+          commentsToOrganize.forEach((c) => {
+            const dto = commentMap.get(c.id)!;
+            if (c.parentId && commentMap.has(c.parentId)) {
+              commentMap.get(c.parentId)!.replies!.push(dto);
+            } else if (!c.parentId) {
+              roots.push(dto);
+            }
+          });
+          return roots;
+        };
+        setThreadComments(organizeAndSortThreadComments(threadData.comments));
+      } catch {
+        setFocusedComment(null);
+        setThreadComments([]);
+        toast({
+          title: 'Error',
+          description: 'Could not load comment thread.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoadingSpecificComment(false);
+      }
+    },
+    [toast],
   );
 
   // Fetch comments when component mounts or auth state changes
@@ -442,12 +471,21 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   );
 
   const confirmDeleteComment = useCallback(async () => {
-    if (!commentToDelete) return;
+    if (!commentToDelete || !user) return;
 
     setIsDeleteLoading(true);
     try {
       await comments.remove(commentToDelete);
-      await fetchComments();
+
+      setComments((prevComments) =>
+        markCommentAsRemovedInState(
+          prevComments,
+          commentToDelete,
+          user.id,
+          commentToDelete === user.id,
+        ),
+      );
+
       toast({
         title: 'Comment removed',
         description: 'The comment has been removed successfully.',
@@ -465,7 +503,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
       setIsDeleteDialogOpen(false);
       setCommentToDelete(null);
     }
-  }, [commentToDelete, fetchComments, toast]);
+  }, [commentToDelete, toast, user, markCommentAsRemovedInState]);
 
   const Comment = ({ comment, depth = 0 }: { comment: CommentType; depth?: number }) => {
     const maxDepth = 5;
@@ -486,9 +524,54 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
       currentTime.getTime() - commentDate.getTime() < fifteenMinutesMs;
 
     const handleReply = async (content: string) => {
-      handleUserInteraction();
-      await handleSubmitComment(comment.id, content);
-      setReplyingTo(null);
+      await withAuth(async () => {
+        if (!user) return;
+
+        try {
+          const newCommentData: CreateCommentDto = {
+            content,
+            tokenMintAddress,
+            parentId: comment.id,
+          };
+          const newReplyFromApi = await comments.create(newCommentData);
+
+          const newReplyWithType: CommentType = {
+            ...newReplyFromApi,
+            user: {
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName || user.username,
+              avatarUrl: user.avatarUrl,
+            },
+            replies: [],
+            userVoteType: null,
+            isRemoved: false,
+            isEdited: false,
+            removedBy: null,
+            voteCount: newReplyFromApi.voteCount ?? 0,
+            upvotes: newReplyFromApi.upvotes ?? 0,
+            downvotes: newReplyFromApi.downvotes ?? 0,
+          };
+
+          setComments((prevComments) =>
+            addReplyToState(prevComments, comment.id, newReplyWithType),
+          );
+
+          setReplyingTo(null);
+
+          toast({
+            title: 'Success',
+            description: 'Your reply has been posted.',
+          });
+        } catch (err) {
+          console.error('Error posting reply:', err);
+          toast({
+            title: 'Error',
+            description: 'Could not post your reply. Please try again.',
+            variant: 'destructive',
+          });
+        }
+      });
     };
 
     const handleReplyClick = () => {
@@ -516,7 +599,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
       handleUserInteraction();
       try {
         await comments.update(comment.id, content);
-        await fetchComments();
+        setComments((prevComments) => updateCommentInState(prevComments, comment.id, content));
         toast({
           title: 'Success',
           description: 'Comment updated successfully',

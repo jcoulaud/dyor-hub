@@ -58,4 +58,8 @@ export class CommentResponseDto {
   @Expose()
   @Type(() => CommentUserDto)
   user: CommentUserDto;
+
+  @Expose()
+  @Type(() => CommentResponseDto)
+  replies?: CommentResponseDto[];
 }
