@@ -70,6 +70,7 @@ export class LeaderboardService {
       const users: UserReputation[] = leaderboard.map((entry) => ({
         userId: entry.userId,
         username: entry.user.username,
+        displayName: entry.user.displayName,
         avatarUrl: entry.user.avatarUrl || null,
         totalPoints: entry.score,
         weeklyPoints: entry.score, // For non-reputation categories, total = weekly

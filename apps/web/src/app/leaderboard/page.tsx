@@ -8,11 +8,13 @@ import { useAuthContext } from '@/providers/auth-provider';
 import { LeaderboardCategory, LeaderboardTimeframe } from '@dyor-hub/types';
 import { motion } from 'framer-motion';
 import { Crown, Heart, Loader2, MessageSquare, ThumbsUp, TrendingUp, Trophy } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
 interface EnhancedUserReputation {
   userId: string;
   username: string;
+  displayName: string;
   avatarUrl?: string | null;
   totalPoints: number;
   weeklyPoints: number;
@@ -301,7 +303,9 @@ const LeaderboardPage = () => {
                   </div>
 
                   <h3 className='font-bold text-xs md:text-sm mb-1 truncate max-w-[90%] text-center'>
-                    {users[1].username}
+                    <Link href={`/users/${users[1].username}`} className='hover:underline'>
+                      {users[1].displayName}
+                    </Link>
                   </h3>
                   <div className='flex items-center justify-center gap-1 text-xs text-gray-300 font-mono font-medium'>
                     <span>
@@ -332,7 +336,9 @@ const LeaderboardPage = () => {
                   </div>
 
                   <h3 className='font-bold text-sm md:text-base mb-1 truncate max-w-[90%] text-center'>
-                    {users[0].username}
+                    <Link href={`/users/${users[0].username}`} className='hover:underline'>
+                      {users[0].displayName}
+                    </Link>
                   </h3>
                   <div className='flex items-center justify-center gap-1 text-xs text-amber-400 font-mono font-semibold'>
                     <span>
@@ -363,7 +369,9 @@ const LeaderboardPage = () => {
                   </div>
 
                   <h3 className='font-bold text-xs md:text-sm mb-1 truncate max-w-[90%] text-center'>
-                    {users[2].username}
+                    <Link href={`/users/${users[2].username}`} className='hover:underline'>
+                      {users[2].displayName}
+                    </Link>
                   </h3>
                   <div className='flex items-center justify-center gap-1 text-xs text-amber-700/90 font-mono font-medium'>
                     <span>
@@ -503,7 +511,15 @@ const LeaderboardPage = () => {
                           'font-medium text-[13px] sm:text-sm truncate text-left',
                           isCurrentUser ? 'text-amber-500' : 'text-white',
                         )}>
-                        {isCurrentUser ? 'You' : leaderboardUser.username}
+                        {isCurrentUser ? (
+                          'You'
+                        ) : (
+                          <Link
+                            href={`/users/${leaderboardUser.username}`}
+                            className='hover:underline'>
+                            {leaderboardUser.displayName}
+                          </Link>
+                        )}
                       </p>
                     </div>
                   </div>
