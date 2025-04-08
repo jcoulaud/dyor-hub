@@ -1,6 +1,7 @@
 import { comments, tokens } from '@/lib/api';
+import { sanitizeHtml } from '@/lib/utils';
 import { use } from 'react';
-import TokenPage from '../../../[mintAddress]/page';
+import TokenPage from '../../page';
 
 interface PageProps {
   params: Promise<{ mintAddress: string; commentId: string }>;
@@ -25,14 +26,19 @@ export async function generateMetadata({
     ]);
 
     const title = `Comment on ${tokenData.symbol || tokenData.name} by ${commentData.user.displayName} - DYOR hub`;
-    const description = commentData.content.replace(/<[^>]*>/g, '').substring(0, 160);
+
+    const processedContent = sanitizeHtml(commentData.content, {
+      preserveLineBreaks: true,
+      lineBreakChar: ' ',
+      maxLength: 160,
+    });
 
     return {
       title,
-      description,
+      description: processedContent,
       openGraph: {
         title,
-        description,
+        description: processedContent,
         images: [
           {
             url: `/tokens/${mintAddress}/comments/${commentId}/opengraph-image`,
@@ -41,7 +47,7 @@ export async function generateMetadata({
       },
       twitter: {
         title,
-        description,
+        description: processedContent,
         card: 'summary_large_image',
         images: [`/tokens/${mintAddress}/comments/${commentId}/twitter-image`],
       },

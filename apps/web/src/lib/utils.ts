@@ -45,12 +45,38 @@ export function getHighResAvatar(url: string | null | undefined): string | undef
 /**
  * Strips HTML tags from a string and decodes basic HTML entities.
  * @param html The string containing HTML to sanitize.
+ * @param options Optional configuration options.
+ * @param options.preserveLineBreaks Whether to preserve line breaks from <br> and <p> tags (default: false).
+ * @param options.lineBreakChar Character to use for line breaks (default: '\n').
+ * @param options.maxLength Optional maximum length for the returned string.
  * @returns The string with HTML tags removed and entities decoded.
  */
-export function sanitizeHtml(html: string): string {
+export function sanitizeHtml(
+  html: string,
+  options?: {
+    preserveLineBreaks?: boolean;
+    lineBreakChar?: string;
+    maxLength?: number;
+  },
+): string {
   if (!html) return '';
+
+  const { preserveLineBreaks = false, lineBreakChar = '\n', maxLength } = options || {};
+
+  let text = html;
+
+  // Replace <br> and paragraph tags with line breaks if requested
+  if (preserveLineBreaks) {
+    text = text
+      .replace(/<br\s*\/?>/gi, lineBreakChar)
+      .replace(/<\/p>\s*<p>/gi, `${lineBreakChar}${lineBreakChar}`)
+      .replace(/<p>/gi, '')
+      .replace(/<\/p>/gi, lineBreakChar);
+  }
+
   // Basic regex to remove tags
-  let text = html.replace(/<[^>]*>?/gm, '');
+  text = text.replace(/<[^>]*>?/gm, '');
+
   // Basic entity decoding
   text = text.replace(/&amp;/g, '&');
   text = text.replace(/&lt;/g, '<');
@@ -58,5 +84,14 @@ export function sanitizeHtml(html: string): string {
   text = text.replace(/&quot;/g, '"');
   text = text.replace(/&#39;/g, "'");
   text = text.replace(/&nbsp;/g, ' ');
-  return text.trim();
+
+  // Trim the text
+  text = text.trim();
+
+  // Apply max length if specified
+  if (maxLength && text.length > maxLength) {
+    text = text.substring(0, maxLength);
+  }
+
+  return text;
 }
