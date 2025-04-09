@@ -284,8 +284,8 @@ export default function NotificationSettingsPage() {
           </Badge>
         </div>
 
-        {/* Telegram Connection Card - Hidden for admins */}
-        {!user?.isAdmin && (
+        {/* Telegram Connection Card - Only visible to admins */}
+        {user?.isAdmin && (
           <Card className='border border-white/5 bg-black/30 backdrop-blur-sm shadow-xl overflow-hidden'>
             <CardHeader className='border-b border-white/5 pb-4 bg-gradient-to-r from-purple-950/40 to-indigo-950/40'>
               <div className='flex flex-col md:flex-row md:items-center justify-between gap-4'>
@@ -457,7 +457,7 @@ export default function NotificationSettingsPage() {
                   <Mail className='h-3.5 w-3.5 mr-1.5 text-amber-400' />
                   <span>Email</span>
                 </div>
-                {!user?.isAdmin && (
+                {user?.isAdmin && (
                   <div className='flex items-center'>
                     <MessageSquare className='h-3.5 w-3.5 mr-1.5 text-emerald-400' />
                     <span>Telegram</span>
@@ -471,7 +471,7 @@ export default function NotificationSettingsPage() {
               <Info className='h-3.5 w-3.5 mr-1.5 flex-shrink-0' />
               <span>
                 Email notifications are coming soon.{' '}
-                {!user?.isAdmin &&
+                {user?.isAdmin &&
                   !telegramStatus?.isConnected &&
                   'Connect your Telegram to enable Telegram notifications.'}
               </span>
@@ -495,7 +495,7 @@ export default function NotificationSettingsPage() {
                         </div>
                       )}
                     </div>
-                    <div className='grid grid-cols-3 gap-4 sm:gap-8 w-full sm:w-auto ml-0 sm:ml-auto'>
+                    <div className='flex items-center gap-4'>
                       <FormField
                         control={form.control}
                         name={`${type.id}.inApp`}
@@ -507,10 +507,9 @@ export default function NotificationSettingsPage() {
                                   checked={field.value}
                                   onCheckedChange={field.onChange}
                                   disabled={type.id === NotificationType.SYSTEM}
-                                  aria-readonly={type.id === NotificationType.SYSTEM}
                                   className={
                                     type.id === NotificationType.SYSTEM
-                                      ? 'data-[state=checked]:bg-sky-500'
+                                      ? 'disabled:opacity-50'
                                       : 'data-[state=checked]:bg-sky-600'
                                   }
                                 />
@@ -519,6 +518,7 @@ export default function NotificationSettingsPage() {
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={form.control}
                         name={`${type.id}.email`}
@@ -529,7 +529,7 @@ export default function NotificationSettingsPage() {
                                 <Switch
                                   checked={field.value}
                                   onCheckedChange={field.onChange}
-                                  disabled
+                                  disabled={true}
                                   className='disabled:opacity-50'
                                 />
                               </div>
@@ -537,7 +537,8 @@ export default function NotificationSettingsPage() {
                           </FormItem>
                         )}
                       />
-                      {!user?.isAdmin && (
+
+                      {user?.isAdmin && (
                         <FormField
                           control={form.control}
                           name={`${type.id}.telegram`}
