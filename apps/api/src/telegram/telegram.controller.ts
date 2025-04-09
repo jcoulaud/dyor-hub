@@ -6,7 +6,7 @@ import {
   Logger,
   Post,
 } from '@nestjs/common';
-import { Update } from 'node-telegram-bot-api';
+import { Update } from 'telegraf/typings/core/types/typegram';
 import { Public } from '../auth/decorators/public.decorator';
 import { TelegramUserService } from './user/telegram-user.service';
 

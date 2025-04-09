@@ -1,13 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import TelegramBot from 'node-telegram-bot-api';
+import { Telegraf } from 'telegraf';
 import { CommentEntity } from '../../entities/comment.entity';
 import { sanitizeHtml } from '../../utils/utils';
 
 @Injectable()
 export class TelegramAdminService implements OnModuleInit {
   private readonly logger = new Logger(TelegramAdminService.name);
-  private bot: TelegramBot;
+  private bot: Telegraf<any>;
   private enabled = false;
   private chatId: string;
   private readonly appUrl: string;
@@ -24,7 +24,7 @@ export class TelegramAdminService implements OnModuleInit {
       this.configService.get<string>('NODE_ENV') === 'production';
 
     if (token && this.chatId && isProduction) {
-      this.bot = new TelegramBot(token, { polling: false });
+      this.bot = new Telegraf(token);
       this.enabled = true;
       this.logger.log('Telegram admin notifications enabled for production');
     } else if (token && this.chatId && !isProduction) {
@@ -102,7 +102,7 @@ export class TelegramAdminService implements OnModuleInit {
     if (!this.enabled) return;
 
     try {
-      await this.bot.sendMessage(this.chatId, text, {
+      await this.bot.telegram.sendMessage(this.chatId, text, {
         parse_mode: 'HTML',
         reply_markup: inlineKeyboard,
       });

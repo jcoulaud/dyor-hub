@@ -2,14 +2,15 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import TelegramBot, { Update } from 'node-telegram-bot-api';
+import { Context, Telegraf } from 'telegraf';
+import { Update } from 'telegraf/typings/core/types/typegram';
 import { Repository } from 'typeorm';
 import { TelegramUserConnectionEntity } from '../../entities/telegram-user-connection.entity';
 
 @Injectable()
 export class TelegramUserService implements OnModuleInit {
   private readonly logger = new Logger(TelegramUserService.name);
-  private bot: TelegramBot;
+  bot: Telegraf<Context>;
   private enabled = false;
   private readonly defaultAppUrl: string;
   private webhookUrl: string | undefined;
@@ -41,7 +42,8 @@ export class TelegramUserService implements OnModuleInit {
     }
 
     try {
-      this.bot = new TelegramBot(token);
+      this.bot = new Telegraf<Context>(token);
+      this.setupBotCommands();
     } catch (error) {
       this.logger.error('Failed to initialize Telegram bot instance', error);
       this.enabled = false;
@@ -61,7 +63,7 @@ export class TelegramUserService implements OnModuleInit {
 
     try {
       this.logger.log(`Attempting to set webhook to: ${fullWebhookUrl}`);
-      const success = await this.bot.setWebHook(fullWebhookUrl);
+      const success = await this.bot.telegram.setWebhook(fullWebhookUrl);
 
       if (success) {
         this.logger.log(`Telegram webhook set successfully: ${fullWebhookUrl}`);
@@ -83,57 +85,72 @@ export class TelegramUserService implements OnModuleInit {
     if (!this.enabled) {
       return;
     }
-
-    if (update.message) {
-      const { message } = update;
-      const chatId = message.chat.id;
-      const text = message.text;
-
-      const deepLinkMatch = text?.match(
-        /^\/start(?:@\w+)?\s+connect_([a-f0-9]+)$/,
-      );
-      if (deepLinkMatch && deepLinkMatch[1]) {
-        const token = deepLinkMatch[1];
-        this.logger.log(`Webhook: Deep link token extracted: ${token}`);
-        await this.processConnectionToken(message, token);
-        return;
-      }
-
-      if (text?.match(/^\/start(?:@\w+)?$/)) {
-        await this.sendWelcomeMessage(chatId);
-        return;
-      }
-
-      if (text?.match(/^\/disconnect(?:@\w+)?$/)) {
-        await this.handleDisconnectCommand(message);
-        return;
-      }
-
-      if (text?.match(/^\/status(?:@\w+)?$/)) {
-        await this.handleStatusCommand(message);
-        return;
-      }
-
-      if (text?.match(/^\/help(?:@\w+)?$/)) {
-        await this.handleHelpCommand(message);
-        return;
-      }
-
-      const connectMatch = text?.match(/^\/connect(?:@\w+)?\s+(.+)$/);
-      if (connectMatch && connectMatch[1]) {
-        const token = connectMatch[1].trim();
-        await this.processConnectionToken(message, token);
-        return;
-      }
-    } else {
-      this.logger.log(
-        `Webhook: Received non-message update type: ${Object.keys(update).join(', ')}`,
-      );
+    try {
+      await this.bot.handleUpdate(update);
+    } catch (error) {
+      this.logger.error('Error handling Telegram update via webhook', error);
     }
   }
 
-  private async handleDisconnectCommand(msg: TelegramBot.Message) {
-    const chatId = msg.chat.id.toString();
+  private setupBotCommands() {
+    if (!this.bot) return;
+
+    this.bot.start(async (ctx) => {
+      const payload = ctx.payload;
+      if (payload && payload.startsWith('connect_')) {
+        const token = payload.substring('connect_'.length);
+        this.logger.log(`Deep link /start command with token: ${token}`);
+        if (ctx.message) {
+          await this.processConnectionToken(ctx, token);
+        }
+      } else {
+        this.logger.log(
+          `Received /start command from chat ID: ${ctx.chat?.id}`,
+        );
+        await this.sendWelcomeMessage(ctx);
+      }
+    });
+
+    this.bot.command('connect', async (ctx) => {
+      this.logger.log(
+        `Received /connect command from chat ID: ${ctx.chat?.id}`,
+      );
+      const text = ctx.message?.text;
+      const match = text?.match(/^\/connect(?:@\w+)?\s+(.+)$/);
+      if (match && match[1]) {
+        const token = match[1].trim();
+        await this.processConnectionToken(ctx, token);
+      } else {
+        await ctx.reply(
+          'Please provide a connection token after the /connect command. Example: /connect YOUR_TOKEN',
+        );
+      }
+    });
+
+    this.bot.command('disconnect', async (ctx) => {
+      this.logger.log(
+        `Received /disconnect command from chat ID: ${ctx.chat?.id}`,
+      );
+      await this.handleDisconnectCommand(ctx);
+    });
+
+    this.bot.command('status', async (ctx) => {
+      this.logger.log(`Received /status command from chat ID: ${ctx.chat?.id}`);
+      await this.handleStatusCommand(ctx);
+    });
+
+    this.bot.command('help', async (ctx) => {
+      this.logger.log(`Received /help command from chat ID: ${ctx.chat?.id}`);
+      await this.handleHelpCommand(ctx);
+    });
+  }
+
+  private async handleDisconnectCommand(ctx: Context) {
+    const chatId = ctx.chat?.id.toString();
+    if (!chatId) {
+      this.logger.warn('Disconnect command received without chat ID');
+      return;
+    }
 
     try {
       const connection = await this.telegramUserRepository.findOne({
@@ -142,8 +159,7 @@ export class TelegramUserService implements OnModuleInit {
 
       if (!connection) {
         this.logger.log(`No connection found for chat ID: ${chatId}`);
-        await this.bot.sendMessage(
-          chatId,
+        await ctx.reply(
           'No connected account found. Use /connect [token] to connect your DYOR Hub account.',
         );
         return;
@@ -151,8 +167,7 @@ export class TelegramUserService implements OnModuleInit {
 
       await this.telegramUserRepository.remove(connection);
 
-      await this.bot.sendMessage(
-        chatId,
+      await ctx.reply(
         '🔄 Your DYOR Hub account has been disconnected from this Telegram account.',
       );
     } catch (error) {
@@ -160,15 +175,18 @@ export class TelegramUserService implements OnModuleInit {
         `Failed to disconnect Telegram account: ${error.message}`,
         error,
       );
-      await this.bot.sendMessage(
-        chatId,
+      await ctx.reply(
         'Sorry, there was an error disconnecting your account. Please try again later.',
       );
     }
   }
 
-  private async handleStatusCommand(msg: TelegramBot.Message) {
-    const chatId = msg.chat.id.toString();
+  private async handleStatusCommand(ctx: Context) {
+    const chatId = ctx.chat?.id.toString();
+    if (!chatId) {
+      this.logger.warn('Status command received without chat ID');
+      return;
+    }
 
     try {
       const connection = await this.telegramUserRepository.findOne({
@@ -178,15 +196,13 @@ export class TelegramUserService implements OnModuleInit {
 
       if (!connection) {
         this.logger.log(`No connection found for chat ID: ${chatId}`);
-        await this.bot.sendMessage(
-          chatId,
+        await ctx.reply(
           'ℹ️ Status: Not connected\n\nUse /connect [token] to connect your DYOR Hub account.',
         );
         return;
       }
 
-      await this.bot.sendMessage(
-        chatId,
+      await ctx.reply(
         `✅ Status: Connected\n\n` +
           `Connected to: ${connection.user.displayName}\n` +
           `Connected since: ${connection.createdAt.toLocaleDateString()}\n\n` +
@@ -197,19 +213,21 @@ export class TelegramUserService implements OnModuleInit {
         `Failed to check Telegram connection status: ${error.message}`,
         error,
       );
-      await this.bot.sendMessage(
-        chatId,
+      await ctx.reply(
         'Sorry, there was an error checking your connection status. Please try again later.',
       );
     }
   }
 
-  private async handleHelpCommand(msg: TelegramBot.Message) {
-    const chatId = msg.chat.id;
+  private async handleHelpCommand(ctx: Context) {
+    const chatId = ctx.chat?.id;
+    if (!chatId) {
+      this.logger.warn('Help command received without chat ID');
+      return;
+    }
 
     try {
-      await this.bot.sendMessage(
-        chatId,
+      await ctx.replyWithHTML(
         `🔹 <b>Available Commands</b> 🔹\n\n` +
           `/start - Start the bot and get connection info\n` +
           `/connect [token] - Connect your DYOR Hub account using a token\n` +
@@ -217,14 +235,10 @@ export class TelegramUserService implements OnModuleInit {
           `/status - Check your connection status\n` +
           `/help - Show this help message\n\n` +
           `To receive notifications, make sure you've enabled Telegram notifications in your DYOR Hub notification settings.`,
-        {
-          parse_mode: 'HTML',
-        },
       );
     } catch (error) {
       this.logger.error(`Failed to send help message: ${error.message}`, error);
-      await this.bot.sendMessage(
-        chatId,
+      await ctx.reply(
         'Sorry, there was an error sending the help message. Please try again later.',
       );
     }
@@ -335,7 +349,7 @@ export class TelegramUserService implements OnModuleInit {
         return false;
       }
 
-      await this.bot.sendMessage(connection.telegramChatId, message, {
+      await this.bot.telegram.sendMessage(connection.telegramChatId, message, {
         parse_mode: 'HTML',
         reply_markup: inlineKeyboard,
       });
@@ -349,12 +363,17 @@ export class TelegramUserService implements OnModuleInit {
     }
   }
 
-  private async processConnectionToken(
-    msg: TelegramBot.Message,
-    token: string,
-  ) {
+  private async processConnectionToken(ctx: Context, token: string) {
     this.logger.log(`Processing connection with token: ${token}`);
-    const chatId = msg.chat.id;
+    const chatId = ctx.chat?.id;
+    const chat = ctx.chat;
+
+    if (!chatId || !chat) {
+      this.logger.error(
+        'processConnectionToken called without valid chat context',
+      );
+      return;
+    }
 
     try {
       const connection = await this.telegramUserRepository.findOne({
@@ -363,32 +382,31 @@ export class TelegramUserService implements OnModuleInit {
 
       if (!connection) {
         this.logger.warn(`No connection found for token: ${token}`);
-        await this.bot.sendMessage(
-          chatId,
+        await ctx.reply(
           'Invalid or expired connection token. Please generate a new token from your DYOR Hub notification settings.',
         );
         return;
       }
 
       if (connection.tokenExpiresAt && new Date() > connection.tokenExpiresAt) {
-        await this.bot.sendMessage(
-          chatId,
+        await ctx.reply(
           'Your connection token has expired. Please generate a new token from your DYOR Hub notification settings.',
         );
         return;
       }
 
       connection.telegramChatId = chatId.toString();
-      connection.telegramUsername = msg.chat.username || null;
-      connection.telegramFirstName = msg.chat.first_name || null;
+      connection.telegramUsername =
+        'username' in chat ? chat.username || null : null;
+      connection.telegramFirstName =
+        'first_name' in chat ? chat.first_name || null : null;
       connection.connectionStatus = 'active';
       connection.connectionToken = null;
       connection.tokenExpiresAt = null;
 
       await this.telegramUserRepository.save(connection);
 
-      await this.bot.sendMessage(
-        chatId,
+      await ctx.reply(
         '✅ Your DYOR hub account is now connected! You will receive notifications based on your preferences.',
       );
     } catch (error) {
@@ -396,22 +414,22 @@ export class TelegramUserService implements OnModuleInit {
         'Failed to connect Telegram account through deep link',
         error,
       );
-      await this.bot.sendMessage(
-        chatId,
+      await ctx.reply(
         'Sorry, there was an error connecting your account. Please try again later.',
       );
     }
   }
 
-  private async sendWelcomeMessage(chatId: number) {
-    await this.bot.sendMessage(
-      chatId,
+  private async sendWelcomeMessage(ctx: Context) {
+    const chatId = ctx.chat?.id;
+    if (!chatId) {
+      this.logger.warn('Welcome message requested without chat ID');
+      return;
+    }
+    await ctx.replyWithHTML(
       `👋 Welcome to the DYOR Hub Notification Bot!\n\n` +
         `To connect this bot to your DYOR Hub account, visit your notification settings page and click the "Connect Telegram" button.\n\n` +
         `Once connected, you'll receive notifications here based on your preferences.`,
-      {
-        parse_mode: 'HTML',
-      },
     );
   }
 }
