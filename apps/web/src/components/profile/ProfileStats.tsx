@@ -77,13 +77,13 @@ export function ProfileStats({ userId }: ProfileStatsProps) {
 
   if (isLoading) {
     return (
-      <div className='mt-4 md:mt-3.5 flex flex-col md:flex-row items-center gap-2'>
-        <div className='flex flex-wrap justify-center gap-2'>
+      <div className='mt-4 md:mt-3.5 flex flex-col md:flex-row items-start gap-2'>
+        <div className='flex flex-col justify-start gap-2 w-full md:w-auto'>
           <Skeleton className='h-5 w-16 rounded-md' />
           <Skeleton className='h-5 w-20 rounded-md' />
         </div>
-        <div className='hidden md:flex w-0.5 h-3 bg-zinc-700/40 mx-0.5 rounded-full self-center'></div>
-        <div className='flex flex-wrap justify-center gap-2 mt-1 md:mt-0'>
+        <div className='hidden md:flex w-0.5 h-3 bg-zinc-700/40 mx-0.5 self-center'></div>
+        <div className='flex flex-wrap justify-start gap-2 mt-1 md:mt-0 w-full'>
           <Skeleton className='h-5 w-14 rounded-full' />
           <Skeleton className='h-5 w-16 rounded-full' />
         </div>
@@ -102,16 +102,16 @@ export function ProfileStats({ userId }: ProfileStatsProps) {
   };
 
   return (
-    <div className='mt-4 md:mt-3.5 flex flex-col md:flex-row items-center gap-2'>
+    <div className='mt-4 md:mt-3.5 flex flex-col md:flex-row items-start gap-2 w-full'>
       {/* Streak Badges */}
       {hasStreak && (
-        <div className='flex flex-wrap justify-center gap-2'>
+        <div className='flex flex-col justify-start gap-2 w-full md:w-auto'>
           {/* Current Streak Badge */}
           {streak?.currentStreak > 0 && (
             <div
-              className='inline-flex items-center gap-1.5 py-0.5 px-2 rounded-md border border-orange-500/30 bg-orange-500/10 shadow-sm'
+              className='inline-flex items-center gap-1.5 py-0.5 px-2 rounded-md border border-orange-500/30 bg-orange-500/10 shadow-sm whitespace-nowrap'
               title='Current active streak'>
-              <Flame className='h-3 w-3 text-orange-500' />
+              <Flame className='h-3 w-3 text-orange-500 flex-shrink-0' />
               <span className='text-xs font-medium text-orange-500'>
                 {streak.currentStreak} day{streak.currentStreak !== 1 ? 's' : ''}
               </span>
@@ -124,9 +124,9 @@ export function ProfileStats({ userId }: ProfileStatsProps) {
           {/* Longest Streak Badge - Only show if different from current */}
           {hasLongestStreak && streak.longestStreak > streak.currentStreak && (
             <div
-              className='inline-flex items-center gap-1.5 py-0.5 px-2 rounded-md border border-orange-500/30 bg-orange-500/10 shadow-sm'
+              className='inline-flex items-center gap-1.5 py-0.5 px-2 rounded-md border border-orange-500/30 bg-orange-500/10 shadow-sm whitespace-nowrap'
               title='Best streak ever achieved'>
-              <Trophy className='h-3 w-3 text-orange-500' />
+              <Trophy className='h-3 w-3 text-orange-500 flex-shrink-0' />
               <span className='text-xs font-medium text-orange-500'>
                 Best: {streak.longestStreak} day{streak.longestStreak !== 1 ? 's' : ''}
               </span>
@@ -137,18 +137,18 @@ export function ProfileStats({ userId }: ProfileStatsProps) {
 
       {/* Separator - Only visible on desktop */}
       {hasBadges && hasStreak && (
-        <div className='hidden md:flex w-0.5 h-3 bg-zinc-700/40 mx-0.5 rounded-full self-center'></div>
+        <div className='hidden md:flex w-0.5 h-auto bg-zinc-700/40 mx-0.5 self-stretch'></div>
       )}
 
       {/* Achievement Badges */}
       {hasBadges && (
-        <div className='flex flex-wrap justify-center gap-2 mt-1 md:mt-0'>
+        <div className='flex flex-wrap justify-start gap-2 mt-1 md:mt-0 w-full md:w-auto'>
           {topBadges.map((badge) => (
             <div
               key={badge.id}
-              className='inline-flex items-center gap-1 py-0.5 px-1.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-500 hover:bg-green-500/15 transition-colors shadow-sm'
+              className='inline-flex items-center gap-1 py-0.5 px-1.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-500 hover:bg-green-500/15 transition-colors shadow-sm whitespace-nowrap'
               title={badge.badge.description}>
-              <Award className='h-3 w-3 text-green-500' />
+              <Award className='h-3 w-3 text-green-500 flex-shrink-0' />
               <span className='text-xs font-medium'>{badge.badge.name}</span>
             </div>
           ))}
