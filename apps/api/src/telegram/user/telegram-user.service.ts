@@ -56,7 +56,7 @@ export class TelegramUserService implements OnModuleInit {
       return;
     }
 
-    const webhookPath = '/api/telegram/webhook';
+    const webhookPath = '/telegram/webhook';
     const fullWebhookUrl = `${this.webhookUrl}${webhookPath}`;
 
     try {
