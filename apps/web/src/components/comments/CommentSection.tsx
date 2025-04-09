@@ -86,6 +86,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
   const router = useRouter();
   const [focusedComment, setFocusedComment] = useState<CommentType | null>(null);
   const [threadComments, setThreadComments] = useState<CommentType[]>([]);
+  const [threadFetchError, setThreadFetchError] = useState<string | null>(null);
 
   const updateCommentInState = useCallback(
     (comments: CommentType[], commentId: string, newContent: string): CommentType[] => {
@@ -207,6 +208,9 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
         console.error(`Failed loading thread ${threadId}:`, error);
         setFocusedComment(null);
         setThreadComments([]);
+        setThreadFetchError(
+          error instanceof Error ? error.message : 'Could not load comment thread.',
+        );
         toast({
           title: 'Error',
           description: error instanceof Error ? error.message : 'Could not load comment thread.',
@@ -218,6 +222,10 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     },
     [toast],
   );
+
+  useEffect(() => {
+    setThreadFetchError(null);
+  }, [commentId]);
 
   // Fetch comments when component mounts or auth state changes
   useEffect(() => {
@@ -256,6 +264,13 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
       }
     };
   }, [isLoadingMore, pagination, fetchComments, commentId]);
+
+  // Fetch specific thread when commentId is present and no error occurred
+  useEffect(() => {
+    // Don't fetch if no ID or if an error previously occurred for this ID
+    if (!commentId || threadFetchError) return;
+    fetchThreadData(commentId);
+  }, [commentId, fetchThreadData, threadFetchError]);
 
   useEffect(() => {
     hasScrolled.current = false;
@@ -797,11 +812,6 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     );
   };
 
-  useEffect(() => {
-    if (!commentId) return;
-    fetchThreadData(commentId);
-  }, [commentId, fetchThreadData]);
-
   if (commentId) {
     if (isLoadingSpecificComment) {
       return (
@@ -814,6 +824,24 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
               <div className='h-4 bg-gray-200 rounded w-1/2'></div>
             </div>
           </div>
+        </Card>
+      );
+    }
+
+    if (threadFetchError) {
+      return (
+        <Card className='p-6 text-center text-red-500 w-full'>
+          <MessageSquare className='h-12 w-12 mx-auto mb-3 text-red-400' />
+          <p>Could not load comment thread:</p>
+          <p className='text-sm text-red-400/80'>{threadFetchError}</p>
+          <Button
+            onClick={() => router.push(`/tokens/${tokenMintAddress}`)}
+            variant='outline'
+            size='sm'
+            className='mt-4 gap-2'>
+            <ArrowLeft className='h-4 w-4' />
+            Back to all comments
+          </Button>
         </Card>
       );
     }
