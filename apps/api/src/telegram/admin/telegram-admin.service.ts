@@ -1,12 +1,12 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import TelegramBot from 'node-telegram-bot-api';
-import { CommentEntity } from '../entities/comment.entity';
-import { sanitizeHtml } from '../utils/utils';
+import { CommentEntity } from '../../entities/comment.entity';
+import { sanitizeHtml } from '../../utils/utils';
 
 @Injectable()
-export class TelegramNotificationService implements OnModuleInit {
-  private readonly logger = new Logger(TelegramNotificationService.name);
+export class TelegramAdminService implements OnModuleInit {
+  private readonly logger = new Logger(TelegramAdminService.name);
   private bot: TelegramBot;
   private enabled = false;
   private chatId: string;

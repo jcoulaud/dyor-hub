@@ -20,7 +20,7 @@ import { TokenEntity } from '../entities/token.entity';
 import { UserEntity } from '../entities/user.entity';
 import { GamificationEvent } from '../gamification/services/activity-hooks.service';
 import { PerspectiveService } from '../services/perspective.service';
-import { TelegramNotificationService } from '../services/telegram-notification.service';
+import { TelegramAdminService } from '../telegram/admin/telegram-admin.service';
 import { sanitizeHtml } from '../utils/utils';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -43,7 +43,7 @@ export class CommentsService {
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     private readonly perspectiveService: PerspectiveService,
-    private readonly telegramService: TelegramNotificationService,
+    private readonly telegramAdminService: TelegramAdminService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -416,7 +416,7 @@ export class CommentsService {
 
       // Send notification to telegram channel
       try {
-        await this.telegramService.notifyNewComment(savedComment);
+        await this.telegramAdminService.notifyNewComment(savedComment);
       } catch (error) {
         this.logger.error(
           `Failed to send telegram notification: ${error.message}`,

@@ -10,6 +10,7 @@ import {
   LatestComment,
   LeaderboardEntry,
   LeaderboardResponse,
+  NotificationPreference,
   NotificationsResponse,
   StreakMilestone,
   StreakMilestonesResponse,
@@ -1057,7 +1058,9 @@ export const notifications = {
   },
 
   getPreferences: async () => {
-    return api<{ preferences: Record<string, boolean> }>('notifications/preferences');
+    return api<{ preferences: Record<string, NotificationPreference> }>(
+      'notifications/preferences',
+    );
   },
 
   updatePreference: async (
@@ -1067,6 +1070,31 @@ export const notifications = {
     return api<{ success: boolean }>(`notifications/preferences/${type}`, {
       method: 'POST',
       body: settings,
+    });
+  },
+
+  // Telegram connection methods
+  generateTelegramToken: async () => {
+    return api<{
+      token: string;
+    }>('telegram/user/generate-token', {
+      method: 'POST',
+    });
+  },
+
+  getTelegramStatus: async () => {
+    return api<{
+      isConnected: boolean;
+      status: string;
+      connectedUsername: string | null;
+      connectedFirstName: string | null;
+      connectedAt: string | null;
+    }>('telegram/user/status');
+  },
+
+  disconnectTelegram: async () => {
+    return api<{ success: boolean }>('telegram/user/disconnect', {
+      method: 'DELETE',
     });
   },
 };

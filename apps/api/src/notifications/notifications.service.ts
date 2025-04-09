@@ -12,6 +12,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { NotificationEntity, NotificationPreferenceEntity } from '../entities';
+import { TelegramUserService } from '../telegram/user/telegram-user.service';
 import { NotificationsGateway } from './notifications.gateway';
 
 @Injectable()
@@ -24,6 +25,7 @@ export class NotificationsService {
     @InjectRepository(NotificationPreferenceEntity)
     private notificationPreferenceRepository: Repository<NotificationPreferenceEntity>,
     private readonly notificationsGateway: NotificationsGateway,
+    private readonly telegramUserService: TelegramUserService,
   ) {}
 
   async createNotification(
@@ -63,6 +65,46 @@ export class NotificationsService {
           userId,
           savedNotification,
         );
+
+        // Check if Telegram notifications are enabled for this type
+        const isTelegramEnabled = await this.isTelegramEnabledForType(
+          userId,
+          type,
+        );
+        if (isTelegramEnabled) {
+          // Generate a link to the notification if relevant
+          let inlineKeyboard = undefined;
+
+          if (relatedEntityId && relatedEntityType) {
+            const url = this.getNotificationUrl(
+              relatedEntityType,
+              relatedEntityId,
+              relatedMetadata,
+            );
+            if (url) {
+              inlineKeyboard = {
+                inline_keyboard: [
+                  [
+                    {
+                      text: '🔗 View in DYOR Hub',
+                      url,
+                    },
+                  ],
+                ],
+              };
+            }
+          }
+
+          // Format message for Telegram
+          const telegramMessage = this.formatTelegramMessage(savedNotification);
+
+          // Send to Telegram
+          await this.telegramUserService.sendNotificationToUser(
+            userId,
+            telegramMessage,
+            inlineKeyboard,
+          );
+        }
       }
 
       return savedNotification;
@@ -390,6 +432,125 @@ export class NotificationsService {
       throw new InternalServerErrorException(
         'Failed to update notification preference',
       );
+    }
+  }
+
+  // Format a notification for Telegram with emojis and formatting
+  private formatTelegramMessage(notification: NotificationEntity): string {
+    const { type, message } = notification;
+
+    // Add emoji based on notification type
+    let emoji = '🔔';
+    switch (type) {
+      case NotificationType.STREAK_AT_RISK:
+        emoji = '⚠️';
+        break;
+      case NotificationType.STREAK_ACHIEVED:
+        emoji = '🔥';
+        break;
+      case NotificationType.STREAK_BROKEN:
+        emoji = '💔';
+        break;
+      case NotificationType.BADGE_EARNED:
+        emoji = '🏆';
+        break;
+      case NotificationType.LEADERBOARD_CHANGE:
+        emoji = '📊';
+        break;
+      case NotificationType.REPUTATION_MILESTONE:
+        emoji = '⭐';
+        break;
+      case NotificationType.COMMENT_REPLY:
+        emoji = '💬';
+        break;
+      case NotificationType.UPVOTE_RECEIVED:
+        emoji = '👍';
+        break;
+      case NotificationType.SYSTEM:
+        emoji = '🔔';
+        break;
+    }
+
+    return `${emoji} <b>${this.getNotificationTypeTitle(type)}</b>\n\n${message}`;
+  }
+
+  private getNotificationTypeTitle(type: NotificationType): string {
+    switch (type) {
+      case NotificationType.STREAK_AT_RISK:
+        return 'Streak at Risk';
+      case NotificationType.STREAK_ACHIEVED:
+        return 'Streak Achieved';
+      case NotificationType.STREAK_BROKEN:
+        return 'Streak Broken';
+      case NotificationType.BADGE_EARNED:
+        return 'Badge Earned';
+      case NotificationType.LEADERBOARD_CHANGE:
+        return 'Leaderboard Update';
+      case NotificationType.REPUTATION_MILESTONE:
+        return 'Reputation Milestone';
+      case NotificationType.COMMENT_REPLY:
+        return 'Comment Reply';
+      case NotificationType.UPVOTE_RECEIVED:
+        return 'Upvote Received';
+      case NotificationType.SYSTEM:
+        return 'System Notification';
+      default:
+        return 'Notification';
+    }
+  }
+
+  private getNotificationUrl(
+    entityType: string,
+    entityId: string,
+    metadata?: Record<string, any> | null,
+  ): string | null {
+    const baseUrl = process.env.CLIENT_URL || '';
+
+    switch (entityType) {
+      case 'comment':
+        if (metadata && metadata.tokenMintAddress) {
+          return `${baseUrl}/tokens/${metadata.tokenMintAddress}/comments/${entityId}`;
+        }
+        break;
+      case 'badge':
+        return `${baseUrl}/profile/badges`;
+      default:
+        return null;
+    }
+
+    return null;
+  }
+
+  // Check if Telegram notifications are enabled for a specific notification type
+  async isTelegramEnabledForType(
+    userId: string,
+    notificationType: NotificationType,
+  ): Promise<boolean> {
+    try {
+      // First check if user has a Telegram connection
+      const hasConnection =
+        await this.telegramUserService.hasActiveConnection(userId);
+      if (!hasConnection) {
+        return false;
+      }
+
+      // Then check if the notification type has Telegram enabled
+      const preference = await this.notificationPreferenceRepository.findOne({
+        where: { userId, notificationType },
+      });
+
+      if (!preference) {
+        // If no preference is found, use default value (false for Telegram)
+        return false;
+      }
+
+      return preference.telegramEnabled;
+    } catch (error) {
+      this.logger.error(
+        `Failed to check if Telegram is enabled for ${notificationType}: ${error.message}`,
+        error.stack,
+      );
+      return false;
     }
   }
 }
