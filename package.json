@@ -10,10 +10,16 @@
   },
   "scripts": {
     "dev": "turbo dev",
-    "dev:all": "pnpm run dev:api & pnpm run dev:web",
+    "build": "turbo build",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "clean": "turbo clean && rm -rf node_modules"
+    "clean": "turbo clean && rm -rf node_modules",
+    "setup": "node scripts/dev/setup-env.js",
+    "docker": "docker compose -f scripts/dev/docker-compose.yml",
+    "docker:up": "pnpm setup && node scripts/dev/docker-up.js",
+    "docker:down": "pnpm docker down",
+    "docker:restart": "pnpm docker down && pnpm docker:up",
+    "start": "pnpm install && node scripts/dev/index.js"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.1",
