@@ -12,6 +12,30 @@ export interface Token {
   lastRefreshedAt?: Date;
 }
 
+export enum SentimentType {
+  BULLISH = 'bullish',
+  BEARISH = 'bearish',
+  RED_FLAG = 'redFlag',
+}
+
+export interface TokenSentiment {
+  id: string;
+  tokenMintAddress: string;
+  sentimentType: SentimentType;
+  value: number;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TokenSentimentStats {
+  bullishCount: number;
+  bearishCount: number;
+  redFlagCount: number;
+  userSentiment?: SentimentType;
+  totalCount: number;
+}
+
 export interface TokenHolder {
   address: string;
   amount: number;

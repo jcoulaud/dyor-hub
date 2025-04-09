@@ -1,19 +1,18 @@
 // Existing entities
+export * from './badge.entity';
 export * from './comment-vote.entity';
 export * from './comment.entity';
-export * from './telegram-user-connection.entity';
-export * from './token-watchlist.entity';
-export * from './token.entity';
-export * from './twitter-username-history.entity';
-export * from './user.entity';
-export * from './wallet.entity';
-
-// Gamification entities
-export * from './badge.entity';
 export * from './leaderboard.entity';
 export * from './notification-preference.entity';
 export * from './notification.entity';
+export * from './telegram-user-connection.entity';
+export * from './token-sentiment.entity';
+export * from './token-watchlist.entity';
+export * from './token.entity';
+export * from './twitter-username-history.entity';
 export * from './user-activity.entity';
 export * from './user-badge.entity';
 export * from './user-reputation.entity';
 export * from './user-streak.entity';
+export * from './user.entity';
+export * from './wallet.entity';

@@ -12,8 +12,23 @@ import { useToast } from '@/hooks/use-toast';
 import { tokens, watchlist } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
-import { Token, TokenStats as TokenStatsType, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
-import { Copy, Globe, MessageSquare, Search, Shield, Sparkles, Twitter } from 'lucide-react';
+import {
+  SentimentType,
+  Token,
+  TokenSentimentStats,
+  TokenStats as TokenStatsType,
+  TwitterUsernameHistoryEntity,
+} from '@dyor-hub/types';
+import {
+  BarChart3,
+  Copy,
+  Globe,
+  MessageSquare,
+  Search,
+  Shield,
+  Sparkles,
+  Twitter,
+} from 'lucide-react';
 import Link from 'next/link';
 import { notFound, usePathname, useRouter } from 'next/navigation';
 import { use, useCallback, useEffect, useState } from 'react';
@@ -46,6 +61,9 @@ export default function Page({ params, commentId }: PageProps) {
   const [tokenStatsData, setTokenStatsData] = useState<TokenStatsType | null>(null);
   const [isHeaderLoaded, setIsHeaderLoaded] = useState(false);
   const [isStatsLoaded, setIsStatsLoaded] = useState(false);
+  const [sentimentData, setSentimentData] = useState<TokenSentimentStats | null>(null);
+  const [isVoting, setIsVoting] = useState(false);
+
   const { toast } = useToast();
 
   const handleSubmit = useCallback(
@@ -75,15 +93,54 @@ export default function Page({ params, commentId }: PageProps) {
     [address, router],
   );
 
+  const handleSentimentVote = useCallback(
+    async (sentimentType: SentimentType) => {
+      if (!isAuthenticated) {
+        toast({ title: 'Authentication Required', description: 'Please log in to vote.' });
+        return;
+      }
+
+      setIsVoting(true);
+      try {
+        // If user already voted with this sentiment, remove it
+        if (sentimentData?.userSentiment === sentimentType) {
+          await tokens.removeSentiment(mintAddress);
+          toast({
+            title: 'Sentiment removed',
+            description: 'Your sentiment has been removed.',
+          });
+        } else {
+          await tokens.addOrUpdateSentiment(mintAddress, sentimentType);
+          toast({
+            title: 'Sentiment recorded',
+            description: 'Your sentiment has been recorded.',
+          });
+        }
+
+        const updatedData = await tokens.getTokenSentiments(mintAddress);
+        setSentimentData(updatedData);
+      } catch (error) {
+        console.error('Error updating sentiment:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to update sentiment.';
+        toast({
+          title: 'Error',
+          description: `${errorMessage} Please try again.`,
+          variant: 'destructive',
+        });
+      } finally {
+        setIsVoting(false);
+      }
+    },
+    [isAuthenticated, mintAddress, sentimentData, toast],
+  );
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Avoid reloading if already loaded
         if (tokenData && mintAddress === tokenData.mintAddress) {
           return;
         }
 
-        // Check valid Solana address format
         if (!isValidSolanaAddress(mintAddress)) {
           notFound();
         }
@@ -91,7 +148,6 @@ export default function Page({ params, commentId }: PageProps) {
         try {
           const token = await tokens.getByMintAddress(mintAddress);
 
-          // Always check watchlist status for authenticated users
           if (isAuthenticated) {
             try {
               const isWatchlisted = await watchlist.isTokenWatchlisted(mintAddress);
@@ -106,7 +162,6 @@ export default function Page({ params, commentId }: PageProps) {
           setTokenData(token);
           setIsHeaderLoaded(true);
 
-          // Replace cf-ipfs.com with ipfs.io in image URL
           if (token.imageUrl && token.imageUrl.includes('cf-ipfs.com/ipfs/')) {
             token.imageUrl = token.imageUrl.replace('cf-ipfs.com/ipfs/', 'ipfs.io/ipfs/');
           }
@@ -116,7 +171,6 @@ export default function Page({ params, commentId }: PageProps) {
           return;
         }
 
-        // Skip fetching token stats in development environment
         if (isDev) {
           setIsStatsLoaded(true);
           return;
@@ -155,6 +209,21 @@ export default function Page({ params, commentId }: PageProps) {
     setIsStatsLoaded(false);
     fetchData();
   }, [mintAddress]);
+
+  useEffect(() => {
+    const fetchSentimentData = async () => {
+      try {
+        if (tokenData && mintAddress === tokenData.mintAddress) {
+          const data = await tokens.getTokenSentiments(mintAddress);
+          setSentimentData(data);
+        }
+      } catch (error) {
+        console.error('Error fetching sentiment data:', error);
+      }
+    };
+
+    fetchSentimentData();
+  }, [mintAddress, tokenData]);
 
   return (
     <div className='flex-1 flex flex-col'>
@@ -606,6 +675,78 @@ export default function Page({ params, commentId }: PageProps) {
                     </div>
                     {error && <p className='text-xs font-medium text-red-500'>{error}</p>}
                   </form>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Community Sentiment */}
+            <div className='relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-2 relative'>
+                  <div className='flex items-center mb-4'>
+                    <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
+                      <BarChart3 className='h-5 w-5 text-blue-400' />
+                    </div>
+                    <CardTitle className='text-xl font-semibold text-white'>
+                      Token Sentiment
+                    </CardTitle>
+                  </div>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
+                </CardHeader>
+                <CardContent className='pt-2 pb-6'>
+                  {tokenData && (
+                    <div className='grid grid-cols-3 gap-2'>
+                      {/* Bullish Card */}
+                      <div
+                        className={`flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border ${
+                          sentimentData?.userSentiment === SentimentType.BULLISH
+                            ? 'border-green-500/50 bg-green-900/20'
+                            : 'border-transparent hover:border-green-500/20 hover:bg-green-900/10'
+                        } transition-all duration-200 cursor-pointer ${
+                          isVoting ? 'opacity-50 pointer-events-none' : ''
+                        } transform hover:scale-105 active:scale-95`}
+                        onClick={() => handleSentimentVote(SentimentType.BULLISH)}>
+                        <div className='text-2xl mb-2'>🚀</div>
+                        <div className='font-bold text-xl text-white'>
+                          {sentimentData?.bullishCount || 0}
+                        </div>
+                      </div>
+
+                      {/* Bearish Card */}
+                      <div
+                        className={`flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border ${
+                          sentimentData?.userSentiment === SentimentType.BEARISH
+                            ? 'border-red-500/50 bg-red-900/20'
+                            : 'border-transparent hover:border-red-500/20 hover:bg-red-900/10'
+                        } transition-all duration-200 cursor-pointer ${
+                          isVoting ? 'opacity-50 pointer-events-none' : ''
+                        } transform hover:scale-105 active:scale-95`}
+                        onClick={() => handleSentimentVote(SentimentType.BEARISH)}>
+                        <div className='text-2xl mb-2'>💩</div>
+                        <div className='font-bold text-xl text-white'>
+                          {sentimentData?.bearishCount || 0}
+                        </div>
+                      </div>
+
+                      {/* Red Flag Card */}
+                      <div
+                        className={`flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border ${
+                          sentimentData?.userSentiment === SentimentType.RED_FLAG
+                            ? 'border-orange-500/50 bg-orange-900/20'
+                            : 'border-transparent hover:border-yellow-500/20 hover:bg-yellow-900/10'
+                        } transition-all duration-200 cursor-pointer ${
+                          isVoting ? 'opacity-50 pointer-events-none' : ''
+                        } transform hover:scale-105 active:scale-95`}
+                        onClick={() => handleSentimentVote(SentimentType.RED_FLAG)}>
+                        <div className='text-2xl mb-2'>🚩</div>
+                        <div className='font-bold text-xl text-white'>
+                          {sentimentData?.redFlagCount || 0}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

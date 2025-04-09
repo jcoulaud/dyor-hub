@@ -17,9 +17,9 @@ import {
   NotificationEntity,
   NotificationPreferenceEntity,
   TokenEntity,
+  TokenSentimentEntity,
   TokenWatchlistEntity,
   TwitterUsernameHistoryEntity,
-  // Gamification entities
   UserActivityEntity,
   UserBadgeEntity,
   UserEntity,
@@ -50,7 +50,6 @@ import { WatchlistModule } from './watchlist/watchlist.module';
       TokenWatchlistEntity,
       TwitterUsernameHistoryEntity,
       WalletEntity,
-      // Gamification entities
       UserActivityEntity,
       UserStreakEntity,
       BadgeEntity,
@@ -59,6 +58,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
       NotificationEntity,
       NotificationPreferenceEntity,
       LeaderboardEntity,
+      TokenSentimentEntity,
     ]),
     AuthModule,
     CommentsModule,

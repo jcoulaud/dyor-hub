@@ -13,6 +13,7 @@ import { CommentEntity } from './comment.entity';
 import { LeaderboardEntity } from './leaderboard.entity';
 import { NotificationPreferenceEntity } from './notification-preference.entity';
 import { NotificationEntity } from './notification.entity';
+import { TokenSentimentEntity } from './token-sentiment.entity';
 import { TokenWatchlistEntity } from './token-watchlist.entity';
 import { UserActivityEntity } from './user-activity.entity';
 import { UserBadgeEntity } from './user-badge.entity';
@@ -90,6 +91,9 @@ export class UserEntity {
     (preference) => preference.user,
   )
   notificationPreferences: NotificationPreferenceEntity[];
+
+  @OneToMany(() => TokenSentimentEntity, (sentiment) => sentiment.user)
+  sentiments: TokenSentimentEntity[];
 
   @OneToMany(() => LeaderboardEntity, (leaderboard) => leaderboard.user)
   leaderboardRankings: LeaderboardEntity[];
