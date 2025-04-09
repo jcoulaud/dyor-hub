@@ -1,6 +1,7 @@
 // Existing entities
 export * from './comment-vote.entity';
 export * from './comment.entity';
+export * from './telegram-user-connection.entity';
 export * from './token-watchlist.entity';
 export * from './token.entity';
 export * from './twitter-username-history.entity';

@@ -8,13 +8,25 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { notifications } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { NotificationType } from '@dyor-hub/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AnimatePresence, motion } from 'framer-motion';
-import { BellRing, CheckCircle2, Info, Loader2, Mail, MessageSquare } from 'lucide-react';
+import {
+  BellRing,
+  CheckCircle2,
+  Info,
+  Link,
+  Link2Off,
+  Loader2,
+  Mail,
+  MessageSquare,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+
+const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
 
 const notificationTypes = [
   {
@@ -80,6 +92,18 @@ export default function NotificationSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Telegram state
+  const [telegramConnecting, setTelegramConnecting] = useState(false);
+  const [telegramStatus, setTelegramStatus] = useState<{
+    isConnected: boolean;
+    status: string;
+    connectedUsername: string | null;
+    connectedFirstName: string | null;
+    connectedAt: string | null;
+  } | null>(null);
+  const [telegramToken, setTelegramToken] = useState<string | null>(null);
+
   const { toast } = useToast();
 
   const form = useForm<NotificationPreferencesFormValues>({
@@ -110,9 +134,19 @@ export default function NotificationSettingsPage() {
     }
   }, [form, toast]);
 
+  const fetchTelegramStatus = useCallback(async () => {
+    try {
+      const status = await notifications.getTelegramStatus();
+      setTelegramStatus(status);
+    } catch (error) {
+      console.error('Failed to get Telegram status', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPreferences();
-  }, [fetchPreferences]);
+    fetchTelegramStatus();
+  }, [fetchPreferences, fetchTelegramStatus]);
 
   const onSubmit = async (data: NotificationPreferencesFormValues) => {
     try {
@@ -147,6 +181,57 @@ export default function NotificationSettingsPage() {
       setIsSaving(false);
     }
   };
+
+  const handleConnectTelegram = async () => {
+    try {
+      setTelegramConnecting(true);
+      const response = await notifications.generateTelegramToken();
+      setTelegramToken(response.token);
+
+      toast({
+        title: 'Telegram Connection Ready',
+        description: 'Use the button below or the manual steps to connect.',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Connection Error',
+        description: 'Failed to generate Telegram connection token',
+      });
+      console.error('Failed to generate Telegram token:', error);
+    } finally {
+      setTelegramConnecting(false);
+    }
+  };
+
+  const handleDisconnectTelegram = async () => {
+    try {
+      setTelegramConnecting(true);
+      await notifications.disconnectTelegram();
+
+      setTelegramToken(null);
+      await fetchTelegramStatus();
+
+      toast({
+        title: 'Telegram Disconnected',
+        description: 'Your Telegram account has been disconnected',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Disconnection Error',
+        description: 'Failed to disconnect Telegram account',
+      });
+      console.error('Failed to disconnect Telegram account:', error);
+    } finally {
+      setTelegramConnecting(false);
+    }
+  };
+
+  const connectionUrl =
+    telegramToken && botUsername
+      ? `https://t.me/${botUsername}?start=connect_${telegramToken}`
+      : '';
 
   if (isLoading) {
     return (
@@ -197,6 +282,160 @@ export default function NotificationSettingsPage() {
           </Badge>
         </div>
 
+        {/* Telegram Connection Card */}
+        <Card className='border border-white/5 bg-black/30 backdrop-blur-sm shadow-xl overflow-hidden'>
+          <CardHeader className='border-b border-white/5 pb-4 bg-gradient-to-r from-purple-950/40 to-indigo-950/40'>
+            <div className='flex flex-col md:flex-row md:items-center justify-between gap-4'>
+              <CardTitle className='text-lg font-medium text-white'>Telegram Connection</CardTitle>
+              <div className='flex items-center text-xs text-muted-foreground'>
+                <MessageSquare className='h-3.5 w-3.5 mr-1.5 text-emerald-400' />
+                <span>Get notifications on Telegram</span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className='pt-6'>
+            <div className='space-y-4'>
+              {!telegramStatus?.isConnected && !telegramToken && (
+                <div className='flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between'>
+                  <div>
+                    <div className='font-medium text-white'>Connect Your Telegram Account</div>
+                    <div className='text-xs text-zinc-400 mt-0.5'>
+                      Receive notifications directly in Telegram
+                    </div>
+                  </div>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    className='flex items-center gap-2 border-emerald-700/50 text-emerald-400 hover:bg-emerald-950/20'
+                    onClick={handleConnectTelegram}
+                    disabled={telegramConnecting}>
+                    {telegramConnecting ? (
+                      <Loader2 className='h-3.5 w-3.5 animate-spin' />
+                    ) : (
+                      <Link className='h-3.5 w-3.5' />
+                    )}
+                    Connect Telegram
+                  </Button>
+                </div>
+              )}
+
+              {telegramToken && (
+                <div className='flex flex-col space-y-4 p-4 rounded-md bg-indigo-950/20 border border-indigo-700/30'>
+                  <div className='space-y-1'>
+                    <div className='text-sm font-medium text-white mb-2'>
+                      Click the button below to connect your Telegram account:
+                    </div>
+                    <a
+                      href={connectionUrl || '#'}
+                      target='_blank'
+                      rel='noreferrer'
+                      aria-disabled={!connectionUrl}
+                      onClick={(e) => {
+                        if (!connectionUrl) {
+                          e.preventDefault();
+                          toast({
+                            variant: 'destructive',
+                            title: 'Configuration Error',
+                            description:
+                              'Telegram Bot username is not configured in the frontend environment.',
+                          });
+                          return;
+                        }
+                        console.log('Opening Telegram with URL:', connectionUrl);
+
+                        const checkInterval = setInterval(async () => {
+                          try {
+                            const status = await notifications.getTelegramStatus();
+                            if (status.isConnected) {
+                              setTelegramStatus(status);
+                              setTelegramToken(null);
+                              clearInterval(checkInterval);
+                              toast({
+                                title: 'Telegram Connected!',
+                                description:
+                                  'Your account has been successfully connected to Telegram.',
+                                variant: 'default',
+                              });
+                            }
+                          } catch (error) {
+                            console.error('Failed to check connection status', error);
+                          }
+                        }, 3000);
+
+                        setTimeout(() => clearInterval(checkInterval), 120000);
+                      }}
+                      className={cn(
+                        'px-3 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 transition-colors text-white border border-indigo-500 flex items-center justify-center gap-2 w-full sm:w-auto',
+                        !connectionUrl && 'opacity-50 cursor-not-allowed',
+                      )}>
+                      <MessageSquare className='h-4 w-4' />
+                      Open in Telegram
+                    </a>
+                    <div className='mt-4 pt-3 border-t border-indigo-800/30'>
+                      <div className='text-xs text-zinc-400 mb-2'>
+                        If automatic connection doesn&apos;t work, you can:
+                      </div>
+                      {botUsername ? (
+                        <ol className='list-decimal text-xs text-zinc-300 ml-4 space-y-1'>
+                          <li>
+                            Open Telegram and find{' '}
+                            <span className='font-mono bg-black/30 px-1'>@{botUsername}</span>
+                          </li>
+                          <li>
+                            Send the command:{' '}
+                            <span className='font-mono bg-black/30 px-1'>
+                              /connect {telegramToken}
+                            </span>
+                          </li>
+                        </ol>
+                      ) : (
+                        <div className='text-xs text-red-400'>Bot username not configured.</div>
+                      )}
+
+                      <div className='text-xs text-amber-400 mt-3 flex items-center'>
+                        <Info className='h-3 w-3 mr-1' />
+                        This token will expire in 24 hours
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {telegramStatus?.isConnected && (
+                <div className='flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between'>
+                  <div>
+                    <div className='font-medium text-white flex items-center gap-2'>
+                      Connected to Telegram
+                      <Badge className='bg-emerald-950 text-emerald-300 border-0 text-[10px]'>
+                        <CheckCircle2 className='h-2.5 w-2.5 mr-1' />
+                        Active
+                      </Badge>
+                    </div>
+                    {telegramStatus.connectedUsername && (
+                      <div className='text-xs text-zinc-400 mt-0.5'>
+                        @{telegramStatus.connectedUsername}
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    className='flex items-center gap-2 border-red-700/50 text-red-400 hover:bg-red-950/20'
+                    onClick={handleDisconnectTelegram}
+                    disabled={telegramConnecting}>
+                    {telegramConnecting ? (
+                      <Loader2 className='h-3.5 w-3.5 animate-spin' />
+                    ) : (
+                      <Link2Off className='h-3.5 w-3.5' />
+                    )}
+                    Disconnect
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className='border border-white/5 bg-black/30 backdrop-blur-sm shadow-xl overflow-hidden'>
           <CardHeader className='border-b border-white/5 pb-4 bg-gradient-to-r from-blue-950/40 to-purple-950/40'>
             <div className='flex flex-col md:flex-row md:items-center justify-between gap-4'>
@@ -222,7 +461,11 @@ export default function NotificationSettingsPage() {
           <CardContent className='pt-6'>
             <div className='text-xs mb-4 flex items-center text-muted-foreground'>
               <Info className='h-3.5 w-3.5 mr-1.5 flex-shrink-0' />
-              <span>Email and Telegram notifications are coming soon.</span>
+              <span>
+                Email notifications are coming soon.{' '}
+                {!telegramStatus?.isConnected &&
+                  'Connect your Telegram to enable Telegram notifications.'}
+              </span>
             </div>
             <div className='space-y-2'>
               <AnimatePresence>
@@ -248,14 +491,21 @@ export default function NotificationSettingsPage() {
                         control={form.control}
                         name={`${type.id}.inApp`}
                         render={({ field }) => (
-                          <FormItem className='flex items-center justify-center'>
+                          <FormItem>
                             <FormControl>
-                              <Switch
-                                checked={type.id === NotificationType.SYSTEM ? true : field.value}
-                                onCheckedChange={field.onChange}
-                                disabled={type.id === NotificationType.SYSTEM}
-                                className='data-[state=checked]:bg-sky-600'
-                              />
+                              <div className='flex items-center justify-center'>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  disabled={type.id === NotificationType.SYSTEM}
+                                  aria-readonly={type.id === NotificationType.SYSTEM}
+                                  className={
+                                    type.id === NotificationType.SYSTEM
+                                      ? 'data-[state=checked]:bg-sky-500'
+                                      : 'data-[state=checked]:bg-sky-600'
+                                  }
+                                />
+                              </div>
                             </FormControl>
                           </FormItem>
                         )}
@@ -264,14 +514,16 @@ export default function NotificationSettingsPage() {
                         control={form.control}
                         name={`${type.id}.email`}
                         render={({ field }) => (
-                          <FormItem className='flex items-center justify-center'>
+                          <FormItem>
                             <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                                className='data-[state=checked]:bg-amber-600'
-                                disabled
-                              />
+                              <div className='flex items-center justify-center'>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  disabled
+                                  className='disabled:opacity-50'
+                                />
+                              </div>
                             </FormControl>
                           </FormItem>
                         )}
@@ -280,14 +532,23 @@ export default function NotificationSettingsPage() {
                         control={form.control}
                         name={`${type.id}.telegram`}
                         render={({ field }) => (
-                          <FormItem className='flex items-center justify-center'>
+                          <FormItem>
                             <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                                className='data-[state=checked]:bg-emerald-600'
-                                disabled
-                              />
+                              <div className='flex items-center justify-center'>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  disabled={
+                                    !telegramStatus?.isConnected ||
+                                    type.id === NotificationType.SYSTEM
+                                  }
+                                  className={
+                                    !telegramStatus?.isConnected
+                                      ? 'disabled:opacity-50'
+                                      : 'data-[state=checked]:bg-emerald-600'
+                                  }
+                                />
+                              </div>
                             </FormControl>
                           </FormItem>
                         )}
@@ -300,25 +561,19 @@ export default function NotificationSettingsPage() {
           </CardContent>
         </Card>
 
-        <div className='flex justify-end'>
-          <AnimatePresence>
-            {saveSuccess && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className='mr-4 flex items-center text-emerald-400 text-sm'>
-                <CheckCircle2 className='h-4 w-4 mr-1.5' />
-                <span>Preferences saved successfully</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className='flex justify-end items-center gap-3'>
+          {saveSuccess && (
+            <div className='text-emerald-500 text-sm font-medium flex items-center'>
+              <CheckCircle2 className='h-4 w-4 mr-1.5' />
+              Changes saved
+            </div>
+          )}
           <Button
             type='submit'
-            disabled={!form.formState.isDirty || isSaving}
-            className='min-w-[120px]'>
-            {isSaving && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            disabled={isSaving || !form.formState.isDirty}
+            className='flex items-center gap-2'>
+            {isSaving && <Loader2 className='h-4 w-4 animate-spin' />}
+            {isSaving ? 'Saving Changes...' : 'Save Changes'}
           </Button>
         </div>
       </form>

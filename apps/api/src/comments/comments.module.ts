@@ -8,7 +8,7 @@ import { UserEntity } from '../entities/user.entity';
 import { GamificationModule } from '../gamification/gamification.module';
 import { PerspectiveModule } from '../services/perspective.module';
 import { PerspectiveService } from '../services/perspective.service';
-import { TelegramNotificationService } from '../services/telegram-notification.service';
+import { TelegramModule } from '../telegram/telegram.module';
 import { CommentsController } from './comments.controller';
 import { CommentsService } from './comments.service';
 
@@ -23,9 +23,10 @@ import { CommentsService } from './comments.service';
     AuthModule,
     PerspectiveModule,
     GamificationModule,
+    TelegramModule,
   ],
   controllers: [CommentsController],
-  providers: [CommentsService, PerspectiveService, TelegramNotificationService],
+  providers: [CommentsService, PerspectiveService],
   exports: [CommentsService],
 })
 export class CommentsModule {}
