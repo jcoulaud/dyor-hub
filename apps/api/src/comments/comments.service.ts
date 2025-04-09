@@ -370,14 +370,33 @@ export class CommentsService {
     userId: string,
   ): Promise<CommentEntity> {
     try {
-      // Find token by mint address
+      let targetTokenMintAddress = createCommentDto.tokenMintAddress;
+      let parentComment: CommentEntity | null = null;
+
+      // If this is a reply, find the parent comment
+      if (createCommentDto.parentId) {
+        parentComment = await this.commentRepository.findOne({
+          where: { id: createCommentDto.parentId },
+        });
+
+        if (!parentComment) {
+          throw new BadRequestException(
+            `Parent comment with ID ${createCommentDto.parentId} not found`,
+          );
+        }
+
+        // Use the parent's token address for consistency
+        targetTokenMintAddress = parentComment.tokenMintAddress;
+      }
+
+      // Find token by the determined mint address
       const token = await this.tokenRepository.findOne({
-        where: { mintAddress: createCommentDto.tokenMintAddress },
+        where: { mintAddress: targetTokenMintAddress }, // Use targetTokenMintAddress
       });
 
       if (!token) {
         throw new BadRequestException(
-          `Token with mint address ${createCommentDto.tokenMintAddress} not found`,
+          `Token with mint address ${targetTokenMintAddress} not found`,
         );
       }
 
@@ -408,7 +427,7 @@ export class CommentsService {
       comment.content = createCommentDto.content;
       comment.user = user;
       comment.userId = userId;
-      comment.tokenMintAddress = createCommentDto.tokenMintAddress;
+      comment.tokenMintAddress = targetTokenMintAddress; // Use the determined address
       comment.token = token;
       comment.parentId = createCommentDto.parentId || null;
 
@@ -432,13 +451,14 @@ export class CommentsService {
       });
 
       // If this is a reply, emit the notification event
-      if (createCommentDto.parentId) {
-        const parentComment = await this.commentRepository.findOne({
-          where: { id: createCommentDto.parentId },
-          relations: ['user'],
-        });
+      if (createCommentDto.parentId && parentComment) {
+        // Re-use the fetched parentComment if available
+        // const parentComment = await this.commentRepository.findOne({
+        //   where: { id: createCommentDto.parentId },
+        //   relations: ['user'],
+        // });
 
-        if (parentComment && parentComment.user.id !== userId) {
+        if (parentComment.user.id !== userId) {
           // Don't notify for self-replies
           this.eventEmitter.emit(NotificationEventType.COMMENT_REPLY, {
             userId: parentComment.user.id, // Parent comment owner gets notified
