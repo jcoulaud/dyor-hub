@@ -14,8 +14,8 @@ export class TelegramAdminService implements OnModuleInit {
   private readonly defaultAppUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
-    this.chatId = this.configService.get<string>('TELEGRAM_CHAT_ID');
+    const token = this.configService.get<string>('TELEGRAM_ADMIN_BOT_TOKEN');
+    this.chatId = this.configService.get<string>('TELEGRAM_ADMIN_CHAT_ID');
     const configuredUrl = this.configService.get<string>('CLIENT_URL') || '';
     this.defaultAppUrl =
       this.configService.get<string>('DEFAULT_APP_URL') || '';
@@ -33,7 +33,7 @@ export class TelegramAdminService implements OnModuleInit {
       );
     } else {
       this.logger.warn(
-        'Telegram admin notifications disabled. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env and run in production mode to enable.',
+        'Telegram admin notifications disabled. Set TELEGRAM_ADMIN_BOT_TOKEN and TELEGRAM_ADMIN_CHAT_ID in .env and run in production mode to enable.',
       );
     }
   }

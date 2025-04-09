@@ -5,6 +5,7 @@ import { randomBytes } from 'crypto';
 import { Context, Telegraf } from 'telegraf';
 import { Update } from 'telegraf/typings/core/types/typegram';
 import { Repository } from 'typeorm';
+import { NotificationPreferenceEntity } from '../../entities/notification-preference.entity';
 import { TelegramUserConnectionEntity } from '../../entities/telegram-user-connection.entity';
 
 @Injectable()
@@ -19,15 +20,17 @@ export class TelegramUserService implements OnModuleInit {
     private readonly configService: ConfigService,
     @InjectRepository(TelegramUserConnectionEntity)
     private readonly telegramUserRepository: Repository<TelegramUserConnectionEntity>,
+    @InjectRepository(NotificationPreferenceEntity)
+    private readonly notificationPreferenceRepository: Repository<NotificationPreferenceEntity>,
   ) {
-    const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
+    const token = this.configService.get<string>('TELEGRAM_USER_BOT_TOKEN');
     this.defaultAppUrl =
       this.configService.get<string>('DEFAULT_APP_URL') || '';
     this.webhookUrl = this.configService.get<string>('TELEGRAM_WEBHOOK_URL');
 
     if (!token) {
       this.logger.warn(
-        'User Telegram notifications disabled. Set TELEGRAM_BOT_TOKEN in .env to enable.',
+        'User Telegram notifications disabled. Set TELEGRAM_USER_BOT_TOKEN in .env to enable.',
       );
       this.enabled = false;
       return;
@@ -51,6 +54,12 @@ export class TelegramUserService implements OnModuleInit {
   }
 
   async onModuleInit() {
+    if (this.configService.get('NODE_ENV') !== 'production') {
+      this.logger.log('Skipping webhook setup in non-production environment.');
+      this.enabled = !!this.bot;
+      return;
+    }
+
     if (!this.bot || !this.webhookUrl) {
       this.logger.warn(
         'Skipping webhook setup in onModuleInit (bot/URL not ready).',
@@ -62,7 +71,9 @@ export class TelegramUserService implements OnModuleInit {
     const fullWebhookUrl = `${this.webhookUrl}${webhookPath}`;
 
     try {
-      this.logger.log(`Attempting to set webhook to: ${fullWebhookUrl}`);
+      this.logger.log(
+        `Attempting to set production webhook to: ${fullWebhookUrl}`,
+      );
       const success = await this.bot.telegram.setWebhook(fullWebhookUrl);
 
       if (success) {
@@ -183,38 +194,65 @@ export class TelegramUserService implements OnModuleInit {
 
   private async handleStatusCommand(ctx: Context) {
     const chatId = ctx.chat?.id.toString();
+    this.logger.log(`Entering handleStatusCommand for chat ID: ${chatId}`);
+
     if (!chatId) {
       this.logger.warn('Status command received without chat ID');
       return;
     }
 
     try {
+      this.logger.debug(`Attempting DB lookup for chat ID: ${chatId}`);
       const connection = await this.telegramUserRepository.findOne({
         where: { telegramChatId: chatId },
         relations: ['user'],
       });
+      this.logger.debug(`DB lookup completed for chat ID: ${chatId}`);
 
       if (!connection) {
-        this.logger.log(`No connection found for chat ID: ${chatId}`);
-        await ctx.reply(
-          'ℹ️ Status: Not connected\n\nUse /connect [token] to connect your DYOR Hub account.',
+        this.logger.log(
+          `No connection found for chat ID: ${chatId}, attempting reply.`,
         );
+        try {
+          await ctx.reply(
+            'ℹ️ Status: Not connected\n\nUse /connect [token] to connect your DYOR Hub account.',
+          );
+          this.logger.log(
+            `Reply sent successfully for 'not connected' status to chat ID: ${chatId}`,
+          );
+        } catch (replyError) {
+          this.logger.error(
+            `Failed to send 'not connected' reply to chat ID ${chatId}: ${replyError.message}`,
+            replyError,
+          );
+          return;
+        }
         return;
       }
 
-      await ctx.reply(
-        `✅ Status: Connected\n\n` +
-          `Connected to: ${connection.user.displayName}\n` +
-          `Connected since: ${connection.createdAt.toLocaleDateString()}\n\n` +
-          `Use /disconnect to disconnect this bot from your DYOR hub account.`,
+      this.logger.log(
+        `Connection found for chat ID: ${chatId}, attempting status reply.`,
       );
+      try {
+        await ctx.reply(
+          `✅ Status: Connected\n\n` +
+            `Connected to: ${connection.user.displayName}\n` +
+            `Connected since: ${connection.createdAt.toLocaleDateString()}\n\n` +
+            `Use /disconnect to disconnect this bot from your DYOR hub account.`,
+        );
+        this.logger.log(
+          `Reply sent successfully for 'connected' status to chat ID: ${chatId}`,
+        );
+      } catch (replyError) {
+        this.logger.error(
+          `Failed to send 'connected' status reply to chat ID ${chatId}: ${replyError.message}`,
+          replyError,
+        );
+      }
     } catch (error) {
       this.logger.error(
-        `Failed to check Telegram connection status: ${error.message}`,
+        `Generic error in handleStatusCommand for chat ID ${chatId}: ${error.message}`,
         error,
-      );
-      await ctx.reply(
-        'Sorry, there was an error checking your connection status. Please try again later.',
       );
     }
   }
@@ -246,6 +284,7 @@ export class TelegramUserService implements OnModuleInit {
 
   async generateConnectionToken(userId: string): Promise<string> {
     try {
+      this.logger.log(`Generating connection token for user ID: ${userId}`);
       let connection = await this.telegramUserRepository.findOne({
         where: { userId },
       });
@@ -271,7 +310,40 @@ export class TelegramUserService implements OnModuleInit {
         });
       }
 
+      this.logger.log(
+        `Generated token ${token} for user ${userId}. Saving to DB...`,
+      );
       await this.telegramUserRepository.save(connection);
+      this.logger.log(`Successfully saved token info for user ${userId}.`);
+
+      this.logger.log(
+        `Updating notification preferences for user: ${connection.userId}`,
+      );
+      await this.setDefaultTelegramPreferences(connection.userId);
+      this.logger.log(
+        `Finished updating notification preferences for user: ${connection.userId}`,
+      );
+
+      const successMessage =
+        '✅ Your DYOR hub account is now connected! You will receive notifications based on your preferences.';
+      try {
+        this.logger.log(
+          `Attempting to send connection success message to chat ID: ${connection.telegramChatId}`,
+        );
+        await this.bot.telegram.sendMessage(
+          connection.telegramChatId,
+          successMessage,
+        );
+        this.logger.log(
+          `Successfully sent connection success message to chat ID: ${connection.telegramChatId}`,
+        );
+      } catch (sendError) {
+        this.logger.error(
+          `Failed to send connection success message via sendMessage to chat ID ${connection.telegramChatId}: ${sendError.message}`,
+          sendError,
+        );
+        return;
+      }
       return token;
     } catch (error) {
       this.logger.error(
@@ -376,9 +448,18 @@ export class TelegramUserService implements OnModuleInit {
     }
 
     try {
+      this.logger.debug(`Looking up connection record for token: ${token}`);
       const connection = await this.telegramUserRepository.findOne({
         where: { connectionToken: token },
       });
+
+      if (connection) {
+        this.logger.debug(
+          `Found connection record for token ${token}: ID ${connection.id}, User ${connection.userId}`,
+        );
+      } else {
+        this.logger.warn(`NO connection record found for token: ${token}`);
+      }
 
       if (!connection) {
         this.logger.warn(`No connection found for token: ${token}`);
@@ -406,17 +487,55 @@ export class TelegramUserService implements OnModuleInit {
 
       await this.telegramUserRepository.save(connection);
 
-      await ctx.reply(
-        '✅ Your DYOR hub account is now connected! You will receive notifications based on your preferences.',
+      this.logger.log(
+        `Updating notification preferences for user: ${connection.userId}`,
       );
+      await this.setDefaultTelegramPreferences(connection.userId);
+      this.logger.log(
+        `Finished updating notification preferences for user: ${connection.userId}`,
+      );
+
+      const successMessage =
+        '✅ Your DYOR hub account is now connected! You will receive notifications based on your preferences.';
+      try {
+        this.logger.log(
+          `Attempting to send connection success message to chat ID: ${chatId}`,
+        );
+        await this.bot.telegram.sendMessage(chatId, successMessage);
+        this.logger.log(
+          `Successfully sent connection success message to chat ID: ${chatId}`,
+        );
+      } catch (sendError) {
+        this.logger.error(
+          `Failed to send connection success message via sendMessage to chat ID ${chatId}: ${sendError.message}`,
+          sendError,
+        );
+        return;
+      }
     } catch (error) {
       this.logger.error(
-        'Failed to connect Telegram account through deep link',
+        `Failed to connect Telegram account through deep link. Error during DB interaction for token ${token}, chat ID ${chatId}. Error: ${error.message}`,
         error,
       );
-      await ctx.reply(
-        'Sorry, there was an error connecting your account. Please try again later.',
-      );
+
+      const errorMessage =
+        'Sorry, there was an error connecting your account. Please try again later.';
+      if (chatId) {
+        try {
+          this.logger.log(
+            `Attempting to send connection error message to chat ID: ${chatId}`,
+          );
+          await this.bot.telegram.sendMessage(chatId, errorMessage);
+          this.logger.log(
+            `Successfully sent connection error message to chat ID: ${chatId}`,
+          );
+        } catch (sendError) {
+          this.logger.error(
+            `Failed to send connection error message via sendMessage to chat ID ${chatId}: ${sendError.message}`,
+            sendError,
+          );
+        }
+      }
     }
   }
 
@@ -431,5 +550,44 @@ export class TelegramUserService implements OnModuleInit {
         `To connect this bot to your DYOR Hub account, visit your notification settings page and click the "Connect Telegram" button.\n\n` +
         `Once connected, you'll receive notifications here based on your preferences.`,
     );
+  }
+
+  private async setDefaultTelegramPreferences(userId: string): Promise<void> {
+    try {
+      const preferences = await this.notificationPreferenceRepository.find({
+        where: { userId },
+      });
+
+      if (!preferences || preferences.length === 0) {
+        this.logger.warn(
+          `No existing notification preferences found for user ${userId} while setting defaults.`,
+        );
+        return;
+      }
+
+      const updatedPreferences: NotificationPreferenceEntity[] = [];
+      for (const pref of preferences) {
+        if (!pref.telegramEnabled) {
+          pref.telegramEnabled = pref.inAppEnabled;
+          updatedPreferences.push(pref);
+        }
+      }
+
+      if (updatedPreferences.length > 0) {
+        this.logger.log(
+          `Saving ${updatedPreferences.length} updated Telegram preferences for user ${userId}.`,
+        );
+        await this.notificationPreferenceRepository.save(updatedPreferences);
+      } else {
+        this.logger.log(
+          `No Telegram preferences needed updating for user ${userId}.`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to set default Telegram preferences for user ${userId}: ${error.message}`,
+        error,
+      );
+    }
   }
 }
