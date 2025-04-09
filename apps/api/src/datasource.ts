@@ -10,6 +10,7 @@ import {
   NotificationPreferenceEntity,
   TelegramUserConnectionEntity,
   TokenEntity,
+  TokenSentimentEntity,
   TokenWatchlistEntity,
   TwitterUsernameHistoryEntity,
   UserActivityEntity,
@@ -51,6 +52,7 @@ export const dataSourceOptions: DataSourceOptions = {
     NotificationPreferenceEntity,
     LeaderboardEntity,
     TelegramUserConnectionEntity,
+    TokenSentimentEntity,
   ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',
@@ -59,7 +61,7 @@ export const dataSourceOptions: DataSourceOptions = {
   logging:
     process.env.NODE_ENV === 'production'
       ? ['error', 'warn']
-      : ['error', 'warn', 'info'],
+      : ['error', 'warn'],
   logger: 'advanced-console',
 };
 

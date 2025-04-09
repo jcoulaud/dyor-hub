@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { CommentEntity } from './comment.entity';
+import { TokenSentimentEntity } from './token-sentiment.entity';
 import { TokenWatchlistEntity } from './token-watchlist.entity';
 import { TwitterUsernameHistoryEntity } from './twitter-username-history.entity';
 
@@ -57,4 +58,10 @@ export class TokenEntity {
     eager: false,
   })
   watchlistedBy: TokenWatchlistEntity[];
+
+  @OneToMany(() => TokenSentimentEntity, (sentiment) => sentiment.token, {
+    cascade: true,
+    eager: false,
+  })
+  sentiments: TokenSentimentEntity[];
 }
