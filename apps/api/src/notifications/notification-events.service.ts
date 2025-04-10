@@ -4,6 +4,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CommentEntity } from '../entities';
+import { sanitizeHtml } from '../utils/utils';
 import { NotificationsGateway } from './notifications.gateway';
 import { NotificationsService } from './notifications.service';
 
@@ -122,10 +123,15 @@ export class NotificationEventsService {
       );
     }
 
+    const plainCommentText = sanitizeHtml(payload.commentText);
+    const truncatedText =
+      plainCommentText.substring(0, 100) +
+      (plainCommentText.length > 100 ? '...' : '');
+
     await this.createAndEmitNotification(
       payload.userId,
       NotificationType.COMMENT_REPLY,
-      `${payload.replyAuthor} replied to your comment: "${payload.commentText.substring(0, 50)}${payload.commentText.length > 50 ? '...' : ''}"`,
+      `${payload.replyAuthor} replied to your comment: "${truncatedText}"`,
       payload.commentId,
       'comment',
       tokenMintAddress ? { tokenMintAddress } : null,

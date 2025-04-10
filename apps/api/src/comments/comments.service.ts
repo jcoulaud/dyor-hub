@@ -458,7 +458,7 @@ export class CommentsService {
           this.eventEmitter.emit(NotificationEventType.COMMENT_REPLY, {
             userId: parentComment.user.id, // Parent comment owner gets notified
             commentId: savedComment.id,
-            replyAuthor: user.displayName || user.username,
+            replyAuthor: user.displayName,
             commentText: savedComment.content.substring(0, 100),
           });
         }
@@ -590,16 +590,14 @@ export class CommentsService {
     // If this is an upvote, emit notification event for the comment owner
     if (type === 'upvote' && comment.user.id !== userId) {
       // Find voter's name - we only need this for the notification message
-      const userInfo = await this.commentRepository.manager
-        .createQueryBuilder()
-        .select('user.displayName')
-        .addSelect('user.username')
-        .from('UserEntity', 'user')
-        .where('user.id = :userId', { userId })
-        .getRawOne();
+      const voterInfo = await this.userRepository.findOne({
+        select: ['displayName', 'username'],
+        where: { id: userId },
+      });
 
-      if (userInfo) {
-        const voterName = userInfo.user_displayName || userInfo.user_username;
+      if (voterInfo) {
+        // Use displayName directly, assuming it always exists
+        const voterName = voterInfo.displayName;
 
         // Emit notification specific event
         this.eventEmitter.emit(NotificationEventType.COMMENT_UPVOTED, {

@@ -505,11 +505,11 @@ export default function NotificationSettingsPage() {
                               <div className='flex items-center justify-center w-16'>
                                 <Switch
                                   checked={
-                                    type.id === NotificationType.SYSTEM
-                                      ? telegramStatus?.isConnected
+                                    !telegramStatus?.isConnected
+                                      ? false
+                                      : type.id === NotificationType.SYSTEM
                                         ? true
-                                        : false
-                                      : field.value
+                                        : field.value
                                   }
                                   onCheckedChange={field.onChange}
                                   disabled={
