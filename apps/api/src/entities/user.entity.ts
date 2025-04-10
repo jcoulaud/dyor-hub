@@ -13,6 +13,7 @@ import { CommentEntity } from './comment.entity';
 import { LeaderboardEntity } from './leaderboard.entity';
 import { NotificationPreferenceEntity } from './notification-preference.entity';
 import { NotificationEntity } from './notification.entity';
+import { TokenCallEntity } from './token-call.entity';
 import { TokenSentimentEntity } from './token-sentiment.entity';
 import { TokenWatchlistEntity } from './token-watchlist.entity';
 import { UserActivityEntity } from './user-activity.entity';
@@ -97,6 +98,9 @@ export class UserEntity {
 
   @OneToMany(() => LeaderboardEntity, (leaderboard) => leaderboard.user)
   leaderboardRankings: LeaderboardEntity[];
+
+  @OneToMany(() => TokenCallEntity, (call) => call.user)
+  tokenCalls: TokenCallEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

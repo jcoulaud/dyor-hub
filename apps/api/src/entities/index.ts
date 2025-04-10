@@ -6,6 +6,7 @@ export * from './leaderboard.entity';
 export * from './notification-preference.entity';
 export * from './notification.entity';
 export * from './telegram-user-connection.entity';
+export * from './token-call.entity';
 export * from './token-sentiment.entity';
 export * from './token-watchlist.entity';
 export * from './token.entity';

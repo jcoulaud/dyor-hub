@@ -1,0 +1,6 @@
+export enum TokenCallStatus {
+  PENDING = 'PENDING',
+  VERIFIED_SUCCESS = 'VERIFIED_SUCCESS',
+  VERIFIED_FAIL = 'VERIFIED_FAIL',
+  ERROR = 'ERROR',
+}

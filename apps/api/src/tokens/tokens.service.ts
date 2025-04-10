@@ -59,7 +59,7 @@ export class TokensService {
   /**
    * Fetches DexScreener data with caching
    */
-  private async fetchDexScreenerData(mintAddress: string) {
+  public async fetchDexScreenerData(mintAddress: string) {
     const cacheKey = `dex_${mintAddress}`;
     const cachedData = this.dexScreenerCache.get(cacheKey);
     const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
