@@ -377,6 +377,7 @@ export class CommentsService {
       if (createCommentDto.parentId) {
         parentComment = await this.commentRepository.findOne({
           where: { id: createCommentDto.parentId },
+          relations: ['user'],
         });
 
         if (!parentComment) {
@@ -452,12 +453,6 @@ export class CommentsService {
 
       // If this is a reply, emit the notification event
       if (createCommentDto.parentId && parentComment) {
-        // Re-use the fetched parentComment if available
-        // const parentComment = await this.commentRepository.findOne({
-        //   where: { id: createCommentDto.parentId },
-        //   relations: ['user'],
-        // });
-
         if (parentComment.user.id !== userId) {
           // Don't notify for self-replies
           this.eventEmitter.emit(NotificationEventType.COMMENT_REPLY, {
