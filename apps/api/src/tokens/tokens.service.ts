@@ -513,7 +513,6 @@ export class TokensService {
         const tokenData = this.extractTokenData(assetData);
 
         const totalSupply = Number(tokenData.supply || 0);
-        const decimals = tokenData.decimals || 0;
 
         if (totalSupply <= 0) {
           this.logger.warn(
