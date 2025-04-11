@@ -16,6 +16,7 @@ import {
   LeaderboardEntity,
   NotificationEntity,
   NotificationPreferenceEntity,
+  TokenCallEntity,
   TokenEntity,
   TokenSentimentEntity,
   TokenWatchlistEntity,
@@ -33,6 +34,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SessionModule } from './session/session.module';
 import { SolanaModule } from './solana/solana.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { TokenCallsLeaderboardModule } from './token-calls-leaderboard/tokenCallsLeaderboard.module';
 import { TokenCallsModule } from './token-calls/token-calls.module';
 import { TokensModule } from './tokens/tokens.module';
 import { UsersModule } from './users/users.module';
@@ -61,6 +63,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
       NotificationPreferenceEntity,
       LeaderboardEntity,
       TokenSentimentEntity,
+      TokenCallEntity,
     ]),
     AuthModule,
     CommentsModule,
@@ -76,6 +79,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     NotificationsModule,
     TelegramModule,
     TokenCallsModule,
+    TokenCallsLeaderboardModule,
   ],
   controllers: [AppController],
   providers: [
