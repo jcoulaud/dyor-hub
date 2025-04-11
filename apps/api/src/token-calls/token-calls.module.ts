@@ -12,7 +12,7 @@ import { TokenCallsService } from './token-calls.service';
   imports: [
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([TokenCallEntity]),
-    AuthModule,
+    forwardRef(() => AuthModule),
     forwardRef(() => TokensModule),
   ],
   controllers: [TokenCallsController],

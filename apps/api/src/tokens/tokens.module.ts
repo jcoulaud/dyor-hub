@@ -23,7 +23,7 @@ import { TwitterHistoryService } from './twitter-history.service';
       UserEntity,
     ]),
     forwardRef(() => WatchlistModule),
-    AuthModule,
+    forwardRef(() => AuthModule),
   ],
   controllers: [TokensController, TokenSentimentController],
   providers: [TokensService, TwitterHistoryService, TokenSentimentService],

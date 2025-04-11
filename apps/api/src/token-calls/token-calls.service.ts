@@ -7,9 +7,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { add, Duration } from 'date-fns';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { TokenCallEntity } from '../entities/token-call.entity';
 import { TokensService } from '../tokens/tokens.service';
+import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
 
 export interface PaginatedTokenCallsResult {
@@ -272,6 +273,102 @@ export class TokenCallsService {
       }
       throw new InternalServerErrorException(
         'Could not fetch token call details.',
+      );
+    }
+  }
+
+  /**
+   * Calculates performance statistics for a user's token calls.
+   */
+  async calculateUserStats(userId: string): Promise<UserTokenCallStatsDto> {
+    this.logger.log(`Calculating token call stats for user ${userId}`);
+
+    try {
+      // Fetch all VERIFIED calls for the user
+      const verifiedCalls = await this.tokenCallRepository.find({
+        where: {
+          userId: userId,
+          status: In([
+            TokenCallStatus.VERIFIED_SUCCESS,
+            TokenCallStatus.VERIFIED_FAIL,
+          ]),
+        },
+        select: [
+          'status',
+          'referencePrice',
+          'targetPrice',
+          'timeToHitRatio',
+          'id',
+        ],
+      });
+
+      const totalCalls = verifiedCalls.length;
+      if (totalCalls === 0) {
+        return {
+          totalCalls: 0,
+          successfulCalls: 0,
+          failedCalls: 0,
+          accuracyRate: 0,
+          averageGainPercent: null,
+          averageTimeToHitRatio: null,
+        };
+      }
+
+      const successfulCalls = verifiedCalls.filter(
+        (call) => call.status === TokenCallStatus.VERIFIED_SUCCESS,
+      );
+      const failedCalls = totalCalls - successfulCalls.length;
+      const accuracyRate = successfulCalls.length / totalCalls;
+
+      let totalGainPercent = 0;
+      let totalTimeToHitRatio = 0;
+      let successfulCallsWithValidData = 0;
+
+      for (const call of successfulCalls) {
+        // Calculate gain percent for successful calls
+        const refPrice = call.referencePrice;
+        const targetPrice = call.targetPrice;
+        let gainPercent = 0;
+        if (refPrice > 0) {
+          gainPercent = ((targetPrice - refPrice) / refPrice) * 100;
+        }
+
+        // Accumulate only if data is valid
+        if (call.timeToHitRatio !== null && isFinite(gainPercent)) {
+          totalGainPercent += gainPercent;
+          totalTimeToHitRatio += call.timeToHitRatio;
+          successfulCallsWithValidData++;
+        } else {
+          this.logger.warn(
+            `Call ${call.id} excluded from average calculation due to null/invalid data (ratio: ${call.timeToHitRatio}, gain: ${gainPercent})`,
+          );
+        }
+      }
+
+      const averageGainPercent =
+        successfulCallsWithValidData > 0
+          ? totalGainPercent / successfulCallsWithValidData
+          : null;
+      const averageTimeToHitRatio =
+        successfulCallsWithValidData > 0
+          ? totalTimeToHitRatio / successfulCallsWithValidData
+          : null;
+
+      return {
+        totalCalls,
+        successfulCalls: successfulCalls.length,
+        failedCalls,
+        accuracyRate,
+        averageGainPercent,
+        averageTimeToHitRatio,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to calculate token call stats for user ${userId}`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Could not calculate user statistics.',
       );
     }
   }
