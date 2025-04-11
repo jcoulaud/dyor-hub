@@ -1,5 +1,6 @@
 import { TokenStats } from '@dyor-hub/types';
 import { Controller, Get, Param, Post } from '@nestjs/common';
+import { subDays } from 'date-fns';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
@@ -56,7 +57,16 @@ export class TokensController {
 
   @Public()
   @Get(':mintAddress/price-history')
-  async getTokenPriceHistory(@Param('mintAddress') mintAddress: string) {
-    return this.tokensService.getTokenPriceHistory(mintAddress);
+  async getTokenPriceHistory(
+    @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
+  ): Promise<{ items: Array<{ unixTime: number; value: number }> }> {
+    const endTime = new Date();
+    const startTime = subDays(endTime, 1);
+
+    return this.tokensService.getTokenPriceHistory(
+      mintAddress,
+      startTime,
+      endTime,
+    );
   }
 }

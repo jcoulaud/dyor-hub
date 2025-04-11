@@ -640,29 +640,44 @@ export class TokensService {
     return requestPromise;
   }
 
-  async getTokenPriceHistory(mintAddress: string): Promise<any> {
+  async getTokenPriceHistory(
+    mintAddress: string,
+    startTime: Date,
+    endTime: Date,
+    resolution: '15m' | '1H' | '1D' = '1D', // Default to daily resolution
+  ): Promise<{ items: Array<{ unixTime: number; value: number }> }> {
     try {
-      const unixTime = Math.floor(Date.now() / 1000);
-      const oneDayAgo = unixTime - 86400;
+      const startTimeUnix = Math.floor(startTime.getTime() / 1000);
+      const endTimeUnix = Math.floor(endTime.getTime() / 1000);
 
-      const response = await fetch(
-        `https://public-api.birdeye.so/defi/history_price?address=${mintAddress}&address_type=token&type=15m&time_from=${oneDayAgo}&time_to=${unixTime}`,
-        {
-          headers: {
-            'X-API-KEY': this.configService.get('BIRDEYE_API_KEY') || '',
-            'x-chain': 'solana',
-          },
+      if (startTimeUnix >= endTimeUnix) {
+        this.logger.warn(
+          `Invalid time range for price history: startTime ${startTimeUnix} >= endTime ${endTimeUnix}`,
+        );
+        return { items: [] };
+      }
+
+      const apiUrl = `https://public-api.birdeye.so/defi/history_price?address=${mintAddress}&address_type=token&type=${resolution}&time_from=${startTimeUnix}&time_to=${endTimeUnix}`;
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          'X-API-KEY': this.configService.get('BIRDEYE_API_KEY') || '',
+          'x-chain': 'solana',
         },
-      );
+      });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        const errorMessage = errorData?.error || response.statusText;
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: 'Failed to parse error JSON' }));
+        const errorMessage = errorData?.message || response.statusText;
         const status = response.status;
+        this.logger.error(
+          `Birdeye API error (${status}): ${errorMessage} for ${mintAddress}`,
+        );
 
-        // Handle rate limiting specifically
         if (status === 429) {
-          throw new Error('Rate limit exceeded - Please try again in a moment');
+          throw new Error('Rate limit exceeded fetching price history');
         }
 
         throw new Error(
@@ -672,14 +687,20 @@ export class TokensService {
 
       const data = await response.json();
 
-      if (!data.data?.items) {
+      if (!data?.data?.items) {
+        this.logger.warn(
+          `No price history items found in Birdeye response for ${mintAddress}`,
+        );
         return { items: [] };
       }
 
+      this.logger.debug(
+        `Fetched ${data.data.items.length} price points from Birdeye for ${mintAddress}`,
+      );
       return data.data;
     } catch (error) {
       this.logger.error(
-        `Error fetching price history for token ${mintAddress}:`,
+        `Error in getTokenPriceHistory for token ${mintAddress}:`,
         error,
       );
       throw error;
