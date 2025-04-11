@@ -9,6 +9,7 @@ import {
   NotificationEntity,
   NotificationPreferenceEntity,
   TelegramUserConnectionEntity,
+  TokenCallEntity,
   TokenEntity,
   TokenSentimentEntity,
   TokenWatchlistEntity,
@@ -18,6 +19,7 @@ import {
   UserEntity,
   UserReputationEntity,
   UserStreakEntity,
+  UserTokenCallStreakEntity,
   WalletEntity,
 } from './entities';
 
@@ -53,6 +55,8 @@ export const dataSourceOptions: DataSourceOptions = {
     LeaderboardEntity,
     TelegramUserConnectionEntity,
     TokenSentimentEntity,
+    TokenCallEntity,
+    UserTokenCallStreakEntity,
   ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',

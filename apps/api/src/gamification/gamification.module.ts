@@ -8,11 +8,13 @@ import {
   CommentEntity,
   CommentVoteEntity,
   LeaderboardEntity,
+  TokenCallEntity,
   UserActivityEntity,
   UserBadgeEntity,
   UserEntity,
   UserReputationEntity,
   UserStreakEntity,
+  UserTokenCallStreakEntity,
 } from '../entities';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LeaderboardController } from './controllers/leaderboard.controller';
@@ -39,6 +41,8 @@ import { StreakSchedulerService } from './services/streak-scheduler.service';
       LeaderboardEntity,
       CommentEntity,
       CommentVoteEntity,
+      UserTokenCallStreakEntity,
+      TokenCallEntity,
     ]),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),

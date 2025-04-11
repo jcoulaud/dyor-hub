@@ -3,6 +3,7 @@ import {
   LeaderboardCategory,
   LeaderboardTimeframe,
   NotificationEventType,
+  TokenCallStatus,
 } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -13,9 +14,11 @@ import {
   BadgeCategory,
   BadgeEntity,
   CommentEntity,
+  TokenCallEntity,
   UserActivityEntity,
   UserBadgeEntity,
   UserStreakEntity,
+  UserTokenCallStreakEntity,
 } from '../../entities';
 import { LeaderboardService } from './leaderboard.service';
 
@@ -41,6 +44,10 @@ export class BadgeService {
     private readonly userStreakRepository: Repository<UserStreakEntity>,
     @InjectRepository(CommentEntity)
     private readonly commentRepository: Repository<CommentEntity>,
+    @InjectRepository(TokenCallEntity)
+    private readonly tokenCallRepository: Repository<TokenCallEntity>,
+    @InjectRepository(UserTokenCallStreakEntity)
+    private readonly userTokenCallStreakRepository: Repository<UserTokenCallStreakEntity>,
     private readonly leaderboardService: LeaderboardService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -280,13 +287,44 @@ export class BadgeService {
   }
 
   /**
+   * Checks badges related to a specific successful token call event.
+   */
+  async checkTokenCallSuccessBadges(
+    userId: string,
+    call: TokenCallEntity,
+  ): Promise<UserBadgeEntity[]> {
+    const requirementsToCheck = [
+      BadgeRequirement.FIRST_SUCCESSFUL_TOKEN_CALL,
+      BadgeRequirement.TOKEN_CALL_MOONSHOT_X,
+      BadgeRequirement.TOKEN_CALL_EARLY_BIRD_RATIO,
+    ];
+
+    try {
+      const badgesToCheck = await this.badgeRepository.find({
+        where: {
+          isActive: true,
+          requirement: In(requirementsToCheck),
+        },
+      });
+
+      return this.processBadgeEligibility(userId, badgesToCheck, { call });
+    } catch (error) {
+      this.logger.error(
+        `Failed to check token call success badges for user ${userId}, call ${call.id}: ${error.message}`,
+        error.stack,
+      );
+      return [];
+    }
+  }
+
+  /**
    * Processes eligibility for a list of badges for a given user.
    * Optional context can be passed for specific checks.
    */
   private async processBadgeEligibility(
     userId: string,
     badges: BadgeEntity[],
-    context?: { commentId?: string },
+    context?: { commentId?: string; call?: TokenCallEntity },
   ): Promise<UserBadgeEntity[]> {
     if (badges.length === 0) {
       return [];
@@ -366,14 +404,43 @@ export class BadgeService {
   private async checkSingleBadgeEligibility(
     userId: string,
     badge: BadgeEntity,
-    context?: { commentId?: string },
+    context?: { commentId?: string; call?: TokenCallEntity },
   ): Promise<boolean> {
-    // Early exit if checking the wrong type of badge for the context
-    if (badge.requirement === BadgeRequirement.TOP_PERCENT_WEEKLY && !context) {
-      return false; // Don't check weekly badges during regular checks
+    const isWeeklyCheck = context === undefined;
+    const isCommentCheck = context?.commentId !== undefined;
+    const isTokenCallCheck = context?.call !== undefined;
+
+    if (
+      badge.requirement === BadgeRequirement.TOP_PERCENT_WEEKLY &&
+      !isWeeklyCheck
+    ) {
+      return false;
     }
-    if (badge.requirement !== BadgeRequirement.TOP_PERCENT_WEEKLY && context) {
-      return false; // Only check weekly badges during the weekly check
+    if (
+      isCommentCheck &&
+      badge.requirement !== BadgeRequirement.MAX_COMMENT_UPVOTES
+    ) {
+      return false;
+    }
+    const tokenCallRequirements = [
+      BadgeRequirement.FIRST_SUCCESSFUL_TOKEN_CALL,
+      BadgeRequirement.TOKEN_CALL_MOONSHOT_X,
+      BadgeRequirement.TOKEN_CALL_EARLY_BIRD_RATIO,
+    ];
+    if (
+      isTokenCallCheck &&
+      !tokenCallRequirements.includes(badge.requirement as BadgeRequirement)
+    ) {
+      return false;
+    }
+    // Prevent weekly/comment/call context mixups for other badge types
+    if (
+      !isWeeklyCheck &&
+      !isCommentCheck &&
+      !isTokenCallCheck &&
+      badge.requirement === BadgeRequirement.TOP_PERCENT_WEEKLY
+    ) {
+      return false; // Should be covered above, but belts and braces
     }
 
     try {
@@ -419,9 +486,23 @@ export class BadgeService {
             LeaderboardCategory.REPUTATION,
             LeaderboardTimeframe.WEEKLY,
           );
+        case BadgeRequirement.FIRST_SUCCESSFUL_TOKEN_CALL:
+          return this.checkFirstSuccessfulCall(userId);
+        case BadgeRequirement.TOKEN_CALL_MOONSHOT_X:
+          return this.checkMoonshotCall(context!.call, badge.thresholdValue);
+        case BadgeRequirement.TOKEN_CALL_EARLY_BIRD_RATIO:
+          return this.checkEarlyBirdCall(context!.call, badge.thresholdValue);
+        case BadgeRequirement.TOKEN_CALL_SUCCESS_STREAK:
+          return this.checkTokenCallStreak(userId, badge.thresholdValue);
+        case BadgeRequirement.SUCCESSFUL_TOKEN_CALL_COUNT:
+          return this.checkSuccessfulCallCount(userId, badge.thresholdValue);
+        case BadgeRequirement.VERIFIED_TOKEN_CALL_COUNT:
+          return this.checkVerifiedCallCount(userId, badge.thresholdValue);
+        case BadgeRequirement.TOKEN_CALL_ACCURACY_RATE:
+          return this.checkAccuracyRate(userId, badge.thresholdValue);
         default:
           this.logger.warn(
-            `Unknown badge requirement: ${badge.requirement} for badge ${badge.name}`,
+            `Unhandled badge requirement: ${badge.requirement} for badge ${badge.name}`,
           );
           return false;
       }
@@ -972,6 +1053,136 @@ export class BadgeService {
         `Failed to check weekly percent badges for user ${userId}: ${error.message}`,
       );
       return [];
+    }
+  }
+
+  private async checkFirstSuccessfulCall(userId: string): Promise<boolean> {
+    // Count successful calls BEFORE the current one (which triggered this check)
+    const count = await this.tokenCallRepository.count({
+      where: {
+        userId: userId,
+        status: TokenCallStatus.VERIFIED_SUCCESS,
+      },
+    });
+    // If the count is exactly 1, it means the current call is the first successful one
+    return count === 1;
+  }
+
+  private checkMoonshotCall(
+    call: TokenCallEntity,
+    requiredMultiplier: number,
+  ): boolean {
+    if (call.referencePrice <= 0) return false;
+    const multiplier = call.targetPrice / call.referencePrice;
+    return multiplier >= requiredMultiplier;
+  }
+
+  private checkEarlyBirdCall(call: TokenCallEntity, maxRatio: number): boolean {
+    // Ensure timeToHitRatio is not null and less than the threshold
+    return call.timeToHitRatio !== null && call.timeToHitRatio < maxRatio;
+  }
+
+  private async checkTokenCallStreak(
+    userId: string,
+    requiredStreak: number,
+  ): Promise<boolean> {
+    const streak = await this.userTokenCallStreakRepository.findOne({
+      where: { userId },
+    });
+    // Check against the longest streak achieved, as current might reset
+    if (!streak) return false;
+    return streak.longestSuccessStreak >= requiredStreak;
+  }
+
+  /**
+   * Checks if a user has made at least N successful token calls.
+   */
+  private async checkSuccessfulCallCount(
+    userId: string,
+    threshold: number,
+  ): Promise<boolean> {
+    try {
+      const count = await this.tokenCallRepository.count({
+        where: {
+          userId: userId,
+          status: TokenCallStatus.VERIFIED_SUCCESS,
+        },
+      });
+      return count >= threshold;
+    } catch (error) {
+      this.logger.error(
+        `Error checking successful token call count for user ${userId}: ${error.message}`,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Checks if a user has made at least N *verified* token calls (success or fail).
+   */
+  private async checkVerifiedCallCount(
+    userId: string,
+    threshold: number,
+  ): Promise<boolean> {
+    try {
+      const count = await this.tokenCallRepository.count({
+        where: {
+          userId: userId,
+          status: In([
+            TokenCallStatus.VERIFIED_SUCCESS,
+            TokenCallStatus.VERIFIED_FAIL,
+          ]),
+        },
+      });
+      return count >= threshold;
+    } catch (error) {
+      this.logger.error(
+        `Error checking verified token call count for user ${userId}: ${error.message}`,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Checks if a user's token call accuracy rate meets a threshold.
+   */
+  private async checkAccuracyRate(
+    userId: string,
+    requiredAccuracyPercent: number,
+  ): Promise<boolean> {
+    try {
+      const counts = await this.tokenCallRepository
+        .createQueryBuilder('call')
+        .select('COUNT(call.id)', 'totalVerified')
+        .addSelect(
+          `SUM(CASE WHEN call.status = '${TokenCallStatus.VERIFIED_SUCCESS}' THEN 1 ELSE 0 END)`,
+          'totalSuccess',
+        )
+        .where('call.userId = :userId', { userId })
+        .andWhere('call.status IN (:...statuses)', {
+          statuses: [
+            TokenCallStatus.VERIFIED_SUCCESS,
+            TokenCallStatus.VERIFIED_FAIL,
+          ],
+        })
+        .getRawOne();
+
+      const totalVerified = parseInt(counts?.totalVerified || '0', 10);
+      const totalSuccess = parseInt(counts?.totalSuccess || '0', 10);
+
+      if (totalVerified === 0) {
+        return false;
+      }
+
+      const currentAccuracy = totalSuccess / totalVerified;
+      const requiredAccuracy = requiredAccuracyPercent / 100;
+
+      return currentAccuracy >= requiredAccuracy;
+    } catch (error) {
+      this.logger.error(
+        `Error checking token call accuracy rate for user ${userId}: ${error.message}`,
+      );
+      return false;
     }
   }
 }

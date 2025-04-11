@@ -13,12 +13,14 @@ import { CommentEntity } from './comment.entity';
 import { LeaderboardEntity } from './leaderboard.entity';
 import { NotificationPreferenceEntity } from './notification-preference.entity';
 import { NotificationEntity } from './notification.entity';
+import { TokenCallEntity } from './token-call.entity';
 import { TokenSentimentEntity } from './token-sentiment.entity';
 import { TokenWatchlistEntity } from './token-watchlist.entity';
 import { UserActivityEntity } from './user-activity.entity';
 import { UserBadgeEntity } from './user-badge.entity';
 import { UserReputationEntity } from './user-reputation.entity';
 import { UserStreakEntity } from './user-streak.entity';
+import { UserTokenCallStreakEntity } from './user-token-call-streak.entity';
 import { WalletEntity } from './wallet.entity';
 
 @Entity('users')
@@ -83,6 +85,9 @@ export class UserEntity {
   @OneToMany(() => UserBadgeEntity, (badge) => badge.user)
   badges: UserBadgeEntity[];
 
+  @OneToOne(() => UserTokenCallStreakEntity, (streak) => streak.user)
+  tokenCallStreak: UserTokenCallStreakEntity;
+
   @OneToMany(() => NotificationEntity, (notification) => notification.user)
   notifications: NotificationEntity[];
 
@@ -97,6 +102,9 @@ export class UserEntity {
 
   @OneToMany(() => LeaderboardEntity, (leaderboard) => leaderboard.user)
   leaderboardRankings: LeaderboardEntity[];
+
+  @OneToMany(() => TokenCallEntity, (call) => call.user)
+  tokenCalls: TokenCallEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

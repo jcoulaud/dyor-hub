@@ -62,6 +62,15 @@ export enum BadgeRequirement {
   MAX_COMMENT_UPVOTES = 'MAX_COMMENT_UPVOTES',
   MAX_POST_UPVOTES = 'MAX_POST_UPVOTES',
   TOP_PERCENT_WEEKLY = 'TOP_PERCENT_WEEKLY',
+
+  // Token Call Badges
+  FIRST_SUCCESSFUL_TOKEN_CALL = 'FIRST_SUCCESSFUL_TOKEN_CALL', // Awarded once
+  SUCCESSFUL_TOKEN_CALL_COUNT = 'SUCCESSFUL_TOKEN_CALL_COUNT', // Threshold: N successful calls total
+  VERIFIED_TOKEN_CALL_COUNT = 'VERIFIED_TOKEN_CALL_COUNT', // Threshold: N verified calls total (for Sharpshooter)
+  TOKEN_CALL_ACCURACY_RATE = 'TOKEN_CALL_ACCURACY_RATE', // Threshold: X% (used with VERIFIED_TOKEN_CALL_COUNT)
+  TOKEN_CALL_MOONSHOT_X = 'TOKEN_CALL_MOONSHOT_X', // Threshold: Multiplier (e.g., 10 for 10x)
+  TOKEN_CALL_EARLY_BIRD_RATIO = 'TOKEN_CALL_EARLY_BIRD_RATIO', // Threshold: Max ratio (e.g., 0.1)
+  TOKEN_CALL_SUCCESS_STREAK = 'TOKEN_CALL_SUCCESS_STREAK', // Threshold: N consecutive success
 }
 
 export interface CreateBadgeRequest {

@@ -2,11 +2,15 @@ import { UserActivity, UserStats } from '@dyor-hub/types';
 import {
   Body,
   Controller,
+  forwardRef,
   Get,
+  Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Patch,
   Query,
   Request,
@@ -15,7 +19,9 @@ import {
 import { Public } from '../auth/decorators/public.decorator';
 import { UserResponseDto } from '../auth/dto/user-response.dto';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
+import { TokenCallsService } from '../token-calls/token-calls.service';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
+import { UserTokenCallStatsDto } from './dto/user-token-call-stats.dto';
 import { PaginatedResult, UsersService } from './users.service';
 
 @Injectable()
@@ -23,7 +29,11 @@ import { PaginatedResult, UsersService } from './users.service';
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
 
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    @Inject(forwardRef(() => TokenCallsService))
+    private readonly tokenCallsService: TokenCallsService,
+  ) {}
 
   @UseGuards(OptionalAuthGuard)
   @Get('me/preferences')
@@ -102,5 +112,26 @@ export class UsersController {
       type,
       sort,
     );
+  }
+
+  @Public()
+  @Get(':userId/token-call-stats')
+  async getUserTokenCallStats(
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<UserTokenCallStatsDto> {
+    try {
+      return await this.tokenCallsService.calculateUserStats(userId);
+    } catch (error) {
+      this.logger.error(
+        `Failed to get token call stats for user ${userId}:`,
+        error,
+      );
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Failed to retrieve user statistics.',
+      );
+    }
   }
 }
