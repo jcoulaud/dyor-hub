@@ -12,6 +12,19 @@ import { TokenCallEntity } from '../entities/token-call.entity';
 import { TokensService } from '../tokens/tokens.service';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
 
+export interface PaginatedTokenCallsResult {
+  items: TokenCallEntity[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface TokenCallFilters {
+  userId?: string;
+  tokenId?: string;
+  status?: TokenCallStatus;
+}
+
 @Injectable()
 export class TokenCallsService {
   private readonly logger = new Logger(TokenCallsService.name);
@@ -145,5 +158,121 @@ export class TokenCallsService {
       .where('call.status = :status', { status: TokenCallStatus.PENDING })
       .andWhere('call.targetDate <= :date', { date })
       .getMany();
+  }
+
+  /**
+   * Finds all public token calls
+   */
+  async findAllPublic(
+    pagination: { page: number; limit: number },
+    filters: TokenCallFilters = {},
+  ): Promise<PaginatedTokenCallsResult> {
+    const { page, limit } = pagination;
+    const skip = (page - 1) * limit;
+
+    this.logger.log(
+      `Fetching public token calls, filters: ${JSON.stringify(filters)}, page: ${page}, limit: ${limit}`,
+    );
+
+    const whereClause: Partial<TokenCallEntity> = {};
+    if (filters.userId) {
+      whereClause.userId = filters.userId;
+    }
+    if (filters.tokenId) {
+      whereClause.tokenId = filters.tokenId;
+    }
+
+    try {
+      const [items, total] = await this.tokenCallRepository.findAndCount({
+        where: whereClause,
+        relations: {
+          token: true,
+          user: true,
+        },
+        select: {
+          id: true,
+          userId: true,
+          tokenId: true,
+          callTimestamp: true,
+          referencePrice: true,
+          targetPrice: true,
+          timeframeDuration: true,
+          targetDate: true,
+          status: true,
+          verificationTimestamp: true,
+          peakPriceDuringPeriod: true,
+          finalPriceAtTargetDate: true,
+          targetHitTimestamp: true,
+          timeToHitRatio: true,
+          createdAt: true,
+          updatedAt: true,
+          token: {
+            mintAddress: true,
+            name: true,
+            symbol: true,
+            imageUrl: true,
+          },
+          user: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        order: { createdAt: 'DESC' },
+        skip: skip,
+        take: limit,
+      });
+
+      return { items, total, page, limit };
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch public token calls with filters: ${JSON.stringify(filters)}`,
+        error,
+      );
+      throw new InternalServerErrorException('Could not fetch token calls.');
+    }
+  }
+
+  /**
+   * Finds a single token call by its ID.
+   */
+  async findOneById(callId: string): Promise<TokenCallEntity> {
+    try {
+      const call = await this.tokenCallRepository.findOne({
+        where: { id: callId },
+        relations: {
+          token: true,
+          user: true,
+        },
+        select: {
+          token: {
+            mintAddress: true,
+            name: true,
+            symbol: true,
+            imageUrl: true,
+          },
+          user: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      });
+
+      if (!call) {
+        throw new NotFoundException(`Token call with ID ${callId} not found.`);
+      }
+      return call;
+    } catch (error) {
+      this.logger.error(`Failed to fetch token call ${callId}`, error);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Could not fetch token call details.',
+      );
+    }
   }
 }
