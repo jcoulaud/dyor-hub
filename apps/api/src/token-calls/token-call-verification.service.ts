@@ -4,6 +4,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThanOrEqual, Repository } from 'typeorm';
 import { TokenCallEntity } from '../entities/token-call.entity';
+import { UserTokenCallStreakEntity } from '../entities/user-token-call-streak.entity';
+import { BadgeService } from '../gamification/services/badge.service';
 import { TokensService } from '../tokens/tokens.service';
 
 @Injectable()
@@ -14,7 +16,10 @@ export class TokenCallVerificationService {
   constructor(
     @InjectRepository(TokenCallEntity)
     private readonly tokenCallRepository: Repository<TokenCallEntity>,
+    @InjectRepository(UserTokenCallStreakEntity)
+    private readonly tokenCallStreakRepository: Repository<UserTokenCallStreakEntity>,
     private readonly tokensService: TokensService,
+    private readonly badgeService: BadgeService,
   ) {}
 
   // Run verification job
@@ -159,16 +164,93 @@ export class TokenCallVerificationService {
       } else {
         call.timeToHitRatio = timeToHitMs > 0 ? 1 : 0; // Edge case: immediate hit or zero duration
       }
-      this.logger.log(`Call ${call.id} verified: SUCCESS`);
     } else {
       call.status = TokenCallStatus.VERIFIED_FAIL;
       call.targetHitTimestamp = null;
       call.timeToHitRatio = null;
-      this.logger.log(`Call ${call.id} verified: FAIL`);
     }
 
-    // 4. Save Updated Call
+    // 4. Update Streak Information
+    try {
+      await this.updateUserTokenCallStreak(
+        call.userId,
+        call.status,
+        call.verificationTimestamp,
+      );
+    } catch (streakError) {
+      this.logger.error(
+        `Failed to update token call streak for user ${call.userId} after call ${call.id}:`,
+        streakError,
+      );
+    }
+
+    // 5. Save Updated Call
     await this.tokenCallRepository.save(call);
     this.logger.debug(`Saved verification results for call ${call.id}`);
+
+    // 6. Check for Badges on Success
+    if (call.status === TokenCallStatus.VERIFIED_SUCCESS) {
+      try {
+        await this.badgeService.checkTokenCallSuccessBadges(call.userId, call);
+      } catch (badgeError) {
+        this.logger.error(
+          `Error checking badges for call ${call.id}:`,
+          badgeError,
+        );
+      }
+    }
+  }
+
+  /**
+   * Updates the user's token call success streak based on the latest verified call.
+   */
+  private async updateUserTokenCallStreak(
+    userId: string,
+    callStatus: TokenCallStatus,
+    verificationTimestamp: Date,
+  ): Promise<void> {
+    this.logger.debug(
+      `Updating token call streak for user ${userId} based on status ${callStatus}`,
+    );
+
+    // Find or create the streak record
+    let streak = await this.tokenCallStreakRepository.findOne({
+      where: { userId },
+    });
+
+    if (!streak) {
+      streak = this.tokenCallStreakRepository.create({
+        userId: userId,
+        currentSuccessStreak: 0,
+        longestSuccessStreak: 0,
+        lastVerifiedCallTimestamp: null,
+      });
+    }
+
+    const verificationTime =
+      callStatus === TokenCallStatus.VERIFIED_SUCCESS
+        ? verificationTimestamp
+        : new Date();
+
+    if (
+      streak.lastVerifiedCallTimestamp &&
+      verificationTime <= streak.lastVerifiedCallTimestamp
+    ) {
+      return;
+    }
+
+    if (callStatus === TokenCallStatus.VERIFIED_SUCCESS) {
+      streak.currentSuccessStreak += 1;
+      if (streak.currentSuccessStreak > streak.longestSuccessStreak) {
+        streak.longestSuccessStreak = streak.currentSuccessStreak;
+      }
+    } else if (callStatus === TokenCallStatus.VERIFIED_FAIL) {
+      if (streak.currentSuccessStreak > 0) {
+        streak.currentSuccessStreak = 0;
+      }
+    }
+    streak.lastVerifiedCallTimestamp = verificationTime;
+
+    await this.tokenCallStreakRepository.save(streak);
   }
 }

@@ -15,5 +15,6 @@ export * from './user-activity.entity';
 export * from './user-badge.entity';
 export * from './user-reputation.entity';
 export * from './user-streak.entity';
+export * from './user-token-call-streak.entity';
 export * from './user.entity';
 export * from './wallet.entity';

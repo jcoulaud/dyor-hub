@@ -19,6 +19,7 @@ import {
   UserEntity,
   UserReputationEntity,
   UserStreakEntity,
+  UserTokenCallStreakEntity,
   WalletEntity,
 } from './entities';
 
@@ -55,6 +56,7 @@ export const dataSourceOptions: DataSourceOptions = {
     TelegramUserConnectionEntity,
     TokenSentimentEntity,
     TokenCallEntity,
+    UserTokenCallStreakEntity,
   ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',

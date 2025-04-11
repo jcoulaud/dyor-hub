@@ -20,6 +20,7 @@ import { UserActivityEntity } from './user-activity.entity';
 import { UserBadgeEntity } from './user-badge.entity';
 import { UserReputationEntity } from './user-reputation.entity';
 import { UserStreakEntity } from './user-streak.entity';
+import { UserTokenCallStreakEntity } from './user-token-call-streak.entity';
 import { WalletEntity } from './wallet.entity';
 
 @Entity('users')
@@ -83,6 +84,9 @@ export class UserEntity {
 
   @OneToMany(() => UserBadgeEntity, (badge) => badge.user)
   badges: UserBadgeEntity[];
+
+  @OneToOne(() => UserTokenCallStreakEntity, (streak) => streak.user)
+  tokenCallStreak: UserTokenCallStreakEntity;
 
   @OneToMany(() => NotificationEntity, (notification) => notification.user)
   notifications: NotificationEntity[];
