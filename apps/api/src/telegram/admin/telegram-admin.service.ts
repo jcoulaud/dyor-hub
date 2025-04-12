@@ -1,21 +1,21 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import TelegramBot from 'node-telegram-bot-api';
-import { CommentEntity } from '../entities/comment.entity';
-import { sanitizeHtml } from '../utils/utils';
+import { Telegraf } from 'telegraf';
+import { CommentEntity } from '../../entities/comment.entity';
+import { sanitizeHtml } from '../../utils/utils';
 
 @Injectable()
-export class TelegramNotificationService implements OnModuleInit {
-  private readonly logger = new Logger(TelegramNotificationService.name);
-  private bot: TelegramBot;
+export class TelegramAdminService implements OnModuleInit {
+  private readonly logger = new Logger(TelegramAdminService.name);
+  private bot: Telegraf<any>;
   private enabled = false;
   private chatId: string;
   private readonly appUrl: string;
   private readonly defaultAppUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
-    this.chatId = this.configService.get<string>('TELEGRAM_CHAT_ID');
+    const token = this.configService.get<string>('TELEGRAM_ADMIN_BOT_TOKEN');
+    this.chatId = this.configService.get<string>('TELEGRAM_ADMIN_CHAT_ID');
     const configuredUrl = this.configService.get<string>('CLIENT_URL') || '';
     this.defaultAppUrl =
       this.configService.get<string>('DEFAULT_APP_URL') || '';
@@ -24,7 +24,7 @@ export class TelegramNotificationService implements OnModuleInit {
       this.configService.get<string>('NODE_ENV') === 'production';
 
     if (token && this.chatId && isProduction) {
-      this.bot = new TelegramBot(token, { polling: false });
+      this.bot = new Telegraf(token);
       this.enabled = true;
       this.logger.log('Telegram admin notifications enabled for production');
     } else if (token && this.chatId && !isProduction) {
@@ -33,7 +33,7 @@ export class TelegramNotificationService implements OnModuleInit {
       );
     } else {
       this.logger.warn(
-        'Telegram admin notifications disabled. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env and run in production mode to enable.',
+        'Telegram admin notifications disabled. Set TELEGRAM_ADMIN_BOT_TOKEN and TELEGRAM_ADMIN_CHAT_ID in .env and run in production mode to enable.',
       );
     }
   }
@@ -102,7 +102,7 @@ export class TelegramNotificationService implements OnModuleInit {
     if (!this.enabled) return;
 
     try {
-      await this.bot.sendMessage(this.chatId, text, {
+      await this.bot.telegram.sendMessage(this.chatId, text, {
         parse_mode: 'HTML',
         reply_markup: inlineKeyboard,
       });

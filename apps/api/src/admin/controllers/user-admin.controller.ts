@@ -22,7 +22,9 @@ export class UserAdminController {
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ): Promise<UserResponseDto[]> {
     const users = await this.usersService.findRecentUsers(limit);
-    return users.map(UserResponseDto.fromEntity);
+    return users.map((user) =>
+      UserResponseDto.fromEntity(user, { includeCreatedAt: true }),
+    );
   }
 
   @Get()

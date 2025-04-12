@@ -17,9 +17,9 @@ import {
   NotificationEntity,
   NotificationPreferenceEntity,
   TokenEntity,
+  TokenSentimentEntity,
   TokenWatchlistEntity,
   TwitterUsernameHistoryEntity,
-  // Gamification entities
   UserActivityEntity,
   UserBadgeEntity,
   UserEntity,
@@ -32,6 +32,7 @@ import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SessionModule } from './session/session.module';
 import { SolanaModule } from './solana/solana.module';
+import { TelegramModule } from './telegram/telegram.module';
 import { TokensModule } from './tokens/tokens.module';
 import { UsersModule } from './users/users.module';
 import { WalletsModule } from './wallets/wallets.module';
@@ -50,7 +51,6 @@ import { WatchlistModule } from './watchlist/watchlist.module';
       TokenWatchlistEntity,
       TwitterUsernameHistoryEntity,
       WalletEntity,
-      // Gamification entities
       UserActivityEntity,
       UserStreakEntity,
       BadgeEntity,
@@ -59,6 +59,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
       NotificationEntity,
       NotificationPreferenceEntity,
       LeaderboardEntity,
+      TokenSentimentEntity,
     ]),
     AuthModule,
     CommentsModule,
@@ -72,6 +73,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     AdminModule,
     GamificationModule,
     NotificationsModule,
+    TelegramModule,
   ],
   controllers: [AppController],
   providers: [

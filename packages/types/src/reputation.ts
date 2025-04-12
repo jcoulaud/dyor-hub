@@ -22,6 +22,7 @@ export interface ActivityPointsConfig {
 export interface UserReputation {
   userId: string;
   username: string;
+  displayName: string;
   avatarUrl?: string | null;
   totalPoints: number;
   weeklyPoints: number;

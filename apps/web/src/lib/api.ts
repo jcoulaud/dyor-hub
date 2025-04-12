@@ -10,11 +10,14 @@ import {
   LatestComment,
   LeaderboardEntry,
   LeaderboardResponse,
+  NotificationPreference,
   NotificationsResponse,
+  SentimentType,
   StreakMilestone,
   StreakMilestonesResponse,
   StreakOverview,
   Token,
+  TokenSentimentStats,
   TokenStats,
   TopStreakUsers,
   TwitterUsernameHistoryEntity,
@@ -218,9 +221,25 @@ const publicApi = async <T>(endpoint: string, options: ApiOptions = {}): Promise
 };
 
 const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
-  if (isPublicUserRoute(endpoint) || isPublicTokenRoute(endpoint)) {
+  const method = options.method?.toUpperCase() || 'GET';
+  const requiresAuth =
+    method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH';
+
+  // Check for specific authenticated actions OR paths that always need auth context
+  const isSentimentEndpoint = endpoint.includes('/sentiment'); // Any sentiment action needs auth
+  const isWatchlistMutation = endpoint.startsWith('watchlist/tokens/') && requiresAuth; // Only watchlist mutations need auth here
+
+  // If it's NOT a sentiment endpoint, AND NOT a watchlist mutation,
+  // AND it matches the general public route patterns, use publicApi.
+  if (
+    !isSentimentEndpoint &&
+    !isWatchlistMutation &&
+    (isPublicUserRoute(endpoint) || isPublicTokenRoute(endpoint))
+  ) {
     return publicApi<T>(endpoint, options);
   }
+
+  // Otherwise, proceed with the standard authenticated API call logic below
 
   // Format endpoint based on API routing strategy (Subdomain vs Path)
   let apiEndpoint = endpoint;
@@ -553,6 +572,78 @@ export const tokens = {
 
     return api<void>(`tokens/${mintAddress}/refresh`, { method: 'POST' });
   },
+
+  getTokenSentiments: async (mintAddress: string): Promise<TokenSentimentStats> => {
+    try {
+      const sanitizedMintAddress = encodeURIComponent(mintAddress);
+      const endpoint = `tokens/${sanitizedMintAddress}/sentiment`;
+      const cacheKey = `api:${endpoint}`;
+
+      // Check cache first (using same 5s TTL as other token stats)
+      const cachedData = getCache<TokenSentimentStats>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      // Call the main 'api' helper (which routes public GET requests for tokens/ via publicApi)
+      const data = await api<TokenSentimentStats>(endpoint);
+      setCache(cacheKey, data, 5 * 1000);
+      return data;
+    } catch (error) {
+      console.error(`Error fetching token sentiments for ${mintAddress}:`, error);
+      throw error;
+    }
+  },
+
+  addOrUpdateSentiment: async (
+    mintAddress: string,
+    sentimentType: SentimentType,
+  ): Promise<{ success: boolean }> => {
+    try {
+      const sanitizedMintAddress = encodeURIComponent(mintAddress);
+      const endpoint = `tokens/${sanitizedMintAddress}/sentiment`;
+
+      // Call the main 'api' helper.
+      // NOTE: If the main 'api' function routes this POST request via publicApi due to the 'tokens/' path,
+      // this will result in a 401 Unauthorized error because publicApi omits credentials.
+      const data = await api<{ success: boolean }>(endpoint, {
+        method: 'POST',
+        body: { sentimentType }, // Body expected by the backend controller
+      });
+
+      // Invalidate cache for this endpoint after modification
+      const cacheKey = `api:${endpoint}`;
+      apiCache.delete(cacheKey);
+
+      return data;
+    } catch (error) {
+      console.error(`Error adding/updating sentiment for ${mintAddress}:`, error);
+      throw error; // Re-throw for the component to handle
+    }
+  },
+
+  removeSentiment: async (mintAddress: string): Promise<{ success: boolean }> => {
+    try {
+      const sanitizedMintAddress = encodeURIComponent(mintAddress);
+      const endpoint = `tokens/${sanitizedMintAddress}/sentiment`;
+
+      // Call the main 'api' helper.
+      // NOTE: If the main 'api' function routes this DELETE request via publicApi due to the 'tokens/' path,
+      // this will result in a 401 Unauthorized error because publicApi omits credentials.
+      const data = await api<{ success: boolean }>(endpoint, {
+        method: 'DELETE',
+      });
+
+      // Invalidate cache for this endpoint after modification
+      const cacheKey = `api:${endpoint}`;
+      apiCache.delete(cacheKey);
+
+      return data;
+    } catch (error) {
+      console.error(`Error removing sentiment for ${mintAddress}:`, error);
+      throw error; // Re-throw for the component to handle
+    }
+  },
 };
 
 export const users = {
@@ -866,8 +957,8 @@ export const watchlist = {
     try {
       const endpoint = `watchlist/tokens/${mintAddress}/status`;
 
-      const data = await api<boolean>(endpoint);
-      return data;
+      const data = await api<{ isWatchlisted: boolean }>(endpoint);
+      return data.isWatchlisted;
     } catch (error) {
       console.error(`Error checking token watchlist status for ${mintAddress}:`, error);
       throw error;
@@ -1057,7 +1148,9 @@ export const notifications = {
   },
 
   getPreferences: async () => {
-    return api<{ preferences: Record<string, boolean> }>('notifications/preferences');
+    return api<{ preferences: Record<string, NotificationPreference> }>(
+      'notifications/preferences',
+    );
   },
 
   updatePreference: async (
@@ -1067,6 +1160,31 @@ export const notifications = {
     return api<{ success: boolean }>(`notifications/preferences/${type}`, {
       method: 'POST',
       body: settings,
+    });
+  },
+
+  // Telegram connection methods
+  generateTelegramToken: async () => {
+    return api<{
+      token: string;
+    }>('telegram/user/generate-token', {
+      method: 'POST',
+    });
+  },
+
+  getTelegramStatus: async () => {
+    return api<{
+      isConnected: boolean;
+      status: string;
+      connectedUsername: string | null;
+      connectedFirstName: string | null;
+      connectedAt: string | null;
+    }>('telegram/user/status');
+  },
+
+  disconnectTelegram: async () => {
+    return api<{ success: boolean }>('telegram/user/disconnect', {
+      method: 'DELETE',
     });
   },
 };

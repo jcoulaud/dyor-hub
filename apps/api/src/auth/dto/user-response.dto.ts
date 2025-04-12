@@ -9,12 +9,16 @@ export class UserResponseDto {
   isAdmin: boolean;
   preferences?: Partial<UserPreferences>;
   primaryWalletAddress?: string;
+  createdAt?: string;
 
   constructor(partial: Partial<UserResponseDto>) {
     Object.assign(this, partial);
   }
 
-  static fromEntity(user: UserEntity): UserResponseDto {
+  static fromEntity(
+    user: UserEntity,
+    options?: { includeCreatedAt?: boolean },
+  ): UserResponseDto {
     // Find the primary verified wallet address
     let primaryAddress: string | undefined = undefined;
     if (
@@ -34,7 +38,7 @@ export class UserResponseDto {
     const finalAddress =
       showAddressPref && primaryAddress ? primaryAddress : undefined;
 
-    return new UserResponseDto({
+    const dto = new UserResponseDto({
       id: user.id,
       displayName: user.displayName,
       username: user.username,
@@ -43,5 +47,12 @@ export class UserResponseDto {
       preferences: { ...defaultUserPreferences, ...(user.preferences || {}) },
       primaryWalletAddress: finalAddress,
     });
+
+    // Only include createdAt for admin endpoints
+    if (options?.includeCreatedAt && user.createdAt) {
+      dto.createdAt = user.createdAt.toISOString();
+    }
+
+    return dto;
   }
 }

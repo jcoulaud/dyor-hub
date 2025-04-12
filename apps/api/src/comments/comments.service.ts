@@ -20,7 +20,7 @@ import { TokenEntity } from '../entities/token.entity';
 import { UserEntity } from '../entities/user.entity';
 import { GamificationEvent } from '../gamification/services/activity-hooks.service';
 import { PerspectiveService } from '../services/perspective.service';
-import { TelegramNotificationService } from '../services/telegram-notification.service';
+import { TelegramAdminService } from '../telegram/admin/telegram-admin.service';
 import { sanitizeHtml } from '../utils/utils';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -43,7 +43,7 @@ export class CommentsService {
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     private readonly perspectiveService: PerspectiveService,
-    private readonly telegramService: TelegramNotificationService,
+    private readonly telegramAdminService: TelegramAdminService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -370,14 +370,34 @@ export class CommentsService {
     userId: string,
   ): Promise<CommentEntity> {
     try {
-      // Find token by mint address
+      let targetTokenMintAddress = createCommentDto.tokenMintAddress;
+      let parentComment: CommentEntity | null = null;
+
+      // If this is a reply, find the parent comment
+      if (createCommentDto.parentId) {
+        parentComment = await this.commentRepository.findOne({
+          where: { id: createCommentDto.parentId },
+          relations: ['user'],
+        });
+
+        if (!parentComment) {
+          throw new BadRequestException(
+            `Parent comment with ID ${createCommentDto.parentId} not found`,
+          );
+        }
+
+        // Use the parent's token address for consistency
+        targetTokenMintAddress = parentComment.tokenMintAddress;
+      }
+
+      // Find token by the determined mint address
       const token = await this.tokenRepository.findOne({
-        where: { mintAddress: createCommentDto.tokenMintAddress },
+        where: { mintAddress: targetTokenMintAddress }, // Use targetTokenMintAddress
       });
 
       if (!token) {
         throw new BadRequestException(
-          `Token with mint address ${createCommentDto.tokenMintAddress} not found`,
+          `Token with mint address ${targetTokenMintAddress} not found`,
         );
       }
 
@@ -408,7 +428,7 @@ export class CommentsService {
       comment.content = createCommentDto.content;
       comment.user = user;
       comment.userId = userId;
-      comment.tokenMintAddress = createCommentDto.tokenMintAddress;
+      comment.tokenMintAddress = targetTokenMintAddress; // Use the determined address
       comment.token = token;
       comment.parentId = createCommentDto.parentId || null;
 
@@ -416,7 +436,7 @@ export class CommentsService {
 
       // Send notification to telegram channel
       try {
-        await this.telegramService.notifyNewComment(savedComment);
+        await this.telegramAdminService.notifyNewComment(savedComment);
       } catch (error) {
         this.logger.error(
           `Failed to send telegram notification: ${error.message}`,
@@ -432,18 +452,13 @@ export class CommentsService {
       });
 
       // If this is a reply, emit the notification event
-      if (createCommentDto.parentId) {
-        const parentComment = await this.commentRepository.findOne({
-          where: { id: createCommentDto.parentId },
-          relations: ['user'],
-        });
-
-        if (parentComment && parentComment.user.id !== userId) {
+      if (createCommentDto.parentId && parentComment) {
+        if (parentComment.user.id !== userId) {
           // Don't notify for self-replies
           this.eventEmitter.emit(NotificationEventType.COMMENT_REPLY, {
             userId: parentComment.user.id, // Parent comment owner gets notified
             commentId: savedComment.id,
-            replyAuthor: user.displayName || user.username,
+            replyAuthor: user.displayName,
             commentText: savedComment.content.substring(0, 100),
           });
         }
@@ -575,16 +590,14 @@ export class CommentsService {
     // If this is an upvote, emit notification event for the comment owner
     if (type === 'upvote' && comment.user.id !== userId) {
       // Find voter's name - we only need this for the notification message
-      const userInfo = await this.commentRepository.manager
-        .createQueryBuilder()
-        .select('user.displayName')
-        .addSelect('user.username')
-        .from('UserEntity', 'user')
-        .where('user.id = :userId', { userId })
-        .getRawOne();
+      const voterInfo = await this.userRepository.findOne({
+        select: ['displayName', 'username'],
+        where: { id: userId },
+      });
 
-      if (userInfo) {
-        const voterName = userInfo.user_displayName || userInfo.user_username;
+      if (voterInfo) {
+        // Use displayName directly, assuming it always exists
+        const voterName = voterInfo.displayName;
 
         // Emit notification specific event
         this.eventEmitter.emit(NotificationEventType.COMMENT_UPVOTED, {

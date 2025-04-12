@@ -245,7 +245,18 @@ export class AuthController {
 
   @Get('logout')
   logout(@Res() res: Response): void {
-    res.clearCookie('jwt');
+    const cookieConfig = this.authConfigService.getCookieConfig(
+      this.authConfigService.isDevelopment,
+    );
+
+    res.clearCookie('jwt', {
+      path: cookieConfig.path,
+      domain: cookieConfig.domain,
+      secure: cookieConfig.secure,
+      sameSite: cookieConfig.sameSite,
+      httpOnly: cookieConfig.httpOnly,
+    });
+
     res.status(200).json({ success: true });
   }
 }

@@ -8,6 +8,7 @@ import {
   NotificationPreferenceEntity,
 } from '../entities';
 import { GamificationModule } from '../gamification/gamification.module';
+import { TelegramModule } from '../telegram/telegram.module';
 import { NotificationEventsService } from './notification-events.service';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsGateway } from './notifications.gateway';
@@ -23,6 +24,7 @@ import { NotificationsService } from './notifications.service';
     EventEmitterModule.forRoot(),
     forwardRef(() => AuthModule),
     forwardRef(() => GamificationModule),
+    TelegramModule,
   ],
   providers: [
     NotificationsService,

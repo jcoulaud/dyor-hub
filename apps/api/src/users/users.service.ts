@@ -197,8 +197,8 @@ export class UsersService {
     `;
 
     let votesQuery = `
-      SELECT 
-        cv.id as id,
+      SELECT
+        c.id as id,
         c.content as content,
         c.token_mint_address as "tokenMintAddress",
         cv.created_at as "createdAt",

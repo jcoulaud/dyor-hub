@@ -130,8 +130,8 @@ HELIUS_API_KEY=your_helius_api_key
 PERSPECTIVE_API_KEY=your_perspective_api_key
 
 # Admin Notifications (Optional)
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-TELEGRAM_CHAT_ID=your_chat_id_here
+TELEGRAM_ADMIN_BOT_TOKEN=your_bot_token_here
+TELEGRAM_ADMIN_CHAT_ID=your_chat_id_here
 ```
 
 #### Frontend (.env)
@@ -200,8 +200,8 @@ The application can send notifications to a Telegram channel when new comments a
 4. **Configure Environment Variables**:
    - Add the following to your API server's `.env` file:
      ```
-     TELEGRAM_BOT_TOKEN=your_bot_token_here
-     TELEGRAM_CHAT_ID=your_chat_id_here
+     TELEGRAM_ADMIN_BOT_TOKEN=your_bot_token_here
+     TELEGRAM_ADMIN_CHAT_ID=your_chat_id_here
      ```
 
 Once configured, you'll receive notifications with user info, token address, comment content, and a direct link to view the comment.
