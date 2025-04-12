@@ -159,8 +159,8 @@ export default function Page({ params, commentId }: PageProps) {
       try {
         const [tokenResult, tokenStatsResult, twitterHistoryResult] = await Promise.allSettled([
           tokens.getByMintAddress(mintAddress),
-          tokens.getTokenStats(mintAddress),
-          tokens.getTwitterHistory(mintAddress),
+          isDev ? Promise.resolve(null) : tokens.getTokenStats(mintAddress),
+          isDev ? Promise.resolve(null) : tokens.getTwitterHistory(mintAddress),
         ]);
 
         if (!isMounted) return;
@@ -650,7 +650,7 @@ export default function Page({ params, commentId }: PageProps) {
                           <Shield className='h-4 w-4 text-red-400 mr-2' />
                           <span className='text-sm font-medium text-zinc-200'>
                             {isDev
-                              ? 'Token data disabled in development mode to save on API calls'
+                              ? 'Token information is disabled in local development mode'
                               : 'Unable to load token data. Please refresh or try again later.'}
                           </span>
                         </div>
@@ -761,25 +761,58 @@ export default function Page({ params, commentId }: PageProps) {
             </div>
 
             {/* Token Calls Section */}
-            {tokenData ? (
-              <TokenCallsSection
-                tokenId={tokenData.mintAddress}
-                tokenSymbol={tokenData.symbol}
-                currentTokenPrice={currentPrice}
-                isPriceValid={isPriceValid}
-                userCall={userCall}
-                isLoadingUserCall={isLoadingUserCall}
-                onCallCreated={handleCallCreated}
-              />
-            ) : isLoading ? (
-              <div className='relative group'>
-                <Card className='relative rounded-2xl'>
-                  <CardContent>
-                    <Skeleton className='h-40 w-full' />
-                  </CardContent>
-                </Card>
-              </div>
-            ) : null}
+            <div className='relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-yellow-600/5 to-yellow-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                {tokenData ? (
+                  <TokenCallsSection
+                    tokenId={tokenData.mintAddress}
+                    tokenSymbol={tokenData.symbol}
+                    currentTokenPrice={currentPrice}
+                    isPriceValid={isPriceValid}
+                    userCall={userCall}
+                    isLoadingUserCall={isLoadingUserCall}
+                    onCallCreated={handleCallCreated}
+                  />
+                ) : (
+                  <>
+                    <CardHeader className='pb-2 relative'>
+                      <div className='flex items-center mb-4'>
+                        <Skeleton className='h-10 w-10 rounded-xl mr-4' />
+                        <Skeleton className='h-6 w-48' />
+                      </div>
+                      <div className='w-full h-0.5 bg-gradient-to-r from-yellow-500/20 to-transparent'></div>
+                    </CardHeader>
+                    <CardContent className='relative pt-4 pb-6'>
+                      <div className='space-y-4'>
+                        <div className='flex justify-between items-center'>
+                          <Skeleton className='h-5 w-32' />
+                          <Skeleton className='h-5 w-24' />
+                        </div>
+                        <div className='space-y-2'>
+                          <Skeleton className='h-10 w-full rounded-lg' />
+                          <div className='grid grid-cols-2 gap-2'>
+                            <Skeleton className='h-10 w-full rounded-lg' />
+                            <Skeleton className='h-10 w-full rounded-lg' />
+                          </div>
+                        </div>
+                        <div className='pt-2'>
+                          <Skeleton className='h-5 w-36 mb-2' />
+                          <div className='grid grid-cols-2 gap-2'>
+                            <Skeleton className='h-20 w-full rounded-lg' />
+                            <Skeleton className='h-20 w-full rounded-lg' />
+                          </div>
+                        </div>
+                        <div className='flex justify-end'>
+                          <Skeleton className='h-10 w-32 rounded-lg' />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </>
+                )}
+              </Card>
+            </div>
 
             {/* Sentiment Card */}
             <div className='relative group'>
@@ -788,17 +821,26 @@ export default function Page({ params, commentId }: PageProps) {
                 <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
                 <CardHeader className='pb-2 relative'>
                   <div className='flex items-center mb-4'>
-                    <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
-                      <BarChart3 className='h-5 w-5 text-blue-400' />
-                    </div>
-                    <CardTitle className='text-xl font-semibold text-white'>
-                      Token Sentiment
-                    </CardTitle>
+                    {tokenData ? (
+                      <>
+                        <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
+                          <BarChart3 className='h-5 w-5 text-blue-400' />
+                        </div>
+                        <CardTitle className='text-xl font-semibold text-white'>
+                          Token Sentiment
+                        </CardTitle>
+                      </>
+                    ) : (
+                      <>
+                        <Skeleton className='h-10 w-10 rounded-xl mr-4' />
+                        <Skeleton className='h-6 w-48' />
+                      </>
+                    )}
                   </div>
                   <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
                 </CardHeader>
                 <CardContent className='pt-2 pb-6'>
-                  {tokenData && (
+                  {tokenData ? (
                     <div className='grid grid-cols-3 gap-2'>
                       {/* Bullish Card */}
                       <div
@@ -846,6 +888,21 @@ export default function Page({ params, commentId }: PageProps) {
                         <div className='font-bold text-xl text-white'>
                           {sentimentData?.redFlagCount || 0}
                         </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className='grid grid-cols-3 gap-2'>
+                      <div className='flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border border-transparent'>
+                        <Skeleton className='h-8 w-8 rounded-full mb-2' />
+                        <Skeleton className='h-6 w-12 rounded-md' />
+                      </div>
+                      <div className='flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border border-transparent'>
+                        <Skeleton className='h-8 w-8 rounded-full mb-2' />
+                        <Skeleton className='h-6 w-12 rounded-md' />
+                      </div>
+                      <div className='flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border border-transparent'>
+                        <Skeleton className='h-8 w-8 rounded-full mb-2' />
+                        <Skeleton className='h-6 w-12 rounded-md' />
                       </div>
                     </div>
                   )}
