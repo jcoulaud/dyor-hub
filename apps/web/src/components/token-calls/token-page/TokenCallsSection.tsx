@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { tokenCalls } from '@/lib/api';
 import { TokenCall } from '@dyor-hub/types';
 import { LineChart } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { DisplayUserCall } from './DisplayUserCall';
 import { MakeCallModal } from './MakeCallModal';
@@ -117,7 +118,16 @@ export function TokenCallsSection({
             <div className='h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center mr-4 group-hover:bg-amber-500/20 transition-colors duration-300'>
               <LineChart className='h-5 w-5 text-amber-400' />
             </div>
-            <CardTitle className='text-xl font-semibold text-white'>Token Calls</CardTitle>
+            <div className='flex items-center justify-between flex-grow'>
+              <CardTitle className='text-xl font-semibold text-white'>Token Calls</CardTitle>
+              {tokenCallsData.length > 0 && (
+                <Link
+                  href={`/token-calls?tokenSearch=${tokenSymbol}`}
+                  className='text-xs text-amber-400/70 hover:text-amber-400 px-2 py-1 rounded-md border border-amber-500/30 hover:border-amber-500/60 transition-colors duration-200'>
+                  View all
+                </Link>
+              )}
+            </div>
           </div>
           <div className='w-full h-0.5 bg-gradient-to-r from-amber-500/20 to-transparent'></div>
         </CardHeader>
