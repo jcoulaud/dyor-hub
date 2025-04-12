@@ -13,7 +13,7 @@ import { gamification, notifications } from '@/lib/api';
 import { sanitizeHtml } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import { NotificationItem, NotificationType } from '@dyor-hub/types';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceStrict } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, Check, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
@@ -301,7 +301,7 @@ export function NotificationBell() {
   const getTimeAgo = (dateString: string | Date): string => {
     try {
       const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-      return formatDistanceToNow(date, { addSuffix: true });
+      return formatDistanceStrict(date, new Date()) + ' ago';
     } catch {
       return '';
     }

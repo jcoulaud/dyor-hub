@@ -5,7 +5,7 @@ import { comments } from '@/lib/api';
 import { cn, getHighResAvatar } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { Comment, CreateCommentDto, VoteType } from '@dyor-hub/types';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceStrict } from 'date-fns';
 import {
   ArrowBigDown,
   ArrowBigUp,
@@ -674,7 +674,7 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
                     'text-muted-foreground text-xs',
                     comment.isRemoved && 'opacity-60',
                   )}>
-                  {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                  {formatDistanceStrict(new Date(comment.createdAt), new Date()) + ' ago'}
                   {comment.isEdited && <span className='ml-1 italic'>(edited)</span>}
                 </span>
               </div>

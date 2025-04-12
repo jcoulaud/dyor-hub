@@ -22,6 +22,10 @@ interface RawLeaderboardResult {
   username: string;
   displayName: string;
   avatarUrl: string;
+  sumTimeToHitRatio: string | null;
+  countSuccessfulCallsWithRatio: string;
+  sumMultiplier: string | null;
+  countSuccessfulCallsWithPrice: string;
 }
 
 export interface PaginatedLeaderboardResult {
@@ -59,6 +63,22 @@ export class TokenCallsLeaderboardService {
           `SUM(CASE WHEN call.status = '${TokenCallStatus.VERIFIED_SUCCESS}' THEN 1 ELSE 0 END)`,
           'successfulCalls',
         )
+        .addSelect(
+          `SUM(CASE WHEN call.status = '${TokenCallStatus.VERIFIED_SUCCESS}' THEN call.timeToHitRatio ELSE NULL END)`,
+          'sumTimeToHitRatio',
+        )
+        .addSelect(
+          `COUNT(CASE WHEN call.status = '${TokenCallStatus.VERIFIED_SUCCESS}' AND call.timeToHitRatio IS NOT NULL THEN 1 ELSE NULL END)`,
+          'countSuccessfulCallsWithRatio',
+        )
+        .addSelect(
+          `SUM(CASE WHEN call.status = '${TokenCallStatus.VERIFIED_SUCCESS}' AND call.referencePrice <> 0 THEN call.targetPrice / call.referencePrice ELSE NULL END)`,
+          'sumMultiplier',
+        )
+        .addSelect(
+          `COUNT(CASE WHEN call.status = '${TokenCallStatus.VERIFIED_SUCCESS}' AND call.referencePrice <> 0 THEN 1 ELSE NULL END)`,
+          'countSuccessfulCallsWithPrice',
+        )
         .innerJoin('call.user', 'user')
         .addSelect('user.username', 'username')
         .addSelect('user.displayName', 'displayName')
@@ -91,6 +111,8 @@ export class TokenCallsLeaderboardService {
           break;
       }
 
+      queryBuilder.addOrderBy('"userId"', 'ASC');
+
       const total = await queryBuilder.getCount();
 
       queryBuilder.offset(skip).limit(limit);
@@ -103,6 +125,25 @@ export class TokenCallsLeaderboardService {
         const successfulCallsNum = parseInt(result.successfulCalls, 10);
         const accuracyRate =
           totalCallsNum > 0 ? successfulCallsNum / totalCallsNum : 0;
+
+        const sumRatio = result.sumTimeToHitRatio
+          ? parseFloat(result.sumTimeToHitRatio)
+          : null;
+        const countRatio = parseInt(result.countSuccessfulCallsWithRatio, 10);
+        const averageTimeToHitRatio =
+          sumRatio !== null && countRatio > 0 ? sumRatio / countRatio : null;
+
+        const sumMultiplier = result.sumMultiplier
+          ? parseFloat(result.sumMultiplier)
+          : null;
+        const countMultiplier = parseInt(
+          result.countSuccessfulCallsWithPrice,
+          10,
+        );
+        const averageMultiplier =
+          sumMultiplier !== null && countMultiplier > 0
+            ? sumMultiplier / countMultiplier
+            : null;
 
         const user = plainToInstance(
           UserMinimumResponseDto,
@@ -123,6 +164,8 @@ export class TokenCallsLeaderboardService {
             totalCalls: totalCallsNum,
             successfulCalls: successfulCallsNum,
             accuracyRate: accuracyRate,
+            averageTimeToHitRatio: averageTimeToHitRatio,
+            averageMultiplier: averageMultiplier,
           },
           { excludeExtraneousValues: true },
         );

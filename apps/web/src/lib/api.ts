@@ -1334,10 +1334,21 @@ export const reputation = {
   },
 };
 
-interface TokenCallListFilters {
+export interface TokenCallListFilters {
+  username?: string;
   userId?: string;
   tokenId?: string;
-  status?: TokenCallStatus;
+  tokenSearch?: string;
+  status?: TokenCallStatus[];
+  callStartDate?: string;
+  callEndDate?: string;
+  targetStartDate?: string;
+  targetEndDate?: string;
+}
+
+export interface TokenCallListSort {
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
 }
 
 export const tokenCalls = {
@@ -1411,13 +1422,27 @@ export const tokenCalls = {
     }
   },
 
-  list: async (filters: TokenCallListFilters, pagination: { page?: number; limit?: number }) => {
+  list: async (
+    filters: TokenCallListFilters,
+    pagination: { page?: number; limit?: number },
+    sort?: TokenCallListSort,
+  ) => {
     const params = new URLSearchParams();
+    if (filters.username) params.append('username', filters.username);
     if (filters.userId) params.append('userId', filters.userId);
     if (filters.tokenId) params.append('tokenId', filters.tokenId);
-    if (filters.status) params.append('status', filters.status); // Add status filter
+    if (filters.tokenSearch) params.append('tokenSearch', filters.tokenSearch);
+    if (filters.status && filters.status.length > 0) {
+      params.append('status', filters.status.join(','));
+    }
+    if (filters.callStartDate) params.append('callStartDate', filters.callStartDate);
+    if (filters.callEndDate) params.append('callEndDate', filters.callEndDate);
+    if (filters.targetStartDate) params.append('targetStartDate', filters.targetStartDate);
+    if (filters.targetEndDate) params.append('targetEndDate', filters.targetEndDate);
     if (pagination.page) params.append('page', pagination.page.toString());
     if (pagination.limit) params.append('limit', pagination.limit.toString());
+    if (sort?.sortBy) params.append('sortBy', sort.sortBy);
+    if (sort?.sortOrder) params.append('sortOrder', sort.sortOrder);
 
     const endpoint = `token-calls?${params.toString()}`;
     return api<PaginatedTokenCallsResult>(endpoint);
@@ -1426,5 +1451,65 @@ export const tokenCalls = {
   getById: async (callId: string) => {
     const endpoint = `token-calls/${callId}`;
     return api<TokenCall>(endpoint);
+  },
+};
+
+export const tokenCallsLeaderboard = {
+  getLeaderboard: async (
+    page = 1,
+    limit = 25,
+    sortBy?: string,
+  ): Promise<{
+    items: Array<{
+      rank: number;
+      user: {
+        id: string;
+        username: string;
+        displayName: string;
+        avatarUrl: string;
+      };
+      totalCalls: number;
+      successfulCalls: number;
+      accuracyRate: number;
+      averageTimeToHitRatio: number | null;
+      averageMultiplier: number | null;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+  }> => {
+    try {
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      if (sortBy) params.append('sortBy', sortBy);
+
+      const endpoint = `leaderboards/token-calls?${params.toString()}`;
+      return api<{
+        items: Array<{
+          rank: number;
+          user: {
+            id: string;
+            username: string;
+            displayName: string;
+            avatarUrl: string;
+          };
+          totalCalls: number;
+          successfulCalls: number;
+          accuracyRate: number;
+          averageTimeToHitRatio: number | null;
+          averageMultiplier: number | null;
+        }>;
+        total: number;
+        page: number;
+        limit: number;
+      }>(endpoint);
+    } catch (error) {
+      console.error('Error fetching token calls leaderboard:', error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, 'Failed to fetch token calls leaderboard');
+    }
   },
 };

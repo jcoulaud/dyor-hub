@@ -17,4 +17,10 @@ export class LeaderboardEntryDto {
 
   @Expose()
   accuracyRate: number;
+
+  @Expose()
+  averageTimeToHitRatio: number | null;
+
+  @Expose()
+  averageMultiplier: number | null;
 }

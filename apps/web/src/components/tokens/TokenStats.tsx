@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatLargeNumber, truncateAddress } from '@/lib/utils';
 import type { TokenStats as TokenStatsType, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
 import { TokenHolder } from '@dyor-hub/types';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceStrict } from 'date-fns';
 import { BarChart2, DollarSign, History, Twitter, Users } from 'lucide-react';
 import Link from 'next/link';
 import { SolscanButton } from '../SolscanButton';
@@ -34,6 +34,32 @@ const formatPrice = (price: number | string | undefined | null): string => {
 
 const formatPercentage = (num: number): string => {
   return num.toFixed(2);
+};
+
+const formatDateSafe = (
+  dateString: string | Date | undefined | null,
+  formatType: 'distance' | 'format' = 'distance',
+  formatPattern = 'PPp',
+): string => {
+  try {
+    if (!dateString) return 'Unknown';
+
+    if (typeof dateString === 'object' && dateString !== null && !(dateString instanceof Date)) {
+      return 'Invalid date';
+    }
+
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+
+    if (isNaN(date.getTime())) return 'Invalid date';
+
+    if (formatType === 'distance') {
+      return formatDistanceStrict(date, new Date()) + ' ago';
+    } else {
+      return format(date, formatPattern);
+    }
+  } catch {
+    return 'Invalid date';
+  }
 };
 
 export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenStatsProps) => {
@@ -176,9 +202,7 @@ export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenSta
             {[...twitterHistory.history].reverse().map((entry, index) => (
               <div key={index} className='flex items-center justify-between py-1'>
                 <span className='text-sm font-medium text-red-400'>@{entry.username}</span>
-                <span className='text-xs text-zinc-500'>
-                  {formatDistanceToNow(new Date(entry.last_checked), { addSuffix: true })}
-                </span>
+                <span className='text-xs text-zinc-500'>{formatDateSafe(entry.last_checked)}</span>
               </div>
             ))}
           </div>
@@ -187,7 +211,7 @@ export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenSta
 
       {/* Last Updated */}
       <div className='pt-2 text-xs text-zinc-500 text-right'>
-        Last updated: {format(new Date(stats.lastUpdated), 'PPp')}
+        Last updated: {formatDateSafe(stats.lastUpdated, 'format', 'PPp')}
       </div>
     </div>
   );

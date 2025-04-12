@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn, formatPrice } from '@/lib/utils';
 import { TokenCall, TokenCallStatus } from '@dyor-hub/types';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceStrict } from 'date-fns';
 import { ArrowUp, Calendar, Clock, DollarSign, Target, TrendingUp } from 'lucide-react';
 
 interface DisplayUserCallProps {
@@ -129,7 +129,7 @@ export function DisplayUserCall({ call, currentTokenPrice = 0 }: DisplayUserCall
                   <div>
                     <div className='text-xs text-zinc-500'>Call Placed</div>
                     <div className='font-medium text-zinc-300 text-xs'>
-                      {formatDistanceToNow(new Date(call.callTimestamp), { addSuffix: true })}
+                      {formatDistanceStrict(new Date(call.callTimestamp), new Date()) + ' ago'}
                     </div>
                   </div>
                 </div>
@@ -147,8 +147,8 @@ export function DisplayUserCall({ call, currentTokenPrice = 0 }: DisplayUserCall
                       )}>
                       {hasValidCurrentPrice
                         ? distanceToTarget > 0
-                          ? `${formattedDistance} above current`
-                          : `${formattedDistance} below current`
+                          ? `+${formattedDistance}`
+                          : `-${formattedDistance}`
                         : 'No current price'}
                     </div>
                   </div>
@@ -177,9 +177,8 @@ export function DisplayUserCall({ call, currentTokenPrice = 0 }: DisplayUserCall
                       <div>
                         <div className='text-xs text-zinc-500'>Target Hit</div>
                         <div className='font-medium text-zinc-300 text-xs'>
-                          {formatDistanceToNow(new Date(call.targetHitTimestamp), {
-                            addSuffix: true,
-                          })}
+                          {formatDistanceStrict(new Date(call.targetHitTimestamp), new Date()) +
+                            ' ago'}
                         </div>
                       </div>
                     </div>

@@ -41,3 +41,12 @@ export interface PaginatedTokenCallsResult {
   page: number;
   limit: number;
 }
+
+export enum TokenCallSortBy {
+  CREATED_AT = 'createdAt',
+  CALL_TIMESTAMP = 'callTimestamp',
+  TARGET_DATE = 'targetDate',
+  REFERENCE_PRICE = 'referencePrice',
+  TARGET_PRICE = 'targetPrice',
+  MULTIPLIER = 'multiplier', // Note: Calculated field, backend handles this
+}

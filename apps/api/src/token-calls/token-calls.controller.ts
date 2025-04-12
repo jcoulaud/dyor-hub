@@ -1,7 +1,12 @@
-import { PaginatedTokenCallsResult } from '@dyor-hub/types';
+import {
+  PaginatedTokenCallsResult,
+  TokenCallSortBy,
+  TokenCallStatus,
+} from '@dyor-hub/types';
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Get,
   HttpCode,
   HttpStatus,
@@ -9,6 +14,9 @@ import {
   Logger,
   NotFoundException,
   Param,
+  ParseArrayPipe,
+  ParseEnumPipe,
+  ParseIntPipe,
   ParseUUIDPipe,
   Post,
   Query,
@@ -19,7 +27,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UserEntity } from '../entities';
 import { TokenCallEntity } from '../entities/token-call.entity';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
-import { TokenCallsService } from './token-calls.service';
+import { TokenCallFilters, TokenCallsService } from './token-calls.service';
 
 @Controller('token-calls')
 export class TokenCallsController {
@@ -49,30 +57,63 @@ export class TokenCallsController {
 
   @Get()
   async findAllPublic(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('username') username?: string,
     @Query('userId') userId?: string,
     @Query('tokenId') tokenId?: string,
-    @Query('page') pageString = '1',
-    @Query('limit') limitString = '20',
+    @Query('tokenSearch') tokenSearch?: string,
+    @Query(
+      'status',
+      new ParseArrayPipe({ items: String, separator: ',', optional: true }),
+    )
+    status?: TokenCallStatus[],
+    @Query('callStartDate') callStartDate?: string,
+    @Query('callEndDate') callEndDate?: string,
+    @Query('targetStartDate') targetStartDate?: string,
+    @Query('targetEndDate') targetEndDate?: string,
+    @Query(
+      'sortBy',
+      new DefaultValuePipe(TokenCallSortBy.CREATED_AT),
+      new ParseEnumPipe(TokenCallSortBy, { optional: true }),
+    )
+    sortBy?: TokenCallSortBy,
+    @Query(
+      'sortOrder',
+      new DefaultValuePipe('DESC'),
+      new ParseEnumPipe(['ASC', 'DESC'], { optional: true }),
+    )
+    sortOrder?: 'ASC' | 'DESC',
   ): Promise<PaginatedTokenCallsResult> {
-    const page = parseInt(pageString, 10);
-    const limit = parseInt(limitString, 10);
-
-    if (isNaN(page) || page < 1) {
-      throw new Error('Invalid page number');
-    }
-    if (isNaN(limit) || limit < 1 || limit > 100) {
-      throw new Error('Invalid limit value (must be between 1 and 100)');
+    if (limit > 100) {
+      limit = 100;
     }
 
-    const filters = {
+    const filters: TokenCallFilters = {
+      ...(username && { username }),
       ...(userId && { userId }),
       ...(tokenId && { tokenId }),
+      ...(tokenSearch && { tokenSearch }),
+      ...(status && { status }),
+      ...(callStartDate && { callStartDate }),
+      ...(callEndDate && { callEndDate }),
+      ...(targetStartDate && { targetStartDate }),
+      ...(targetEndDate && { targetEndDate }),
     };
 
+    const sort = { sortBy, sortOrder };
+
     try {
-      return this.tokenCallsService.findAllPublic({ page, limit }, filters);
+      return this.tokenCallsService.findAllPublic(
+        { page, limit },
+        filters,
+        sort,
+      );
     } catch (error) {
-      this.logger.error(`Error fetching public token calls:`, error);
+      this.logger.error(
+        `Error fetching public token calls: ${error.message}`,
+        error.stack,
+      );
       throw new InternalServerErrorException('Could not fetch token calls.');
     }
   }

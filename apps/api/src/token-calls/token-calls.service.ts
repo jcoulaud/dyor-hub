@@ -1,5 +1,6 @@
 import { PaginatedTokenCallsResult, TokenCallStatus } from '@dyor-hub/types';
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -13,10 +14,16 @@ import { TokensService } from '../tokens/tokens.service';
 import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
 
-interface TokenCallFilters {
+export interface TokenCallFilters {
+  username?: string;
   userId?: string;
   tokenId?: string;
-  status?: TokenCallStatus;
+  tokenSearch?: string;
+  status?: TokenCallStatus[];
+  callStartDate?: string;
+  callEndDate?: string;
+  targetStartDate?: string;
+  targetEndDate?: string;
 }
 
 @Injectable()
@@ -164,33 +171,179 @@ export class TokenCallsService {
   }
 
   /**
-   * Finds all public token calls
+   * Finds all public token calls with filtering and sorting
    */
   async findAllPublic(
     pagination: { page: number; limit: number },
     filters: TokenCallFilters = {},
+    sort: { sortBy?: string; sortOrder?: 'ASC' | 'DESC' } = {},
   ): Promise<PaginatedTokenCallsResult> {
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
+    const { sortBy = 'createdAt', sortOrder = 'DESC' } = sort;
 
     this.logger.log(
-      `Fetching public token calls, filters: ${JSON.stringify(filters)}, page: ${page}, limit: ${limit}`,
+      `Fetching public token calls, filters: ${JSON.stringify(filters)}, sort: ${sortBy} ${sortOrder}, page: ${page}, limit: ${limit}`,
     );
 
-    const whereClause: Partial<TokenCallEntity> = {};
+    const queryBuilder = this.tokenCallRepository
+      .createQueryBuilder('call')
+      .leftJoin('call.user', 'user')
+      .addSelect([
+        'user.id',
+        'user.username',
+        'user.displayName',
+        'user.avatarUrl',
+      ])
+      .leftJoin('call.token', 'token')
+      .addSelect([
+        'token.mintAddress',
+        'token.name',
+        'token.symbol',
+        'token.imageUrl',
+      ])
+      .skip(skip)
+      .take(limit);
+
+    const parameters: { [key: string]: any } = {};
+    let whereConditions: string[] = [];
+
+    if (filters.username) {
+      whereConditions.push('user.username ILIKE :username');
+      parameters.username = `%${filters.username}%`;
+    }
     if (filters.userId) {
-      whereClause.userId = filters.userId;
+      whereConditions.push('call.userId = :userId');
+      parameters.userId = filters.userId;
     }
     if (filters.tokenId) {
-      whereClause.tokenId = filters.tokenId;
+      whereConditions.push('call.tokenId = :tokenId');
+      parameters.tokenId = filters.tokenId;
     }
-    if (filters.status) {
-      whereClause.status = filters.status;
+    if (filters.tokenSearch) {
+      whereConditions.push(
+        '(token.mintAddress ILIKE :tokenSearch OR token.symbol ILIKE :tokenSearch OR token.name ILIKE :tokenSearch)',
+      );
+      parameters.tokenSearch = `%${filters.tokenSearch}%`;
+    }
+    if (filters.status && filters.status.length > 0) {
+      const validStatuses = filters.status.filter((s) =>
+        Object.values(TokenCallStatus).includes(s),
+      );
+      if (validStatuses.length > 0) {
+        whereConditions.push('call.status IN (:...statuses)');
+        parameters.statuses = validStatuses;
+      }
+    }
+    if (filters.callStartDate && filters.callEndDate) {
+      try {
+        const start = new Date(filters.callStartDate);
+        const end = new Date(filters.callEndDate);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) throw new Error();
+        whereConditions.push(
+          'call.callTimestamp BETWEEN :callStart AND :callEnd',
+        );
+        parameters.callStart = start;
+        parameters.callEnd = end;
+      } catch (e) {
+        throw new BadRequestException('Invalid call start/end date format.');
+      }
+    }
+    if (filters.targetStartDate && filters.targetEndDate) {
+      try {
+        const start = new Date(filters.targetStartDate);
+        const end = new Date(filters.targetEndDate);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) throw new Error();
+        whereConditions.push(
+          'call.targetDate BETWEEN :targetStart AND :targetEnd',
+        );
+        parameters.targetStart = start;
+        parameters.targetEnd = end;
+      } catch (e) {
+        throw new BadRequestException('Invalid target start/end date format.');
+      }
+    }
+
+    if (whereConditions.length > 0) {
+      queryBuilder.where(whereConditions.join(' AND '), parameters);
+    }
+
+    if (sortBy === 'multiplier') {
+      queryBuilder.addSelect(
+        '(CASE WHEN call.referencePrice <> 0 THEN call.targetPrice / call.referencePrice ELSE NULL END)',
+        'call_multiplier',
+      );
+      queryBuilder.orderBy(
+        'call_multiplier',
+        sortOrder,
+        sortOrder === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST',
+      );
+    } else {
+      const orderField = `call.${sortBy}`;
+      const metadata = this.tokenCallRepository.metadata;
+      if (metadata.hasColumnWithPropertyPath(sortBy)) {
+        queryBuilder.orderBy(orderField, sortOrder);
+      } else {
+        this.logger.warn(
+          `Invalid sort field provided: ${sortBy}. Defaulting to createdAt.`,
+        );
+        queryBuilder.orderBy('call.createdAt', 'DESC');
+      }
+    }
+    if (sortBy !== 'createdAt') {
+      queryBuilder.addOrderBy('call.createdAt', 'DESC');
     }
 
     try {
-      const [calls, total] = await this.tokenCallRepository.findAndCount({
-        where: whereClause,
+      const [calls, total] = await queryBuilder.getManyAndCount();
+
+      const items = calls.map((call) => ({
+        ...call,
+        callTimestamp: call.callTimestamp.toISOString(),
+        targetDate: call.targetDate.toISOString(),
+        verificationTimestamp:
+          call.verificationTimestamp?.toISOString() || null,
+        targetHitTimestamp: call.targetHitTimestamp?.toISOString() || null,
+        createdAt: call.createdAt.toISOString(),
+        updatedAt: call.updatedAt.toISOString(),
+        user: call.user
+          ? {
+              id: call.user.id,
+              username: call.user.username,
+              displayName: call.user.displayName,
+              avatarUrl: call.user.avatarUrl,
+            }
+          : undefined,
+        token: call.token
+          ? {
+              mintAddress: call.token.mintAddress,
+              name: call.token.name,
+              symbol: call.token.symbol,
+              imageUrl: call.token.imageUrl,
+            }
+          : undefined,
+      }));
+
+      return { items, total, page, limit };
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch public token calls with filters: ${JSON.stringify(filters)}`,
+        error.stack,
+      );
+      if (error.query && error.parameters) {
+        throw new BadRequestException(`Query error: ${error.message}`);
+      }
+      throw new InternalServerErrorException('Could not fetch token calls.');
+    }
+  }
+
+  /**
+   * Finds a single token call by its ID.
+   */
+  async findOneById(callId: string): Promise<TokenCallEntity> {
+    try {
+      const call = await this.tokenCallRepository.findOne({
+        where: { id: callId },
         relations: {
           token: true,
           user: true,
@@ -212,58 +365,6 @@ export class TokenCallsService {
           timeToHitRatio: true,
           createdAt: true,
           updatedAt: true,
-          token: {
-            mintAddress: true,
-            name: true,
-            symbol: true,
-            imageUrl: true,
-          },
-          user: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-        order: { createdAt: 'DESC' },
-        skip: skip,
-        take: limit,
-      });
-
-      // Convert Date fields to strings to match the TokenCall interface
-      const items = calls.map((call) => ({
-        ...call,
-        callTimestamp: call.callTimestamp.toISOString(),
-        targetDate: call.targetDate.toISOString(),
-        verificationTimestamp:
-          call.verificationTimestamp?.toISOString() || null,
-        targetHitTimestamp: call.targetHitTimestamp?.toISOString() || null,
-        createdAt: call.createdAt.toISOString(),
-        updatedAt: call.updatedAt.toISOString(),
-      }));
-
-      return { items, total, page, limit };
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch public token calls with filters: ${JSON.stringify(filters)}`,
-        error,
-      );
-      throw new InternalServerErrorException('Could not fetch token calls.');
-    }
-  }
-
-  /**
-   * Finds a single token call by its ID.
-   */
-  async findOneById(callId: string): Promise<TokenCallEntity> {
-    try {
-      const call = await this.tokenCallRepository.findOne({
-        where: { id: callId },
-        relations: {
-          token: true,
-          user: true,
-        },
-        select: {
           token: {
             mintAddress: true,
             name: true,

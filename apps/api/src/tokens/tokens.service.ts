@@ -370,12 +370,6 @@ export class TokensService {
         }
         const overviewTotalSupply = overviewData.totalSupply ?? 0;
 
-        this.logger.debug({
-          message: `Values for percentage calculation (v2) for ${mintAddress}`,
-          overviewTotalSupplyUsed: overviewTotalSupply,
-          firstHolderUiAmount: data.data.items[0]?.ui_amount,
-        });
-
         const mappedHolders: TokenHolder[] = data.data.items.map((item) => {
           const holderAmount = item.ui_amount;
           const percentage =

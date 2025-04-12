@@ -48,8 +48,8 @@ export function TokenCallsSection({
     const loadData = async () => {
       try {
         await fetchStatsData();
-      } catch (error) {
-        console.error('Error loading token calls data:', error);
+      } catch {
+        setIsLoadingStats(false);
       }
     };
 
@@ -77,7 +77,7 @@ export function TokenCallsSection({
         </div>
       );
     }
-    if (userCall) {
+    if (userCall && userCall.tokenId === tokenId) {
       return <DisplayUserCall call={userCall} currentTokenPrice={currentTokenPrice} />;
     }
     if (isPriceValid) {

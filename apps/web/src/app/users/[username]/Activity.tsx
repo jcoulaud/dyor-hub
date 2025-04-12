@@ -2,7 +2,7 @@
 
 import { Pagination } from '@/components/ui/pagination';
 import { users } from '@/lib/api';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceStrict } from 'date-fns';
 import {
   ArrowDown,
   ArrowUp,
@@ -350,7 +350,7 @@ export function Activity({
                       <span className={`text-xs font-medium ${details.color}`}>{details.type}</span>
                       <span className='text-xs text-zinc-500'>•</span>
                       <span className='text-xs text-zinc-500'>
-                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                        {formatDistanceStrict(new Date(comment.createdAt), new Date()) + ' ago'}
                       </span>
                       {comment.tokenSymbol && (
                         <>
