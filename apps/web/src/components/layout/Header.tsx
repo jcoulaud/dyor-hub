@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DISCORD_URL } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
-import { Home, Link as LinkIcon, Menu, MessageSquare, X } from 'lucide-react';
+import { BarChart2, Home, Link as LinkIcon, Menu, MessageSquare, Trophy, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -97,12 +97,14 @@ export function Header() {
                     href='/leaderboard'
                     onClick={() => setIsMobileMenuOpen(false)}
                     className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
+                    <Trophy className='h-4 w-4' />
                     <span>Leaderboard</span>
                   </Link>
                   <Link
                     href='/token-calls'
                     onClick={() => setIsMobileMenuOpen(false)}
                     className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
+                    <BarChart2 className='h-4 w-4' />
                     <span>Token Calls</span>
                   </Link>
                   <a

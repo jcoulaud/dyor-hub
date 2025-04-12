@@ -1,7 +1,6 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
@@ -43,33 +42,18 @@ import { useDebounce } from 'use-debounce';
 
 const CALLS_PER_PAGE = 25;
 
-const getStatusStyles = (status: TokenCallStatus) => {
-  switch (status) {
-    case TokenCallStatus.VERIFIED_SUCCESS:
-      return 'border-green-600/50 bg-green-950 text-green-400';
-    case TokenCallStatus.VERIFIED_FAIL:
-      return 'border-red-600/50 bg-red-950 text-red-400';
-    case TokenCallStatus.PENDING:
-      return 'border-yellow-600/50 bg-yellow-950 text-yellow-400';
-    case TokenCallStatus.ERROR:
-      return 'border-zinc-600/50 bg-zinc-900 text-zinc-400';
-    default:
-      return 'border-zinc-700 bg-zinc-800 text-zinc-300';
-  }
-};
-
 const getStatusIcon = (status: TokenCallStatus) => {
   switch (status) {
     case TokenCallStatus.VERIFIED_SUCCESS:
-      return <CheckCircle className='h-3.5 w-3.5' />;
+      return <CheckCircle className='w-full h-full' />;
     case TokenCallStatus.VERIFIED_FAIL:
-      return <XCircle className='h-3.5 w-3.5' />;
+      return <XCircle className='w-full h-full' />;
     case TokenCallStatus.PENDING:
-      return <Clock className='h-3.5 w-3.5' />;
+      return <Clock className='w-full h-full' />;
     case TokenCallStatus.ERROR:
-      return <Slash className='h-3.5 w-3.5' />;
+      return <Slash className='w-full h-full' />;
     default:
-      return <HelpCircle className='h-3.5 w-3.5' />;
+      return <HelpCircle className='w-full h-full' />;
   }
 };
 
@@ -346,7 +330,7 @@ export default function TokenCallsExplorerPage() {
     if (!dateInput) return '-';
     try {
       const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-      return formatDistanceStrict(date, new Date()) + ' ago';
+      return formatDistanceStrict(date, new Date(), { addSuffix: true });
     } catch (e) {
       console.error('Error formatting date:', e);
       return 'Invalid date';
@@ -361,15 +345,11 @@ export default function TokenCallsExplorerPage() {
 
       // If target date is in the past, display the actual date
       if (date < now) {
-        return date.toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
+        return formatDistanceStrict(date, now, { addSuffix: true });
       }
 
       // Otherwise show relative time
-      return formatDistanceStrict(date, now) + ' from now';
+      return formatDistanceStrict(date, now, { addSuffix: true });
     } catch (e) {
       console.error('Error formatting date:', e);
       return 'Invalid date';
@@ -393,39 +373,39 @@ export default function TokenCallsExplorerPage() {
   };
 
   return (
-    <div className='container mx-auto px-4 py-12'>
+    <div className='container mx-auto px-2 sm:px-4 py-6 sm:py-12'>
       <div className='max-w-7xl mx-auto'>
-        <h1 className='text-3xl sm:text-4xl font-bold mb-2 text-center text-gradient-emerald'>
+        <h1 className='text-2xl sm:text-3xl md:text-4xl font-bold mb-2 text-center text-gradient-emerald'>
           Token Calls Explorer
         </h1>
-        <p className='text-zinc-400 mb-8 text-center max-w-2xl mx-auto'>
+        <p className='text-zinc-400 mb-6 sm:mb-8 text-center max-w-2xl mx-auto text-sm sm:text-base'>
           Browse all token price predictions made by the community.
         </p>
 
         <div className='mb-6'>
           <Card className='bg-zinc-900/40 border-zinc-800 shadow-lg overflow-visible'>
             <CardContent className='p-0'>
-              <div className='flex items-center justify-between p-4 border-b border-zinc-800'>
+              <div className='flex items-center justify-between p-3 border-b border-zinc-800'>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className='w-full'>
-                  <TabsList className='bg-zinc-800/50 grid grid-cols-4 p-1'>
+                  <TabsList className='bg-zinc-800/50 grid grid-cols-4 p-1 h-10'>
                     <TabsTrigger
                       value='all'
-                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/20 data-[state=active]:to-amber-900/30 hover:bg-zinc-700/40 transition-colors'>
+                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/20 data-[state=active]:to-amber-900/30 hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
                       All Calls
                     </TabsTrigger>
                     <TabsTrigger
                       value='pending'
-                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-600/20 data-[state=active]:to-yellow-900/30 hover:bg-zinc-700/40 transition-colors'>
+                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-600/20 data-[state=active]:to-yellow-900/30 hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
                       Pending
                     </TabsTrigger>
                     <TabsTrigger
                       value='success'
-                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600/20 data-[state=active]:to-green-900/30 hover:bg-zinc-700/40 transition-colors'>
+                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600/20 data-[state=active]:to-green-900/30 hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
                       Successful
                     </TabsTrigger>
                     <TabsTrigger
                       value='failed'
-                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-600/20 data-[state=active]:to-red-900/30 hover:bg-zinc-700/40 transition-colors'>
+                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-600/20 data-[state=active]:to-red-900/30 hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
                       Failed
                     </TabsTrigger>
                   </TabsList>
@@ -435,34 +415,41 @@ export default function TokenCallsExplorerPage() {
                   variant='ghost'
                   size='sm'
                   onClick={clearFilters}
-                  className='ml-2 bg-zinc-800/50 h-10 flex-shrink-0'>
+                  className='ml-2 bg-zinc-800/50 h-10 flex-shrink-0 hidden xs:flex'>
                   <XCircle className='h-4 w-4 mr-2' />
                   Clear Filters
+                </Button>
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  onClick={clearFilters}
+                  className='ml-2 bg-zinc-800/50 h-10 w-10 flex-shrink-0 flex xs:hidden'>
+                  <XCircle className='h-4 w-4' />
                 </Button>
               </div>
 
               {/* Search Inputs */}
-              <div className='px-4 py-3 border-b border-zinc-800 flex flex-wrap items-center gap-3'>
+              <div className='px-3 pt-4 pb-4 border-b border-zinc-800 flex flex-col sm:flex-row items-start sm:items-center sm:gap-3'>
                 <div className='relative w-full sm:w-64 md:w-72'>
                   <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500' />
                   <Input
-                    placeholder='Search by username or name...'
+                    placeholder='Search user...'
                     value={usernameFilter}
                     onChange={handleUsernameFilterChange}
-                    className='pl-10 h-10 bg-zinc-800/50 border-zinc-700'
+                    className='pl-10 h-11 sm:h-12 bg-zinc-900/90 border-zinc-800 rounded-lg text-sm text-zinc-300 w-full'
                   />
                 </div>
-                <div className='relative w-full sm:w-64 md:w-72'>
+                <div className='relative w-full sm:w-64 md:w-72 mt-4 sm:mt-0 mb-1 sm:mb-0'>
                   <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500' />
                   <Input
-                    placeholder='Search by token symbol or name...'
+                    placeholder='Search token...'
                     value={tokenSearchFilter}
                     onChange={handleTokenSearchFilterChange}
-                    className='pl-10 h-10 bg-zinc-800/50 border-zinc-700'
+                    className='pl-10 h-11 sm:h-12 bg-zinc-900/90 border-zinc-800 rounded-lg text-sm text-zinc-300 w-full'
                   />
                 </div>
-                <div className='relative ml-auto'>
-                  <div className='flex items-center'>
+                <div className='relative sm:ml-auto sm:mt-0 w-full sm:w-auto hidden sm:block'>
+                  <div className='flex items-center justify-center sm:justify-end'>
                     <DateRangePicker
                       date={targetDateRange}
                       onDateChange={handleTargetDateRangeChange}
@@ -503,48 +490,48 @@ export default function TokenCallsExplorerPage() {
 
               {!isLoading && !error && calls.length > 0 && (
                 <div className='overflow-x-auto'>
-                  <Table className='w-full'>
+                  <Table className='w-full min-w-[650px]'>
                     <TableHeader>
                       <TableRow className='hover:bg-transparent border-zinc-800'>
-                        <TableHead className='px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap'>
+                        <TableHead className='px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap'>
                           User
                         </TableHead>
-                        <TableHead className='px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap'>
+                        <TableHead className='px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap'>
                           Token
                         </TableHead>
-                        <TableHead className='px-4 py-3 text-center text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap'>
+                        <TableHead className='px-2 sm:px-4 py-2 sm:py-3 text-center text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap'>
                           Status
                         </TableHead>
                         <TableHead
-                          className='px-4 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors'
+                          className='px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors hidden sm:table-cell'
                           onClick={() => handleSortClick(TokenCallSortBy.REFERENCE_PRICE)}>
                           <div className='flex items-center justify-end'>
                             Reference {renderSortIcon(TokenCallSortBy.REFERENCE_PRICE)}
                           </div>
                         </TableHead>
                         <TableHead
-                          className='px-4 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors'
+                          className='px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors'
                           onClick={() => handleSortClick(TokenCallSortBy.TARGET_PRICE)}>
                           <div className='flex items-center justify-end'>
                             Target {renderSortIcon(TokenCallSortBy.TARGET_PRICE)}
                           </div>
                         </TableHead>
                         <TableHead
-                          className='px-4 py-3 text-center text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors'
+                          className='px-2 sm:px-4 py-2 sm:py-3 text-center text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors'
                           onClick={() => handleSortClick(TokenCallSortBy.MULTIPLIER)}>
                           <div className='flex items-center justify-center'>
                             Change {renderSortIcon(TokenCallSortBy.MULTIPLIER)}
                           </div>
                         </TableHead>
                         <TableHead
-                          className='px-4 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors'
+                          className='px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors'
                           onClick={() => handleSortClick(TokenCallSortBy.CALL_TIMESTAMP)}>
                           <div className='flex items-center justify-end'>
                             Called {renderSortIcon(TokenCallSortBy.CALL_TIMESTAMP)}
                           </div>
                         </TableHead>
                         <TableHead
-                          className='px-4 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors'
+                          className='px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors'
                           onClick={() => handleSortClick(TokenCallSortBy.TARGET_DATE)}>
                           <div className='flex items-center justify-end'>
                             Deadline {renderSortIcon(TokenCallSortBy.TARGET_DATE)}
@@ -574,7 +561,7 @@ export default function TokenCallsExplorerPage() {
                           <TableRow
                             key={call.id}
                             className='hover:bg-zinc-800/40 transition-colors duration-150 bg-transparent border-0'>
-                            <TableCell className='px-4 py-3 whitespace-nowrap'>
+                            <TableCell className='px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap'>
                               {call.user ? (
                                 <Link
                                   href={`/users/${call.user.username}`}
@@ -585,7 +572,7 @@ export default function TokenCallsExplorerPage() {
                                       {call.user.username.substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <span className='text-sm font-medium text-zinc-200 group-hover:text-amber-400 transition-colors truncate'>
+                                  <span className='text-sm font-medium text-zinc-200 group-hover:text-amber-400 transition-colors truncate max-w-[80px] sm:max-w-[120px]'>
                                     {call.user.displayName}
                                   </span>
                                 </Link>
@@ -594,7 +581,7 @@ export default function TokenCallsExplorerPage() {
                               )}
                             </TableCell>
 
-                            <TableCell className='px-4 py-3 whitespace-nowrap'>
+                            <TableCell className='px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap'>
                               {call.token ? (
                                 <Link
                                   href={`/tokens/${call.token.mintAddress}`}
@@ -606,7 +593,7 @@ export default function TokenCallsExplorerPage() {
                                     </AvatarFallback>
                                   </Avatar>
                                   <div className='flex flex-col'>
-                                    <span className='text-sm font-medium text-zinc-200 group-hover:text-amber-400 transition-colors truncate max-w-[120px]'>
+                                    <span className='text-sm font-medium text-zinc-200 group-hover:text-amber-400 transition-colors truncate max-w-[80px] sm:max-w-[120px]'>
                                       {call.token.name}
                                     </span>
                                     <span className='text-xs text-zinc-500 group-hover:text-zinc-400 transition-colors'>
@@ -619,19 +606,29 @@ export default function TokenCallsExplorerPage() {
                               )}
                             </TableCell>
 
-                            <TableCell className='px-4 py-3 text-center whitespace-nowrap'>
+                            <TableCell className='px-2 sm:px-4 py-2 sm:py-3 text-center whitespace-nowrap'>
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger>
-                                    <Badge
-                                      variant='outline'
-                                      className={cn(
-                                        'inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium capitalize',
-                                        getStatusStyles(call.status),
-                                      )}>
-                                      {getStatusIcon(call.status)}
-                                      {call.status.replace('VERIFIED_', '').toLowerCase()}
-                                    </Badge>
+                                    <div className='inline-flex items-center'>
+                                      <div
+                                        className={cn(
+                                          'flex items-center justify-center w-5 h-5 rounded-full overflow-hidden',
+                                          call.status === TokenCallStatus.VERIFIED_SUCCESS &&
+                                            'bg-green-950 text-green-400 ring-1 ring-green-600/50',
+                                          call.status === TokenCallStatus.VERIFIED_FAIL &&
+                                            'bg-red-950 text-red-400 ring-1 ring-red-600/50',
+                                          call.status === TokenCallStatus.PENDING &&
+                                            'bg-yellow-950 text-yellow-400 ring-1 ring-yellow-600/50',
+                                          call.status === TokenCallStatus.ERROR &&
+                                            'bg-zinc-900 text-zinc-400 ring-1 ring-zinc-600/50',
+                                        )}>
+                                        {getStatusIcon(call.status)}
+                                      </div>
+                                      <span className='hidden xs:inline ml-1.5 text-xs capitalize'>
+                                        {call.status.replace('VERIFIED_', '').toLowerCase()}
+                                      </span>
+                                    </div>
                                   </TooltipTrigger>
                                   <TooltipContent>
                                     <p>
@@ -648,44 +645,58 @@ export default function TokenCallsExplorerPage() {
                               </TooltipProvider>
                             </TableCell>
 
-                            <TableCell className='px-4 py-3 text-right whitespace-nowrap font-mono text-sm text-zinc-300'>
+                            <TableCell className='px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap font-mono text-sm text-zinc-300 hidden sm:table-cell'>
                               {formatCurrency(call.referencePrice)}
                             </TableCell>
-                            <TableCell className='px-4 py-3 text-right whitespace-nowrap font-mono text-sm font-medium'>
-                              <span className={cn(isUp ? 'text-green-400' : 'text-red-400')}>
+                            <TableCell className='px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap font-mono text-sm font-medium'>
+                              <span
+                                className={cn(
+                                  isUp ? 'text-green-400' : 'text-red-400',
+                                  'text-xs sm:text-sm',
+                                )}>
                                 {formatCurrency(call.targetPrice)}
                               </span>
                             </TableCell>
-                            <TableCell className='px-4 py-3 text-center whitespace-nowrap'>
+                            <TableCell className='px-2 sm:px-4 py-2 sm:py-3 text-center whitespace-nowrap'>
                               {multiplier !== null ? (
                                 <span
                                   className={cn(
-                                    'font-mono text-sm font-semibold px-2 py-0.5 rounded-md',
+                                    'font-mono font-semibold px-1.5 py-0.5 rounded-md text-xs sm:text-sm',
                                     isUp
                                       ? 'bg-green-950/50 text-green-400'
                                       : 'bg-red-950/50 text-red-400',
                                   )}>
                                   {isUp ? (
-                                    <ArrowUp className='inline h-3 w-3 mr-0.5 mb-px' />
+                                    <ArrowUp className='inline h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 mb-px' />
                                   ) : (
-                                    <ArrowDown className='inline h-3 w-3 mr-0.5 mb-px' />
+                                    <ArrowDown className='inline h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 mb-px' />
                                   )}
                                   {multiplier.toFixed(2)}x
                                 </span>
                               ) : (
-                                <span className='text-zinc-500 text-sm'>-</span>
+                                <span className='text-zinc-500 text-xs sm:text-sm'>-</span>
                               )}
                             </TableCell>
 
                             <TableCell
-                              className='px-4 py-3 text-right whitespace-nowrap text-sm text-zinc-400'
+                              className='px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap text-sm text-zinc-400'
                               title={new Date(call.callTimestamp).toLocaleString()}>
-                              {formatRelativeDateSafe(call.callTimestamp)}
+                              <span className='hidden sm:inline'>
+                                {formatRelativeDateSafe(call.callTimestamp)}
+                              </span>
+                              <span className='sm:hidden text-xs'>
+                                {formatRelativeDateSafe(call.callTimestamp)}
+                              </span>
                             </TableCell>
                             <TableCell
-                              className='px-4 py-3 text-right whitespace-nowrap text-sm text-zinc-400'
+                              className='px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap text-sm text-zinc-400'
                               title={new Date(call.targetDate).toLocaleString()}>
-                              {formatTargetDate(call.targetDate)}
+                              <span className='hidden sm:inline'>
+                                {formatTargetDate(call.targetDate)}
+                              </span>
+                              <span className='sm:hidden text-xs'>
+                                {formatTargetDate(call.targetDate)}
+                              </span>
                             </TableCell>
                           </TableRow>
                         );
