@@ -1,3 +1,4 @@
+import { PaginatedTokenCallsResult } from '@dyor-hub/types';
 import {
   Body,
   Controller,
@@ -18,10 +19,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UserEntity } from '../entities';
 import { TokenCallEntity } from '../entities/token-call.entity';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
-import {
-  PaginatedTokenCallsResult,
-  TokenCallsService,
-} from './token-calls.service';
+import { TokenCallsService } from './token-calls.service';
 
 @Controller('token-calls')
 export class TokenCallsController {

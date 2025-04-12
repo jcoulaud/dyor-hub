@@ -7,16 +7,20 @@ import {
   Badge as BadgeType,
   Comment,
   CreateCommentDto,
+  CreateTokenCallInput,
   LatestComment,
   LeaderboardEntry,
   LeaderboardResponse,
   NotificationPreference,
   NotificationsResponse,
+  PaginatedTokenCallsResult,
   SentimentType,
   StreakMilestone,
   StreakMilestonesResponse,
   StreakOverview,
   Token,
+  TokenCall,
+  TokenCallStatus,
   TokenSentimentStats,
   TokenStats,
   TopStreakUsers,
@@ -1327,5 +1331,100 @@ export const reputation = {
   },
   getTopUsers: async (limit = 10) => {
     return api<{ users: UserReputation[] }>(`admin/reputation/top-users?limit=${limit}`);
+  },
+};
+
+interface TokenCallListFilters {
+  userId?: string;
+  tokenId?: string;
+  status?: TokenCallStatus;
+}
+
+export const tokenCalls = {
+  create: async (data: CreateTokenCallInput): Promise<TokenCall> => {
+    try {
+      const response = await api<TokenCall>('token-calls', {
+        method: 'POST',
+        body: data,
+      });
+      return response;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, 'Failed to create prediction');
+    }
+  },
+
+  getTokenCalls: async (
+    tokenId: string,
+    page = 1,
+    limit = 10,
+  ): Promise<{
+    items: TokenCall[];
+    total: number;
+    page: number;
+    limit: number;
+  }> => {
+    try {
+      const response = await api<{
+        items: TokenCall[];
+        total: number;
+        page: number;
+        limit: number;
+      }>(`token-calls?tokenId=${tokenId}&page=${page}&limit=${limit}`);
+      return response;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, 'Failed to fetch token calls');
+    }
+  },
+
+  getUserStats: async (
+    userId?: string,
+  ): Promise<{
+    totalCalls: number;
+    successfulCalls: number;
+    failedCalls: number;
+    accuracyRate: number;
+    averageGainPercent?: number | null;
+    averageTimeToHitRatio?: number | null;
+  }> => {
+    try {
+      const endpoint = userId ? `users/${userId}/token-call-stats` : 'users/me/token-call-stats';
+      const response = await api<{
+        totalCalls: number;
+        successfulCalls: number;
+        failedCalls: number;
+        accuracyRate: number;
+        averageGainPercent?: number | null;
+        averageTimeToHitRatio?: number | null;
+      }>(endpoint);
+      return response;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, 'Failed to fetch user token call stats');
+    }
+  },
+
+  list: async (filters: TokenCallListFilters, pagination: { page?: number; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (filters.userId) params.append('userId', filters.userId);
+    if (filters.tokenId) params.append('tokenId', filters.tokenId);
+    if (filters.status) params.append('status', filters.status); // Add status filter
+    if (pagination.page) params.append('page', pagination.page.toString());
+    if (pagination.limit) params.append('limit', pagination.limit.toString());
+
+    const endpoint = `token-calls?${params.toString()}`;
+    return api<PaginatedTokenCallsResult>(endpoint);
+  },
+
+  getById: async (callId: string) => {
+    const endpoint = `token-calls/${callId}`;
+    return api<TokenCall>(endpoint);
   },
 };

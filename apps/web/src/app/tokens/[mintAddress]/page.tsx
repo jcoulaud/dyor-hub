@@ -2,6 +2,7 @@
 
 import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
+import { TokenCallsSection } from '@/components/token-calls/token-page/TokenCallsSection';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
@@ -9,12 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { tokens, watchlist } from '@/lib/api';
+import { tokenCalls, tokens, watchlist } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import {
   SentimentType,
   Token,
+  TokenCall,
   TokenSentimentStats,
   TokenStats as TokenStatsType,
   TwitterUsernameHistoryEntity,
@@ -46,7 +48,7 @@ export default function Page({ params, commentId }: PageProps) {
   const { mintAddress } = use(params);
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated } = useAuthContext();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuthContext();
   const commentIdFromProps =
     commentId || (pathname && pathname.includes('/comments/'))
       ? pathname?.split('/comments/')[1]?.split('/')[0]
@@ -55,14 +57,17 @@ export default function Page({ params, commentId }: PageProps) {
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [tokenData, setTokenData] = useState<TokenWithWatchlistStatus | null>(null);
-  const [tokenHistoryData, setTokenHistoryData] = useState<TwitterUsernameHistoryEntity | null>(
-    null,
-  );
   const [tokenStatsData, setTokenStatsData] = useState<TokenStatsType | null>(null);
   const [isHeaderLoaded, setIsHeaderLoaded] = useState(false);
   const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [sentimentData, setSentimentData] = useState<TokenSentimentStats | null>(null);
   const [isVoting, setIsVoting] = useState(false);
+  const [userCall, setUserCall] = useState<TokenCall | null | undefined>(undefined);
+  const [isLoadingUserCall, setIsLoadingUserCall] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [tokenHistoryData, setTokenHistoryData] = useState<TwitterUsernameHistoryEntity | null>(
+    null,
+  );
 
   const { toast } = useToast();
 
@@ -135,80 +140,93 @@ export default function Page({ params, commentId }: PageProps) {
   );
 
   useEffect(() => {
+    let isMounted = true;
     const fetchData = async () => {
+      setIsLoading(true);
+      setIsHeaderLoaded(false);
+      setIsStatsLoaded(false);
+      setIsLoadingUserCall(true);
+      setUserCall(undefined);
+      setTokenData(null);
+      setTokenStatsData(null);
+      setTokenHistoryData(null);
+
+      if (!isValidSolanaAddress(mintAddress)) {
+        if (isMounted) notFound();
+        return;
+      }
+
       try {
-        if (tokenData && mintAddress === tokenData.mintAddress) {
-          return;
-        }
+        const [tokenResult, tokenStatsResult, twitterHistoryResult] = await Promise.allSettled([
+          tokens.getByMintAddress(mintAddress),
+          tokens.getTokenStats(mintAddress),
+          tokens.getTwitterHistory(mintAddress),
+        ]);
 
-        if (!isValidSolanaAddress(mintAddress)) {
-          notFound();
-        }
+        if (!isMounted) return;
 
-        try {
-          const token = await tokens.getByMintAddress(mintAddress);
-
-          if (isAuthenticated) {
+        if (tokenResult.status === 'fulfilled') {
+          let tokenWithStatus = tokenResult.value;
+          if (isAuthenticated && tokenResult.value) {
             try {
               const isWatchlisted = await watchlist.isTokenWatchlisted(mintAddress);
-              token.isWatchlisted = isWatchlisted;
+              tokenWithStatus = { ...tokenResult.value, isWatchlisted };
             } catch {
-              token.isWatchlisted = false;
+              /* ignore watchlist error */
             }
-          } else {
-            token.isWatchlisted = false;
           }
-
-          setTokenData(token);
+          setTokenData(tokenWithStatus);
           setIsHeaderLoaded(true);
-
-          if (token.imageUrl && token.imageUrl.includes('cf-ipfs.com/ipfs/')) {
-            token.imageUrl = token.imageUrl.replace('cf-ipfs.com/ipfs/', 'ipfs.io/ipfs/');
-          }
-        } catch (error) {
-          console.error('Error fetching token data:', error);
-          notFound();
+        } else {
+          console.error('Error fetching token data:', tokenResult.reason);
+          if (isMounted) notFound();
           return;
         }
 
-        if (isDev) {
-          setIsStatsLoaded(true);
-          return;
+        if (tokenStatsResult.status === 'fulfilled') {
+          setTokenStatsData(tokenStatsResult.value);
         }
-
-        try {
-          const [tokenStats, twitterHistory] = await Promise.allSettled([
-            tokens.getTokenStats(mintAddress),
-            tokens.getTwitterHistory(mintAddress),
-          ]);
-
-          if (tokenStats.status === 'fulfilled') {
-            setTokenStatsData(tokenStats.value);
-          } else {
-            console.error('Error fetching token stats:', tokenStats.reason);
-          }
-
-          if (twitterHistory.status === 'fulfilled') {
-            setTokenHistoryData(twitterHistory.value);
-          } else {
-            console.error('Error fetching token twitter history:', twitterHistory.reason);
-          }
-        } catch (error) {
-          console.error('Error fetching token stats or history:', error);
-        } finally {
-          setIsStatsLoaded(true);
-        }
-      } catch (error) {
-        console.error('Error in fetchData:', error);
-        setIsHeaderLoaded(true);
         setIsStatsLoaded(true);
+
+        if (twitterHistoryResult.status === 'fulfilled') {
+          setTokenHistoryData(twitterHistoryResult.value);
+        }
+
+        if (isAuthenticated && user?.id) {
+          try {
+            const userCallResponse = await tokenCalls.list(
+              { userId: user.id, tokenId: mintAddress },
+              { limit: 1 },
+            );
+            if (isMounted) {
+              if (userCallResponse.items.length > 0) {
+                setUserCall(userCallResponse.items[0]);
+              } else {
+                setUserCall(null);
+              }
+            }
+          } catch {
+            if (isMounted) setUserCall(null);
+          } finally {
+            if (isMounted) setIsLoadingUserCall(false);
+          }
+        } else {
+          if (isMounted) {
+            setUserCall(null);
+            setIsLoadingUserCall(false);
+          }
+        }
+      } catch {
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     };
 
-    setIsHeaderLoaded(false);
-    setIsStatsLoaded(false);
     fetchData();
-  }, [mintAddress]);
+    return () => {
+      isMounted = false;
+    };
+  }, [mintAddress, user?.id, isAuthenticated, isAuthLoading]);
 
   useEffect(() => {
     const fetchSentimentData = async () => {
@@ -224,6 +242,27 @@ export default function Page({ params, commentId }: PageProps) {
 
     fetchSentimentData();
   }, [mintAddress, tokenData]);
+
+  const currentPrice = tokenStatsData?.price ?? 0;
+  const isPriceValid = currentPrice > 0;
+
+  const handleCallCreated = useCallback(async () => {
+    if (isAuthenticated && user?.id && tokenData) {
+      setIsLoadingUserCall(true);
+      try {
+        const response = await tokenCalls.list(
+          { userId: user.id, tokenId: tokenData.mintAddress },
+          { limit: 1 },
+        );
+        setUserCall(response.items.length > 0 ? response.items[0] : null);
+        toast({ title: 'Prediction Submitted & Updated!' });
+      } catch {
+        setUserCall(null);
+      } finally {
+        setIsLoadingUserCall(false);
+      }
+    }
+  }, [isAuthenticated, user?.id, tokenData, mintAddress, toast]);
 
   return (
     <div className='flex-1 flex flex-col'>
@@ -284,7 +323,7 @@ export default function Page({ params, commentId }: PageProps) {
           <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-300'></div>
           <Card className='relative w-full border-0 bg-black/60 backdrop-blur-md shadow-xl rounded-xl overflow-hidden'>
             <CardContent className='p-4'>
-              {!isHeaderLoaded ? (
+              {isLoading || !isHeaderLoaded ? (
                 <div className='flex items-start gap-4'>
                   <Skeleton className='w-16 h-16 rounded-full' />
                   <div className='flex-1 min-w-0'>
@@ -398,18 +437,22 @@ export default function Page({ params, commentId }: PageProps) {
                             </Link>
                           )}
 
-                          {tokenData.twitterHandle && (
+                          <div className='flex items-center gap-1 text-muted-foreground'>
                             <Link
-                              href={`https://twitter.com/${tokenData.twitterHandle}`}
+                              href={
+                                tokenData.twitterHandle
+                                  ? `https://twitter.com/${tokenData.twitterHandle}`
+                                  : '#'
+                              }
                               target='_blank'
                               rel='noopener noreferrer'
-                              className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                              className={`hover:text-primary transition-colors cursor-pointer p-1 ${!tokenData.twitterHandle ? 'pointer-events-none opacity-50' : ''}`}
                               title='Twitter'>
                               <Twitter
                                 className={`w-4 h-4 ${tokenHistoryData?.history && tokenHistoryData.history.length > 0 ? 'text-red-400' : 'text-blue-400'}`}
                               />
                             </Link>
-                          )}
+                          </div>
 
                           {tokenData.telegramUrl && (
                             <Link
@@ -453,18 +496,22 @@ export default function Page({ params, commentId }: PageProps) {
                           </Link>
                         )}
 
-                        {tokenData.twitterHandle && (
+                        <div className='flex items-center gap-1 text-muted-foreground'>
                           <Link
-                            href={`https://twitter.com/${tokenData.twitterHandle}`}
+                            href={
+                              tokenData.twitterHandle
+                                ? `https://twitter.com/${tokenData.twitterHandle}`
+                                : '#'
+                            }
                             target='_blank'
                             rel='noopener noreferrer'
-                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                            className={`hover:text-primary transition-colors cursor-pointer p-1 ${!tokenData.twitterHandle ? 'pointer-events-none opacity-50' : ''}`}
                             title='Twitter'>
                             <Twitter
                               className={`w-4 h-4 ${tokenHistoryData?.history && tokenHistoryData.history.length > 0 ? 'text-red-400' : 'text-blue-400'}`}
                             />
                           </Link>
-                        )}
+                        </div>
 
                         {tokenData.telegramUrl && (
                           <Link
@@ -542,7 +589,7 @@ export default function Page({ params, commentId }: PageProps) {
                   <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
                 </CardHeader>
                 <CardContent className='relative pt-0'>
-                  {!isStatsLoaded ? (
+                  {isLoading || !isStatsLoaded ? (
                     <div className='space-y-6'>
                       <div className='space-y-3'>
                         <Skeleton className='h-5 w-24' />
@@ -623,14 +670,20 @@ export default function Page({ params, commentId }: PageProps) {
                   <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent mt-3'></div>
                 </CardHeader>
                 <CardContent className='relative pt-0'>
-                  <CommentSection tokenMintAddress={mintAddress} commentId={commentIdFromProps} />
+                  {tokenData && (
+                    <CommentSection
+                      tokenMintAddress={tokenData.mintAddress}
+                      commentId={commentIdFromProps}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </div>
           </div>
 
-          {/* Right column - Desktop search */}
+          {/* Right column - Desktop search & Token Calls & Existing Sentiment Card */}
           <div className='hidden xl:block col-span-1 xxs:col-span-2 xs:col-span-2 sm:col-span-2 xl:col-span-3 space-y-4 sm:space-y-6 xl:space-y-8 order-2 xxs:order-none xs:order-none sm:order-none'>
+            {/* Desktop Search Card */}
             <div className='relative group'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
               <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
@@ -679,7 +732,28 @@ export default function Page({ params, commentId }: PageProps) {
               </Card>
             </div>
 
-            {/* Community Sentiment */}
+            {/* Token Calls Section */}
+            {tokenData ? (
+              <TokenCallsSection
+                tokenId={tokenData.mintAddress}
+                tokenSymbol={tokenData.symbol}
+                currentTokenPrice={currentPrice}
+                isPriceValid={isPriceValid}
+                userCall={userCall}
+                isLoadingUserCall={isLoadingUserCall}
+                onCallCreated={handleCallCreated}
+              />
+            ) : isLoading ? (
+              <div className='relative group'>
+                <Card className='relative rounded-2xl'>
+                  <CardContent>
+                    <Skeleton className='h-40 w-full' />
+                  </CardContent>
+                </Card>
+              </div>
+            ) : null}
+
+            {/* Sentiment Card */}
             <div className='relative group'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
               <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>

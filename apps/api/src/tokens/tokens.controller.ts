@@ -1,5 +1,5 @@
 import { TokenStats } from '@dyor-hub/types';
-import { Controller, Get, Param, Post } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { subDays } from 'date-fns';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -34,13 +34,6 @@ export class TokensController {
     return this.tokensService.getTokenStats(mintAddress);
   }
 
-  @Post(':mintAddress/refresh')
-  async refreshTokenMetadata(
-    @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
-  ): Promise<TokenEntity> {
-    return this.tokensService.refreshTokenMetadata(mintAddress);
-  }
-
   @Public()
   @Get(':mintAddress/twitter-history')
   async getTwitterHistory(
@@ -67,6 +60,7 @@ export class TokensController {
       mintAddress,
       startTime,
       endTime,
+      '1H',
     );
   }
 }

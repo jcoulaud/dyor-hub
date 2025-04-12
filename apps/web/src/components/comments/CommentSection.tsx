@@ -930,33 +930,35 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
           </DropdownMenu>
         </div>
 
-        {commentsList.length > 0 ? (
-          <div className='space-y-3 w-full'>
-            {commentsList.map((comment) => (
-              <Comment key={comment.id} comment={comment} />
-            ))}
-          </div>
-        ) : isLoading ? (
-          <Card className='p-6 w-full'>
-            <div className='space-y-4'>
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className='flex gap-3 animate-pulse'>
-                  <div className='w-8 h-8 bg-zinc-800/60 rounded-full'></div>
-                  <div className='flex-1 space-y-2'>
-                    <div className='h-4 bg-zinc-800/60 rounded w-1/4'></div>
-                    <div className='h-3 bg-zinc-800/40 rounded w-3/4'></div>
-                    <div className='h-3 bg-zinc-800/40 rounded w-1/2'></div>
-                  </div>
-                </div>
+        <div className='space-y-4'>
+          {commentsList.length > 0 ? (
+            <div className='space-y-3 w-full'>
+              {commentsList.map((comment) => (
+                <Comment key={comment.id} comment={comment} depth={0} />
               ))}
             </div>
-          </Card>
-        ) : (
-          <Card className='p-6 text-center text-gray-500 w-full'>
-            <MessageSquare className='h-12 w-12 mx-auto mb-3 text-gray-400' />
-            <p>No comments yet. Be the first to share your thoughts!</p>
-          </Card>
-        )}
+          ) : isLoading ? (
+            <Card className='p-6 w-full'>
+              <div className='space-y-4'>
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className='flex gap-3 animate-pulse'>
+                    <div className='w-8 h-8 bg-zinc-800/60 rounded-full'></div>
+                    <div className='flex-1 space-y-2'>
+                      <div className='h-4 bg-zinc-800/60 rounded w-1/4'></div>
+                      <div className='h-3 bg-zinc-800/40 rounded w-3/4'></div>
+                      <div className='h-3 bg-zinc-800/40 rounded w-1/2'></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : (
+            <Card className='p-6 text-center text-gray-500 w-full'>
+              <MessageSquare className='h-12 w-12 mx-auto mb-3 text-gray-400' />
+              <p>No comments yet. Be the first to share your thoughts!</p>
+            </Card>
+          )}
+        </div>
       </div>
 
       {/* Loading More Indicator */}
@@ -979,13 +981,6 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
 
       {/* Observer Target */}
       <div ref={observerTarget} className='h-4' />
-
-      {/* No Comments Message - Only show when not loading and actually have no comments */}
-      {!isLoading && !isLoadingMore && commentsList.length === 0 && error === null && (
-        <div className='text-center py-8 text-zinc-500'>
-          No comments yet. Be the first to share your thoughts!
-        </div>
-      )}
 
       {/* Error Message */}
       {error && <div className='text-center py-8 text-red-500'>{error}</div>}

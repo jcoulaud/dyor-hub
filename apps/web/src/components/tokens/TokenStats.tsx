@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton';
-import { truncateAddress } from '@/lib/utils';
+import { formatLargeNumber, truncateAddress } from '@/lib/utils';
 import type { TokenStats as TokenStatsType, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
 import { TokenHolder } from '@dyor-hub/types';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -30,25 +30,6 @@ const formatPrice = (price: number | string | undefined | null): string => {
   } catch {
     return '0.000000';
   }
-};
-
-// Helper function to format large numbers with K/M/B suffixes
-const formatLargeNumber = (num: string | number | undefined): string => {
-  if (num === undefined) return '0';
-
-  const value = typeof num === 'string' ? parseFloat(num) : num;
-  if (isNaN(value)) return '0';
-
-  if (value >= 1e9) {
-    return (value / 1e9).toFixed(2) + 'B';
-  }
-  if (value >= 1e6) {
-    return (value / 1e6).toFixed(2) + 'M';
-  }
-  if (value >= 1e3) {
-    return (value / 1e3).toFixed(2) + 'K';
-  }
-  return value.toFixed(2);
 };
 
 const formatPercentage = (num: number): string => {
@@ -131,12 +112,14 @@ export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenSta
             <span className='text-sm'>Total Supply:</span>
             <span className='font-medium'>{formatLargeNumber(stats.totalSupply)}</span>
           </div>
-          {stats.circulatingSupply && (
-            <div className='flex justify-between items-center'>
-              <span className='text-sm'>Circulating Supply:</span>
-              <span className='font-medium'>{formatLargeNumber(stats.circulatingSupply)}</span>
-            </div>
-          )}
+          {stats.circulatingSupply &&
+            stats.circulatingSupply !== stats.totalSupply &&
+            parseFloat(stats.circulatingSupply) > 0 && (
+              <div className='flex justify-between items-center'>
+                <span className='text-sm'>Circulating Supply:</span>
+                <span className='font-medium'>{formatLargeNumber(stats.circulatingSupply)}</span>
+              </div>
+            )}
         </div>
       </div>
 

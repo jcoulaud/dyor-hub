@@ -1,4 +1,4 @@
-import { TokenCallStatus } from '@dyor-hub/types';
+import { PaginatedTokenCallsResult, TokenCallStatus } from '@dyor-hub/types';
 import {
   Injectable,
   InternalServerErrorException,
@@ -12,13 +12,6 @@ import { TokenCallEntity } from '../entities/token-call.entity';
 import { TokensService } from '../tokens/tokens.service';
 import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
-
-export interface PaginatedTokenCallsResult {
-  items: TokenCallEntity[];
-  total: number;
-  page: number;
-  limit: number;
-}
 
 interface TokenCallFilters {
   userId?: string;
@@ -72,40 +65,49 @@ export class TokenCallsService {
       `Attempting to create token call for token ${tokenId} by user ${userId}`,
     );
 
-    // 1. Validate token exists and fetch its data (increases view count)
+    // 1. Validate token exists
     try {
       await this.tokensService.getTokenData(tokenId, userId);
     } catch (error) {
       this.logger.warn(
-        `Token validation failed for ${tokenId}: ${error.message}`,
+        `Token validation failed during call creation for ${tokenId}: ${error.message}`,
       );
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException('Could not validate token.');
+      throw new InternalServerErrorException(
+        `Could not validate token ${tokenId}.`,
+      );
     }
 
-    // 2. Fetch the current price using the now public fetchDexScreenerData
+    // 2. Fetch the current price (Reference Price)
     let referencePrice: number;
     try {
-      const dexData = await this.tokensService.fetchDexScreenerData(tokenId);
-      if (!dexData || typeof dexData.price !== 'number') {
-        throw new NotFoundException(
-          `Current price not found via DexScreener for token ID: ${tokenId}`,
+      const overviewData = await this.tokensService.fetchTokenOverview(tokenId);
+
+      // Check if data and price exist and are valid
+      if (
+        !overviewData ||
+        typeof overviewData.price !== 'number' ||
+        overviewData.price <= 0
+      ) {
+        this.logger.error(
+          `Reference price fetch failed or invalid via Birdeye for token ID: ${tokenId}. Price: ${overviewData?.price}`,
+        );
+        throw new InternalServerErrorException(
+          `Failed to fetch a valid reference price for token ${tokenId} via Birdeye at this time.`,
         );
       }
-      referencePrice = dexData.price;
+      referencePrice = overviewData.price;
       this.logger.debug(
-        `Reference price for token ${tokenId}: ${referencePrice}`,
+        `Reference price for token ${tokenId} from Birdeye: ${referencePrice}`,
       );
     } catch (error) {
       this.logger.error(
-        `Failed to fetch DexScreener price for ${tokenId}`,
+        `Error fetching Birdeye reference price for ${tokenId}:`,
         error.stack,
       );
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
+      if (error instanceof InternalServerErrorException) throw error;
       throw new InternalServerErrorException(
-        'Could not fetch current token price.',
+        `Could not fetch reference price for token ${tokenId} via Birdeye.`,
       );
     }
 
@@ -182,9 +184,12 @@ export class TokenCallsService {
     if (filters.tokenId) {
       whereClause.tokenId = filters.tokenId;
     }
+    if (filters.status) {
+      whereClause.status = filters.status;
+    }
 
     try {
-      const [items, total] = await this.tokenCallRepository.findAndCount({
+      const [calls, total] = await this.tokenCallRepository.findAndCount({
         where: whereClause,
         relations: {
           token: true,
@@ -224,6 +229,18 @@ export class TokenCallsService {
         skip: skip,
         take: limit,
       });
+
+      // Convert Date fields to strings to match the TokenCall interface
+      const items = calls.map((call) => ({
+        ...call,
+        callTimestamp: call.callTimestamp.toISOString(),
+        targetDate: call.targetDate.toISOString(),
+        verificationTimestamp:
+          call.verificationTimestamp?.toISOString() || null,
+        targetHitTimestamp: call.targetHitTimestamp?.toISOString() || null,
+        createdAt: call.createdAt.toISOString(),
+        updatedAt: call.updatedAt.toISOString(),
+      }));
 
       return { items, total, page, limit };
     } catch (error) {
@@ -318,7 +335,8 @@ export class TokenCallsService {
         (call) => call.status === TokenCallStatus.VERIFIED_SUCCESS,
       );
       const failedCalls = totalCalls - successfulCalls.length;
-      const accuracyRate = successfulCalls.length / totalCalls;
+      const accuracyRate =
+        totalCalls > 0 ? successfulCalls.length / totalCalls : 0;
 
       let totalGainPercent = 0;
       let totalTimeToHitRatio = 0;
