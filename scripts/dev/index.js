@@ -66,18 +66,18 @@ async function main() {
     await runScript(path.join(__dirname, 'setup-env.js'), 'environment setup');
 
     // Step 2: Check SSL certificates
-    const checkCertsResult = require('./check-certs.js');
-    const certsOk = await checkCertsResult();
+    // const checkCertsResult = require('./check-certs.js');
+    // const certsOk = await checkCertsResult();
 
-    if (!certsOk) {
-      console.log(
-        `\n${colors.yellow}${colors.bold}Please set up HTTPS certificates before continuing.${colors.reset}`,
-      );
-      console.log(
-        `${colors.yellow}Once certificates are installed, run this script again.${colors.reset}\n`,
-      );
-      process.exit(0);
-    }
+    // if (!certsOk) {
+    //   console.log(
+    //     `\n${colors.yellow}${colors.bold}Please set up HTTPS certificates before continuing.${colors.reset}`,
+    //   );
+    //   console.log(
+    //     `${colors.yellow}Once certificates are installed, run this script again.${colors.reset}\n`,
+    //   );
+    //   process.exit(0);
+    // }
 
     // Step 3: Start Docker containers
     await runScript(path.join(__dirname, 'docker-up.js'), 'docker startup');
