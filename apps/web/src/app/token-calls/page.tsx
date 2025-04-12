@@ -20,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { TokenCallListFilters, TokenCallListSort, tokenCalls } from '@/lib/api';
 import { cn, formatPrice, getHighResAvatar } from '@/lib/utils';
 import { TokenCall, TokenCallSortBy, TokenCallStatus } from '@dyor-hub/types';
-import { formatDistanceStrict } from 'date-fns';
+import { formatDistanceStrict, isValid, parseISO } from 'date-fns';
 import {
   ArrowDown,
   ArrowUp,
@@ -36,6 +36,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ChangeEvent, useCallback, useEffect, useState } from 'react';
 import { DateRange } from 'react-day-picker';
 import { useDebounce } from 'use-debounce';
@@ -73,22 +74,130 @@ const getStatusIcon = (status: TokenCallStatus) => {
 };
 
 export default function TokenCallsExplorerPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [calls, setCalls] = useState<TokenCall[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [activeTab, setActiveTab] = useState<string>('all');
 
-  const [usernameFilter, setUsernameFilter] = useState('');
-  const [tokenSearchFilter, setTokenSearchFilter] = useState('');
-  const [selectedStatuses, setSelectedStatuses] = useState<TokenCallStatus[]>([]);
-  const [targetDateRange, setTargetDateRange] = useState<DateRange | undefined>(undefined);
+  // Initialize page from URL or default to 1
+  const [currentPage, setCurrentPage] = useState(() => {
+    const pageParam = searchParams.get('page');
+    return pageParam ? parseInt(pageParam, 10) : 1;
+  });
+
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Initialize tab from URL or default to 'all'
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return searchParams.get('tab') || 'all';
+  });
+
+  // Initialize filters from URL
+  const [usernameFilter, setUsernameFilter] = useState(() => searchParams.get('username') || '');
+  const [tokenSearchFilter, setTokenSearchFilter] = useState(
+    () => searchParams.get('tokenSearch') || '',
+  );
+
+  // Initialize statuses from URL
+  const [selectedStatuses, setSelectedStatuses] = useState<TokenCallStatus[]>(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      return statusParam.split(',').map((s) => s as TokenCallStatus);
+    }
+    return [];
+  });
+
+  // Initialize date range from URL
+  const [targetDateRange, setTargetDateRange] = useState<DateRange | undefined>(() => {
+    const startDate = searchParams.get('targetStartDate');
+    const endDate = searchParams.get('targetEndDate');
+
+    if (startDate || endDate) {
+      const range: Partial<DateRange> = {};
+
+      if (startDate) {
+        const parsedStartDate = parseISO(startDate);
+        if (isValid(parsedStartDate)) {
+          range.from = parsedStartDate;
+        }
+      }
+
+      if (endDate) {
+        const parsedEndDate = parseISO(endDate);
+        if (isValid(parsedEndDate)) {
+          range.to = parsedEndDate;
+        }
+      }
+
+      return Object.keys(range).length > 0 ? (range as DateRange) : undefined;
+    }
+
+    return undefined;
+  });
+
   const [debouncedUsernameFilter] = useDebounce(usernameFilter, 500);
   const [debouncedTokenSearchFilter] = useDebounce(tokenSearchFilter, 500);
 
-  const [sortBy, setSortBy] = useState<TokenCallSortBy>(TokenCallSortBy.CREATED_AT);
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  // Initialize sort from URL
+  const [sortBy, setSortBy] = useState<TokenCallSortBy>(() => {
+    const sortByParam = searchParams.get('sortBy');
+    if (sortByParam && Object.values(TokenCallSortBy).includes(sortByParam as TokenCallSortBy)) {
+      return sortByParam as TokenCallSortBy;
+    }
+    return TokenCallSortBy.CREATED_AT;
+  });
+
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(() => {
+    const sortOrderParam = searchParams.get('sortOrder');
+    return sortOrderParam === 'ASC' || sortOrderParam === 'DESC' ? sortOrderParam : 'DESC';
+  });
+
+  // Update URL with current filters
+  const updateUrlParams = useCallback(() => {
+    const params = new URLSearchParams();
+
+    // Only add parameters that have values
+    if (currentPage > 1) params.set('page', currentPage.toString());
+    if (activeTab !== 'all') params.set('tab', activeTab);
+    if (debouncedUsernameFilter) params.set('username', debouncedUsernameFilter);
+    if (debouncedTokenSearchFilter) params.set('tokenSearch', debouncedTokenSearchFilter);
+
+    if (selectedStatuses.length > 0) {
+      params.set('status', selectedStatuses.join(','));
+    }
+
+    if (targetDateRange?.from) {
+      params.set('targetStartDate', targetDateRange.from.toISOString().split('T')[0]);
+    }
+
+    if (targetDateRange?.to) {
+      params.set('targetEndDate', targetDateRange.to.toISOString().split('T')[0]);
+    }
+
+    if (sortBy !== TokenCallSortBy.CREATED_AT) {
+      params.set('sortBy', sortBy);
+    }
+
+    if (sortOrder !== 'DESC') {
+      params.set('sortOrder', sortOrder);
+    }
+
+    // Update the URL without refreshing the page
+    const newUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '');
+    router.replace(newUrl, { scroll: false });
+  }, [
+    currentPage,
+    activeTab,
+    debouncedUsernameFilter,
+    debouncedTokenSearchFilter,
+    selectedStatuses,
+    targetDateRange,
+    sortBy,
+    sortOrder,
+    router,
+  ]);
 
   const fetchTokenCalls = useCallback(
     async (page: number, filters: TokenCallListFilters, sort: TokenCallListSort) => {
@@ -163,6 +272,20 @@ export default function TokenCallsExplorerPage() {
     sortBy,
     sortOrder,
     fetchTokenCalls,
+  ]);
+
+  useEffect(() => {
+    updateUrlParams();
+  }, [
+    currentPage,
+    activeTab,
+    debouncedUsernameFilter,
+    debouncedTokenSearchFilter,
+    selectedStatuses,
+    targetDateRange,
+    sortBy,
+    sortOrder,
+    updateUrlParams,
   ]);
 
   useEffect(() => {
