@@ -7,16 +7,20 @@ import {
   Badge as BadgeType,
   Comment,
   CreateCommentDto,
+  CreateTokenCallInput,
   LatestComment,
   LeaderboardEntry,
   LeaderboardResponse,
   NotificationPreference,
   NotificationsResponse,
+  PaginatedTokenCallsResult,
   SentimentType,
   StreakMilestone,
   StreakMilestonesResponse,
   StreakOverview,
   Token,
+  TokenCall,
+  TokenCallStatus,
   TokenSentimentStats,
   TokenStats,
   TopStreakUsers,
@@ -1327,5 +1331,187 @@ export const reputation = {
   },
   getTopUsers: async (limit = 10) => {
     return api<{ users: UserReputation[] }>(`admin/reputation/top-users?limit=${limit}`);
+  },
+};
+
+export interface TokenCallListFilters {
+  username?: string;
+  userId?: string;
+  tokenId?: string;
+  tokenSearch?: string;
+  status?: TokenCallStatus[];
+  callStartDate?: string;
+  callEndDate?: string;
+  targetStartDate?: string;
+  targetEndDate?: string;
+}
+
+export interface TokenCallListSort {
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+}
+
+export const tokenCalls = {
+  create: async (data: CreateTokenCallInput): Promise<TokenCall> => {
+    try {
+      const response = await api<TokenCall>('token-calls', {
+        method: 'POST',
+        body: data,
+      });
+      return response;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, 'Failed to create prediction');
+    }
+  },
+
+  getTokenCalls: async (
+    tokenId: string,
+    page = 1,
+    limit = 10,
+  ): Promise<{
+    items: TokenCall[];
+    total: number;
+    page: number;
+    limit: number;
+  }> => {
+    try {
+      const response = await api<{
+        items: TokenCall[];
+        total: number;
+        page: number;
+        limit: number;
+      }>(`token-calls?tokenId=${tokenId}&page=${page}&limit=${limit}`);
+      return response;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, 'Failed to fetch token calls');
+    }
+  },
+
+  getUserStats: async (
+    userId?: string,
+  ): Promise<{
+    totalCalls: number;
+    successfulCalls: number;
+    failedCalls: number;
+    accuracyRate: number;
+    averageGainPercent?: number | null;
+    averageTimeToHitRatio?: number | null;
+    averageMultiplier?: number | null;
+  }> => {
+    try {
+      const endpoint = userId ? `users/${userId}/token-call-stats` : 'users/me/token-call-stats';
+      const response = await api<{
+        totalCalls: number;
+        successfulCalls: number;
+        failedCalls: number;
+        accuracyRate: number;
+        averageGainPercent?: number | null;
+        averageTimeToHitRatio?: number | null;
+        averageMultiplier?: number | null;
+      }>(endpoint);
+      return response;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, 'Failed to fetch user token call stats');
+    }
+  },
+
+  list: async (
+    filters: TokenCallListFilters,
+    pagination: { page?: number; limit?: number },
+    sort?: TokenCallListSort,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.username) params.append('username', filters.username);
+    if (filters.userId) params.append('userId', filters.userId);
+    if (filters.tokenId) params.append('tokenId', filters.tokenId);
+    if (filters.tokenSearch) params.append('tokenSearch', filters.tokenSearch);
+    if (filters.status && filters.status.length > 0) {
+      params.append('status', filters.status.join(','));
+    }
+    if (filters.callStartDate) params.append('callStartDate', filters.callStartDate);
+    if (filters.callEndDate) params.append('callEndDate', filters.callEndDate);
+    if (filters.targetStartDate) params.append('targetStartDate', filters.targetStartDate);
+    if (filters.targetEndDate) params.append('targetEndDate', filters.targetEndDate);
+    if (pagination.page) params.append('page', pagination.page.toString());
+    if (pagination.limit) params.append('limit', pagination.limit.toString());
+    if (sort?.sortBy) params.append('sortBy', sort.sortBy);
+    if (sort?.sortOrder) params.append('sortOrder', sort.sortOrder);
+
+    const endpoint = `token-calls?${params.toString()}`;
+    return api<PaginatedTokenCallsResult>(endpoint);
+  },
+
+  getById: async (callId: string) => {
+    const endpoint = `token-calls/${callId}`;
+    return api<TokenCall>(endpoint);
+  },
+};
+
+export const tokenCallsLeaderboard = {
+  getLeaderboard: async (
+    page = 1,
+    limit = 25,
+    sortBy?: string,
+  ): Promise<{
+    items: Array<{
+      rank: number;
+      user: {
+        id: string;
+        username: string;
+        displayName: string;
+        avatarUrl: string;
+      };
+      totalCalls: number;
+      successfulCalls: number;
+      accuracyRate: number;
+      averageTimeToHitRatio: number | null;
+      averageMultiplier: number | null;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+  }> => {
+    try {
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      if (sortBy) params.append('sortBy', sortBy);
+
+      const endpoint = `leaderboards/token-calls?${params.toString()}`;
+      return api<{
+        items: Array<{
+          rank: number;
+          user: {
+            id: string;
+            username: string;
+            displayName: string;
+            avatarUrl: string;
+          };
+          totalCalls: number;
+          successfulCalls: number;
+          accuracyRate: number;
+          averageTimeToHitRatio: number | null;
+          averageMultiplier: number | null;
+        }>;
+        total: number;
+        page: number;
+        limit: number;
+      }>(endpoint);
+    } catch (error) {
+      console.error('Error fetching token calls leaderboard:', error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, 'Failed to fetch token calls leaderboard');
+    }
   },
 };

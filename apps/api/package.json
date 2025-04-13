@@ -19,7 +19,8 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs}/**/*.ts\" --fix",
     "db:clear": "npx tsx ./src/scripts/clear-database.ts",
-    "db:create": "npx tsx ./src/scripts/create-database.ts"
+    "db:create": "npx tsx ./src/scripts/create-database.ts",
+    "typeorm": "typeorm-ts-node-commonjs"
   },
   "dependencies": {
     "@dyor-hub/types": "workspace:*",
@@ -46,6 +47,7 @@
     "connect-redis": "8.0.1",
     "cookie": "^1.0.2",
     "cookie-parser": "^1.4.7",
+    "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
     "express": "^4.18.3",
     "express-session": "^1.18.1",
@@ -82,6 +84,7 @@
     "prettier": "^3.0.0",
     "source-map-support": "^0.5.21",
     "ts-loader": "^9.4.3",
+    "ts-node": "10.9.1",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.19.2",
     "typescript": "^5.1.3"

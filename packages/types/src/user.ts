@@ -42,3 +42,10 @@ export interface UserActivity {
   parentCommentId: string | null;
   isRemoved?: boolean;
 }
+
+export interface UserMinimum {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+}
