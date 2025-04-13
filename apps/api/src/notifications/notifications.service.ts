@@ -513,7 +513,7 @@ export class NotificationsService {
         }
         break;
       case 'badge':
-        return `${baseUrl}/profile/badges`;
+        return `${baseUrl}/account/badges`;
       default:
         return null;
     }

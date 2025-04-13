@@ -302,7 +302,7 @@ function UserProfile({ user }: { user?: TokenCall['user'] }) {
 
   return (
     <Link
-      href={`/profile/${user.username || user.id}`}
+      href={`/users/${user.username || user.id}`}
       className='flex items-center group hover:opacity-90 transition-opacity'>
       <div className='relative'>
         <Avatar className='h-12 w-12 mr-4 border border-zinc-700/70 ring-1 ring-amber-500/10 shadow-lg'>
