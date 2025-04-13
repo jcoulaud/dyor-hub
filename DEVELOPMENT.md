@@ -25,7 +25,7 @@ This will:
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [Docker Compose](https://docs.docker.com/compose/install/) (comes with Docker Desktop)
-- [Node.js](https://nodejs.org/) (v20 recommended)
+- [Node.js](https://nodejs.org/) (v22 or higher)
 - [pnpm](https://pnpm.io/installation) (v9.0.0 or higher)
 
 ## Development Environment Architecture
