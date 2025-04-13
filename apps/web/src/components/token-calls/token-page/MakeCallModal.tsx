@@ -18,6 +18,8 @@ interface MakeCallModalProps {
   tokenSymbol: string;
   currentTokenPrice: number;
   onCallCreated?: () => void;
+  currentMarketCap?: number;
+  circulatingSupply?: string;
 }
 
 export function MakeCallModal({
@@ -25,6 +27,8 @@ export function MakeCallModal({
   tokenSymbol,
   currentTokenPrice,
   onCallCreated,
+  currentMarketCap,
+  circulatingSupply,
 }: MakeCallModalProps) {
   const [open, setOpen] = useState(false);
 
@@ -54,6 +58,8 @@ export function MakeCallModal({
           currentTokenPrice={currentTokenPrice}
           onCallCreated={handleCallCreated}
           onClose={() => setOpen(false)}
+          currentMarketCap={currentMarketCap}
+          circulatingSupply={circulatingSupply}
         />
       </DialogContent>
     </Dialog>

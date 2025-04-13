@@ -107,12 +107,22 @@ export class TokenCallsService {
       this.logger.debug(
         `Reference price for token ${tokenId} from Birdeye: ${referencePrice}`,
       );
+
+      if (targetPrice <= referencePrice) {
+        throw new BadRequestException(
+          `Target price must be higher than current price of ${referencePrice}.`,
+        );
+      }
     } catch (error) {
       this.logger.error(
         `Error fetching Birdeye reference price for ${tokenId}:`,
         error.stack,
       );
-      if (error instanceof InternalServerErrorException) throw error;
+      if (
+        error instanceof InternalServerErrorException ||
+        error instanceof BadRequestException
+      )
+        throw error;
       throw new InternalServerErrorException(
         `Could not fetch reference price for token ${tokenId} via Birdeye.`,
       );

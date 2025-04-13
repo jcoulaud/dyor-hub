@@ -774,6 +774,8 @@ export default function Page({ params, commentId }: PageProps) {
                     userCall={userCall}
                     isLoadingUserCall={isLoadingUserCall}
                     onCallCreated={handleCallCreated}
+                    marketCap={tokenStatsData?.marketCap}
+                    circulatingSupply={tokenStatsData?.circulatingSupply}
                   />
                 ) : (
                   <>
