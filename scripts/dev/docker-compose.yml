@@ -110,7 +110,6 @@ services:
     working_dir: /app
     command: >
       sh -c "apk add --no-cache python3 make g++ netcat-openbsd bc linux-headers eudev-dev libusb-dev && 
-             apk add --no-cache curl && 
              npm install -g pnpm && 
              cp /scripts/wait-for-it.sh /tmp/ && 
              chmod +x /tmp/wait-for-it.sh && 
@@ -118,16 +117,6 @@ services:
              cd apps/api && 
              echo 'usb_binary_host_mirror=https://github.com/tessel/node-usb/releases/download/' > .npmrc &&
              pnpm install && 
-             if [ ! -f /app/secrets/localhost+2-key.pem ] || [ ! -f /app/secrets/localhost+2.pem ]; then 
-               mkdir -p /app/secrets && 
-               cd /app/secrets && 
-               curl -JLO 'https://dl.filippo.io/mkcert/latest?for=linux/amd64' && 
-               chmod +x mkcert-v*-linux-amd64 && 
-               mv mkcert-v*-linux-amd64 mkcert && 
-               ./mkcert -install && 
-               ./mkcert localhost 127.0.0.1 ::1; 
-             fi && 
-             cd /app/apps/api && 
              echo 'Starting database clearing...' && 
              pnpm run db:clear && 
              echo 'Database clearing completed. Starting database creation...' && 
