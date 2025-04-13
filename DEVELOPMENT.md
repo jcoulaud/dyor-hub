@@ -19,6 +19,8 @@ This will:
 2. Set up environment files
 3. Start all services via Docker
 
+**Note**: When you reboot or restart the Docker environment, the database will be cleaned up and reset to its initial state due to the database clearing step in the initialization service defined in `docker-compose.yml`. If you need to persist data between restarts, you should comment out or modify the `pnpm run db:clear` command in the `init-service` section of `scripts/dev/docker-compose.yml`.
+
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/)
