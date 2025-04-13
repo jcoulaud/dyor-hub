@@ -664,6 +664,62 @@ export default function Page({ params, commentId }: PageProps) {
 
           {/* Middle column - Comments */}
           <div className='col-span-1 xxs:col-span-4 xs:col-span-4 sm:col-span-4 xl:col-span-6 space-y-4 sm:space-y-6 xl:space-y-8 order-3 xxs:order-none xs:order-none sm:order-none'>
+            {/* Token Calls Section for mobile only */}
+            <div className='xl:hidden relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-yellow-600/5 to-yellow-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                {tokenData ? (
+                  <TokenCallsSection
+                    tokenId={tokenData.mintAddress}
+                    tokenSymbol={tokenData.symbol}
+                    currentTokenPrice={currentPrice}
+                    isPriceValid={isPriceValid}
+                    userCall={userCall}
+                    isLoadingUserCall={isLoadingUserCall}
+                    onCallCreated={handleCallCreated}
+                    marketCap={tokenStatsData?.marketCap}
+                    circulatingSupply={tokenStatsData?.circulatingSupply}
+                  />
+                ) : (
+                  <>
+                    <CardHeader className='pb-2 relative'>
+                      <div className='flex items-center mb-4'>
+                        <Skeleton className='h-10 w-10 rounded-xl mr-4' />
+                        <Skeleton className='h-6 w-48' />
+                      </div>
+                      <div className='w-full h-0.5 bg-gradient-to-r from-yellow-500/20 to-transparent'></div>
+                    </CardHeader>
+                    <CardContent className='relative pt-4 pb-6'>
+                      <div className='space-y-4'>
+                        <div className='flex justify-between items-center'>
+                          <Skeleton className='h-5 w-32' />
+                          <Skeleton className='h-5 w-24' />
+                        </div>
+                        <div className='space-y-2'>
+                          <Skeleton className='h-10 w-full rounded-lg' />
+                          <div className='grid grid-cols-2 gap-2'>
+                            <Skeleton className='h-10 w-full rounded-lg' />
+                            <Skeleton className='h-10 w-full rounded-lg' />
+                          </div>
+                        </div>
+                        <div className='pt-2'>
+                          <Skeleton className='h-5 w-36 mb-2' />
+                          <div className='grid grid-cols-2 gap-2'>
+                            <Skeleton className='h-20 w-full rounded-lg' />
+                            <Skeleton className='h-20 w-full rounded-lg' />
+                          </div>
+                        </div>
+                        <div className='flex justify-end'>
+                          <Skeleton className='h-10 w-32 rounded-lg' />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </>
+                )}
+              </Card>
+            </div>
+
             <div className='relative group'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
               <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
@@ -760,7 +816,7 @@ export default function Page({ params, commentId }: PageProps) {
               </Card>
             </div>
 
-            {/* Token Calls Section */}
+            {/* Token Calls Section for desktop only */}
             <div className='relative group'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
               <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
