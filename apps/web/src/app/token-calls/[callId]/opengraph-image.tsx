@@ -316,12 +316,31 @@ export default async function ImageGenerator({ params }: ImageProps) {
         <div
           style={{
             display: 'flex',
-            borderRadius: 16,
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            padding: '24px',
+            borderRadius: 20,
+            backgroundColor: 'rgba(18, 18, 23, 0.7)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+            padding: '32px',
             flex: 1,
+            position: 'relative',
+            overflow: 'hidden',
           }}>
+          {/* Background gradient accent */}
+          <div
+            style={{
+              position: 'absolute',
+              width: '400px',
+              height: '400px',
+              borderRadius: '50%',
+              background:
+                'radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, rgba(139, 92, 246, 0) 70%)',
+              top: '-150px',
+              right: '-150px',
+              zIndex: 0,
+            }}
+          />
+
           {/* Left: Token Info */}
           <div
             style={{
@@ -329,53 +348,103 @@ export default async function ImageGenerator({ params }: ImageProps) {
               flexDirection: 'column',
               alignItems: 'center',
               width: '30%',
-              paddingRight: '24px',
-              borderRight: '1px solid rgba(255, 255, 255, 0.1)',
+              paddingRight: '40px',
+              position: 'relative',
+              zIndex: 1,
             }}>
-            {tokenImageUrl ? (
-              <img
-                src={tokenImageUrl}
-                style={{
-                  width: 120,
-                  height: 120,
-                  borderRadius: '50%',
-                  marginBottom: 24,
-                  border: '4px solid rgba(255, 255, 255, 0.1)',
-                }}
-                alt={tokenSymbol}
-              />
-            ) : (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 120,
-                  height: 120,
-                  borderRadius: '50%',
-                  background: '#374151',
-                  marginBottom: 24,
-                  fontSize: 60,
-                  fontWeight: 'bold',
-                  border: '4px solid rgba(255, 255, 255, 0.1)',
-                }}>
-                {tokenSymbol.charAt(0).toUpperCase()}
-              </div>
-            )}
             <div
               style={{
                 display: 'flex',
-                fontSize: 28,
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 22,
+                position: 'relative',
+                marginTop: 24,
+              }}>
+              <div
+                style={{
+                  width: 130,
+                  height: 130,
+                  borderRadius: '50%',
+                  background:
+                    'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%)',
+                  position: 'absolute',
+                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
+                }}
+              />
+              {tokenImageUrl ? (
+                <img
+                  src={tokenImageUrl}
+                  style={{
+                    width: 120,
+                    height: 120,
+                    borderRadius: '50%',
+                    border: '4px solid rgba(255, 255, 255, 0.12)',
+                    boxShadow: '0 8px 20px rgba(0, 0, 0, 0.25)',
+                    objectFit: 'cover',
+                  }}
+                  alt={tokenSymbol}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 120,
+                    height: 120,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #3d4a5c 0%, #2d3748 100%)',
+                    fontSize: 60,
+                    fontWeight: 'bold',
+                    border: '4px solid rgba(255, 255, 255, 0.12)',
+                    boxShadow: '0 8px 20px rgba(0, 0, 0, 0.25)',
+                    position: 'relative',
+                  }}>
+                  {tokenSymbol.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                fontSize: 32,
                 fontWeight: 'bold',
                 marginBottom: 8,
                 textAlign: 'center',
+                color: '#ffffff',
+                textShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
               }}>
               {tokenName}
             </div>
-            <div style={{ display: 'flex', fontSize: 20, color: '#9ca3af', textAlign: 'center' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 18,
+                color: '#a3a3a3',
+                padding: '6px 14px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: 12,
+                fontWeight: 'bold',
+                letterSpacing: '0.03em',
+              }}>
               ${tokenSymbol}
             </div>
           </div>
+
+          {/* Vertical Divider */}
+          <div
+            style={{
+              width: 1,
+              alignSelf: 'stretch',
+              background:
+                'linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.1), transparent)',
+              margin: '16px 0',
+              zIndex: 1,
+            }}
+          />
 
           {/* Right: Call Details */}
           <div
@@ -383,27 +452,42 @@ export default async function ImageGenerator({ params }: ImageProps) {
               display: 'flex',
               flexDirection: 'column',
               width: '70%',
-              paddingLeft: '24px',
+              paddingLeft: '40px',
+              position: 'relative',
+              zIndex: 1,
             }}>
-            {/* Prices Row */}
+            {/* Price Comparison Card */}
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 36,
+                background: 'rgba(255, 255, 255, 0.03)',
+                borderRadius: 16,
+                padding: '24px 32px',
+                marginBottom: 32,
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 4px 24px rgba(0, 0, 0, 0.1)',
               }}>
+              {/* Reference Price */}
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div
                   style={{
                     display: 'flex',
                     color: '#9ca3af',
-                    marginBottom: 8,
+                    marginBottom: 10,
                     fontSize: 20,
+                    fontWeight: 500,
                   }}>
                   Reference Price
                 </div>
-                <div style={{ display: 'flex', fontWeight: 'bold', fontSize: 30 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    fontWeight: 'bold',
+                    fontSize: 32,
+                    color: '#f1f5f9',
+                  }}>
                   {formatCurrency(referencePrice)}
                 </div>
               </div>
@@ -416,23 +500,31 @@ export default async function ImageGenerator({ params }: ImageProps) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 'bold',
-                    fontSize: 30,
+                    fontSize: 36,
                     color: isUp ? '#22c55e' : '#ef4444',
                     background: isUp ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                    padding: '8px 16px',
+                    padding: '12px 20px',
                     borderRadius: 12,
+                    boxShadow: isUp
+                      ? '0 0 20px rgba(34, 197, 94, 0.2)'
+                      : '0 0 20px rgba(239, 68, 68, 0.2)',
+                    border: isUp
+                      ? '1px solid rgba(34, 197, 94, 0.3)'
+                      : '1px solid rgba(239, 68, 68, 0.3)',
                   }}>
                   {multiplier.toFixed(2)}x
                 </div>
               )}
 
+              {/* Target Price */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                 <div
                   style={{
                     display: 'flex',
                     color: '#9ca3af',
-                    marginBottom: 8,
+                    marginBottom: 10,
                     fontSize: 20,
+                    fontWeight: 500,
                   }}>
                   Target Price
                 </div>
@@ -440,34 +532,46 @@ export default async function ImageGenerator({ params }: ImageProps) {
                   style={{
                     display: 'flex',
                     fontWeight: 'bold',
-                    fontSize: 30,
+                    fontSize: 32,
                     color: isUp ? '#22c55e' : '#ef4444',
+                    textShadow: isUp
+                      ? '0 0 8px rgba(34, 197, 94, 0.3)'
+                      : '0 0 8px rgba(239, 68, 68, 0.3)',
                   }}>
                   {formatCurrency(targetPrice)}
                 </div>
               </div>
             </div>
 
-            {/* Status & Dates */}
+            {/* Status and Dates Section */}
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 marginTop: 'auto',
-                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                paddingTop: 24,
+                background: 'rgba(255, 255, 255, 0.02)',
+                borderRadius: 16,
+                padding: '24px 32px',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
               }}>
               {/* Status */}
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div
                   style={{
-                    width: 24,
-                    height: 24,
+                    width: 28,
+                    height: 28,
                     borderRadius: '50%',
                     backgroundColor: statusDisplay.color,
-                    marginRight: 14,
-                    boxShadow: `0 0 8px ${statusDisplay.color}`,
+                    marginRight: 16,
+                    boxShadow: `0 0 12px ${statusDisplay.color}`,
+                    border: `2px solid ${
+                      statusDisplay.color === '#f59e0b'
+                        ? 'rgba(245, 158, 11, 0.3)'
+                        : statusDisplay.color === '#22c55e'
+                          ? 'rgba(34, 197, 94, 0.3)'
+                          : 'rgba(239, 68, 68, 0.3)'
+                    }`,
                   }}
                 />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -477,6 +581,7 @@ export default async function ImageGenerator({ params }: ImageProps) {
                       color: '#9ca3af',
                       marginBottom: 8,
                       fontSize: 18,
+                      fontWeight: 500,
                     }}>
                     Status
                   </div>
@@ -484,8 +589,9 @@ export default async function ImageGenerator({ params }: ImageProps) {
                     style={{
                       display: 'flex',
                       fontWeight: 'bold',
-                      fontSize: 24,
+                      fontSize: 26,
                       textTransform: 'capitalize',
+                      color: statusDisplay.color,
                     }}>
                     {status.replace('VERIFIED_', '').toLowerCase()}
                   </div>
@@ -496,38 +602,78 @@ export default async function ImageGenerator({ params }: ImageProps) {
               <div
                 style={{
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: '16px',
-                  alignItems: 'flex-end',
+                  gap: '32px',
                 }}>
                 {/* Call Date */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <div
                     style={{
                       display: 'flex',
                       color: '#9ca3af',
-                      marginBottom: 4,
+                      marginBottom: 8,
                       fontSize: 18,
+                      fontWeight: 500,
                     }}>
                     Call Date
                   </div>
-                  <div style={{ display: 'flex', fontWeight: 'bold', fontSize: 20 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      fontWeight: 'bold',
+                      fontSize: 22,
+                      color: '#f1f5f9',
+                      alignItems: 'center',
+                    }}>
+                    <div
+                      style={{
+                        width: 18,
+                        height: 18,
+                        marginRight: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 12,
+                        color: '#9ca3af',
+                      }}>
+                      📅
+                    </div>
                     {formatDate(createdAt)}
                   </div>
                 </div>
 
                 {/* Target Date */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <div
                     style={{
                       display: 'flex',
                       color: '#9ca3af',
-                      marginBottom: 4,
+                      marginBottom: 8,
                       fontSize: 18,
+                      fontWeight: 500,
                     }}>
                     Target Date
                   </div>
-                  <div style={{ display: 'flex', fontWeight: 'bold', fontSize: 20 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      fontWeight: 'bold',
+                      fontSize: 22,
+                      color: '#f1f5f9',
+                      alignItems: 'center',
+                    }}>
+                    <div
+                      style={{
+                        width: 18,
+                        height: 18,
+                        marginRight: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 12,
+                        color: '#9ca3af',
+                      }}>
+                      🎯
+                    </div>
                     {formatDate(targetDate)}
                   </div>
                 </div>
