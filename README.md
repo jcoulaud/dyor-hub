@@ -20,7 +20,6 @@ This separation provides better organization and security compared to using path
 - **Session Storage**: Redis
 - **Content Moderation**: Google Perspective API
 - **Token Data**: Helius API and DexScreener
-- **Monorepo Management**: Turborepo
 
 ## 📋 Requirements
 

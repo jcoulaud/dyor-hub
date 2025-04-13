@@ -9,11 +9,7 @@
     "url": "https://github.com/jcoulaud/dyor-hub"
   },
   "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "clean": "turbo clean && rm -rf node_modules",
     "setup": "node scripts/dev/setup-env.js",
     "docker": "docker compose -f scripts/dev/docker-compose.yml",
     "docker:up": "pnpm setup && node scripts/dev/docker-up.js",
@@ -26,7 +22,6 @@
     "@types/node": "^20.10.6",
     "prettier": "^3.2.5",
     "tailwind-scrollbar": "^4.0.1",
-    "turbo": "^2.3.3",
     "typescript": "^5.3.3"
   },
   "packageManager": "pnpm@9.0.0",

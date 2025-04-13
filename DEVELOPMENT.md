@@ -50,25 +50,6 @@ Everything is containerized with Docker for consistent development across all pl
 | `pnpm docker:restart` | Restart Docker containers                                     |
 | `pnpm docker`         | Direct access to docker-compose (e.g., `pnpm docker logs -f`) |
 
-## Turborepo Development Commands
-
-As a monorepo powered by Turborepo, you can run specific commands on individual packages:
-
-```bash
-# Run dev server for all packages
-pnpm dev
-
-# Run dev for specific packages
-pnpm dev --filter=web
-pnpm dev --filter=api
-
-# Build all packages
-pnpm build
-
-# Lint all packages
-pnpm lint
-```
-
 ## Manual Setup (Without Docker)
 
 If you prefer not to use Docker for development:
