@@ -418,10 +418,16 @@ function TokenCallError({ errorMessage }: { errorMessage?: string }) {
               The token call you&apos;re looking for doesn&apos;t exist or could not be loaded.
             </p>
             <Button
-              variant='default'
-              className='bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 border-0'
+              variant='secondary'
+              size='sm'
+              className='h-8 px-3 bg-zinc-800/70 hover:bg-zinc-800 text-zinc-100 text-xs font-medium border border-zinc-700/40 shadow-sm'
               asChild>
-              <Link href='/token-calls'>View All Predictions</Link>
+              <Link href='/token-calls'>
+                <span className='flex items-center gap-1.5'>
+                  View all predictions
+                  <ArrowUpRight className='h-3.5 w-3.5' />
+                </span>
+              </Link>
             </Button>
           </div>
         </CardContent>

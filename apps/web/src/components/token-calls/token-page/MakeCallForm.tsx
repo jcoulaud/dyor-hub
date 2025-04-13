@@ -218,6 +218,12 @@ export function MakeCallForm({
     return predictedMarketCap !== null && predictedMarketCap > tokenMarketCap;
   }, [displayMode, tokenMarketCap, predictionType, inputValue, predictedMarketCap]);
 
+  // Check if target price exceeds the maximum allowed (x10000)
+  const isTargetPriceValid = useMemo(() => {
+    if (!calculatedTargetPrice || currentTokenPrice <= 0) return true;
+    return calculatedTargetPrice <= currentTokenPrice * 10000;
+  }, [calculatedTargetPrice, currentTokenPrice]);
+
   const handleSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -235,6 +241,12 @@ export function MakeCallForm({
 
       if (calculatedTargetPrice <= currentTokenPrice) {
         setFormError('Target price must be higher than the current price.');
+        return;
+      }
+
+      // Check if target price exceeds the maximum allowed (x10000)
+      if (!isTargetPriceValid) {
+        setFormError('Target price cannot exceed 10,000x the current price.');
         return;
       }
 
@@ -321,6 +333,7 @@ export function MakeCallForm({
       tokenMarketCap,
       predictedMarketCap,
       isTargetMarketCapValid,
+      isTargetPriceValid,
     ],
   );
 
@@ -402,7 +415,8 @@ export function MakeCallForm({
               <div className='text-xs text-zinc-400'>
                 Predicted {displayMode === 'price' ? 'Target' : 'Market Cap'}
               </div>
-              <div className='text-lg font-semibold text-green-400'>
+              <div
+                className={`text-lg font-semibold ${isTargetPriceValid ? 'text-green-400' : 'text-red-400'}`}>
                 $
                 {displayMode === 'price'
                   ? formatPrice(calculatedTargetPrice)
@@ -424,6 +438,19 @@ export function MakeCallForm({
             </div>
           )}
         </div>
+      )}
+
+      {/* Show warning if target exceeds 10000x */}
+      {calculatedTargetPrice !== null && !isTargetPriceValid && (
+        <motion.div
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className='rounded-lg bg-red-900/20 border border-red-900 p-3 shadow-sm'>
+          <p className='text-sm font-medium text-red-400 flex items-center'>
+            <span className='mr-2'>⚠️</span>
+            Target price cannot exceed 10,000x the current price.
+          </p>
+        </motion.div>
       )}
 
       {/* Prediction Type Cards */}
@@ -645,7 +672,8 @@ export function MakeCallForm({
           isLoading ||
           !calculatedTargetPrice ||
           isPriceInvalid ||
-          !isTargetMarketCapValid
+          !isTargetMarketCapValid ||
+          !isTargetPriceValid
         }
         className='w-full rounded-md h-10 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2'>
         {isLoading ? (
