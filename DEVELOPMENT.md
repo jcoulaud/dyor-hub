@@ -116,6 +116,37 @@ Once these certificates are in place, the development environment will automatic
 
 These are the secure HTTPS ports that use the certificates you've generated. The non-HTTPS ports (3100 and 3101) remain available but shouldn't be used for development.
 
+## Manual Setup (Without Docker)
+
+If you prefer not to use Docker for development:
+
+1. Install dependencies:
+
+   - Node.js 20+
+   - pnpm
+   - PostgreSQL 16
+   - Redis 7
+
+2. Set up the environment:
+
+```bash
+# Install dependencies and setup environment
+pnpm install
+pnpm setup
+```
+
+3. Start the services in separate terminals:
+
+```bash
+# Terminal 1: Start the API
+cd apps/api
+pnpm run start:dev
+
+# Terminal 2: Start the web app
+cd apps/web
+pnpm run dev
+```
+
 ## Development Scripts
 
 The development scripts are located in the `scripts/dev` directory:
