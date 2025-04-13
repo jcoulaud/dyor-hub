@@ -241,17 +241,17 @@ const LeaderboardPage = () => {
   };
 
   const formatAccuracyRate = (rate: number | undefined | null) => {
-    if (rate === undefined || rate === null) return 'N/A';
+    if (rate === undefined || rate === null) return '-';
     return `${(rate * 100).toFixed(1)}%`;
   };
 
   const formatAvgTimeToHit = (ratio: number | undefined | null) => {
-    if (ratio === undefined || ratio === null) return 'N/A';
+    if (ratio === undefined || ratio === null) return '-';
     return `${(ratio * 100).toFixed(1)}%`;
   };
 
   const formatAvgMultiplier = (multiplier: number | undefined | null) => {
-    if (multiplier === undefined || multiplier === null) return 'N/A';
+    if (multiplier === undefined || multiplier === null) return '-';
     return `${multiplier.toFixed(2)}x`;
   };
 

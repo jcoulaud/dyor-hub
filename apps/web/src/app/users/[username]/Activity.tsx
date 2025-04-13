@@ -316,7 +316,7 @@ export function Activity({
             {typeFilter !== 'all' && (
               <button
                 onClick={() => handleTypeFilterChange('all')}
-                className='px-4 py-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/30 rounded text-zinc-300 text-sm transition-colors'>
+                className='px-4 py-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/30 rounded text-zinc-300 text-sm transition-colors cursor-pointer'>
                 View All Activities
               </button>
             )}

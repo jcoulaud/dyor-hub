@@ -1402,6 +1402,7 @@ export const tokenCalls = {
     accuracyRate: number;
     averageGainPercent?: number | null;
     averageTimeToHitRatio?: number | null;
+    averageMultiplier?: number | null;
   }> => {
     try {
       const endpoint = userId ? `users/${userId}/token-call-stats` : 'users/me/token-call-stats';
@@ -1412,6 +1413,7 @@ export const tokenCalls = {
         accuracyRate: number;
         averageGainPercent?: number | null;
         averageTimeToHitRatio?: number | null;
+        averageMultiplier?: number | null;
       }>(endpoint);
       return response;
     } catch (error) {

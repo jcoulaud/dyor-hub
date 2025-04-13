@@ -105,7 +105,7 @@ export function ProfileStats({ userId }: ProfileStatsProps) {
     <div className='mt-4 md:mt-3.5 flex flex-col md:flex-row items-start gap-2 w-full'>
       {/* Streak Badges */}
       {hasStreak && (
-        <div className='flex flex-col justify-start gap-2 w-full md:w-auto'>
+        <div className='flex flex-col justify-center items-center md:items-start md:justify-start gap-2 w-full md:w-auto'>
           {/* Current Streak Badge */}
           {streak?.currentStreak > 0 && (
             <div
@@ -142,7 +142,7 @@ export function ProfileStats({ userId }: ProfileStatsProps) {
 
       {/* Achievement Badges */}
       {hasBadges && (
-        <div className='flex flex-wrap justify-start gap-2 mt-1 md:mt-0 w-full md:w-auto'>
+        <div className='flex flex-wrap justify-center md:justify-start gap-2 mt-1 md:mt-0 w-full md:w-auto'>
           {topBadges.map((badge) => (
             <div
               key={badge.id}

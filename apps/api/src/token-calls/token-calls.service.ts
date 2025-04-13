@@ -416,6 +416,7 @@ export class TokenCallsService {
           'referencePrice',
           'targetPrice',
           'timeToHitRatio',
+          'peakPriceDuringPeriod',
           'id',
         ],
       });
@@ -429,6 +430,7 @@ export class TokenCallsService {
           accuracyRate: 0,
           averageGainPercent: null,
           averageTimeToHitRatio: null,
+          averageMultiplier: null,
         };
       }
 
@@ -441,25 +443,35 @@ export class TokenCallsService {
 
       let totalGainPercent = 0;
       let totalTimeToHitRatio = 0;
+      let totalMultiplier = 0;
       let successfulCallsWithValidData = 0;
 
       for (const call of successfulCalls) {
         // Calculate gain percent for successful calls
         const refPrice = call.referencePrice;
         const targetPrice = call.targetPrice;
+        const peakPrice = call.peakPriceDuringPeriod;
         let gainPercent = 0;
+        let multiplier = 0;
+
         if (refPrice > 0) {
           gainPercent = ((targetPrice - refPrice) / refPrice) * 100;
+          multiplier = peakPrice / refPrice;
         }
 
         // Accumulate only if data is valid
-        if (call.timeToHitRatio !== null && isFinite(gainPercent)) {
+        if (
+          call.timeToHitRatio !== null &&
+          isFinite(gainPercent) &&
+          isFinite(multiplier)
+        ) {
           totalGainPercent += gainPercent;
           totalTimeToHitRatio += call.timeToHitRatio;
+          totalMultiplier += multiplier;
           successfulCallsWithValidData++;
         } else {
           this.logger.warn(
-            `Call ${call.id} excluded from average calculation due to null/invalid data (ratio: ${call.timeToHitRatio}, gain: ${gainPercent})`,
+            `Call ${call.id} excluded from average calculation due to null/invalid data (ratio: ${call.timeToHitRatio}, gain: ${gainPercent}, multiplier: ${multiplier})`,
           );
         }
       }
@@ -472,6 +484,10 @@ export class TokenCallsService {
         successfulCallsWithValidData > 0
           ? totalTimeToHitRatio / successfulCallsWithValidData
           : null;
+      const averageMultiplier =
+        successfulCallsWithValidData > 0
+          ? totalMultiplier / successfulCallsWithValidData
+          : null;
 
       return {
         totalCalls,
@@ -480,6 +496,7 @@ export class TokenCallsService {
         accuracyRate,
         averageGainPercent,
         averageTimeToHitRatio,
+        averageMultiplier,
       };
     } catch (error) {
       this.logger.error(

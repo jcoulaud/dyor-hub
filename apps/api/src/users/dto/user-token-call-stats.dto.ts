@@ -18,4 +18,7 @@ export class UserTokenCallStatsDto {
 
   @Expose()
   averageTimeToHitRatio?: number | null;
+
+  @Expose()
+  averageMultiplier?: number | null;
 }
