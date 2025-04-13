@@ -720,6 +720,102 @@ export default function Page({ params, commentId }: PageProps) {
               </Card>
             </div>
 
+            {/* Token Sentiment Card for mobile only */}
+            <div className='xl:hidden relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-2 relative'>
+                  <div className='flex items-center mb-4'>
+                    {tokenData ? (
+                      <>
+                        <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
+                          <BarChart3 className='h-5 w-5 text-blue-400' />
+                        </div>
+                        <CardTitle className='text-xl font-semibold text-white'>
+                          Token Sentiment
+                        </CardTitle>
+                      </>
+                    ) : (
+                      <>
+                        <Skeleton className='h-10 w-10 rounded-xl mr-4' />
+                        <Skeleton className='h-6 w-48' />
+                      </>
+                    )}
+                  </div>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
+                </CardHeader>
+                <CardContent className='pt-2 pb-6'>
+                  {tokenData ? (
+                    <div className='grid grid-cols-3 gap-2'>
+                      {/* Bullish Card */}
+                      <div
+                        className={`flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border ${
+                          sentimentData?.userSentiment === SentimentType.BULLISH
+                            ? 'border-green-500/50 bg-green-900/20'
+                            : 'border-transparent hover:border-green-500/20 hover:bg-green-900/10'
+                        } transition-all duration-200 cursor-pointer ${
+                          isVoting ? 'opacity-50 pointer-events-none' : ''
+                        } transform hover:scale-105 active:scale-95`}
+                        onClick={() => handleSentimentVote(SentimentType.BULLISH)}>
+                        <div className='text-2xl mb-2'>🚀</div>
+                        <div className='font-bold text-xl text-white'>
+                          {sentimentData?.bullishCount || 0}
+                        </div>
+                      </div>
+
+                      {/* Bearish Card */}
+                      <div
+                        className={`flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border ${
+                          sentimentData?.userSentiment === SentimentType.BEARISH
+                            ? 'border-red-500/50 bg-red-900/20'
+                            : 'border-transparent hover:border-red-500/20 hover:bg-red-900/10'
+                        } transition-all duration-200 cursor-pointer ${
+                          isVoting ? 'opacity-50 pointer-events-none' : ''
+                        } transform hover:scale-105 active:scale-95`}
+                        onClick={() => handleSentimentVote(SentimentType.BEARISH)}>
+                        <div className='text-2xl mb-2'>💩</div>
+                        <div className='font-bold text-xl text-white'>
+                          {sentimentData?.bearishCount || 0}
+                        </div>
+                      </div>
+
+                      {/* Red Flag Card */}
+                      <div
+                        className={`flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border ${
+                          sentimentData?.userSentiment === SentimentType.RED_FLAG
+                            ? 'border-orange-500/50 bg-orange-900/20'
+                            : 'border-transparent hover:border-yellow-500/20 hover:bg-yellow-900/10'
+                        } transition-all duration-200 cursor-pointer ${
+                          isVoting ? 'opacity-50 pointer-events-none' : ''
+                        } transform hover:scale-105 active:scale-95`}
+                        onClick={() => handleSentimentVote(SentimentType.RED_FLAG)}>
+                        <div className='text-2xl mb-2'>🚩</div>
+                        <div className='font-bold text-xl text-white'>
+                          {sentimentData?.redFlagCount || 0}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className='grid grid-cols-3 gap-2'>
+                      <div className='flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border border-transparent'>
+                        <Skeleton className='h-8 w-8 rounded-full mb-2' />
+                        <Skeleton className='h-6 w-12 rounded-md' />
+                      </div>
+                      <div className='flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border border-transparent'>
+                        <Skeleton className='h-8 w-8 rounded-full mb-2' />
+                        <Skeleton className='h-6 w-12 rounded-md' />
+                      </div>
+                      <div className='flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border border-transparent'>
+                        <Skeleton className='h-8 w-8 rounded-full mb-2' />
+                        <Skeleton className='h-6 w-12 rounded-md' />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
             <div className='relative group'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
               <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
