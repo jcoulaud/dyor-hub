@@ -44,6 +44,7 @@ interface CurrentUserPosition {
   points?: number;
   accuracyRate?: number;
   totalCalls?: number;
+  successfulCalls?: number;
   averageTimeToHitRatio?: number | null;
   averageMultiplier?: number | null;
   foundInCurrentPage: boolean;
@@ -157,6 +158,7 @@ const LeaderboardPage = () => {
               rank: userEntry.rank ?? 0,
               accuracyRate: userEntry.accuracyRate,
               totalCalls: userEntry.totalCalls,
+              successfulCalls: userEntry.successfulCalls,
               averageTimeToHitRatio: userEntry.averageTimeToHitRatio,
               averageMultiplier: userEntry.averageMultiplier,
               foundInCurrentPage: true,
@@ -359,8 +361,18 @@ const LeaderboardPage = () => {
                             {formatAccuracyRate(entries[1].accuracyRate)}
                           </span>
                           <span className='text-[10px] text-gray-500'>
-                            {entries[1].successfulCalls?.toLocaleString() ?? '-'}/
-                            {entries[1].totalCalls?.toLocaleString() ?? '-'} calls
+                            <Link
+                              href={`/token-calls?tab=success&username=${entries[1].username}&status=VERIFIED_SUCCESS`}
+                              className='hover:underline text-gray-500'>
+                              {entries[1].successfulCalls?.toLocaleString() ?? '-'}
+                            </Link>
+                            /
+                            <Link
+                              href={`/token-calls?username=${entries[1].username}`}
+                              className='hover:underline'>
+                              {entries[1].totalCalls?.toLocaleString() ?? '-'}
+                            </Link>{' '}
+                            calls
                           </span>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -427,8 +439,18 @@ const LeaderboardPage = () => {
                             {formatAccuracyRate(entries[0].accuracyRate)}
                           </span>
                           <span className='text-[10px] text-amber-600'>
-                            {entries[0].successfulCalls?.toLocaleString() ?? '-'}/
-                            {entries[0].totalCalls?.toLocaleString() ?? '-'} calls
+                            <Link
+                              href={`/token-calls?tab=success&username=${entries[0].username}&status=VERIFIED_SUCCESS`}
+                              className='hover:underline text-amber-500'>
+                              {entries[0].successfulCalls?.toLocaleString() ?? '-'}
+                            </Link>
+                            /
+                            <Link
+                              href={`/token-calls?username=${entries[0].username}`}
+                              className='hover:underline'>
+                              {entries[0].totalCalls?.toLocaleString() ?? '-'}
+                            </Link>{' '}
+                            calls
                           </span>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -495,8 +517,18 @@ const LeaderboardPage = () => {
                             {formatAccuracyRate(entries[2].accuracyRate)}
                           </span>
                           <span className='text-[10px] text-amber-800'>
-                            {entries[2].successfulCalls?.toLocaleString() ?? '-'}/
-                            {entries[2].totalCalls?.toLocaleString() ?? '-'} calls
+                            <Link
+                              href={`/token-calls?tab=success&username=${entries[2].username}&status=VERIFIED_SUCCESS`}
+                              className='hover:underline text-amber-700'>
+                              {entries[2].successfulCalls?.toLocaleString() ?? '-'}
+                            </Link>
+                            /
+                            <Link
+                              href={`/token-calls?username=${entries[2].username}`}
+                              className='hover:underline'>
+                              {entries[2].totalCalls?.toLocaleString() ?? '-'}
+                            </Link>{' '}
+                            calls
                           </span>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -633,13 +665,28 @@ const LeaderboardPage = () => {
                         </div>
                         <div className='w-28 sm:w-32 text-right'>
                           <div className='font-mono font-semibold text-amber-500 text-xs sm:text-sm'>
-                            {currentUserPosition.totalCalls?.toLocaleString() ?? '-'} calls
+                            <Link
+                              href={`/token-calls?username=${user.username}`}
+                              className='hover:underline'>
+                              {currentUserPosition.totalCalls?.toLocaleString() ?? '-'}
+                            </Link>
+                            <span className='text-zinc-500 mx-0.5'>
+                              (
+                              <span className='text-amber-500/90'>
+                                <Link
+                                  href={`/token-calls?tab=success&username=${user.username}&status=VERIFIED_SUCCESS`}
+                                  className='hover:underline'>
+                                  {currentUserPosition.successfulCalls?.toLocaleString() ?? '-'}
+                                </Link>
+                              </span>
+                              )
+                            </span>
                           </div>
                         </div>
                       </>
                     ) : (
                       <div className='w-12 sm:w-20 text-right'>
-                        <div className='font-mono font-semibold text-amber-500 text-xs sm:text-sm'>
+                        <div className='font-mono font-semibold text-xs sm:text-sm text-amber-500'>
                           {currentUserPosition.points !== undefined &&
                           currentUserPosition.points > 0
                             ? `${currentUserPosition.points.toLocaleString()}`
@@ -769,14 +816,22 @@ const LeaderboardPage = () => {
                               'font-mono font-semibold text-xs sm:text-sm',
                               isCurrentUser ? 'text-amber-500' : 'text-zinc-300',
                             )}>
-                            {entry.totalCalls?.toLocaleString() ?? '-'}
+                            <Link
+                              href={`/token-calls?username=${entry.username}`}
+                              className='hover:underline'>
+                              {entry.totalCalls?.toLocaleString() ?? '-'}
+                            </Link>
                             <span className='text-zinc-500 mx-0.5'>
                               (
                               <span
                                 className={cn(
                                   isCurrentUser ? 'text-amber-500/90' : 'text-green-500',
                                 )}>
-                                {entry.successfulCalls?.toLocaleString() ?? '-'}
+                                <Link
+                                  href={`/token-calls?tab=success&username=${entry.username}&status=VERIFIED_SUCCESS`}
+                                  className='hover:underline'>
+                                  {entry.successfulCalls?.toLocaleString() ?? '-'}
+                                </Link>
                               </span>
                               )
                             </span>

@@ -26,6 +26,7 @@ import {
   ArrowUpDown,
   CheckCircle,
   Clock,
+  Eye,
   Filter,
   HelpCircle,
   Loader2,
@@ -345,7 +346,11 @@ export default function TokenCallsExplorerPage() {
 
       // If target date is in the past, display the actual date
       if (date < now) {
-        return formatDistanceStrict(date, now, { addSuffix: true });
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
       }
 
       // Otherwise show relative time
@@ -697,6 +702,13 @@ export default function TokenCallsExplorerPage() {
                               <span className='sm:hidden text-xs'>
                                 {formatTargetDate(call.targetDate)}
                               </span>
+                            </TableCell>
+                            <TableCell className='px-2 py-2 sm:py-3 whitespace-nowrap text-center'>
+                              <Link
+                                href={`/token-calls/${call.id}`}
+                                className='text-zinc-400 hover:text-white flex items-center justify-center'>
+                                <Eye className='h-4 w-4' />
+                              </Link>
                             </TableCell>
                           </TableRow>
                         );

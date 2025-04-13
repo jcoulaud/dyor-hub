@@ -141,14 +141,14 @@ export default async function UserProfilePage({ params }: UserPageProps) {
                       <div>
                         <div className='flex items-center gap-1 mb-1 md:hidden justify-center w-full'>
                           <ShareButton />
-                          <TwitterShareButton displayName={user.displayName} />
+                          <TwitterShareButton displayName={user.displayName} userId={user.id} />
                         </div>
                         <div className='flex flex-col items-center md:items-start'>
                           <h1 className='text-2xl font-bold text-white flex items-center gap-2'>
                             {user.displayName}
                             <div className='hidden md:flex items-center gap-1'>
                               <ShareButton />
-                              <TwitterShareButton displayName={user.displayName} />
+                              <TwitterShareButton displayName={user.displayName} userId={user.id} />
                             </div>
                           </h1>
                           <p className='text-zinc-400 text-sm'>@{user.username}</p>

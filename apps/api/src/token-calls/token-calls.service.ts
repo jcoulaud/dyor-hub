@@ -234,6 +234,10 @@ export class TokenCallsService {
         whereConditions.push('call.status IN (:...statuses)');
         parameters.statuses = validStatuses;
       }
+    } else {
+      // Exclude tokens with ERROR status if no status filter is explicitly provided
+      whereConditions.push('call.status != :excludedStatus');
+      parameters.excludedStatus = TokenCallStatus.ERROR;
     }
     if (filters.callStartDate && filters.callEndDate) {
       try {

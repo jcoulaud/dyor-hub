@@ -1450,9 +1450,19 @@ export const tokenCalls = {
     return api<PaginatedTokenCallsResult>(endpoint);
   },
 
-  getById: async (callId: string) => {
-    const endpoint = `token-calls/${callId}`;
-    return api<TokenCall>(endpoint);
+  getById: async (callId: string): Promise<TokenCall> => {
+    try {
+      const endpoint = `token-calls/${callId}`;
+      const response = await api<TokenCall>(endpoint);
+
+      if (!response) {
+        throw new Error(`Failed to fetch token call data for ID: ${callId}`);
+      }
+
+      return response;
+    } catch (error) {
+      throw error;
+    }
   },
 };
 

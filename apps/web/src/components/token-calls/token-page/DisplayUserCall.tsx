@@ -1,11 +1,12 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn, formatPrice } from '@/lib/utils';
 import { TokenCall, TokenCallStatus } from '@dyor-hub/types';
 import { format, formatDistanceStrict } from 'date-fns';
-import { ArrowUp, Calendar, Clock, DollarSign, Target, TrendingUp } from 'lucide-react';
+import { ArrowUp, Calendar, Clock, DollarSign, Target, TrendingUp, Twitter } from 'lucide-react';
 
 interface DisplayUserCallProps {
   call: TokenCall;
@@ -86,7 +87,33 @@ export function DisplayUserCall({ call, currentTokenPrice = 0 }: DisplayUserCall
         </CardHeader>
         <CardContent className='pt-0 pb-4 px-3'>
           <div className='space-y-4'>
-            <div className='bg-zinc-800/50 rounded-lg p-3 mt-3 text-center'>
+            <div className='bg-zinc-800/50 rounded-lg p-3 mt-3 text-center relative'>
+              {call.status === TokenCallStatus.PENDING && (
+                <div className='absolute top-3 right-3'>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='h-6 gap-1 px-2 cursor-pointer bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 rounded-md'
+                    onClick={(e) => {
+                      e.preventDefault();
+                      // Construct URL using dynamic parts as needed
+                      const shareUrl = `${window.location.origin}/token-calls/${call.id}`;
+                      const tokenSymbol = call.token?.symbol ? `$${call.token.symbol}` : 'token';
+                      const predictedPrice = formatPrice(call.targetPrice);
+                      const percentChange =
+                        ((call.targetPrice - call.referencePrice) / call.referencePrice) * 100;
+                      const multiplierText = `(${isPriceUp ? '▲' : '▼'}${Math.abs(percentChange / 100).toFixed(2)}x)`;
+
+                      const text = `I'm predicting a price of $${predictedPrice} ${multiplierText} for ${tokenSymbol} on #DYORhub! What do you think? 🔥 ${shareUrl}`;
+
+                      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+                      window.open(twitterUrl, '_blank', 'noopener,noreferrer,width=800,height=600');
+                    }}>
+                    <Twitter className='h-3 w-3 text-amber-300' />
+                    <span className='text-xs font-medium text-amber-300'>Share</span>
+                  </Button>
+                </div>
+              )}
               <div className='flex items-center justify-center gap-2 mb-1'>
                 <ArrowUp
                   className={`h-4 w-4 ${isPriceUp ? 'text-green-400 rotate-0' : 'text-red-400 rotate-180'}`}

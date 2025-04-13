@@ -2,7 +2,7 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { TokenCall, TokenCallStatus } from '@dyor-hub/types';
-import { Activity, CheckCircle2, Clock, TrendingUp, XCircle } from 'lucide-react';
+import { Activity, CheckCircle2, Clock, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
 
 interface TokenCallsStatsProps {
@@ -95,26 +95,16 @@ export function TokenCallsStats({ tokenCalls, isLoading }: TokenCallsStatsProps)
         </div>
 
         <div className='flex items-center'>
-          <div className='w-8 h-8 rounded bg-red-500/10 flex items-center justify-center mr-3'>
-            <XCircle className='h-4 w-4 text-red-400' />
+          <div className='w-8 h-8 rounded bg-purple-500/10 flex items-center justify-center mr-3'>
+            <TrendingUp className='h-4 w-4 text-purple-400' />
           </div>
           <div>
-            <p className='text-zinc-500 text-xs'>Failed</p>
-            <p className='text-base font-semibold'>{stats.failed}</p>
+            <p className='text-zinc-500 text-xs'>Success Rate</p>
+            <p className='text-base font-semibold'>
+              {stats.successRate !== null ? `${stats.successRate}%` : 'N/A'}
+            </p>
           </div>
         </div>
-
-        {stats.successRate !== null && (
-          <div className='flex items-center col-span-2'>
-            <div className='w-8 h-8 rounded bg-purple-500/10 flex items-center justify-center mr-3'>
-              <TrendingUp className='h-4 w-4 text-purple-400' />
-            </div>
-            <div>
-              <p className='text-zinc-500 text-xs'>Success Rate</p>
-              <p className='text-base font-semibold'>{stats.successRate}%</p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
