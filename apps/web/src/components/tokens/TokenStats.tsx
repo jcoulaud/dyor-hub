@@ -12,6 +12,7 @@ interface TokenStatsProps {
   stats: TokenStatsType;
   tokenMintAddress: string;
   twitterHistory?: TwitterUsernameHistoryEntity | null;
+  tokenSymbol?: string;
 }
 
 // Helper function to safely format a price with 6 decimal places
@@ -62,7 +63,12 @@ const formatDateSafe = (
   }
 };
 
-export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenStatsProps) => {
+export const TokenStats = ({
+  stats,
+  twitterHistory,
+  tokenMintAddress,
+  tokenSymbol,
+}: TokenStatsProps) => {
   if (!stats) {
     return (
       <div className='space-y-6'>
@@ -125,7 +131,11 @@ export const TokenStats = ({ stats, twitterHistory, tokenMintAddress }: TokenSta
       )}
 
       {/* Price Chart */}
-      <TokenPriceChart tokenAddress={tokenMintAddress} totalSupply={stats.totalSupply} />
+      <TokenPriceChart
+        tokenAddress={tokenMintAddress}
+        totalSupply={stats.totalSupply}
+        tokenSymbol={tokenSymbol}
+      />
 
       {/* Supply Information */}
       <div className='space-y-3'>
