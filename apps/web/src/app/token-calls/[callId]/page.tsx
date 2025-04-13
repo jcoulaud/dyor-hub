@@ -178,17 +178,17 @@ export default function TokenCallDetailPage() {
                 <Button
                   variant='ghost'
                   size='sm'
-                  className='h-8 gap-1.5 px-3 cursor-pointer bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 rounded-md'
+                  className='h-8 gap-1.5 px-3 cursor-pointer bg-zinc-800/70 hover:bg-zinc-800 border border-zinc-700/40 rounded-md'
                   onClick={handleCopy}>
-                  <Copy className='h-4 w-4 text-amber-300' />
+                  <Copy className='h-4 w-4 text-zinc-400' />
                 </Button>
                 <Button
                   variant='ghost'
                   size='sm'
-                  className='h-8 gap-1.5 px-3 cursor-pointer bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 rounded-md'
+                  className='h-8 gap-1.5 px-3 cursor-pointer bg-zinc-800/70 hover:bg-zinc-800 border border-zinc-700/40 rounded-md'
                   onClick={handleShare}>
-                  <Twitter className='h-4 w-4 text-amber-300' />
-                  <span className='text-xs font-medium text-amber-300'>Share</span>
+                  <Twitter className='h-4 w-4 text-zinc-400' />
+                  <span className='text-xs font-medium text-zinc-400'>Share</span>
                 </Button>
               </div>
             </CardHeader>
@@ -199,7 +199,7 @@ export default function TokenCallDetailPage() {
               <Button
                 variant='secondary'
                 size='sm'
-                className='h-8 px-3 bg-zinc-800/70 hover:bg-zinc-800 text-zinc-100 text-xs font-medium border border-zinc-700/40 shadow-sm'
+                className='h-8 px-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs font-medium border border-blue-500/40 shadow-sm'
                 asChild>
                 <Link href={`/token-calls?username=${user?.username || ''}`}>
                   <span className='flex items-center gap-1.5'>
@@ -324,28 +324,30 @@ function UserProfile({ user }: { user?: TokenCall['user'] }) {
   if (!user) return <div className='h-12'>Unknown User</div>;
 
   return (
-    <Link
-      href={`/users/${user.username || user.id}`}
-      className='flex items-center group hover:opacity-90 transition-opacity'>
-      <div className='relative'>
-        <Avatar className='h-12 w-12 mr-4 border border-zinc-700/70 ring-1 ring-amber-500/10 shadow-lg'>
-          <AvatarImage src={user.avatarUrl || ''} alt={user.displayName || 'User'} />
-          <AvatarFallback className='bg-gradient-to-br from-amber-600/30 to-amber-700/30 text-amber-400'>
-            {user.displayName?.[0]?.toUpperCase() || 'U'}
-          </AvatarFallback>
-        </Avatar>
-      </div>
-      <div>
-        <span className='font-medium text-lg text-zinc-100 hover:text-amber-400 transition-colors'>
-          {user.displayName || 'Anonymous User'}
-        </span>
-        {user.username && (
-          <p className='text-zinc-500 text-sm flex items-center'>
-            <span className='text-zinc-400'>@{user.username}</span>
-          </p>
-        )}
-      </div>
-    </Link>
+    <div className='flex items-center'>
+      <Link
+        href={`/users/${user.username || user.id}`}
+        className='flex items-center group hover:opacity-90 transition-opacity'>
+        <div className='relative'>
+          <Avatar className='h-12 w-12 mr-4 border border-zinc-700/70 ring-1 ring-amber-500/10 shadow-lg'>
+            <AvatarImage src={user.avatarUrl || ''} alt={user.displayName || 'User'} />
+            <AvatarFallback className='bg-gradient-to-br from-amber-600/30 to-amber-700/30 text-amber-400'>
+              {user.displayName?.[0]?.toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+        <div>
+          <span className='font-medium text-lg text-zinc-100 hover:text-amber-400 transition-colors'>
+            {user.displayName || 'Anonymous User'}
+          </span>
+          {user.username && (
+            <p className='text-zinc-500 text-sm flex items-center'>
+              <span className='text-zinc-400'>@{user.username}</span>
+            </p>
+          )}
+        </div>
+      </Link>
+    </div>
   );
 }
 

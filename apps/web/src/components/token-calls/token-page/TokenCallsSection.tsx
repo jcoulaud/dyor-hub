@@ -127,11 +127,13 @@ export function TokenCallsSection({
             <div className='flex items-center justify-between flex-grow'>
               <CardTitle className='text-xl font-semibold text-white'>Token Calls</CardTitle>
               {tokenCallsData.length > 0 && (
-                <Link
-                  href={`/token-calls?tokenSearch=${tokenSymbol}`}
-                  className='text-xs text-amber-400/70 hover:text-amber-400 px-2 py-1 rounded-md border border-amber-500/30 hover:border-amber-500/60 transition-colors duration-200'>
-                  View all
-                </Link>
+                <div>
+                  <Link
+                    href={`/token-calls?tokenSearch=${tokenSymbol}`}
+                    className='text-xs text-amber-400/70 hover:text-amber-400 px-2 py-1 rounded-md border border-amber-500/30 hover:border-amber-500/60 transition-colors duration-200'>
+                    View all
+                  </Link>
+                </div>
               )}
             </div>
           </div>
