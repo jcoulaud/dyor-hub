@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { add, Duration } from 'date-fns';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { TokenCallEntity } from '../entities/token-call.entity';
 import { TokensService } from '../tokens/tokens.service';
 import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
@@ -406,7 +406,15 @@ export class TokenCallsService {
     this.logger.log(`Calculating token call stats for user ${userId}`);
 
     try {
-      // Fetch all VERIFIED calls for the user
+      // First, get the total count of ALL calls (including pending ones)
+      const allCalls = await this.tokenCallRepository.count({
+        where: {
+          userId: userId,
+          status: Not(TokenCallStatus.ERROR), // Exclude ERROR status
+        },
+      });
+
+      // Fetch all VERIFIED calls for the user (for calculating success metrics)
       const verifiedCalls = await this.tokenCallRepository.find({
         where: {
           userId: userId,
@@ -425,25 +433,15 @@ export class TokenCallsService {
         ],
       });
 
-      const totalCalls = verifiedCalls.length;
-      if (totalCalls === 0) {
-        return {
-          totalCalls: 0,
-          successfulCalls: 0,
-          failedCalls: 0,
-          accuracyRate: 0,
-          averageGainPercent: null,
-          averageTimeToHitRatio: null,
-          averageMultiplier: null,
-        };
-      }
-
       const successfulCalls = verifiedCalls.filter(
         (call) => call.status === TokenCallStatus.VERIFIED_SUCCESS,
       );
-      const failedCalls = totalCalls - successfulCalls.length;
+      const verifiedCallsCount = verifiedCalls.length;
+      const failedCalls = verifiedCallsCount - successfulCalls.length;
       const accuracyRate =
-        totalCalls > 0 ? successfulCalls.length / totalCalls : 0;
+        verifiedCallsCount > 0
+          ? successfulCalls.length / verifiedCallsCount
+          : 0;
 
       let totalGainPercent = 0;
       let totalTimeToHitRatio = 0;
@@ -494,7 +492,7 @@ export class TokenCallsService {
           : null;
 
       return {
-        totalCalls,
+        totalCalls: allCalls,
         successfulCalls: successfulCalls.length,
         failedCalls,
         accuracyRate,

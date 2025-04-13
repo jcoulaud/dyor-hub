@@ -45,19 +45,24 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
     fetchTokenCallStats();
   }, [userId]);
 
-  const formatAccuracyRate = (rate: number | undefined) => {
-    if (rate === undefined || rate === null) return '-';
-    return `${(rate * 100).toFixed(1)}%`;
+  const formatAccuracyRate = (rate: number | undefined, verifiedCalls: number) => {
+    if (rate === undefined || rate === null || verifiedCalls === 0) return '-';
+
+    const percentage = rate * 100;
+    return percentage % 1 === 0 ? `${Math.round(percentage)}%` : `${percentage.toFixed(1)}%`;
   };
 
   const formatAvgTimeToHit = (ratio: number | undefined | null) => {
     if (ratio === undefined || ratio === null) return '-';
-    return `${(ratio * 100).toFixed(1)}%`;
+
+    const percentage = ratio * 100;
+    return percentage % 1 === 0 ? `${Math.round(percentage)}%` : `${percentage.toFixed(1)}%`;
   };
 
   const formatAvgMultiplier = (multiplier: number | undefined | null) => {
     if (multiplier === undefined || multiplier === null) return '-';
-    return `${multiplier.toFixed(2)}x`;
+
+    return multiplier % 1 === 0 ? `${Math.round(multiplier)}x` : `${multiplier.toFixed(2)}x`;
   };
 
   if (isLoading) {
@@ -100,7 +105,7 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
             <Button
               variant='outline'
               size='sm'
-              className='text-xs border-zinc-700/50 bg-zinc-800/50 hover:bg-zinc-700/50 cursor-pointer'>
+              className='text-xs border-indigo-500/40 bg-indigo-900/30 hover:bg-indigo-800/40 text-indigo-300 hover:text-indigo-200 hover:border-indigo-500/60 transition-colors cursor-pointer'>
               View All Calls
             </Button>
           </Link>
@@ -121,7 +126,7 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
                       <HelpCircle className='h-3 w-3 opacity-60' />
                     </TooltipTrigger>
                     <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
-                      <p>Total token calls made</p>
+                      <p>Total token calls made (Successful/Total)</p>
                     </TooltipContent>
                   </Tooltip>
                 </p>
@@ -147,12 +152,15 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
                       <HelpCircle className='h-3 w-3 opacity-60' />
                     </TooltipTrigger>
                     <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
-                      <p>Percentage of successful token calls</p>
+                      <p>Percentage of successful token calls out of verified calls</p>
                     </TooltipContent>
                   </Tooltip>
                 </p>
                 <p className='text-base font-semibold text-white'>
-                  {formatAccuracyRate(stats.accuracyRate)}
+                  {formatAccuracyRate(
+                    stats.accuracyRate,
+                    stats.successfulCalls + stats.failedCalls,
+                  )}
                 </p>
               </div>
             </div>
