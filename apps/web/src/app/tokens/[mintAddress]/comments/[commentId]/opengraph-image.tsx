@@ -246,9 +246,7 @@ export default async function Image({
               display: 'flex',
               whiteSpace: 'pre-line',
             }}>
-            <span>
-              &ldquo;{commentContent}&rdquo;{commentContent.length > 220 ? '...' : ''}
-            </span>
+            <span>&ldquo;{commentContent}&rdquo;</span>
           </div>
         </div>
 

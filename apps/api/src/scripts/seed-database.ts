@@ -3,6 +3,7 @@ import {
   LeaderboardCategory,
   LeaderboardTimeframe,
   NotificationType,
+  TokenCallStatus,
 } from '@dyor-hub/types';
 import { faker } from '@faker-js/faker';
 import { DataSource } from 'typeorm';
@@ -16,6 +17,7 @@ import {
   LeaderboardEntity,
   NotificationEntity,
   NotificationPreferenceEntity,
+  TokenCallEntity,
   TokenEntity,
   TokenWatchlistEntity,
   UserActivityEntity,
@@ -34,6 +36,7 @@ const NUM_VOTES = 1000;
 const NUM_WALLETS = 150;
 const NUM_ACTIVITIES = 800;
 const NUM_NOTIFICATIONS = 300;
+const NUM_TOKEN_CALLS = 300;
 
 // Solana token addresses to use in seeding
 const TOKEN_ADDRESSES = [
@@ -127,6 +130,7 @@ async function seedDatabase() {
       NotificationPreferenceEntity,
     );
     const leaderboardRepository = dataSource.getRepository(LeaderboardEntity);
+    const tokenCallRepository = dataSource.getRepository(TokenCallEntity);
 
     // Seed Users
     console.log('Seeding users...');
@@ -261,6 +265,18 @@ async function seedDatabase() {
         thresholdValue: 365,
       },
     ];
+
+    // Add streak badges to the badges array
+    for (const badgeData of streakBadges) {
+      const badge = new BadgeEntity();
+      badge.name = badgeData.name;
+      badge.description = badgeData.description;
+      badge.category = badgeData.category;
+      badge.requirement = badgeData.requirement;
+      badge.thresholdValue = badgeData.thresholdValue;
+      badge.isActive = true;
+      badges.push(badge);
+    }
 
     // Content Creator Badges
     const contentBadges = [
@@ -445,7 +461,137 @@ async function seedDatabase() {
       },
     ];
 
-    // Combine all badge definitions
+    // Token Call Badges
+    const tokenCallBadges = [
+      {
+        name: 'First Call',
+        description: 'Make your first successful token call',
+        category: BadgeCategory.CONTENT,
+        requirement: BadgeRequirement.FIRST_SUCCESSFUL_TOKEN_CALL,
+        thresholdValue: 1,
+      },
+      {
+        name: 'Beginner Caller',
+        description: 'Successfully predict 5 token price movements',
+        category: BadgeCategory.CONTENT,
+        requirement: BadgeRequirement.SUCCESSFUL_TOKEN_CALL_COUNT,
+        thresholdValue: 5,
+      },
+      {
+        name: 'Intermediate Caller',
+        description: 'Successfully predict 25 token price movements',
+        category: BadgeCategory.CONTENT,
+        requirement: BadgeRequirement.SUCCESSFUL_TOKEN_CALL_COUNT,
+        thresholdValue: 25,
+      },
+      {
+        name: 'Expert Caller',
+        description: 'Successfully predict 100 token price movements',
+        category: BadgeCategory.CONTENT,
+        requirement: BadgeRequirement.SUCCESSFUL_TOKEN_CALL_COUNT,
+        thresholdValue: 100,
+      },
+      {
+        name: 'Sharpshooter: Bronze',
+        description: 'Successfully predict 10 verified token calls',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.VERIFIED_TOKEN_CALL_COUNT,
+        thresholdValue: 10,
+      },
+      {
+        name: 'Sharpshooter: Silver',
+        description: 'Successfully predict 25 verified token calls',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.VERIFIED_TOKEN_CALL_COUNT,
+        thresholdValue: 25,
+      },
+      {
+        name: 'Sharpshooter: Gold',
+        description: 'Successfully predict 50 verified token calls',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.VERIFIED_TOKEN_CALL_COUNT,
+        thresholdValue: 50,
+      },
+      {
+        name: 'Precision: 60%',
+        description: 'Maintain a 60% accuracy rate on verified token calls',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.TOKEN_CALL_ACCURACY_RATE,
+        thresholdValue: 60,
+      },
+      {
+        name: 'Precision: 75%',
+        description: 'Maintain a 75% accuracy rate on verified token calls',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.TOKEN_CALL_ACCURACY_RATE,
+        thresholdValue: 75,
+      },
+      {
+        name: 'Precision: 90%',
+        description: 'Maintain a 90% accuracy rate on verified token calls',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.TOKEN_CALL_ACCURACY_RATE,
+        thresholdValue: 90,
+      },
+      {
+        name: '2x Moonshot',
+        description: 'Successfully predict a 2x price movement',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.TOKEN_CALL_MOONSHOT_X,
+        thresholdValue: 2,
+      },
+      {
+        name: '5x Moonshot',
+        description: 'Successfully predict a 5x price movement',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.TOKEN_CALL_MOONSHOT_X,
+        thresholdValue: 5,
+      },
+      {
+        name: '10x Moonshot',
+        description: 'Successfully predict a 10x price movement',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.TOKEN_CALL_MOONSHOT_X,
+        thresholdValue: 10,
+      },
+      {
+        name: 'Early Bird',
+        description: 'Successfully hit target within 20% of the timeframe',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.TOKEN_CALL_EARLY_BIRD_RATIO,
+        thresholdValue: 20,
+      },
+      {
+        name: 'Lightning Call',
+        description: 'Successfully hit target within 10% of the timeframe',
+        category: BadgeCategory.QUALITY,
+        requirement: BadgeRequirement.TOKEN_CALL_EARLY_BIRD_RATIO,
+        thresholdValue: 10,
+      },
+      {
+        name: '3-Call Streak',
+        description: 'Successfully predict 3 token calls in a row',
+        category: BadgeCategory.STREAK,
+        requirement: BadgeRequirement.TOKEN_CALL_SUCCESS_STREAK,
+        thresholdValue: 3,
+      },
+      {
+        name: '5-Call Streak',
+        description: 'Successfully predict 5 token calls in a row',
+        category: BadgeCategory.STREAK,
+        requirement: BadgeRequirement.TOKEN_CALL_SUCCESS_STREAK,
+        thresholdValue: 5,
+      },
+      {
+        name: '10-Call Streak',
+        description: 'Successfully predict 10 token calls in a row',
+        category: BadgeCategory.STREAK,
+        requirement: BadgeRequirement.TOKEN_CALL_SUCCESS_STREAK,
+        thresholdValue: 10,
+      },
+    ];
+
+    // Regular badges (streak, content, etc)
     const allBadgeDefinitions = [
       ...streakBadges,
       ...contentBadges,
@@ -455,9 +601,10 @@ async function seedDatabase() {
       ...additionalReceptionBadges,
       ...qualityBadges,
       ...rankingBadges,
+      ...tokenCallBadges, // Add token call badges to the regular badge definitions
     ];
 
-    // Create badge entities from definitions
+    // Create badge entities from all definitions
     for (const badgeDef of allBadgeDefinitions) {
       const badge = new BadgeEntity();
       badge.name = badgeDef.name;
@@ -469,12 +616,11 @@ async function seedDatabase() {
       badges.push(badge);
     }
 
-    // Save badges
-    await badgeRepository.save(badges);
-    console.log(`${badges.length} badges created`);
+    // Save all badges at once
+    const savedBadges = await badgeRepository.save(badges);
+    console.log(`${savedBadges.length} badges created`);
 
-    // Get all badges for subsequent operations
-    const savedBadges = await badgeRepository.find();
+    // No need to fetch badges again since we already have them in savedBadges
     console.log(`${savedBadges.length} total badges available`);
 
     // Seed User Badges
@@ -490,7 +636,8 @@ async function seedDatabase() {
         const userBadge = new UserBadgeEntity();
         userBadge.user = user;
         userBadge.badge = badge;
-        userBadge.earnedAt = faker.date.past();
+        userBadge.earnedAt = faker.date.recent();
+        userBadge.isDisplayed = true;
         userBadges.push(userBadge);
       }
     }
@@ -715,6 +862,225 @@ async function seedDatabase() {
           ),
         );
       }
+    }
+
+    // Seed Token Calls
+    console.log('Seeding token calls...');
+    const tokenCalls = [];
+
+    // Define timeframe options
+    const timeframeDurations = ['1d', '3d', '7d', '14d', '30d'];
+
+    for (let i = 0; i < NUM_TOKEN_CALLS; i++) {
+      const user = faker.helpers.arrayElement(savedUsers);
+      const token = faker.helpers.arrayElement(savedTokens);
+      const timeframeDuration = faker.helpers.arrayElement(timeframeDurations);
+
+      // Calculate target date based on timeframe duration
+      const daysToAdd = parseInt(timeframeDuration.replace('d', ''));
+      // Use correct faker.date.past() syntax without days parameter
+      const callTimestamp = faker.date.past();
+      const targetDate = new Date(callTimestamp);
+      targetDate.setDate(targetDate.getDate() + daysToAdd);
+
+      // Generate a reference price
+      const referencePrice = parseFloat(
+        faker.finance.amount({ min: 0.01, max: 500, dec: 8 }),
+      );
+
+      // Generate a target price (usually higher, but can be lower)
+      const direction = faker.helpers.arrayElement([1, 1, 1, -1]); // 75% chance for up, 25% for down
+      const changePercent = faker.number.float({ min: 0.05, max: 3.0 }); // 5% to 300% change
+      const targetPrice = parseFloat(
+        (referencePrice * (1 + direction * changePercent)).toFixed(8),
+      );
+
+      // Decide on the status
+      // For past calls (target date in the past), they should be verified
+      const now = new Date();
+      const isPastTargetDate = targetDate < now;
+
+      let status = TokenCallStatus.PENDING;
+      let verificationTimestamp = null;
+      let peakPriceDuringPeriod = null;
+      let finalPriceAtTargetDate = null;
+      let targetHitTimestamp = null;
+      let timeToHitRatio = null;
+
+      if (isPastTargetDate) {
+        // Randomly determine if the call was successful
+        const wasSuccessful = faker.datatype.boolean();
+
+        if (wasSuccessful) {
+          status = TokenCallStatus.VERIFIED_SUCCESS;
+          verificationTimestamp = new Date(targetDate);
+
+          // Calculate peak price and final price
+          const peakMultiplier = faker.number.float({ min: 1.0, max: 2.0 });
+          peakPriceDuringPeriod = parseFloat(
+            (referencePrice * peakMultiplier).toFixed(8),
+          );
+
+          finalPriceAtTargetDate = parseFloat(
+            (
+              referencePrice * faker.number.float({ min: 0.9, max: 1.5 })
+            ).toFixed(8),
+          );
+
+          // For success, target hit timestamp is sometime between call and target
+          const hitTimePercent = faker.number.float({ min: 0.1, max: 0.9 });
+          const timeToTarget = targetDate.getTime() - callTimestamp.getTime();
+          const timeToHit = timeToTarget * hitTimePercent;
+
+          targetHitTimestamp = new Date(callTimestamp.getTime() + timeToHit);
+          timeToHitRatio = hitTimePercent;
+        } else {
+          status = TokenCallStatus.VERIFIED_FAIL;
+          verificationTimestamp = new Date(targetDate);
+
+          // Calculate peak and final price (but not enough to hit target)
+          const targetRatio = targetPrice / referencePrice;
+          const peakMultiplier = faker.number.float({
+            min: 0.8,
+            max: direction > 0 ? targetRatio * 0.9 : 1.2,
+          });
+
+          peakPriceDuringPeriod = parseFloat(
+            (referencePrice * peakMultiplier).toFixed(8),
+          );
+
+          finalPriceAtTargetDate = parseFloat(
+            (
+              referencePrice * faker.number.float({ min: 0.7, max: 0.95 })
+            ).toFixed(8),
+          );
+        }
+      }
+
+      // Occasionally set a token call to ERROR status (about 2%)
+      if (isPastTargetDate && Math.random() < 0.02) {
+        status = TokenCallStatus.ERROR;
+        verificationTimestamp = new Date(targetDate);
+      }
+
+      const tokenCall = new TokenCallEntity();
+      tokenCall.user = user;
+      tokenCall.token = token;
+      tokenCall.callTimestamp = callTimestamp;
+      tokenCall.referencePrice = referencePrice;
+      tokenCall.targetPrice = targetPrice;
+      tokenCall.timeframeDuration = timeframeDuration;
+      tokenCall.targetDate = targetDate;
+      tokenCall.status = status;
+      tokenCall.verificationTimestamp = verificationTimestamp;
+      tokenCall.peakPriceDuringPeriod = peakPriceDuringPeriod;
+      tokenCall.finalPriceAtTargetDate = finalPriceAtTargetDate;
+      tokenCall.targetHitTimestamp = targetHitTimestamp;
+      tokenCall.timeToHitRatio = timeToHitRatio;
+
+      tokenCalls.push(tokenCall);
+    }
+
+    const savedTokenCalls = await tokenCallRepository.save(tokenCalls);
+    console.log(`${savedTokenCalls.length} token calls created`);
+
+    // Award token call badges to users based on their token calls
+    console.log('Awarding token call badges to users...');
+
+    // Group token calls by user
+    const userTokenCalls: Record<string, TokenCallEntity[]> =
+      savedTokenCalls.reduce((acc: Record<string, TokenCallEntity[]>, call) => {
+        if (!acc[call.userId]) {
+          acc[call.userId] = [];
+        }
+        acc[call.userId].push(call);
+        return acc;
+      }, {});
+
+    // For each user with token calls, calculate badge awards
+    const tokenCallUserBadges = [];
+
+    for (const [userId, calls] of Object.entries(userTokenCalls)) {
+      const successfulCalls = calls.filter(
+        (call) => call.status === TokenCallStatus.VERIFIED_SUCCESS,
+      );
+      const verifiedCalls = calls.filter(
+        (call) =>
+          call.status === TokenCallStatus.VERIFIED_SUCCESS ||
+          call.status === TokenCallStatus.VERIFIED_FAIL,
+      );
+
+      // Count of successful calls
+      const successCount = successfulCalls.length;
+
+      // Process First Call badge
+      if (successCount > 0) {
+        const firstCallBadge = savedBadges.find(
+          (badge) =>
+            badge.requirement === BadgeRequirement.FIRST_SUCCESSFUL_TOKEN_CALL,
+        );
+
+        if (firstCallBadge) {
+          const userBadge = new UserBadgeEntity();
+          userBadge.user = await userRepository.findOne({
+            where: { id: userId },
+          });
+          userBadge.badge = firstCallBadge;
+          userBadge.earnedAt = faker.date.recent();
+          userBadge.isDisplayed = true;
+          tokenCallUserBadges.push(userBadge);
+        }
+      }
+
+      // Success count badges
+      if (successCount >= 5) {
+        const badgeToAward = savedBadges.find(
+          (badge) =>
+            badge.requirement ===
+              BadgeRequirement.SUCCESSFUL_TOKEN_CALL_COUNT &&
+            badge.thresholdValue <= successCount,
+        );
+
+        if (badgeToAward) {
+          const userBadge = new UserBadgeEntity();
+          userBadge.user = await userRepository.findOne({
+            where: { id: userId },
+          });
+          userBadge.badge = badgeToAward;
+          userBadge.earnedAt = faker.date.recent();
+          userBadge.isDisplayed = true;
+          tokenCallUserBadges.push(userBadge);
+        }
+      }
+
+      // Award a few token call streak badges randomly
+      if (successCount >= 3 && Math.random() < 0.3) {
+        const streakValue = Math.min(10, successCount);
+        const streakBadge = savedBadges.find(
+          (badge) =>
+            badge.requirement === BadgeRequirement.TOKEN_CALL_SUCCESS_STREAK &&
+            badge.thresholdValue <= streakValue,
+        );
+
+        if (streakBadge) {
+          const userBadge = new UserBadgeEntity();
+          userBadge.user = await userRepository.findOne({
+            where: { id: userId },
+          });
+          userBadge.badge = streakBadge;
+          userBadge.earnedAt = faker.date.recent();
+          userBadge.isDisplayed = true;
+          tokenCallUserBadges.push(userBadge);
+        }
+      }
+    }
+
+    // Save all token call user badges
+    if (tokenCallUserBadges.length > 0) {
+      await userBadgeRepository.save(tokenCallUserBadges);
+      console.log(
+        `${tokenCallUserBadges.length} token call badges awarded to users`,
+      );
     }
 
     console.log('Database seeding completed successfully!');

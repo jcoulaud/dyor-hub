@@ -9,6 +9,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        xs: '480px',
+      },
       keyframes: {
         scroll: {
           '0%': { transform: 'translateX(0)' },
