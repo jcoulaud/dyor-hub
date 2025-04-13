@@ -3,10 +3,20 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import { cn, formatPrice } from '@/lib/utils';
 import { TokenCall, TokenCallStatus } from '@dyor-hub/types';
 import { format, formatDistanceStrict } from 'date-fns';
-import { ArrowUp, Calendar, Clock, DollarSign, Target, TrendingUp, Twitter } from 'lucide-react';
+import {
+  ArrowUp,
+  Calendar,
+  Clock,
+  Copy,
+  DollarSign,
+  Target,
+  TrendingUp,
+  Twitter,
+} from 'lucide-react';
 
 interface DisplayUserCallProps {
   call: TokenCall;
@@ -14,6 +24,8 @@ interface DisplayUserCallProps {
 }
 
 export function DisplayUserCall({ call, currentTokenPrice = 0 }: DisplayUserCallProps) {
+  const { toast } = useToast();
+
   const formatRatio = (ratio: number | undefined | null) =>
     ratio ? `${(ratio * 100).toFixed(1)}%` : 'N/A';
 
@@ -111,6 +123,27 @@ export function DisplayUserCall({ call, currentTokenPrice = 0 }: DisplayUserCall
                     }}>
                     <Twitter className='h-3 w-3 text-amber-300' />
                     <span className='text-xs font-medium text-amber-300'>Share</span>
+                  </Button>
+                </div>
+              )}
+              {call.status === TokenCallStatus.PENDING && (
+                <div className='absolute top-3 left-3'>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='h-6 gap-1 px-2 cursor-pointer bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 rounded-md'
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const shareUrl = `${window.location.origin}/token-calls/${call.id}`;
+                      navigator.clipboard.writeText(shareUrl).then(() => {
+                        toast({
+                          title: 'URL Copied',
+                          description: 'Prediction link copied to clipboard',
+                        });
+                      });
+                    }}>
+                    <Copy className='h-3 w-3 text-amber-300' />
+                    <span className='text-xs font-medium text-amber-300'>Copy</span>
                   </Button>
                 </div>
               )}

@@ -6,6 +6,7 @@ import {
   CalendarClock,
   CheckCircle,
   Clock,
+  Copy,
   TrendingDown,
   TrendingUp,
   Twitter,
@@ -22,6 +23,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
+import { useToast } from '@/hooks/use-toast';
 import { tokenCalls } from '@/lib/api';
 import { calculateMultiplier, formatPrice } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
@@ -60,6 +62,7 @@ export default function TokenCallDetailPage() {
   const params = useParams();
   const callId = params?.callId as string;
   const { user: currentUser, isAuthenticated } = useAuthContext();
+  const { toast } = useToast();
 
   const [tokenCall, setTokenCall] = useState<TokenCall | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,6 +133,17 @@ export default function TokenCallDetailPage() {
     window.open(twitterUrl, '_blank', 'noopener,noreferrer,width=800,height=600');
   };
 
+  const handleCopy: React.MouseEventHandler<HTMLButtonElement> = () => {
+    if (!tokenCall) return;
+    const shareUrl = window.location.href;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      toast({
+        title: 'URL Copied',
+        description: 'Prediction link copied to clipboard',
+      });
+    });
+  };
+
   if (isLoading) {
     return <TokenCallSkeleton />;
   }
@@ -156,16 +170,25 @@ export default function TokenCallDetailPage() {
         <div className='relative group transition-all duration-300'>
           <div className='absolute -inset-1 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl blur opacity-20 group-hover:opacity-30 transition-opacity duration-300'></div>
           <Card className='relative bg-zinc-900/70 backdrop-blur-lg border-zinc-800/50 rounded-xl overflow-hidden shadow-xl'>
-            <CardHeader className='flex flex-row justify-between items-center pb-2 border-b border-zinc-800/50'>
-              <UserProfile user={user} />
-              <div className='flex gap-2'>
+            <CardHeader className='flex flex-row items-center pb-2 border-b border-zinc-800/50'>
+              <div className='flex-1'>
+                <UserProfile user={user} />
+              </div>
+              <div className='flex items-center gap-2'>
                 <Button
                   variant='ghost'
                   size='sm'
-                  className='h-8 gap-1.5 px-3 cursor-pointer hover:bg-zinc-800/70 transition-colors duration-200'
+                  className='h-8 gap-1.5 px-3 cursor-pointer bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 rounded-md'
+                  onClick={handleCopy}>
+                  <Copy className='h-4 w-4 text-amber-300' />
+                </Button>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='h-8 gap-1.5 px-3 cursor-pointer bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 rounded-md'
                   onClick={handleShare}>
-                  <Twitter className='h-4 w-4' />
-                  <span className='text-xs'>Share</span>
+                  <Twitter className='h-4 w-4 text-amber-300' />
+                  <span className='text-xs font-medium text-amber-300'>Share</span>
                 </Button>
               </div>
             </CardHeader>
@@ -216,8 +239,8 @@ export default function TokenCallDetailPage() {
                           <h3 className='text-xl font-semibold text-zinc-100 mb-1.5 hover:text-amber-400 transition-colors'>
                             {token?.name || 'Unknown Token'}
                           </h3>
-                          <div className='inline-flex items-center px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20'>
-                            <span className='text-amber-400 font-medium'>
+                          <div className='inline-flex items-center px-3 py-1 rounded-full bg-zinc-800/40 border border-zinc-700/30'>
+                            <span className='text-zinc-400 font-medium text-xs'>
                               ${token?.symbol || 'TOKEN'}
                             </span>
                           </div>
@@ -237,9 +260,9 @@ export default function TokenCallDetailPage() {
                         ${formatPrice(tokenCall.referencePrice)}
                       </span>
                     </div>
-                    <div className='flex flex-col bg-amber-500/10 rounded-lg border border-amber-500/30 p-3'>
+                    <div className='flex flex-col bg-green-500/10 rounded-lg border border-green-500/30 p-3'>
                       <span className='text-xs text-zinc-400 mb-1'>Target Price</span>
-                      <span className='font-medium text-amber-400'>
+                      <span className='font-medium text-green-400'>
                         ${formatPrice(tokenCall.targetPrice)}
                       </span>
                     </div>
