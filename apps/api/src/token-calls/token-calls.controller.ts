@@ -49,9 +49,6 @@ export class TokenCallsController {
       throw new Error('Authentication error: User object missing.');
     }
 
-    this.logger.log(
-      `Received request to create token call from user ${user.id}`,
-    );
     return this.tokenCallsService.create(createTokenCallDto, user.id);
   }
 

@@ -68,9 +68,6 @@ export class TokenCallsService {
     userId: string,
   ): Promise<TokenCallEntity> {
     const { tokenId, targetPrice, timeframeDuration } = createTokenCallDto;
-    this.logger.log(
-      `Attempting to create token call for token ${tokenId} by user ${userId}`,
-    );
 
     // 1. Validate token exists
     try {
@@ -159,9 +156,6 @@ export class TokenCallsService {
       });
 
       const savedCall = await this.tokenCallRepository.save(newCall);
-      this.logger.log(
-        `Successfully created token call ${savedCall.id} for token ${tokenId} by user ${userId}`,
-      );
       return savedCall;
     } catch (error) {
       this.logger.error(
@@ -191,10 +185,6 @@ export class TokenCallsService {
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
     const { sortBy = 'createdAt', sortOrder = 'DESC' } = sort;
-
-    this.logger.log(
-      `Fetching public token calls, filters: ${JSON.stringify(filters)}, sort: ${sortBy} ${sortOrder}, page: ${page}, limit: ${limit}`,
-    );
 
     const queryBuilder = this.tokenCallRepository
       .createQueryBuilder('call')
