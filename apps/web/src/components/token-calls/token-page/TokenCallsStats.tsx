@@ -101,7 +101,7 @@ export function TokenCallsStats({ tokenCalls, isLoading }: TokenCallsStatsProps)
           <div>
             <p className='text-zinc-500 text-xs'>Success Rate</p>
             <p className='text-base font-semibold'>
-              {stats.successRate !== null ? `${stats.successRate}%` : 'N/A'}
+              {stats.successRate !== null ? `${stats.successRate}%` : '-'}
             </p>
           </div>
         </div>
