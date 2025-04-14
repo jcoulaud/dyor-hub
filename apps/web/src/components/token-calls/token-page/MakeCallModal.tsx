@@ -20,6 +20,7 @@ interface MakeCallModalProps {
   onCallCreated?: () => void;
   currentMarketCap?: number;
   circulatingSupply?: string;
+  isMakingAnotherCall?: boolean;
 }
 
 export function MakeCallModal({
@@ -29,6 +30,7 @@ export function MakeCallModal({
   onCallCreated,
   currentMarketCap,
   circulatingSupply,
+  isMakingAnotherCall,
 }: MakeCallModalProps) {
   const [open, setOpen] = useState(false);
 
@@ -40,9 +42,13 @@ export function MakeCallModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className='w-full bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md py-3 flex items-center justify-center'>
-          <ArrowUp className='h-4 w-4 text-white mr-2' />
-          <span>Make a Prediction</span>
+        <Button
+          variant={'default'}
+          className={
+            'w-full font-medium rounded-md py-3 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white'
+          }>
+          <ArrowUp className={'h-4 w-4 mr-2 text-white'} />
+          <span>{isMakingAnotherCall ? 'Make Another Prediction' : 'Make a Prediction'}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className='sm:max-w-[420px] bg-zinc-900 border-zinc-800'>

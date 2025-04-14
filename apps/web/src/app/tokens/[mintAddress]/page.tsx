@@ -62,8 +62,8 @@ export default function Page({ params, commentId }: PageProps) {
   const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [sentimentData, setSentimentData] = useState<TokenSentimentStats | null>(null);
   const [isVoting, setIsVoting] = useState(false);
-  const [userCall, setUserCall] = useState<TokenCall | null | undefined>(undefined);
-  const [isLoadingUserCall, setIsLoadingUserCall] = useState<boolean>(true);
+  const [userCalls, setUserCalls] = useState<TokenCall[]>([]);
+  const [isLoadingUserCalls, setIsLoadingUserCalls] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState(true);
   const [tokenHistoryData, setTokenHistoryData] = useState<TwitterUsernameHistoryEntity | null>(
     null,
@@ -145,8 +145,8 @@ export default function Page({ params, commentId }: PageProps) {
       setIsLoading(true);
       setIsHeaderLoaded(false);
       setIsStatsLoaded(false);
-      setIsLoadingUserCall(true);
-      setUserCall(undefined);
+      setIsLoadingUserCalls(true);
+      setUserCalls([]);
       setTokenData(null);
       setTokenStatsData(null);
       setTokenHistoryData(null);
@@ -196,24 +196,20 @@ export default function Page({ params, commentId }: PageProps) {
           try {
             const userCallResponse = await tokenCalls.list(
               { userId: user.id, tokenId: mintAddress },
-              { limit: 1 },
+              {},
             );
             if (isMounted) {
-              if (userCallResponse.items.length > 0) {
-                setUserCall(userCallResponse.items[0]);
-              } else {
-                setUserCall(null);
-              }
+              setUserCalls(userCallResponse.items);
             }
           } catch {
-            if (isMounted) setUserCall(null);
+            if (isMounted) setUserCalls([]);
           } finally {
-            if (isMounted) setIsLoadingUserCall(false);
+            if (isMounted) setIsLoadingUserCalls(false);
           }
         } else {
           if (isMounted) {
-            setUserCall(null);
-            setIsLoadingUserCall(false);
+            setUserCalls([]);
+            setIsLoadingUserCalls(false);
           }
         }
       } catch {
@@ -248,18 +244,18 @@ export default function Page({ params, commentId }: PageProps) {
 
   const handleCallCreated = useCallback(async () => {
     if (isAuthenticated && user?.id && tokenData) {
-      setIsLoadingUserCall(true);
+      setIsLoadingUserCalls(true);
       try {
         const response = await tokenCalls.list(
           { userId: user.id, tokenId: tokenData.mintAddress },
-          { limit: 1 },
+          {},
         );
-        setUserCall(response.items.length > 0 ? response.items[0] : null);
+        setUserCalls(response.items);
         toast({ title: 'Prediction Submitted & Updated!' });
       } catch {
-        setUserCall(null);
+        setUserCalls([]);
       } finally {
-        setIsLoadingUserCall(false);
+        setIsLoadingUserCalls(false);
       }
     }
   }, [isAuthenticated, user?.id, tokenData, mintAddress, toast]);
@@ -675,8 +671,8 @@ export default function Page({ params, commentId }: PageProps) {
                     tokenSymbol={tokenData.symbol}
                     currentTokenPrice={currentPrice}
                     isPriceValid={isPriceValid}
-                    userCall={userCall}
-                    isLoadingUserCall={isLoadingUserCall}
+                    userCalls={userCalls}
+                    isLoadingUserCalls={isLoadingUserCalls}
                     onCallCreated={handleCallCreated}
                     marketCap={tokenStatsData?.marketCap}
                     circulatingSupply={tokenStatsData?.circulatingSupply}
@@ -923,8 +919,8 @@ export default function Page({ params, commentId }: PageProps) {
                     tokenSymbol={tokenData.symbol}
                     currentTokenPrice={currentPrice}
                     isPriceValid={isPriceValid}
-                    userCall={userCall}
-                    isLoadingUserCall={isLoadingUserCall}
+                    userCalls={userCalls}
+                    isLoadingUserCalls={isLoadingUserCalls}
                     onCallCreated={handleCallCreated}
                     marketCap={tokenStatsData?.marketCap}
                     circulatingSupply={tokenStatsData?.circulatingSupply}

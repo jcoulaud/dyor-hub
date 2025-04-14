@@ -21,9 +21,14 @@ import {
 interface DisplayUserCallProps {
   call: TokenCall;
   currentTokenPrice?: number;
+  totalUserCalls?: number;
 }
 
-export function DisplayUserCall({ call, currentTokenPrice = 0 }: DisplayUserCallProps) {
+export function DisplayUserCall({
+  call,
+  currentTokenPrice = 0,
+  totalUserCalls = 1,
+}: DisplayUserCallProps) {
   const { toast } = useToast();
 
   const formatRatio = (ratio: number | undefined | null) =>
@@ -81,7 +86,9 @@ export function DisplayUserCall({ call, currentTokenPrice = 0 }: DisplayUserCall
               className={`h-8 w-8 rounded-lg bg-${statusColor}-500/10 flex items-center justify-center mr-2`}>
               <TrendingUp className={`h-4 w-4 text-${statusColor}-400`} />
             </div>
-            <CardTitle className='text-base font-medium'>Your Prediction</CardTitle>
+            <CardTitle className='text-base font-medium'>
+              {totalUserCalls > 1 ? 'Your Predictions' : 'Your Prediction'}
+            </CardTitle>
           </div>
           <Badge
             variant={call.status === TokenCallStatus.VERIFIED_FAIL ? 'destructive' : 'default'}
@@ -97,7 +104,7 @@ export function DisplayUserCall({ call, currentTokenPrice = 0 }: DisplayUserCall
             {call.status.replace('VERIFIED_', '')}
           </Badge>
         </CardHeader>
-        <CardContent className='pt-0 pb-4 px-3'>
+        <CardContent className='pt-0 pb-2 px-3'>
           <div className='space-y-4'>
             <div className='bg-zinc-800/50 rounded-lg p-3 mt-3 text-center relative'>
               {call.status === TokenCallStatus.PENDING && (
