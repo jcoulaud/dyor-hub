@@ -66,7 +66,7 @@ export function TokenCallsSection({
     if (currentPredictionIndex >= userCalls.length) {
       setCurrentPredictionIndex(0);
     }
-  }, [fetchStatsData, userCalls.length]);
+  }, [fetchStatsData, userCalls.length, currentPredictionIndex]);
 
   const handleCallCreated = useCallback(() => {
     fetchStatsData();
@@ -82,7 +82,7 @@ export function TokenCallsSection({
     setTimeout(() => {
       setCurrentPredictionIndex(index);
       setIsTransitioningPrediction(false);
-    }, 150);
+    }, 200);
   };
 
   // Memoize the stats component to prevent re-rendering when prediction navigation changes
@@ -94,8 +94,9 @@ export function TokenCallsSection({
     if (isLoadingUserCalls) {
       return (
         <div className='relative group'>
-          <Card className='relative rounded-2xl min-h-[80px]'>
-            <CardContent className='flex items-center justify-center h-full'>
+          <div className='absolute -inset-0.5 bg-gradient-to-r from-amber-500/30 to-amber-600/30 rounded-xl blur opacity-20 group-hover:opacity-30 transition duration-300'></div>
+          <Card className='relative rounded-xl min-h-[80px] bg-zinc-900/80 backdrop-blur-sm border-0'>
+            <CardContent className='flex items-center justify-center h-full py-6'>
               <Skeleton className='h-10 w-3/4' />
             </CardContent>
           </Card>
@@ -118,14 +119,14 @@ export function TokenCallsSection({
       };
 
       return (
-        <div className='space-y-3'>
+        <div className='space-y-2'>
           <div className='relative min-h-[80px]'>
             {showNavigation && (
               <Button
                 variant='ghost'
                 size='icon'
                 onClick={goToPrevious}
-                className='absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full transition-transform hover:bg-transparent -ml-4'
+                className='absolute left-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full transition-all hover:bg-transparent -ml-4 hover:scale-110'
                 aria-label='Previous prediction'>
                 <ChevronLeft className='h-5 w-5 text-white/80 transition-colors hover:text-amber-400' />
               </Button>
@@ -133,8 +134,8 @@ export function TokenCallsSection({
 
             <div
               className={cn(
-                'transition-opacity duration-150',
-                isTransitioningPrediction ? 'opacity-0' : 'opacity-100',
+                'transition-all duration-200',
+                isTransitioningPrediction ? 'opacity-0 scale-95' : 'opacity-100 scale-100',
               )}>
               {currentCall && (
                 <DisplayUserCall
@@ -142,6 +143,7 @@ export function TokenCallsSection({
                   call={currentCall}
                   currentTokenPrice={currentTokenPrice}
                   totalUserCalls={userCalls.length}
+                  currentPredictionIndex={currentPredictionIndex}
                 />
               )}
             </div>
@@ -151,7 +153,7 @@ export function TokenCallsSection({
                 variant='ghost'
                 size='icon'
                 onClick={goToNext}
-                className='absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full transition-transform hover:bg-transparent -mr-4'
+                className='absolute right-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full transition-all hover:bg-transparent -mr-4 hover:scale-110'
                 aria-label='Next prediction'>
                 <ChevronRight className='h-5 w-5 text-white/80 transition-colors hover:text-amber-400' />
               </Button>
@@ -159,20 +161,20 @@ export function TokenCallsSection({
           </div>
 
           {showNavigation && (
-            <div className='flex justify-center gap-1 pt-0'>
+            <div className='flex justify-center gap-2'>
               {userCalls.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => handlePredictionNavigate(i)}
-                  className='w-5 h-5 flex items-center justify-center cursor-pointer group'
+                  className='w-7 h-5 flex items-center justify-center cursor-pointer group'
                   aria-label={`Go to prediction ${i + 1}`}>
                   <span
                     className={cn(
-                      'w-1.5 h-1.5 rounded-full transition-all duration-200',
-                      'group-hover:scale-125 group-focus:scale-125',
+                      'h-1.5 rounded-full transition-all duration-200 shadow-sm',
+                      'group-hover:scale-y-125 group-focus:scale-y-125',
                       i === currentPredictionIndex
-                        ? 'bg-amber-400'
-                        : 'bg-zinc-700 group-hover:bg-zinc-500 group-focus:bg-zinc-500',
+                        ? 'bg-amber-400 w-5'
+                        : 'bg-zinc-700 w-4 group-hover:bg-zinc-500 group-hover:w-5 group-focus:w-5 group-focus:bg-zinc-500',
                     )}
                   />
                 </button>
@@ -180,19 +182,17 @@ export function TokenCallsSection({
             </div>
           )}
 
-          {isPriceValid && (
-            <div className='pt-2'>
-              <MakeCallModal
-                tokenId={tokenId}
-                tokenSymbol={tokenSymbol}
-                currentTokenPrice={currentTokenPrice}
-                onCallCreated={handleCallCreated}
-                currentMarketCap={marketCap}
-                circulatingSupply={circulatingSupply}
-                isMakingAnotherCall={true}
-              />
-            </div>
-          )}
+          <div className='pt-4'>
+            <MakeCallModal
+              tokenId={tokenId}
+              tokenSymbol={tokenSymbol}
+              currentTokenPrice={currentTokenPrice}
+              onCallCreated={handleCallCreated}
+              currentMarketCap={marketCap}
+              circulatingSupply={circulatingSupply}
+              isMakingAnotherCall={true}
+            />
+          </div>
         </div>
       );
     }
@@ -212,8 +212,8 @@ export function TokenCallsSection({
 
     return (
       <div className='relative group'>
-        <div className='absolute -inset-0.5 bg-gradient-to-r from-zinc-500 to-zinc-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
-        <Card className='relative rounded-2xl opacity-60'>
+        <div className='absolute -inset-0.5 bg-gradient-to-r from-zinc-500 to-zinc-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+        <Card className='relative rounded-xl opacity-70 bg-zinc-900/80 backdrop-blur-sm border-0 shadow-md'>
           <CardHeader className='pb-2'>
             <CardTitle className='text-base'>Make a Prediction</CardTitle>
           </CardHeader>
@@ -242,10 +242,10 @@ export function TokenCallsSection({
 
   return (
     <div className='relative group'>
-      <div className='absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
-      <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+      <div className='absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+      <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden shadow-xl'>
         <div className='absolute inset-0 bg-gradient-to-br from-amber-600/5 to-amber-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
-        <CardHeader className='pb-2 relative'>
+        <CardHeader className='pb-3 relative'>
           <div className='flex items-center mb-4'>
             <div className='h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center mr-4 group-hover:bg-amber-500/20 transition-colors duration-300'>
               <LineChart className='h-5 w-5 text-amber-400' />
@@ -256,24 +256,31 @@ export function TokenCallsSection({
                 <div>
                   <Link
                     href={`/token-calls?tokenSearch=${tokenSymbol}`}
-                    className='text-xs text-amber-400/70 hover:text-amber-400 px-2 py-1 rounded-md border border-amber-500/30 hover:border-amber-500/60 transition-colors duration-200'>
+                    className='text-xs text-amber-400/80 hover:text-amber-400 px-3 py-1.5 rounded-md border border-amber-500/40 hover:border-amber-500/70 transition-all duration-200 hover:shadow-md hover:shadow-amber-500/10'>
                     View all
                   </Link>
                 </div>
               )}
             </div>
           </div>
-          <div className='w-full h-0.5 bg-gradient-to-r from-amber-500/20 to-transparent'></div>
+          <div className='w-full h-0.5 bg-gradient-to-r from-amber-500/30 to-transparent'></div>
         </CardHeader>
-        <CardContent className='relative pt-0 space-y-6 px-3'>
+        <CardContent className='relative pt-0 space-y-7 px-4'>
           {/* Stats Section */}
           {memoizedStatsComponent}
 
           {/* User Predictions Section */}
-          <div className='space-y-2'>
-            <h3 className='text-lg font-medium text-white'>Your Predictions</h3>
-            {renderPredictionSection}
-          </div>
+          {userCalls.length > 0 ? (
+            <div className='space-y-3'>
+              <div className='flex items-center'>
+                <h3 className='text-lg font-medium text-white'>Your Predictions</h3>
+                <div className='h-0.5 bg-gradient-to-r from-amber-500/20 to-transparent flex-grow ml-3'></div>
+              </div>
+              {renderPredictionSection}
+            </div>
+          ) : (
+            renderPredictionSection
+          )}
         </CardContent>
       </Card>
     </div>
