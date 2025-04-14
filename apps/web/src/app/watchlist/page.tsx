@@ -52,7 +52,7 @@ export default function WatchlistPage() {
     if (isAuthenticated) {
       fetchWatchlistedTokens();
     }
-  }, [isAuthenticated, toast, activeTab]);
+  }, [isAuthenticated, activeTab]);
 
   const handleTokenRemoved = (mintAddress: string) => {
     setTokens((prevTokens) => prevTokens.filter((token) => token.mintAddress !== mintAddress));
