@@ -1,4 +1,5 @@
 import { tokenCalls } from '@/lib/api';
+import { calculateMultiplier, formatLargeNumber } from '@/lib/utils';
 import { TokenCallStatus } from '@dyor-hub/types';
 import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
@@ -38,55 +39,11 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
   }
 }
 
-const calculateMultiplier = (
-  referencePrice: number | string | null | undefined,
-  targetPrice: number | string | null | undefined,
-): number | null => {
-  if (
-    referencePrice === null ||
-    referencePrice === undefined ||
-    targetPrice === null ||
-    targetPrice === undefined
-  ) {
-    return null;
-  }
-
-  try {
-    // Convert to numbers if they're strings
-    const refPrice =
-      typeof referencePrice === 'string' ? parseFloat(referencePrice) : referencePrice;
-    const tgtPrice = typeof targetPrice === 'string' ? parseFloat(targetPrice) : targetPrice;
-
-    // Validate numbers
-    if (isNaN(refPrice) || isNaN(tgtPrice) || refPrice === 0) {
-      return null;
-    }
-
-    return tgtPrice / refPrice;
-  } catch {
-    return null;
-  }
-};
-
+// Format large number for display with dollar sign
 const formatCurrency = (value: number | string | null | undefined): string => {
   if (value === null || value === undefined) return 'N/A';
-  try {
-    const numValue = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(numValue)) return 'N/A';
-    if (numValue < 0.000001) {
-      return `$${numValue.toFixed(10)}`;
-    } else if (numValue < 0.001) {
-      return `$${numValue.toFixed(8)}`;
-    } else if (numValue < 1) {
-      return `$${numValue.toFixed(4)}`;
-    } else if (numValue < 1000) {
-      return `$${numValue.toFixed(2)}`;
-    } else {
-      return `$${numValue.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
-    }
-  } catch {
-    return '$0.00';
-  }
+  const formatted = formatLargeNumber(value);
+  return formatted === 'N/A' ? formatted : `$${formatted}`;
 };
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -170,7 +127,16 @@ export default async function ImageGenerator({ params }: ImageProps) {
     );
   }
 
-  const { user, token, status, referencePrice, targetPrice, targetDate, createdAt } = callData;
+  const {
+    user,
+    token,
+    status,
+    referencePrice,
+    targetPrice,
+    targetDate,
+    createdAt,
+    referenceSupply,
+  } = callData;
   const username = user?.displayName || 'Anonymous';
   const tokenSymbol = token?.symbol || 'Token';
   const tokenName = token?.name || 'Unknown Token';
@@ -178,6 +144,11 @@ export default async function ImageGenerator({ params }: ImageProps) {
   const multiplier = calculateMultiplier(referencePrice, targetPrice);
   const isUp = multiplier !== null && multiplier > 1;
   const statusDisplay = getStatusDisplay(status);
+
+  // Calculate market caps
+  const referenceMarketCap =
+    referencePrice && referenceSupply ? referencePrice * referenceSupply : null;
+  const targetMarketCap = targetPrice && referenceSupply ? targetPrice * referenceSupply : null;
 
   // Fetch profile picture, token image, and logo
   const [userAvatarUrl, tokenImageUrl, logoSrc] = await Promise.all([
@@ -469,7 +440,7 @@ export default async function ImageGenerator({ params }: ImageProps) {
                 border: '1px solid rgba(255, 255, 255, 0.08)',
                 boxShadow: '0 4px 24px rgba(0, 0, 0, 0.1)',
               }}>
-              {/* Reference Price */}
+              {/* Reference Market Cap */}
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div
                   style={{
@@ -479,7 +450,7 @@ export default async function ImageGenerator({ params }: ImageProps) {
                     fontSize: 20,
                     fontWeight: 500,
                   }}>
-                  Reference Price
+                  Reference MCap
                 </div>
                 <div
                   style={{
@@ -488,7 +459,7 @@ export default async function ImageGenerator({ params }: ImageProps) {
                     fontSize: 32,
                     color: '#f1f5f9',
                   }}>
-                  {formatCurrency(referencePrice)}
+                  {formatCurrency(referenceMarketCap)}
                 </div>
               </div>
 
@@ -511,12 +482,13 @@ export default async function ImageGenerator({ params }: ImageProps) {
                     border: isUp
                       ? '1px solid rgba(34, 197, 94, 0.3)'
                       : '1px solid rgba(239, 68, 68, 0.3)',
+                    marginTop: 8,
                   }}>
                   {multiplier.toFixed(2)}x
                 </div>
               )}
 
-              {/* Target Price */}
+              {/* Target Market Cap */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                 <div
                   style={{
@@ -526,7 +498,7 @@ export default async function ImageGenerator({ params }: ImageProps) {
                     fontSize: 20,
                     fontWeight: 500,
                   }}>
-                  Target Price
+                  Target MCap
                 </div>
                 <div
                   style={{
@@ -538,7 +510,7 @@ export default async function ImageGenerator({ params }: ImageProps) {
                       ? '0 0 8px rgba(34, 197, 94, 0.3)'
                       : '0 0 8px rgba(239, 68, 68, 0.3)',
                   }}>
-                  {formatCurrency(targetPrice)}
+                  {formatCurrency(targetMarketCap)}
                 </div>
               </div>
             </div>
