@@ -9,7 +9,7 @@ import { cn, formatLargeNumber, formatPrice } from '@/lib/utils';
 import { TokenCall, TokenCallStatus } from '@dyor-hub/types';
 import { format, formatDistanceStrict } from 'date-fns';
 import { Calendar, Clock, Copy, DollarSign, Target, TrendingUp, Twitter } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 
 interface DisplayUserCallProps {
   call: TokenCall;
@@ -17,7 +17,7 @@ interface DisplayUserCallProps {
   totalUserCalls?: number;
 }
 
-export function DisplayUserCall({
+export const DisplayUserCall = memo(function DisplayUserCall({
   call,
   currentTokenPrice = 0,
   totalUserCalls = 1,
@@ -216,9 +216,14 @@ export function DisplayUserCall({
                 <div className='flex items-start'>
                   <DollarSign className='h-4 w-4 text-zinc-400 mt-0.5 mr-2 flex-shrink-0' />
                   <div>
-                    <div className='text-xs text-zinc-500'>Reference Price</div>
+                    <div className='text-xs text-zinc-500'>
+                      {viewMode === 'mcap' ? 'Reference MCap' : 'Reference Price'}
+                    </div>
                     <div className='font-medium text-zinc-300'>
-                      ${formatPrice(call.referencePrice)}
+                      $
+                      {viewMode === 'mcap' && targetMcap !== null
+                        ? formatLargeNumber((call.referencePrice / call.targetPrice) * targetMcap)
+                        : formatPrice(call.referencePrice)}
                     </div>
                   </div>
                 </div>
@@ -265,9 +270,16 @@ export function DisplayUserCall({
                   <div className='flex items-start'>
                     <Target className='h-4 w-4 text-zinc-400 mt-0.5 mr-2 flex-shrink-0' />
                     <div>
-                      <div className='text-xs text-zinc-500'>Peak Price</div>
+                      <div className='text-xs text-zinc-500'>
+                        {viewMode === 'mcap' ? 'Peak MCap' : 'Peak Price'}
+                      </div>
                       <div className='font-medium text-zinc-300'>
-                        ${formatPrice(call.peakPriceDuringPeriod)}
+                        $
+                        {viewMode === 'mcap' && targetMcap !== null && call.peakPriceDuringPeriod
+                          ? formatLargeNumber(
+                              (call.peakPriceDuringPeriod / call.targetPrice) * targetMcap,
+                            )
+                          : formatPrice(call.peakPriceDuringPeriod)}
                       </div>
                     </div>
                   </div>
@@ -302,9 +314,16 @@ export function DisplayUserCall({
                     <div className='flex items-start'>
                       <DollarSign className='h-4 w-4 text-zinc-400 mt-0.5 mr-2 flex-shrink-0' />
                       <div>
-                        <div className='text-xs text-zinc-500'>Final Price</div>
+                        <div className='text-xs text-zinc-500'>
+                          {viewMode === 'mcap' ? 'Final MCap' : 'Final Price'}
+                        </div>
                         <div className='font-medium text-zinc-300'>
-                          ${formatPrice(call.finalPriceAtTargetDate)}
+                          $
+                          {viewMode === 'mcap' && targetMcap !== null && call.finalPriceAtTargetDate
+                            ? formatLargeNumber(
+                                (call.finalPriceAtTargetDate / call.targetPrice) * targetMcap,
+                              )
+                            : formatPrice(call.finalPriceAtTargetDate)}
                         </div>
                       </div>
                     </div>
@@ -317,4 +336,4 @@ export function DisplayUserCall({
       </Card>
     </div>
   );
-}
+});

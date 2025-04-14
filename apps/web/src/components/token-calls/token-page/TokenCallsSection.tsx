@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { TokenCall } from '@dyor-hub/types';
 import { ChevronLeft, ChevronRight, LineChart } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DisplayUserCall } from './DisplayUserCall';
 import { MakeCallModal } from './MakeCallModal';
 import { TokenCallsStats } from './TokenCallsStats';
@@ -66,7 +66,7 @@ export function TokenCallsSection({
     if (currentPredictionIndex >= userCalls.length) {
       setCurrentPredictionIndex(0);
     }
-  }, [fetchStatsData, userCalls, currentPredictionIndex]);
+  }, [fetchStatsData, userCalls.length]);
 
   const handleCallCreated = useCallback(() => {
     fetchStatsData();
@@ -85,7 +85,12 @@ export function TokenCallsSection({
     }, 150);
   };
 
-  const renderPredictionSection = () => {
+  // Memoize the stats component to prevent re-rendering when prediction navigation changes
+  const memoizedStatsComponent = useMemo(() => {
+    return <TokenCallsStats tokenCalls={tokenCallsData} isLoading={isLoadingStats} />;
+  }, [tokenCallsData, isLoadingStats]);
+
+  const renderPredictionSection = useMemo(() => {
     if (isLoadingUserCalls) {
       return (
         <div className='relative group'>
@@ -220,7 +225,20 @@ export function TokenCallsSection({
         </Card>
       </div>
     );
-  };
+  }, [
+    isLoadingUserCalls,
+    userCalls,
+    currentPredictionIndex,
+    isTransitioningPrediction,
+    currentTokenPrice,
+    isPriceValid,
+    tokenId,
+    tokenSymbol,
+    handleCallCreated,
+    marketCap,
+    circulatingSupply,
+    handlePredictionNavigate,
+  ]);
 
   return (
     <div className='relative group'>
@@ -248,8 +266,14 @@ export function TokenCallsSection({
           <div className='w-full h-0.5 bg-gradient-to-r from-amber-500/20 to-transparent'></div>
         </CardHeader>
         <CardContent className='relative pt-0 space-y-6 px-3'>
-          <TokenCallsStats tokenCalls={tokenCallsData} isLoading={isLoadingStats} />
-          <div>{renderPredictionSection()}</div>
+          {/* Stats Section */}
+          {memoizedStatsComponent}
+
+          {/* User Predictions Section */}
+          <div className='space-y-2'>
+            <h3 className='text-lg font-medium text-white'>Your Predictions</h3>
+            {renderPredictionSection}
+          </div>
         </CardContent>
       </Card>
     </div>
