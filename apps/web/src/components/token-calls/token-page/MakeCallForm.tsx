@@ -220,9 +220,32 @@ export function MakeCallForm({
 
   // Check if target price exceeds the maximum allowed (x10000)
   const isTargetPriceValid = useMemo(() => {
+    // If we're in market cap mode, perform validation based on market cap
+    if (displayMode === 'marketcap') {
+      if (predictionType === 'price') {
+        // Direct market cap entry
+        const inputNum = parseFloat(inputValue);
+        if (isNaN(inputNum) || tokenMarketCap <= 0) return true;
+        return inputNum <= tokenMarketCap * 10000;
+      } else if (predictedMarketCap !== null && tokenMarketCap > 0) {
+        // For percent/multiple prediction types using market cap display
+        return predictedMarketCap <= tokenMarketCap * 10000;
+      }
+      return true;
+    }
+
+    // Default price-based validation
     if (!calculatedTargetPrice || currentTokenPrice <= 0) return true;
     return calculatedTargetPrice <= currentTokenPrice * 10000;
-  }, [calculatedTargetPrice, currentTokenPrice]);
+  }, [
+    calculatedTargetPrice,
+    currentTokenPrice,
+    displayMode,
+    predictionType,
+    inputValue,
+    predictedMarketCap,
+    tokenMarketCap,
+  ]);
 
   const handleSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -246,7 +269,11 @@ export function MakeCallForm({
 
       // Check if target price exceeds the maximum allowed (x10000)
       if (!isTargetPriceValid) {
-        setFormError('Target price cannot exceed 10,000x the current price.');
+        setFormError(
+          displayMode === 'marketcap'
+            ? 'Target market cap cannot exceed 10,000x the current market cap.'
+            : 'Target price cannot exceed 10,000x the current price.',
+        );
         return;
       }
 
@@ -448,7 +475,9 @@ export function MakeCallForm({
           className='rounded-lg bg-red-900/20 border border-red-900 p-3 shadow-sm'>
           <p className='text-sm font-medium text-red-400 flex items-center'>
             <span className='mr-2'>⚠️</span>
-            Target price cannot exceed 10,000x the current price.
+            {displayMode === 'marketcap'
+              ? 'Target market cap cannot exceed 10,000x the current market cap.'
+              : 'Target price cannot exceed 10,000x the current price.'}
           </p>
         </motion.div>
       )}
