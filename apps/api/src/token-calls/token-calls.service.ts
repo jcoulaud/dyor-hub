@@ -82,8 +82,9 @@ export class TokenCallsService {
       );
     }
 
-    // 2. Fetch the current price (Reference Price)
+    // 2. Fetch the current price (Reference Price) and Supply
     let referencePrice: number;
+    let referenceSupply: number | null = null;
     try {
       const overviewData = await this.tokensService.fetchTokenOverview(tokenId);
 
@@ -101,9 +102,18 @@ export class TokenCallsService {
         );
       }
       referencePrice = overviewData.price;
-      this.logger.debug(
-        `Reference price for token ${tokenId} from Birdeye: ${referencePrice}`,
-      );
+
+      // Check if circulatingSupply exists and is valid
+      if (
+        typeof overviewData.circulatingSupply === 'number' &&
+        overviewData.circulatingSupply > 0
+      ) {
+        referenceSupply = overviewData.circulatingSupply;
+      } else {
+        this.logger.warn(
+          `Reference supply fetch missing or invalid via Birdeye for token ID: ${tokenId}. Supply: ${overviewData?.circulatingSupply}. Proceeding without referenceSupply.`,
+        );
+      }
 
       if (targetPrice <= referencePrice) {
         throw new BadRequestException(
@@ -131,9 +141,6 @@ export class TokenCallsService {
     try {
       const duration = this.parseTimeframe(timeframeDuration);
       targetDate = add(callTimestamp, duration);
-      this.logger.debug(
-        `Calculated target date for duration ${timeframeDuration}: ${targetDate.toISOString()}`,
-      );
     } catch (error) {
       this.logger.error(
         `Failed to parse timeframe or calculate target date: ${timeframeDuration}`,
@@ -149,6 +156,7 @@ export class TokenCallsService {
         tokenId,
         callTimestamp,
         referencePrice,
+        referenceSupply,
         targetPrice,
         timeframeDuration,
         targetDate,
@@ -303,6 +311,7 @@ export class TokenCallsService {
 
       const items = calls.map((call) => ({
         ...call,
+        referenceSupply: call.referenceSupply,
         callTimestamp: call.callTimestamp.toISOString(),
         targetDate: call.targetDate.toISOString(),
         verificationTimestamp:
@@ -358,6 +367,7 @@ export class TokenCallsService {
           tokenId: true,
           callTimestamp: true,
           referencePrice: true,
+          referenceSupply: true,
           targetPrice: true,
           timeframeDuration: true,
           targetDate: true,

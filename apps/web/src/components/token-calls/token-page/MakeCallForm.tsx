@@ -93,7 +93,7 @@ export function MakeCallForm({
   const { toast } = useToast();
   const { isAuthenticated } = useAuthContext();
   const [predictionType, setPredictionType] = useState<PredictionType>('percent');
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('price');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('marketcap');
   const [inputValue, setInputValue] = useState<string>('');
   const [timeframeDuration, setTimeframeDuration] = useState<string>('1m');
   const [dateSelectionMethod, setDateSelectionMethod] = useState<DateSelectionMethod>('preset');
@@ -393,23 +393,27 @@ export function MakeCallForm({
         <div className='flex justify-center w-full'>
           <Tabs
             value={displayMode}
-            onValueChange={(value) => setDisplayMode(value as DisplayMode)}
+            onValueChange={(value) => {
+              setDisplayMode(value as DisplayMode);
+              setInputValue('');
+              setFormError(null);
+            }}
             className='h-8 w-full'>
             <TabsList className='h-7 p-0.5 bg-zinc-900 border border-zinc-800 w-full'>
-              <TabsTrigger
-                value='price'
-                className='h-6 px-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white w-1/2'
-                disabled={isLoading}>
-                <span className='text-xs flex items-center justify-center gap-1'>
-                  <LineChart className='h-3 w-3' /> Price
-                </span>
-              </TabsTrigger>
               <TabsTrigger
                 value='marketcap'
                 className='h-6 px-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white w-1/2'
                 disabled={isLoading}>
                 <span className='text-xs flex items-center justify-center gap-1'>
                   <BarChart className='h-3 w-3' /> Market Cap
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value='price'
+                className='h-6 px-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white w-1/2'
+                disabled={isLoading}>
+                <span className='text-xs flex items-center justify-center gap-1'>
+                  <LineChart className='h-3 w-3' /> Price
                 </span>
               </TabsTrigger>
             </TabsList>

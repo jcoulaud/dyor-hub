@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { TokenCallListFilters, TokenCallListSort, tokenCalls } from '@/lib/api';
-import { cn, formatPrice, getHighResAvatar } from '@/lib/utils';
+import { cn, formatLargeNumber, formatPrice, getHighResAvatar } from '@/lib/utils';
 import { TokenCall, TokenCallSortBy, TokenCallStatus } from '@dyor-hub/types';
 import { formatDistanceStrict, isValid, parseISO } from 'date-fns';
 import {
@@ -40,6 +40,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ChangeEvent, useCallback, useEffect, useState } from 'react';
 import { DateRange } from 'react-day-picker';
 import { useDebounce } from 'use-debounce';
+
+type DisplayMode = 'price' | 'mcap';
 
 const CALLS_PER_PAGE = 25;
 
@@ -65,6 +67,7 @@ export default function TokenCallsExplorerPage() {
   const [calls, setCalls] = useState<TokenCall[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('mcap');
 
   // Initialize page from URL or default to 1
   const [currentPage, setCurrentPage] = useState(() => {
@@ -322,9 +325,20 @@ export default function TokenCallsExplorerPage() {
     setActiveTab('all');
   };
 
-  const calculateMultiplier = (reference: number, target: number) => {
+  const calculateMultiplier = (reference: number, target: number, refSupply?: number | null) => {
     if (reference <= 0) return null;
-    return target / reference;
+
+    // For price mode, just return the direct ratio
+    if (displayMode === 'price' || !refSupply) {
+      return target / reference;
+    }
+
+    // For marketcap mode, calculate the marketcap values first
+    const referenceMcap = reference * refSupply;
+    const targetMcap = target * refSupply;
+
+    if (referenceMcap <= 0) return null;
+    return targetMcap / referenceMcap;
   };
 
   const formatRelativeDateSafe = (dateInput: string | Date | undefined | null): string => {
@@ -364,6 +378,15 @@ export default function TokenCallsExplorerPage() {
   const formatCurrency = (price: number | undefined | null): string => {
     if (price === undefined || price === null) return 'N/A';
     return `$${formatPrice(price)}`;
+  };
+
+  const formatMcap = (
+    price: number | undefined | null,
+    supply: number | null | undefined,
+  ): string => {
+    if (price === undefined || price === null || !supply) return 'N/A';
+    const mcap = price * supply;
+    return `$${formatLargeNumber(mcap)}`;
   };
 
   const renderSortIcon = (field: TokenCallSortBy) => {
@@ -415,22 +438,6 @@ export default function TokenCallsExplorerPage() {
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
-
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  onClick={clearFilters}
-                  className='ml-2 bg-zinc-800/50 h-10 flex-shrink-0 hidden xs:flex'>
-                  <XCircle className='h-4 w-4 mr-2' />
-                  Clear Filters
-                </Button>
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  onClick={clearFilters}
-                  className='ml-2 bg-zinc-800/50 h-10 w-10 flex-shrink-0 flex xs:hidden'>
-                  <XCircle className='h-4 w-4' />
-                </Button>
               </div>
 
               {/* Search Inputs */}
@@ -453,24 +460,65 @@ export default function TokenCallsExplorerPage() {
                     className='pl-10 h-11 sm:h-12 bg-zinc-900/90 border-zinc-800 rounded-lg text-sm text-zinc-300 w-full'
                   />
                 </div>
-                <div className='relative sm:ml-auto sm:mt-0 w-full sm:w-auto hidden sm:block'>
-                  <div className='flex items-center justify-center sm:justify-end'>
-                    <DateRangePicker
-                      date={targetDateRange}
-                      onDateChange={handleTargetDateRangeChange}
-                      className='border-0 [&_button]:border-0'
-                    />
-                    {targetDateRange && (
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        className='h-7 w-7 ml-1 text-zinc-500 hover:text-white hover:bg-zinc-700/50 rounded-full'
-                        onClick={clearTargetDateRange}
-                        aria-label='Clear target date range'>
-                        <X className='h-4 w-4' />
-                      </Button>
-                    )}
+
+                <div className='flex items-center sm:ml-auto gap-2 w-full sm:w-auto mt-4 sm:mt-0'>
+                  {/* Display mode tabs with updated style */}
+                  <Tabs
+                    value={displayMode}
+                    onValueChange={(value) => setDisplayMode(value as DisplayMode)}
+                    className='flex-shrink-0'>
+                    <TabsList className='bg-zinc-900/90 p-1 rounded-lg overflow-hidden border-0 flex h-[42px]'>
+                      {/* Market Cap first */}
+                      <TabsTrigger
+                        value='mcap'
+                        className='text-xs h-full rounded px-3 transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/20 data-[state=active]:to-amber-900/30 hover:bg-zinc-700/40 text-zinc-400 data-[state=active]:text-zinc-100 font-medium'>
+                        Market Cap
+                      </TabsTrigger>
+                      {/* Price second */}
+                      <TabsTrigger
+                        value='price'
+                        className='text-xs h-full rounded px-3 transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/20 data-[state=active]:to-amber-900/30 hover:bg-zinc-700/40 text-zinc-400 data-[state=active]:text-zinc-100 font-medium'>
+                        Price
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+
+                  <div className='relative hidden sm:block'>
+                    <div className='flex items-center justify-center sm:justify-end'>
+                      <DateRangePicker
+                        date={targetDateRange}
+                        onDateChange={handleTargetDateRangeChange}
+                        className='border-0 [&_button]:border-0'
+                      />
+                      {targetDateRange && (
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          className='h-7 w-7 ml-1 text-zinc-500 hover:text-white hover:bg-zinc-700/50 rounded-full'
+                          onClick={clearTargetDateRange}
+                          aria-label='Clear target date range'>
+                          <X className='h-4 w-4' />
+                        </Button>
+                      )}
+                    </div>
                   </div>
+
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={clearFilters}
+                    className='bg-zinc-900/90 border-0 h-[42px] flex-shrink-0 hidden xs:flex text-zinc-400'>
+                    <XCircle className='h-4 w-4 mr-2 text-zinc-400' />
+                    Clear filters
+                  </Button>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={clearFilters}
+                    className='bg-zinc-900/90 border-0 h-[42px] px-3 flex-shrink-0 flex xs:hidden items-center text-zinc-400'>
+                    <XCircle className='h-4 w-4 mr-2 text-zinc-400' />
+                    <span className='text-xs'>Clear filters</span>
+                  </Button>
                 </div>
               </div>
 
@@ -511,14 +559,16 @@ export default function TokenCallsExplorerPage() {
                           className='px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors hidden sm:table-cell'
                           onClick={() => handleSortClick(TokenCallSortBy.REFERENCE_PRICE)}>
                           <div className='flex items-center justify-end'>
-                            Reference {renderSortIcon(TokenCallSortBy.REFERENCE_PRICE)}
+                            {displayMode === 'price' ? 'Ref Price' : 'Ref MCap'}{' '}
+                            {renderSortIcon(TokenCallSortBy.REFERENCE_PRICE)}
                           </div>
                         </TableHead>
                         <TableHead
                           className='px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-white transition-colors'
                           onClick={() => handleSortClick(TokenCallSortBy.TARGET_PRICE)}>
                           <div className='flex items-center justify-end'>
-                            Target {renderSortIcon(TokenCallSortBy.TARGET_PRICE)}
+                            {displayMode === 'price' ? 'Target Price' : 'Target MCap'}{' '}
+                            {renderSortIcon(TokenCallSortBy.TARGET_PRICE)}
                           </div>
                         </TableHead>
                         <TableHead
@@ -549,6 +599,7 @@ export default function TokenCallsExplorerPage() {
                         const multiplier = calculateMultiplier(
                           call.referencePrice,
                           call.targetPrice,
+                          call.referenceSupply,
                         );
                         const isUp = multiplier !== null && multiplier > 1;
 
@@ -651,7 +702,9 @@ export default function TokenCallsExplorerPage() {
                             </TableCell>
 
                             <TableCell className='px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap font-mono text-sm text-zinc-300 hidden sm:table-cell'>
-                              {formatCurrency(call.referencePrice)}
+                              {displayMode === 'price'
+                                ? formatCurrency(call.referencePrice)
+                                : formatMcap(call.referencePrice, call.referenceSupply)}
                             </TableCell>
                             <TableCell className='px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap font-mono text-sm font-medium'>
                               <span
@@ -659,7 +712,9 @@ export default function TokenCallsExplorerPage() {
                                   isUp ? 'text-green-400' : 'text-red-400',
                                   'text-xs sm:text-sm',
                                 )}>
-                                {formatCurrency(call.targetPrice)}
+                                {displayMode === 'price'
+                                  ? formatCurrency(call.targetPrice)
+                                  : formatMcap(call.targetPrice, call.referenceSupply)}
                               </span>
                             </TableCell>
                             <TableCell className='px-2 sm:px-4 py-2 sm:py-3 text-center whitespace-nowrap'>

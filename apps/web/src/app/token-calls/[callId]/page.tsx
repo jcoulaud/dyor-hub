@@ -21,11 +21,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { useToast } from '@/hooks/use-toast';
 import { tokenCalls } from '@/lib/api';
-import { calculateMultiplier, formatPrice } from '@/lib/utils';
+import { calculateMultiplier, formatLargeNumber, formatPrice } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import { TokenCall, TokenCallStatus } from '@dyor-hub/types';
 
@@ -67,6 +68,7 @@ export default function TokenCallDetailPage() {
   const [tokenCall, setTokenCall] = useState<TokenCall | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [displayMode, setDisplayMode] = useState<'price' | 'mcap'>('mcap');
 
   useEffect(() => {
     const fetchTokenCallData = async () => {
@@ -92,16 +94,28 @@ export default function TokenCallDetailPage() {
   const callDetails = useMemo(() => {
     if (!tokenCall) return null;
 
-    const { referencePrice, targetPrice, targetDate, createdAt } = tokenCall;
+    const { referencePrice, targetPrice, targetDate, createdAt, referenceSupply } = tokenCall;
     const multiplier = calculateMultiplier(referencePrice, targetPrice);
     const isUp = multiplier !== null && multiplier > 1;
+
+    // Fix market cap calculations to handle very small numbers
+    const refPrice =
+      typeof referencePrice === 'string' ? parseFloat(referencePrice) : referencePrice || 0;
+    const refSupply =
+      typeof referenceSupply === 'string' ? parseFloat(referenceSupply) : referenceSupply || 0;
+    const tgtPrice = typeof targetPrice === 'string' ? parseFloat(targetPrice) : targetPrice || 0;
+
+    const referenceMcap = refPrice && refSupply ? refPrice * refSupply : null;
+    const targetMcap = tgtPrice && refSupply ? tgtPrice * refSupply : null;
 
     return {
       multiplier,
       isUp,
-      formattedMultiplier: multiplier ? `${multiplier.toFixed(2)}x` : 'N/A',
-      targetDateFormatted: targetDate ? format(new Date(targetDate), 'MMM d, yyyy') : 'N/A',
+      formattedMultiplier: multiplier ? `${multiplier.toFixed(2)}x` : '-',
+      targetDateFormatted: targetDate ? format(new Date(targetDate), 'MMM d, yyyy') : '-',
       createdAtFormatted: createdAt ? format(new Date(createdAt), 'MMM d, yyyy') : 'N/A',
+      referenceMcap,
+      targetMcap,
     };
   }, [tokenCall]);
 
@@ -253,23 +267,78 @@ export default function TokenCallDetailPage() {
                 {/* Right column: Prediction details */}
                 <div className='bg-zinc-800/20 backdrop-blur-sm rounded-xl p-5 border border-zinc-700/30'>
                   {/* Prices row */}
-                  <div className='grid grid-cols-2 gap-3 mb-3'>
-                    <div className='flex flex-col bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3'>
-                      <span className='text-xs text-zinc-400 mb-1'>Reference Price</span>
-                      <span className='font-medium text-zinc-100'>
-                        ${formatPrice(tokenCall.referencePrice)}
-                      </span>
+                  <Tabs
+                    value={displayMode}
+                    onValueChange={(value) => setDisplayMode(value as 'price' | 'mcap')}
+                    className='mb-3'>
+                    <div className='flex flex-col relative'>
+                      <TabsList className='grid w-full grid-cols-2 h-10 bg-zinc-900/60 border border-zinc-700/40 p-0.5 rounded-full shadow-inner overflow-hidden'>
+                        {/* Mcap Trigger First */}
+                        <TabsTrigger
+                          value='mcap'
+                          className='text-xs h-full rounded-full transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/70 data-[state=active]:to-amber-700/70 data-[state=active]:text-zinc-100 text-zinc-400 font-medium'>
+                          Market Cap
+                        </TabsTrigger>
+                        {/* Price Trigger Second */}
+                        <TabsTrigger
+                          value='price'
+                          className='text-xs h-full rounded-full transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/70 data-[state=active]:to-amber-700/70 data-[state=active]:text-zinc-100 text-zinc-400 font-medium'>
+                          Price
+                        </TabsTrigger>
+                      </TabsList>
                     </div>
-                    <div className='flex flex-col bg-green-500/10 rounded-lg border border-green-500/30 p-3'>
-                      <span className='text-xs text-zinc-400 mb-1'>Target Price</span>
-                      <span className='font-medium text-green-400'>
-                        ${formatPrice(tokenCall.targetPrice)}
-                      </span>
-                    </div>
-                  </div>
+
+                    {/* Mcap Content First */}
+                    <TabsContent
+                      value='mcap'
+                      className='mt-4 animate-in fade-in-50 zoom-in-95 duration-300'>
+                      <div className='grid grid-cols-2 gap-4'>
+                        <div className='flex flex-col bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-4 hover:bg-zinc-800/60 transition-colors duration-300'>
+                          <span className='text-xs text-zinc-400 mb-2 font-medium'>
+                            Reference Mcap
+                          </span>
+                          <span className='font-semibold text-zinc-100 text-lg'>
+                            ${formatLargeNumber(callDetails?.referenceMcap)}
+                          </span>
+                        </div>
+                        <div className='flex flex-col bg-green-500/10 rounded-lg border border-green-500/30 p-4 hover:bg-green-500/15 transition-colors duration-300'>
+                          <span className='text-xs text-zinc-400 mb-2 font-medium'>
+                            Target Mcap
+                          </span>
+                          <span className='font-semibold text-green-400 text-lg'>
+                            ${formatLargeNumber(callDetails?.targetMcap)}
+                          </span>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Price Content Second */}
+                    <TabsContent
+                      value='price'
+                      className='mt-4 animate-in fade-in-50 zoom-in-95 duration-300'>
+                      <div className='grid grid-cols-2 gap-4'>
+                        <div className='flex flex-col bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-4 hover:bg-zinc-800/60 transition-colors duration-300'>
+                          <span className='text-xs text-zinc-400 mb-2 font-medium'>
+                            Reference Price
+                          </span>
+                          <span className='font-semibold text-zinc-100 text-lg'>
+                            ${formatPrice(tokenCall.referencePrice)}
+                          </span>
+                        </div>
+                        <div className='flex flex-col bg-green-500/10 rounded-lg border border-green-500/30 p-4 hover:bg-green-500/15 transition-colors duration-300'>
+                          <span className='text-xs text-zinc-400 mb-2 font-medium'>
+                            Target Price
+                          </span>
+                          <span className='font-semibold text-green-400 text-lg'>
+                            ${formatPrice(tokenCall.targetPrice)}
+                          </span>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
 
                   {/* Multiplier */}
-                  <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3 mb-3'>
+                  <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-4 mb-4 mt-1 hover:bg-zinc-800/60 transition-colors duration-300'>
                     <div className='flex justify-between items-center'>
                       <span className='text-zinc-400 text-sm'>Multiplier:</span>
                       <div
@@ -289,23 +358,23 @@ export default function TokenCallDetailPage() {
                   </div>
 
                   {/* Dates */}
-                  <div className='space-y-3'>
-                    <div className='flex justify-between items-center bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3'>
+                  <div className='space-y-4'>
+                    <div className='flex justify-between items-center bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-4 hover:bg-zinc-800/60 transition-colors duration-300'>
                       <div className='flex items-center gap-2'>
-                        <Clock className='h-4 w-4 text-zinc-500' />
-                        <span className='text-zinc-400 text-sm'>Call date:</span>
+                        <Clock className='h-4 w-4 text-amber-500/80' />
+                        <span className='text-zinc-400 text-sm font-medium'>Call date:</span>
                       </div>
-                      <span className='font-medium text-zinc-200'>
+                      <span className='font-medium text-zinc-200 px-3 py-1 bg-zinc-800/60 rounded-md border border-zinc-700/40 text-xs'>
                         {callDetails?.createdAtFormatted}
                       </span>
                     </div>
 
-                    <div className='flex justify-between items-center bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3'>
+                    <div className='flex justify-between items-center bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-4 hover:bg-zinc-800/60 transition-colors duration-300'>
                       <div className='flex items-center gap-2'>
-                        <CalendarClock className='h-4 w-4 text-zinc-500' />
-                        <span className='text-zinc-400 text-sm'>Target date:</span>
+                        <CalendarClock className='h-4 w-4 text-amber-500/80' />
+                        <span className='text-zinc-400 text-sm font-medium'>Target date:</span>
                       </div>
-                      <span className='font-medium text-zinc-200'>
+                      <span className='font-medium text-zinc-200 px-3 py-1 bg-zinc-800/60 rounded-md border border-zinc-700/40 text-xs'>
                         {callDetails?.targetDateFormatted}
                       </span>
                     </div>

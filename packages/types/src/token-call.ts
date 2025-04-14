@@ -20,6 +20,7 @@ export interface TokenCall {
   tokenId: string;
   callTimestamp: string;
   referencePrice: number;
+  referenceSupply: number | null;
   targetPrice: number;
   timeframeDuration: string;
   targetDate: string;

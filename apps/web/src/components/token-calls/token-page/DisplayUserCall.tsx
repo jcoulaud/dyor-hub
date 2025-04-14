@@ -3,20 +3,13 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { cn, formatPrice } from '@/lib/utils';
+import { cn, formatLargeNumber, formatPrice } from '@/lib/utils';
 import { TokenCall, TokenCallStatus } from '@dyor-hub/types';
 import { format, formatDistanceStrict } from 'date-fns';
-import {
-  ArrowUp,
-  Calendar,
-  Clock,
-  Copy,
-  DollarSign,
-  Target,
-  TrendingUp,
-  Twitter,
-} from 'lucide-react';
+import { Calendar, Clock, Copy, DollarSign, Target, TrendingUp, Twitter } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 interface DisplayUserCallProps {
   call: TokenCall;
@@ -30,6 +23,24 @@ export function DisplayUserCall({
   totalUserCalls = 1,
 }: DisplayUserCallProps) {
   const { toast } = useToast();
+  const [viewMode, setViewMode] = useState<'price' | 'mcap'>('mcap');
+
+  const targetMcap = useMemo(() => {
+    const supply =
+      typeof call.referenceSupply === 'string'
+        ? parseFloat(call.referenceSupply)
+        : call.referenceSupply;
+
+    if (typeof supply === 'number' && !isNaN(supply) && supply > 0) {
+      const price =
+        typeof call.targetPrice === 'string' ? parseFloat(call.targetPrice) : call.targetPrice;
+
+      if (typeof price === 'number' && !isNaN(price)) {
+        return price * supply;
+      }
+    }
+    return null;
+  }, [call.targetPrice, call.referenceSupply]);
 
   const formatRatio = (ratio: number | undefined | null) =>
     ratio ? `${(ratio * 100).toFixed(1)}%` : 'N/A';
@@ -155,16 +166,39 @@ export function DisplayUserCall({
                 </div>
               )}
               <div className='flex items-center justify-center gap-2 mb-1'>
-                <ArrowUp
-                  className={`h-4 w-4 ${isPriceUp ? 'text-green-400 rotate-0' : 'text-red-400 rotate-180'}`}
-                />
-                <span
-                  className={`text-sm font-medium ${isPriceUp ? 'text-green-400' : 'text-red-400'}`}>
+                <span className={`font-medium ${isPriceUp ? 'text-green-400' : 'text-red-400'}`}>
                   {formattedPercentChange}
                 </span>
               </div>
-              <div className='text-xl font-bold text-white'>${formatPrice(call.targetPrice)}</div>
-              <div className='text-xs text-zinc-400 mt-1'>Target Price</div>
+              <div className='text-xl font-bold text-white mt-4'>
+                {viewMode === 'price'
+                  ? `$${formatPrice(call.targetPrice)}`
+                  : targetMcap !== null
+                    ? `$${formatLargeNumber(targetMcap)}`
+                    : '$?'}
+              </div>
+              <Tabs
+                value={viewMode}
+                onValueChange={(value) => {
+                  setViewMode(value as 'price' | 'mcap');
+                }}
+                className='mt-1 inline-block'>
+                <TabsList className='h-6 p-0.5 bg-zinc-700/40 border border-zinc-600/50'>
+                  <TabsTrigger
+                    value='mcap'
+                    disabled={targetMcap === null}
+                    className='h-5 px-2 text-xs data-[state=active]:bg-zinc-600/70 data-[state=active]:text-zinc-100 text-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed'
+                    onClick={(e) => e.stopPropagation()}>
+                    Target Mcap
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value='price'
+                    className='h-5 px-2 text-xs data-[state=active]:bg-zinc-600/70 data-[state=active]:text-zinc-100 text-zinc-400'
+                    onClick={(e) => e.stopPropagation()}>
+                    Target Price
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
 
             <div className='grid grid-cols-2 gap-2 text-sm'>
