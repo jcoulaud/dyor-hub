@@ -37,28 +37,39 @@ export class TokenCallsService {
   ) {}
 
   /**
-   * Parses timeframe string (e.g., "3m", "1y") and returns a Duration object for date-fns.
-   * @param timeframeDuration e.g., "1d", "3w", "6m", "1y"
-   * @returns Duration object like { days: 1 }, { weeks: 3 }, { months: 6 }, { years: 1 }
+   * Parses timeframe string (e.g., "3M", "1y") and returns a Duration object for date-fns.
+   * @param timeframeDuration e.g., "15m", "1h", "1d", "3w", "6M", "1y"
+   * @returns Duration object like { minutes: 15 }, { hours: 1 }, { days: 1 }, { weeks: 3 }, { months: 6 }, { years: 1 }
    */
   private parseTimeframe(timeframeDuration: string): Duration {
-    const match = timeframeDuration.match(/^(\d+)(d|w|m|y)$/);
+    const match = timeframeDuration.match(/^(\d+)(m|h|d|w|M|y)$/);
     if (!match) {
+      // Add logging for better debugging
+      this.logger.error(
+        `Invalid timeframe format received: ${timeframeDuration}`,
+      );
       throw new Error(`Invalid timeframe format: ${timeframeDuration}`);
     }
     const value = parseInt(match[1], 10);
     const unit = match[2];
 
     switch (unit) {
+      case 'm':
+        return { minutes: value };
+      case 'h':
+        return { hours: value };
       case 'd':
         return { days: value };
       case 'w':
         return { weeks: value };
-      case 'm':
+      case 'M':
         return { months: value };
       case 'y':
         return { years: value };
       default:
+        this.logger.error(
+          `Unsupported timeframe unit encountered after regex match: ${unit}`,
+        );
         throw new Error(`Unsupported timeframe unit: ${unit}`);
     }
   }

@@ -16,48 +16,60 @@ import { ApiError, tokenCalls } from '@/lib/api';
 import { cn, formatPrice } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import { CreateTokenCallInput } from '@dyor-hub/types';
-import { addDays, addMonths, addWeeks, addYears, format, isFuture, isValid } from 'date-fns';
+import {
+  addDays,
+  addHours,
+  addMinutes,
+  addMonths,
+  addWeeks,
+  addYears,
+  format,
+  isFuture,
+  isValid,
+} from 'date-fns';
 import { motion } from 'framer-motion';
 import { BarChart, Calendar, LineChart, Loader2, Percent, TrendingUp } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-const TIMEFRAME_OPTIONS = {
+const TIMEFRAME_OPTIONS: Record<string, string> = {
+  '15m': '15 Minutes',
+  '30m': '30 Minutes',
+  '1h': '1 Hour',
+  '3h': '3 Hours',
+  '6h': '6 Hours',
+  '12h': '12 Hours',
   '1d': '1 Day',
   '3d': '3 Days',
   '1w': '1 Week',
   '2w': '2 Weeks',
-  '1m': '1 Month',
-  '3m': '3 Months',
-  '6m': '6 Months',
+  '1M': '1 Month',
+  '3M': '3 Months',
+  '6M': '6 Months',
   '1y': '1 Year',
-  '3y': '3 Years',
-  '10y': '10 Years',
 };
 
 const getDateFromTimeframe = (timeframe: string): Date => {
   const now = new Date();
-  switch (timeframe) {
-    case '1d':
-      return addDays(now, 1);
-    case '3d':
-      return addDays(now, 3);
-    case '1w':
-      return addWeeks(now, 1);
-    case '2w':
-      return addWeeks(now, 2);
-    case '1m':
-      return addMonths(now, 1);
-    case '3m':
-      return addMonths(now, 3);
-    case '6m':
-      return addMonths(now, 6);
-    case '1y':
-      return addYears(now, 1);
-    case '3y':
-      return addYears(now, 3);
-    case '10y':
-      return addYears(now, 10);
+  const value = parseInt(timeframe.slice(0, -1), 10);
+  const unit = timeframe.slice(-1);
+
+  if (isNaN(value)) return addMonths(now, 1);
+
+  switch (unit) {
+    case 'm':
+      return addMinutes(now, value);
+    case 'h':
+      return addHours(now, value);
+    case 'd':
+      return addDays(now, value);
+    case 'w':
+      return addWeeks(now, value);
+    case 'M':
+      return addMonths(now, value);
+    case 'y':
+      return addYears(now, value);
     default:
+      // Default to 1 month if unit is unrecognized
       return addMonths(now, 1);
   }
 };
@@ -95,12 +107,12 @@ export function MakeCallForm({
   const [predictionType, setPredictionType] = useState<PredictionType>('percent');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('marketcap');
   const [inputValue, setInputValue] = useState<string>('');
-  const [timeframeDuration, setTimeframeDuration] = useState<string>('1m');
+  const [timeframeDuration, setTimeframeDuration] = useState<string>('1M');
   const [dateSelectionMethod, setDateSelectionMethod] = useState<DateSelectionMethod>('preset');
   const [day, setDay] = useState<string>('');
   const [month, setMonth] = useState<string>('');
   const [year, setYear] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(addMonths(new Date(), 1));
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(getDateFromTimeframe('1M'));
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const isPriceInvalid = !currentTokenPrice || currentTokenPrice <= 0;
@@ -358,8 +370,8 @@ export function MakeCallForm({
 
         setInputValue('');
         setPredictionType('price');
-        setTimeframeDuration('1m');
-        setSelectedDate(addMonths(new Date(), 1));
+        setTimeframeDuration('1M');
+        setSelectedDate(getDateFromTimeframe('1M'));
         setDateSelectionMethod('preset');
         setDisplayMode('price');
         setFormError(null);

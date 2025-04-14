@@ -6,7 +6,7 @@ import {
   Matches,
 } from 'class-validator';
 
-const timeframeRegex = /^(\d+)(d|w|m|y)$/;
+const timeframeRegex = /^(\d+)(m|h|d|w|M|y)$/;
 
 export class CreateTokenCallDto {
   @IsString()
@@ -21,7 +21,8 @@ export class CreateTokenCallDto {
   @IsString()
   @IsNotEmpty()
   @Matches(timeframeRegex, {
-    message: 'timeframeDuration must be in format like "1d", "3w", "6m", "1y"',
+    message:
+      'timeframeDuration must be in format like "15m", "1h", "3d", "2w", "6M", "1y" (m: minutes, h: hours, d: days, w: weeks, M: months, y: years)',
   })
   timeframeDuration: string;
 }
