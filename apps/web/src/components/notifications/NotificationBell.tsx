@@ -10,7 +10,7 @@ import {
 import { useIntersectionObserver } from '@/hooks/use-intersection-observer';
 import { useToast } from '@/hooks/use-toast';
 import { gamification, notifications } from '@/lib/api';
-import { sanitizeHtml } from '@/lib/utils';
+import { cn, sanitizeHtml } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import { NotificationItem, NotificationType } from '@dyor-hub/types';
 import { formatDistanceStrict } from 'date-fns';
@@ -293,6 +293,11 @@ export function NotificationBell() {
       case NotificationType.SYSTEM:
         return '#';
 
+      case NotificationType.TOKEN_CALL_VERIFIED:
+        return notification.relatedEntityId
+          ? `/token-calls/${notification.relatedEntityId}`
+          : '/token-calls';
+
       default:
         return '/';
     }
@@ -369,11 +374,15 @@ export function NotificationBell() {
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.2 }}
-                  className={`flex items-start gap-3 px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors ${
-                    notification.isRead ? 'bg-opacity-50' : 'bg-zinc-800/10'
-                  }`}>
+                  className={cn(
+                    'flex items-start gap-3 px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors',
+                    notification.isRead ? 'bg-opacity-50' : 'bg-zinc-800/10',
+                  )}>
                   <div
-                    className={`flex-1 overflow-hidden ${notification.isRead ? 'opacity-70' : ''}`}>
+                    className={cn(
+                      'flex-1 overflow-hidden',
+                      notification.isRead ? 'opacity-70' : '',
+                    )}>
                     <Link
                       href={getNotificationLink(notification)}
                       className='block group'
@@ -383,12 +392,13 @@ export function NotificationBell() {
                         }
                       }}>
                       <p
-                        className={`text-xs leading-snug mb-0.5 group-hover:text-sky-300 transition-colors truncate ${
-                          notification.isRead ? 'text-zinc-400' : 'text-zinc-200 font-medium'
-                        }`}>
+                        className={cn(
+                          'text-xs leading-snug mb-0.5 group-hover:text-sky-300 transition-colors truncate',
+                          notification.isRead ? 'text-zinc-400' : 'text-zinc-200 font-medium',
+                        )}>
                         {sanitizeHtml(notification.message)}
                       </p>
-                      <p className='text-[10px] text-zinc-400'>
+                      <p className='text-[10px] text-zinc-400 mt-1'>
                         {getTimeAgo(notification.createdAt)}
                       </p>
                     </Link>

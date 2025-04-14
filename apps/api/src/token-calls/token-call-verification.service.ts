@@ -1,4 +1,4 @@
-import { TokenCallStatus } from '@dyor-hub/types';
+import { NotificationType, TokenCallStatus } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -6,6 +6,7 @@ import { LessThanOrEqual, Repository } from 'typeorm';
 import { TokenCallEntity } from '../entities/token-call.entity';
 import { UserTokenCallStreakEntity } from '../entities/user-token-call-streak.entity';
 import { BadgeService } from '../gamification/services/badge.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { TokensService } from '../tokens/tokens.service';
 
 @Injectable()
@@ -20,10 +21,11 @@ export class TokenCallVerificationService {
     private readonly tokenCallStreakRepository: Repository<UserTokenCallStreakEntity>,
     private readonly tokensService: TokensService,
     private readonly badgeService: BadgeService,
+    private readonly notificationService: NotificationsService,
   ) {}
 
   // Run verification job
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
     this.logger.log('Starting Token Call Verification Job...');
 
@@ -188,7 +190,55 @@ export class TokenCallVerificationService {
     await this.tokenCallRepository.save(call);
     this.logger.debug(`Saved verification results for call ${call.id}`);
 
-    // 6. Check for Badges on Success
+    // 6. Send Notification using generic service
+    try {
+      const token = await this.tokensService.getTokenData(call.tokenId);
+
+      const notificationType = NotificationType.TOKEN_CALL_VERIFIED;
+      const status =
+        call.status === TokenCallStatus.VERIFIED_SUCCESS ? 'success' : 'fail';
+      let message = '';
+
+      const tokenDisplay = token?.symbol || call.tokenId;
+      const targetPriceFormatted = call.targetPrice.toLocaleString(undefined, {
+        maximumFractionDigits: 8,
+      });
+
+      if (status === 'success') {
+        message = `✅ Your call for $${tokenDisplay} reached its target price of $${targetPriceFormatted}!`;
+      } else {
+        message = `❌ Your call for $${tokenDisplay} did not reach its target price of $${targetPriceFormatted}.`;
+      }
+
+      const metadata = {
+        callId: call.id,
+        tokenId: call.tokenId,
+        tokenSymbol: token?.symbol,
+        tokenName: token?.name,
+        status: status,
+        targetPrice: call.targetPrice,
+        finalPrice: call.finalPriceAtTargetDate,
+        peakPriceDuringPeriod: call.peakPriceDuringPeriod,
+        targetHitTimestamp: call.targetHitTimestamp?.toISOString() || null,
+        timeToHitRatio: call.timeToHitRatio,
+      };
+
+      await this.notificationService.createNotification(
+        call.userId,
+        notificationType,
+        message,
+        call.id,
+        'token_call',
+        metadata,
+      );
+    } catch (notificationError) {
+      this.logger.error(
+        `Failed to create notification for verified call ${call.id} for user ${call.userId}:`,
+        notificationError,
+      );
+    }
+
+    // 7. Check for Badges on Success
     if (call.status === TokenCallStatus.VERIFIED_SUCCESS) {
       try {
         await this.badgeService.checkTokenCallSuccessBadges(call.userId, call);
