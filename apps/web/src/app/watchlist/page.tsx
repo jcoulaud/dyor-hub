@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { watchlist } from '@/lib/api';
 import { useAuthContext } from '@/providers/auth-provider';
 import { Token } from '@dyor-hub/types';
-import { BookmarkIcon, Users } from 'lucide-react';
+import { BookmarkIcon, Copy, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -129,17 +129,32 @@ export default function WatchlistPage() {
             </div>
 
             <div className='flex-shrink-0'>
-              <WatchlistButton
-                mintAddress={token.mintAddress}
-                initialWatchlistStatus={true}
-                size='sm'
-                tokenSymbol={token.symbol}
-                onStatusChange={(isWatchlisted) => {
-                  if (!isWatchlisted) {
-                    handleTokenRemoved(token.mintAddress);
-                  }
-                }}
-              />
+              <div className='flex gap-1'>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(token.mintAddress);
+                    toast({
+                      title: 'Address copied',
+                      description: 'Token address copied to clipboard',
+                    });
+                  }}
+                  className='flex items-center justify-center rounded-lg p-1.5 transition-all duration-200 hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200 cursor-pointer'
+                  title='Copy mint address'
+                  aria-label='Copy mint address'>
+                  <Copy className='w-5 h-5' />
+                </button>
+                <WatchlistButton
+                  mintAddress={token.mintAddress}
+                  initialWatchlistStatus={true}
+                  size='sm'
+                  tokenSymbol={token.symbol}
+                  onStatusChange={(isWatchlisted) => {
+                    if (!isWatchlisted) {
+                      handleTokenRemoved(token.mintAddress);
+                    }
+                  }}
+                />
+              </div>
             </div>
           </div>
         ))}
