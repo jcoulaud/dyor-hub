@@ -290,13 +290,7 @@ export const DisplayUserCall = memo(function DisplayUserCall({
 
             {(call.status === TokenCallStatus.VERIFIED_SUCCESS ||
               call.status === TokenCallStatus.VERIFIED_FAIL) && (
-              <div className='mt-4 pt-4 border-t border-zinc-800/50'>
-                <div className='text-sm font-medium text-zinc-200 mb-2 flex items-center'>
-                  <span className='bg-gradient-to-r from-amber-400 to-amber-600 text-transparent bg-clip-text'>
-                    Results
-                  </span>
-                  <div className='h-0.5 bg-gradient-to-r from-amber-500/20 to-transparent w-10 ml-2'></div>
-                </div>
+              <div className='mt-0 pt-2 border-t border-zinc-800/50'>
                 <div className='grid grid-cols-2 gap-3 text-sm px-1'>
                   <div className='flex items-start group/item hover:bg-zinc-800/30 p-1.5 rounded-lg transition-colors'>
                     <Target className='h-4 w-4 text-zinc-400 mt-0.5 mr-2.5 flex-shrink-0 group-hover/item:text-amber-400 transition-colors' />
