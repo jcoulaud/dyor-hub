@@ -139,7 +139,6 @@ export class TokensService {
         // Cache the data.data part
         this.tokenOverviewCache.set(cacheKey, data.data);
         this.cacheTimestamps.set(cacheKey, Date.now());
-        this.logger.debug(`Cached Birdeye overview for ${mintAddress}`);
 
         return data.data;
       } catch (error) {
