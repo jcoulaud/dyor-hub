@@ -496,10 +496,19 @@ export class BadgeService {
         case BadgeRequirement.FIRST_SUCCESSFUL_TOKEN_CALL:
           return this.checkFirstSuccessfulCall(userId);
         case BadgeRequirement.TOKEN_CALL_MOONSHOT_X:
-          return this.checkMoonshotCall(context.call, badge.thresholdValue);
+          // Ensure context and context.call are available before checking
+          return (
+            isTokenCallCheck &&
+            this.checkMoonshotCall(context.call, badge.thresholdValue)
+          );
         case BadgeRequirement.TOKEN_CALL_EARLY_BIRD_RATIO:
-          return this.checkEarlyBirdCall(context.call, badge.thresholdValue);
+          // Ensure context and context.call are available before checking
+          return (
+            isTokenCallCheck &&
+            this.checkEarlyBirdCall(context.call, badge.thresholdValue)
+          );
         case BadgeRequirement.TOKEN_CALL_SUCCESS_STREAK:
+          // Streaks are calculated based on user history, not a single call context
           return this.checkTokenCallStreak(userId, badge.thresholdValue);
         case BadgeRequirement.SUCCESSFUL_TOKEN_CALL_COUNT:
           return this.checkSuccessfulCallCount(userId, badge.thresholdValue);
