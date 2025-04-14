@@ -454,9 +454,6 @@ export class TokensService {
         return { items: [] };
       }
 
-      this.logger.debug(
-        `Fetched ${data.data.items.length} price points from Birdeye for ${mintAddress}`,
-      );
       return data.data;
     } catch (error) {
       this.logger.error(
