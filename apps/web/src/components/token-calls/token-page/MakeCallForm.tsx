@@ -295,27 +295,65 @@ export function MakeCallForm({
 
       setIsLoading(true);
 
-      const roundedTargetPrice = calculatedTargetPrice
-        ? parseFloat(calculatedTargetPrice.toFixed(8))
-        : 0;
+      let targetPriceValue = 0;
 
-      if (roundedTargetPrice <= 0) {
+      if (displayMode === 'marketcap' && predictionType === 'price') {
+        // For direct market cap entry, calculate equivalent token price
+        const inputNum = parseFloat(inputValue);
+        if (!isNaN(inputNum) && tokenMarketCap > 0 && currentTokenPrice > 0) {
+          // Calculate price and ensure it's formatted properly with 8 decimal places maximum
+          const rawValue = (inputNum / tokenMarketCap) * currentTokenPrice;
+
+          // Check if the conversion produces a massive or NaN value
+          if (!Number.isFinite(rawValue) || rawValue > 1e15) {
+            setFormError('The market cap value is too large to convert to a valid token price.');
+            setIsLoading(false);
+            return;
+          }
+
+          targetPriceValue = parseFloat(rawValue.toFixed(8));
+        }
+      } else {
+        // Normal price calculation
+        targetPriceValue = calculatedTargetPrice ? parseFloat(calculatedTargetPrice.toFixed(8)) : 0;
+      }
+
+      if (targetPriceValue <= 0) {
         setFormError('Calculated target price is invalid after rounding.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if the target price is too large (beyond what API might accept)
+      if (!Number.isFinite(targetPriceValue) || targetPriceValue > 1e15) {
+        setFormError('Target price value is too large. Please enter a smaller target.');
         setIsLoading(false);
         return;
       }
 
       const payload: CreateTokenCallInput = {
         tokenId,
-        targetPrice: roundedTargetPrice,
+        targetPrice: targetPriceValue,
         timeframeDuration,
       };
 
       try {
         await tokenCalls.create(payload);
+
+        let toastMessage = '';
+        if (displayMode === 'marketcap') {
+          const displayMarketCap =
+            predictionType === 'price'
+              ? parseFloat(inputValue)
+              : (calculatedTargetPrice / currentTokenPrice) * tokenMarketCap;
+          toastMessage = `Your call for ${tokenSymbol} to reach a market cap of $${formatMarketCapDisplay(displayMarketCap)} by ${format(selectedDate, 'PPP')} has been recorded.`;
+        } else {
+          toastMessage = `Your call for ${tokenSymbol} to reach $${formatPrice(targetPriceValue)} by ${format(selectedDate, 'PPP')} has been recorded.`;
+        }
+
         toast({
           title: 'Prediction Submitted!',
-          description: `Your call for ${tokenSymbol} to reach $${formatPrice(roundedTargetPrice)} by ${format(selectedDate, 'PPP')} has been recorded.`,
+          description: toastMessage,
         });
 
         setInputValue('');
