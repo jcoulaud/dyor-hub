@@ -90,8 +90,70 @@ export function sanitizeHtml(
 
   // Apply max length if specified
   if (maxLength && text.length > maxLength) {
-    text = text.substring(0, maxLength);
+    text = text.substring(0, maxLength) + '...';
   }
 
   return text;
 }
+
+const formatLargeNumber = (num: string | number | undefined | null): string => {
+  if (num === null || num === undefined) return 'N/A';
+  const number = typeof num === 'string' ? parseFloat(num) : num;
+  if (isNaN(number)) return 'N/A';
+  if (number === 0) return '0';
+
+  const absNum = Math.abs(number);
+  const sign = number < 0 ? '-' : '';
+
+  if (absNum < 999.5) return `${sign}${number.toFixed(2)}`; // Keep decimals below 1K
+  if (absNum < 999500) return `${sign}${(number / 1e3).toFixed(1)}K`; // Use 1 decimal for K (up to ~1M)
+  if (absNum < 999500000) return `${sign}${(number / 1e6).toFixed(1)}M`; // Use 1 decimal for M (up to ~1B)
+  if (absNum < 999500000000) return `${sign}${(number / 1e9).toFixed(1)}B`; // Use 1 decimal for B (up to ~1T)
+  return `${sign}${(number / 1e12).toFixed(1)}T`; // Use 1 decimal for T
+};
+
+export { formatLargeNumber };
+
+export const formatPrice = (price: number | string | undefined | null): string => {
+  if (price === null || price === undefined) return '0.00'; // Handle null/undefined
+  const num = typeof price === 'string' ? Number(price) : price;
+  if (isNaN(num)) {
+    return '0.00';
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  }).format(num);
+};
+
+/**
+ * Calculates the multiplier between target price and reference price
+ * @param referencePrice The reference price
+ * @param targetPrice The target price
+ * @returns The multiplier or null if reference price is 0 or invalid
+ */
+export const calculateMultiplier = (
+  referencePrice: number | string | null | undefined,
+  targetPrice: number | string | null | undefined,
+): number | null => {
+  if (
+    referencePrice === null ||
+    referencePrice === undefined ||
+    targetPrice === null ||
+    targetPrice === undefined
+  ) {
+    return null;
+  }
+
+  // Convert to numbers if they're strings
+  const refPrice = typeof referencePrice === 'string' ? parseFloat(referencePrice) : referencePrice;
+  const tgtPrice = typeof targetPrice === 'string' ? parseFloat(targetPrice) : targetPrice;
+
+  // Validate numbers
+  if (isNaN(refPrice) || isNaN(tgtPrice) || refPrice === 0) {
+    return null;
+  }
+
+  return tgtPrice / refPrice;
+};

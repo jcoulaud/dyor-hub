@@ -8,6 +8,7 @@ export enum NotificationType {
   COMMENT_REPLY = 'comment_reply',
   UPVOTE_RECEIVED = 'upvote_received',
   SYSTEM = 'system',
+  TOKEN_CALL_VERIFIED = 'token_call_verified',
 }
 
 export enum NotificationEventType {
@@ -19,6 +20,7 @@ export enum NotificationEventType {
   COMMENT_REPLY = 'comment.reply',
   COMMENT_UPVOTED = 'comment.upvoted',
   LEADERBOARD_POSITION_CHANGE = 'leaderboard.position_change',
+  TOKEN_CALL_VERIFIED = 'token_call.verified',
 }
 
 export interface NotificationPreference {
@@ -49,4 +51,49 @@ export interface NotificationsResponse {
     pageSize: number;
     totalPages: number;
   };
+}
+
+export interface NotificationBaseData {
+  // Common fields for all notification types
+}
+
+export interface TokenCallVerifiedData extends NotificationBaseData {
+  callId: string;
+  tokenId: string;
+  tokenSymbol: string;
+  tokenName: string;
+  status: 'success' | 'fail';
+  targetPrice: number;
+  finalPrice?: number | null;
+  peakPriceDuringPeriod?: number | null;
+  targetHitTimestamp?: string | null;
+  timeToHitRatio?: number | null;
+}
+
+export interface BadgeUnlockedData extends NotificationBaseData {
+  badgeId: string;
+  badgeName: string;
+  badgeImageUrl: string;
+  level?: number;
+}
+
+export type NotificationData = BadgeUnlockedData | TokenCallVerifiedData | NotificationBaseData;
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  read: boolean;
+  createdAt: string;
+  data: NotificationData;
+  title?: string;
+  message?: string;
+}
+
+export interface PaginatedNotifications {
+  items: Notification[];
+  total: number;
+  page: number;
+  limit: number;
+  unreadCount: number;
 }

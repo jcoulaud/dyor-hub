@@ -2,7 +2,7 @@
 
 import { Pagination } from '@/components/ui/pagination';
 import { users } from '@/lib/api';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceStrict } from 'date-fns';
 import {
   ArrowDown,
   ArrowUp,
@@ -316,7 +316,7 @@ export function Activity({
             {typeFilter !== 'all' && (
               <button
                 onClick={() => handleTypeFilterChange('all')}
-                className='px-4 py-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/30 rounded text-zinc-300 text-sm transition-colors'>
+                className='px-4 py-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/30 rounded text-zinc-300 text-sm transition-colors cursor-pointer'>
                 View All Activities
               </button>
             )}
@@ -350,7 +350,7 @@ export function Activity({
                       <span className={`text-xs font-medium ${details.color}`}>{details.type}</span>
                       <span className='text-xs text-zinc-500'>•</span>
                       <span className='text-xs text-zinc-500'>
-                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                        {formatDistanceStrict(new Date(comment.createdAt), new Date()) + ' ago'}
                       </span>
                       {comment.tokenSymbol && (
                         <>

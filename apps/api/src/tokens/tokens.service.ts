@@ -1,5 +1,10 @@
 import { TokenHolder, TokenStats } from '@dyor-hub/types';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -7,42 +12,66 @@ import { TokenEntity } from '../entities/token.entity';
 import { WatchlistService } from '../watchlist/watchlist.service';
 import { TwitterHistoryService } from './twitter-history.service';
 
-interface DexScreenerResponse {
-  pairs?: Array<{
-    baseToken?: {
-      address: string;
-      name: string;
-      symbol: string;
-    };
-    url?: string;
-    info?: {
-      websites?: Array<{
-        label: string;
-        url: string;
-      }>;
-      socials?: Array<{
-        type: string;
-        url: string;
-      }>;
-    };
-    priceUsd?: number;
-    fdv?: number;
-    volume?: {
-      h24?: number;
-    };
-  }>;
+interface BirdeyeTokenOverviewExtensions {
+  coingeckoId?: string | null;
+  serumV3Usdc?: string | null;
+  serumV3Usdt?: string | null;
+  website?: string | null;
+  telegram?: string | null;
+  twitter?: string | null;
+  description?: string | null;
+  discord?: string | null;
+  medium?: string | null;
+  [key: string]: any;
+}
+
+interface BirdeyeTokenOverviewData {
+  address?: string;
+  decimals?: number;
+  symbol?: string;
+  name?: string;
+  extensions?: BirdeyeTokenOverviewExtensions;
+  logoURI?: string;
+  liquidity?: number;
+  lastTradeUnixTime?: number;
+  price?: number;
+  priceChange24hPercent?: number;
+  totalSupply?: number;
+  fdv?: number;
+  marketCap?: number;
+  circulatingSupply?: number;
+  holder?: number;
+  v24hUSD?: number;
+  [key: string]: any;
+}
+
+interface BirdeyeTokenOverviewResponse {
+  data?: BirdeyeTokenOverviewData;
+  success?: boolean;
+}
+
+interface BirdeyeV3HolderItem {
+  amount: string;
+  decimals: number;
+  mint: string;
+  owner: string;
+  token_account: string;
+  ui_amount: number;
+}
+
+interface BirdeyeV3HolderResponse {
+  data?: {
+    items?: BirdeyeV3HolderItem[];
+  };
+  success?: boolean;
 }
 
 @Injectable()
 export class TokensService {
   private readonly logger = new Logger(TokensService.name);
-  private readonly HELIUS_RPC_URL: string;
-  private readonly assetDataCache: Map<string, any> = new Map();
-  private readonly dexScreenerCache: Map<string, any> = new Map();
+  private readonly tokenOverviewCache: Map<string, any> = new Map();
   private readonly topHoldersCache: Map<string, any> = new Map();
-  private readonly ipfsCache: Map<string, any> = new Map();
   private readonly pendingRequests: Map<string, Promise<any>> = new Map();
-  private readonly CACHE_TTL = 60 * 1000;
   private readonly cacheTimestamps: Map<string, number> = new Map();
 
   constructor(
@@ -51,79 +80,73 @@ export class TokensService {
     private readonly configService: ConfigService,
     private readonly twitterHistoryService: TwitterHistoryService,
     private readonly watchlistService?: WatchlistService,
-  ) {
-    const heliusApiKey = this.configService.get<string>('HELIUS_API_KEY');
-    this.HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`;
-  }
+  ) {}
 
   /**
-   * Fetches DexScreener data with caching
+   * Fetches Birdeye Token Overview with caching
    */
-  private async fetchDexScreenerData(mintAddress: string) {
-    const cacheKey = `dex_${mintAddress}`;
-    const cachedData = this.dexScreenerCache.get(cacheKey);
+  public async fetchTokenOverview(
+    mintAddress: string,
+  ): Promise<BirdeyeTokenOverviewResponse['data'] | null> {
+    const cacheKey = `token_overview_${mintAddress}`;
+    const cachedData = this.tokenOverviewCache.get(cacheKey);
     const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
+    const BIRD_CACHE_TTL = 60 * 1000;
 
     if (
       cachedData &&
       cachedTimestamp &&
-      Date.now() - cachedTimestamp < this.CACHE_TTL
+      Date.now() - cachedTimestamp < BIRD_CACHE_TTL
     ) {
       return cachedData;
     }
 
+    // Request Deduplication
     if (this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey);
     }
 
     const requestPromise = (async () => {
+      const apiUrl = `https://public-api.birdeye.so/defi/token_overview?address=${mintAddress}`;
+
       try {
-        const response = await fetch(
-          `https://api.dexscreener.com/latest/dex/tokens/${mintAddress}`,
-        );
+        const response = await fetch(apiUrl, {
+          headers: {
+            'X-API-KEY': this.configService.get('BIRDEYE_API_KEY') || '',
+            'x-chain': 'solana',
+          },
+        });
 
         if (!response.ok) {
-          throw new Error(`DexScreener API error: ${response.statusText}`);
+          const errorData = await response
+            .json()
+            .catch(() => ({ message: 'Failed to parse error JSON' }));
+          const errorMessage = errorData?.message || response.statusText;
+          throw new Error(
+            `Birdeye API error (${response.status}): ${errorMessage}`,
+          );
         }
 
-        const data: DexScreenerResponse = await response.json();
-        const pair = data.pairs?.[0];
+        const data: BirdeyeTokenOverviewResponse = await response.json();
 
-        if (!pair) {
+        if (!data?.success || !data?.data) {
+          this.logger.warn(
+            `Birdeye overview response unsuccessful or missing data for ${mintAddress}`,
+          );
           return null;
         }
 
-        const websiteUrl = pair.info?.websites?.find(
-          (w) => w.label === 'Website',
-        )?.url;
-
-        const telegramUrl = pair.info?.socials?.find(
-          (s) => s.type === 'telegram',
-        )?.url;
-
-        const twitterUrl = pair.info?.socials?.find(
-          (s) => s.type === 'twitter',
-        )?.url;
-
-        const result = {
-          websiteUrl,
-          telegramUrl,
-          twitterHandle: twitterUrl?.replace('https://twitter.com/', ''),
-          price: pair.priceUsd,
-          marketCap: pair.fdv,
-          volume24h: pair.volume?.h24,
-        };
-
-        this.dexScreenerCache.set(cacheKey, result);
+        // Cache the data.data part
+        this.tokenOverviewCache.set(cacheKey, data.data);
         this.cacheTimestamps.set(cacheKey, Date.now());
 
-        return result;
+        return data.data;
       } catch (error) {
         this.logger.error(
-          `Error fetching DexScreener data for ${mintAddress}:`,
-          error,
+          `Error fetching Birdeye token overview for ${mintAddress}:`,
+          error.message,
         );
-        return null;
+        return null; // Return null on error
       } finally {
         this.pendingRequests.delete(cacheKey);
       }
@@ -133,64 +156,6 @@ export class TokensService {
     return requestPromise;
   }
 
-  async refreshTokenMetadata(mintAddress: string): Promise<TokenEntity> {
-    const token = await this.tokenRepository.findOne({
-      where: { mintAddress },
-      relations: {
-        comments: true,
-      },
-    });
-
-    if (!token) {
-      throw new NotFoundException(
-        `Token with address ${mintAddress} not found`,
-      );
-    }
-
-    // Fetch asset data once
-    const assetData = await this.fetchAssetData(mintAddress);
-    const dexData = await this.fetchDexScreenerData(mintAddress);
-
-    // Process metadata from asset data
-    let metadata = this.processTokenMetadata(assetData);
-
-    // Try to enhance with IPFS data if available
-    if (assetData?.content?.json_uri) {
-      const ipfsMetadata = await this.fetchIpfsMetadata(
-        assetData.content.json_uri,
-        assetData,
-      );
-      if (ipfsMetadata) {
-        metadata = { ...metadata, ...ipfsMetadata };
-      }
-    }
-
-    if (metadata || dexData) {
-      const updatedToken = {
-        ...token,
-        ...metadata,
-        ...(dexData && {
-          websiteUrl: dexData.websiteUrl || token.websiteUrl,
-          telegramUrl: dexData.telegramUrl || token.telegramUrl,
-          twitterHandle: dexData.twitterHandle || token.twitterHandle,
-        }),
-      };
-
-      await this.tokenRepository.save(updatedToken);
-
-      // Fetch Twitter username history if available
-      if (updatedToken.twitterHandle) {
-        await this.twitterHistoryService.fetchAndStoreUsernameHistory(
-          updatedToken,
-        );
-      }
-
-      return updatedToken;
-    }
-
-    return token;
-  }
-
   async getTokenData(
     mintAddress: string,
     userId?: string,
@@ -198,89 +163,48 @@ export class TokensService {
     try {
       let token = await this.tokenRepository.findOne({
         where: { mintAddress },
-        relations: {
-          comments: true,
-        },
       });
 
       if (!token) {
-        // Fetch asset data once
-        const assetData = await this.fetchAssetData(mintAddress);
-        const dexData = await this.fetchDexScreenerData(mintAddress);
+        const overviewData = await this.fetchTokenOverview(mintAddress);
 
-        // Process metadata from asset data
-        let metadata = this.processTokenMetadata(assetData);
-
-        // Try to enhance with IPFS data if available
-        if (assetData?.content?.json_uri) {
-          const ipfsMetadata = await this.fetchIpfsMetadata(
-            assetData.content.json_uri,
-            assetData,
+        if (!overviewData || (!overviewData.name && !overviewData.symbol)) {
+          throw new NotFoundException(
+            `Token ${mintAddress} not found via Birdeye overview or missing essential info.`,
           );
-          if (ipfsMetadata) {
-            metadata = { ...metadata, ...ipfsMetadata };
-          }
         }
 
-        // Initialize token with metadata
-        const baseTokenData = {
-          mintAddress,
-          name: metadata?.name,
-          symbol: metadata?.symbol,
-          description: metadata?.description,
-          imageUrl: metadata?.imageUrl,
-          websiteUrl: metadata?.websiteUrl,
-          telegramUrl: metadata?.telegramUrl,
-          twitterHandle: metadata?.twitterHandle,
+        let twitterHandle = null;
+        if (overviewData.extensions?.twitter) {
+          twitterHandle = overviewData.extensions.twitter
+            .replace('https://x.com/', '')
+            .replace('https://twitter.com/', '')
+            .replace('@', '');
+        }
+
+        const baseTokenData: Partial<TokenEntity> = {
+          mintAddress: overviewData.address || mintAddress,
+          name: overviewData.name,
+          symbol: overviewData.symbol,
+          description: overviewData.extensions?.description,
+          imageUrl: overviewData.logoURI,
+          websiteUrl: overviewData.extensions?.website,
+          telegramUrl: overviewData.extensions?.telegram,
+          twitterHandle: twitterHandle,
           viewsCount: 1, // First view
         };
 
-        // Merge with DEX data when primary source is missing info
-        if (dexData) {
-          baseTokenData.websiteUrl =
-            baseTokenData.websiteUrl || dexData.websiteUrl;
-          baseTokenData.telegramUrl =
-            baseTokenData.telegramUrl || dexData.telegramUrl;
-          baseTokenData.twitterHandle =
-            baseTokenData.twitterHandle ||
-            dexData.twitterHandle?.replace('https://x.com/', '');
-        }
-
-        // Validate token exists
-        if (!metadata?.name && !metadata?.symbol) {
-          throw new NotFoundException(
-            `Token with address ${mintAddress} not found`,
-          );
-        }
-
         const newToken = this.tokenRepository.create(baseTokenData);
-        await this.tokenRepository.save(newToken);
-        token = await this.tokenRepository.findOne({
-          where: { mintAddress },
-          relations: {
-            comments: true,
-          },
-        });
+        token = await this.tokenRepository.save(newToken);
 
         // Fetch Twitter username history if available
         if (token.twitterHandle) {
           await this.twitterHistoryService.fetchAndStoreUsernameHistory(token);
         }
       } else {
-        // Track view count
+        // Existing token: Track view count
         token.viewsCount = (token.viewsCount || 0) + 1;
         await this.tokenRepository.save(token);
-
-        // Check if we need to fetch Twitter history
-        if (token.twitterHandle) {
-          const existingHistory =
-            await this.twitterHistoryService.getUsernameHistory(mintAddress);
-          if (!existingHistory) {
-            await this.twitterHistoryService.fetchAndStoreUsernameHistory(
-              token,
-            );
-          }
-        }
       }
 
       // Add watchlist status if user is authenticated
@@ -294,131 +218,22 @@ export class TokensService {
 
       return token;
     } catch (error) {
-      this.logger.error(`Error fetching token data for ${mintAddress}:`, error);
-      throw error;
+      this.logger.error(`Error in getTokenData for ${mintAddress}:`, error);
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(
+        `Failed to get token data for ${mintAddress}.`,
+      );
     }
-  }
-
-  /**
-   * Fetches asset data from Helius with request deduplication and caching
-   */
-  private async fetchAssetData(mintAddress: string) {
-    const cacheKey = `asset_${mintAddress}`;
-    const cachedData = this.assetDataCache.get(cacheKey);
-    const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
-
-    if (
-      cachedData &&
-      cachedTimestamp &&
-      Date.now() - cachedTimestamp < this.CACHE_TTL
-    ) {
-      return cachedData;
-    }
-
-    if (this.pendingRequests.has(cacheKey)) {
-      return this.pendingRequests.get(cacheKey);
-    }
-
-    const requestPromise = (async () => {
-      try {
-        const response = await fetch(this.HELIUS_RPC_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 'asset-data',
-            method: 'getAsset',
-            params: {
-              id: mintAddress,
-              displayOptions: {
-                showFungible: true,
-              },
-            },
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Helius API error: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        const result = data.result;
-
-        this.assetDataCache.set(cacheKey, result);
-        this.cacheTimestamps.set(cacheKey, Date.now());
-
-        return result;
-      } catch (error) {
-        this.logger.error(
-          `Error fetching asset data for ${mintAddress}:`,
-          error,
-        );
-        return null;
-      } finally {
-        this.pendingRequests.delete(cacheKey);
-      }
-    })();
-
-    this.pendingRequests.set(cacheKey, requestPromise);
-    return requestPromise;
   }
 
   /**
    * Clears all API data caches
    */
   public clearCaches() {
-    this.assetDataCache.clear();
-    this.dexScreenerCache.clear();
+    this.tokenOverviewCache.clear();
     this.topHoldersCache.clear();
-    this.ipfsCache.clear();
     this.cacheTimestamps.clear();
     this.pendingRequests.clear();
-  }
-
-  // Process token metadata from asset data
-  private processTokenMetadata(assetData: any) {
-    if (!assetData) {
-      return null;
-    }
-
-    try {
-      // Get basic metadata from Helius
-      const metadata = {
-        name: assetData.content?.metadata?.name,
-        symbol: assetData.content?.metadata?.symbol,
-        description: null,
-        imageUrl: null,
-        websiteUrl: null,
-        telegramUrl: null,
-        twitterHandle: null,
-        supply: assetData.token_info?.supply,
-        decimals: assetData.token_info?.decimals,
-      };
-
-      return metadata;
-    } catch (error) {
-      this.logger.error(`Error processing token metadata:`, error);
-      return null;
-    }
-  }
-
-  // Extract token data from asset data
-  private extractTokenData(assetData: any) {
-    if (!assetData) {
-      return {
-        supply: '0',
-        decimals: 9,
-        circulatingSupply: '0',
-      };
-    }
-
-    const tokenInfo = assetData.token_info || {};
-
-    return {
-      supply: tokenInfo.supply,
-      decimals: tokenInfo.decimals,
-      circulatingSupply: tokenInfo.supply, // Assuming all supply is circulating unless we have better data
-    };
   }
 
   async getAllTokens(): Promise<TokenEntity[]> {
@@ -433,49 +248,48 @@ export class TokensService {
 
   async getTokenStats(mintAddress: string): Promise<TokenStats> {
     try {
-      // First, check if the token exists
-      const token = await this.getTokenData(mintAddress);
-      if (!token) {
+      const tokenExists = await this.tokenRepository.findOne({
+        where: { mintAddress: mintAddress },
+        select: ['mintAddress'],
+      });
+      if (!tokenExists) {
         throw new NotFoundException(
-          `Token with mint address ${mintAddress} not found`,
+          `Token with mint address ${mintAddress} not found in DB for stats`,
+        );
+      }
+      const overviewData = await this.fetchTokenOverview(mintAddress);
+      if (!overviewData) {
+        throw new InternalServerErrorException(
+          `Could not fetch overview data from Birdeye for token ${mintAddress}.`,
         );
       }
 
-      // Fetch asset data once
-      const assetData = await this.fetchAssetData(mintAddress);
+      const topHolders = await this.fetchTopHolders(mintAddress, overviewData);
 
-      // Extract token data from asset data
-      const tokenData = this.extractTokenData(assetData);
+      const decimals = overviewData.decimals ?? 0;
+      const rawTotalSupply = overviewData.totalSupply ?? 0;
+      const rawCirculatingSupply =
+        overviewData.circulatingSupply ?? overviewData.totalSupply ?? 0; // Fallback circ to total
 
-      // Fetch market data from DexScreener
-      const dexScreenerData = await this.fetchDexScreenerData(mintAddress);
+      const calculatedTotalSupply =
+        rawTotalSupply > 0 && decimals >= 0
+          ? rawTotalSupply / Math.pow(10, decimals)
+          : 0;
+      const calculatedCirculatingSupply =
+        rawCirculatingSupply > 0 && decimals >= 0
+          ? rawCirculatingSupply / Math.pow(10, decimals)
+          : 0;
 
-      // Get top holders
-      const topHolders = await this.fetchTopHolders(mintAddress);
+      const totalSupplyString = calculatedTotalSupply.toString();
+      const circulatingSupplyString = calculatedCirculatingSupply.toString();
 
       return {
-        // Market data
-        price: dexScreenerData?.price,
-        marketCap: dexScreenerData?.marketCap,
-        volume24h: dexScreenerData?.volume24h,
-
-        // Supply information
-        totalSupply: tokenData.supply
-          ? (
-              Number(tokenData.supply) / Math.pow(10, tokenData.decimals || 0)
-            ).toString()
-          : '0',
-        circulatingSupply: tokenData.circulatingSupply
-          ? (
-              Number(tokenData.circulatingSupply) /
-              Math.pow(10, tokenData.decimals || 0)
-            ).toString()
-          : undefined,
-
-        // Holder information
+        price: overviewData.price,
+        marketCap: overviewData.marketCap,
+        volume24h: overviewData.v24hUSD,
+        totalSupply: totalSupplyString,
+        circulatingSupply: circulatingSupplyString,
         topHolders,
-
-        // Last updated timestamp
         lastUpdated: new Date(),
       };
     } catch (error) {
@@ -483,186 +297,147 @@ export class TokensService {
         `Error fetching token stats for ${mintAddress}:`,
         error,
       );
-      throw error;
+      if (
+        error instanceof NotFoundException ||
+        error instanceof InternalServerErrorException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        `Failed to fetch token stats for ${mintAddress}`,
+      );
     }
   }
 
-  /**
-   * Fetches top token holders with caching
-   */
-  private async fetchTopHolders(mintAddress: string): Promise<TokenHolder[]> {
-    const cacheKey = `holders_${mintAddress}`;
+  private async fetchTopHolders(
+    mintAddress: string,
+    providedOverviewData?: BirdeyeTokenOverviewResponse['data'],
+  ): Promise<TokenHolder[]> {
+    const cacheKey = `birdeye_v3_holders_${mintAddress}`;
     const cachedData = this.topHoldersCache.get(cacheKey);
     const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
+    const HOLDER_CACHE_TTL = 5 * 60 * 1000;
 
     if (
       cachedData &&
       cachedTimestamp &&
-      Date.now() - cachedTimestamp < this.CACHE_TTL
+      Date.now() - cachedTimestamp < HOLDER_CACHE_TTL
     ) {
       return cachedData;
     }
-
     if (this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey);
     }
 
-    const requestPromise = (async () => {
+    const requestPromise = (async (): Promise<TokenHolder[]> => {
+      const apiUrl = `https://public-api.birdeye.so/defi/v3/token/holder?address=${mintAddress}&limit=10&offset=0`;
       try {
-        const assetData = await this.fetchAssetData(mintAddress);
-        const tokenData = this.extractTokenData(assetData);
-
-        const totalSupply = Number(tokenData.supply || 0);
-        const decimals = tokenData.decimals || 0;
-
-        if (totalSupply <= 0) {
+        const response = await fetch(apiUrl, {
+          headers: {
+            'X-API-KEY': this.configService.get('BIRDEYE_API_KEY') || '',
+            'x-chain': 'solana',
+          },
+        });
+        if (!response.ok) {
+          const errorData = await response
+            .json()
+            .catch(() => ({ message: 'Failed to parse error JSON' }));
+          const errorMessage = errorData?.message || response.statusText;
+          throw new Error(
+            `Birdeye Holder API error (${response.status}): ${errorMessage}`,
+          );
+        }
+        const data: BirdeyeV3HolderResponse = await response.json();
+        if (
+          !data?.success ||
+          !data?.data?.items ||
+          data.data.items.length === 0
+        ) {
           this.logger.warn(
-            `Invalid total supply for token ${mintAddress}: ${totalSupply}`,
+            `Birdeye V3 holder response unsuccessful or missing data for ${mintAddress}`,
           );
           return [];
         }
 
-        const response = await fetch(this.HELIUS_RPC_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 'token-largest-accounts',
-            method: 'getTokenLargestAccounts',
-            params: [mintAddress],
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Helius API error: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        const accounts = data.result?.value || [];
-
-        if (accounts.length === 0) {
+        const overviewData =
+          providedOverviewData || (await this.fetchTokenOverview(mintAddress));
+        if (!overviewData) {
+          this.logger.warn(
+            `Could not get overview data for ${mintAddress} while calculating holder percentages.`,
+          );
           return [];
         }
+        const overviewTotalSupply = overviewData.totalSupply ?? 0;
 
-        const result = accounts.slice(0, 10).map((account) => {
-          const rawAmount = Number(account.amount || 0);
-          const percentage = (rawAmount / totalSupply) * 100;
+        const mappedHolders: TokenHolder[] = data.data.items.map((item) => {
+          const holderAmount = item.ui_amount;
+          const percentage =
+            overviewTotalSupply > 0
+              ? (holderAmount / overviewTotalSupply) * 100
+              : 0;
 
           return {
-            address: account.address,
-            amount: rawAmount,
-            percentage,
+            address: item.owner,
+            amount: holderAmount,
+            percentage: isFinite(percentage) ? percentage : 0,
           };
         });
 
-        this.topHoldersCache.set(cacheKey, result);
+        this.topHoldersCache.set(cacheKey, mappedHolders);
         this.cacheTimestamps.set(cacheKey, Date.now());
-
-        return result;
+        return mappedHolders;
       } catch (error) {
         this.logger.error(
-          `Error fetching top holders for ${mintAddress}:`,
-          error,
+          `Error fetching Birdeye V3 top holders for ${mintAddress}:`,
+          error.message,
         );
         return [];
       } finally {
         this.pendingRequests.delete(cacheKey);
       }
     })();
-
     this.pendingRequests.set(cacheKey, requestPromise);
     return requestPromise;
   }
 
-  /**
-   * Fetches IPFS metadata with caching
-   */
-  private async fetchIpfsMetadata(jsonUri: string, assetData: any) {
-    const cacheKey = `ipfs_${jsonUri}`;
-    const cachedData = this.ipfsCache.get(cacheKey);
-    const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
-
-    if (
-      cachedData &&
-      cachedTimestamp &&
-      Date.now() - cachedTimestamp < this.CACHE_TTL
-    ) {
-      return cachedData;
-    }
-
-    if (this.pendingRequests.has(cacheKey)) {
-      return this.pendingRequests.get(cacheKey);
-    }
-
-    const requestPromise = (async () => {
-      try {
-        const ipfsResponse = await fetch(jsonUri);
-        if (!ipfsResponse.ok) {
-          return null;
-        }
-
-        const ipfsMetadata = await ipfsResponse.json();
-
-        const enhancedMetadata: any = {
-          name: ipfsMetadata.name,
-          symbol: ipfsMetadata.symbol,
-          description: ipfsMetadata.description || null,
-          imageUrl:
-            ipfsMetadata.image || assetData.content?.links?.image || null,
-          websiteUrl: ipfsMetadata.website || ipfsMetadata.external_url || null,
-          telegramUrl: ipfsMetadata.telegram || null,
-          twitterHandle: null,
-        };
-
-        if (ipfsMetadata.twitter) {
-          enhancedMetadata.twitterHandle = ipfsMetadata.twitter
-            .replace('https://x.com/', '')
-            .replace('https://twitter.com/', '')
-            .replace('@', '');
-        }
-
-        this.ipfsCache.set(cacheKey, enhancedMetadata);
-        this.cacheTimestamps.set(cacheKey, Date.now());
-
-        return enhancedMetadata;
-      } catch (error) {
-        this.logger.error(
-          `Error fetching IPFS metadata from ${jsonUri}:`,
-          error,
-        );
-        return null;
-      } finally {
-        this.pendingRequests.delete(cacheKey);
-      }
-    })();
-
-    this.pendingRequests.set(cacheKey, requestPromise);
-    return requestPromise;
-  }
-
-  async getTokenPriceHistory(mintAddress: string): Promise<any> {
+  async getTokenPriceHistory(
+    mintAddress: string,
+    startTime: Date,
+    endTime: Date,
+    resolution: '15m' | '1H' | '1D' = '1D', // Default to daily resolution
+  ): Promise<{ items: Array<{ unixTime: number; value: number }> }> {
     try {
-      const unixTime = Math.floor(Date.now() / 1000);
-      const oneDayAgo = unixTime - 86400;
+      const startTimeUnix = Math.floor(startTime.getTime() / 1000);
+      const endTimeUnix = Math.floor(endTime.getTime() / 1000);
 
-      const response = await fetch(
-        `https://public-api.birdeye.so/defi/history_price?address=${mintAddress}&address_type=token&type=15m&time_from=${oneDayAgo}&time_to=${unixTime}`,
-        {
-          headers: {
-            'X-API-KEY': this.configService.get('BIRDEYE_API_KEY') || '',
-            'x-chain': 'solana',
-          },
+      if (startTimeUnix >= endTimeUnix) {
+        this.logger.warn(
+          `Invalid time range for price history: startTime ${startTimeUnix} >= endTime ${endTimeUnix}`,
+        );
+        return { items: [] };
+      }
+
+      const apiUrl = `https://public-api.birdeye.so/defi/history_price?address=${mintAddress}&address_type=token&type=${resolution}&time_from=${startTimeUnix}&time_to=${endTimeUnix}`;
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          'X-API-KEY': this.configService.get('BIRDEYE_API_KEY') || '',
+          'x-chain': 'solana',
         },
-      );
+      });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        const errorMessage = errorData?.error || response.statusText;
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: 'Failed to parse error JSON' }));
+        const errorMessage = errorData?.message || response.statusText;
         const status = response.status;
+        this.logger.error(
+          `Birdeye API error (${status}): ${errorMessage} for ${mintAddress}`,
+        );
 
-        // Handle rate limiting specifically
         if (status === 429) {
-          throw new Error('Rate limit exceeded - Please try again in a moment');
+          throw new Error('Rate limit exceeded fetching price history');
         }
 
         throw new Error(
@@ -672,14 +447,17 @@ export class TokensService {
 
       const data = await response.json();
 
-      if (!data.data?.items) {
+      if (!data?.data?.items) {
+        this.logger.warn(
+          `No price history items found in Birdeye response for ${mintAddress}`,
+        );
         return { items: [] };
       }
 
       return data.data;
     } catch (error) {
       this.logger.error(
-        `Error fetching price history for token ${mintAddress}:`,
+        `Error in getTokenPriceHistory for token ${mintAddress}:`,
         error,
       );
       throw error;

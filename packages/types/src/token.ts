@@ -71,3 +71,10 @@ export interface TwitterUsernameHistoryEntity {
   history: TwitterUsernameHistory[] | null;
   createdAt: Date;
 }
+
+export interface TokenMinimum {
+  mintAddress: string;
+  name: string;
+  symbol: string;
+  imageUrl?: string | null;
+}

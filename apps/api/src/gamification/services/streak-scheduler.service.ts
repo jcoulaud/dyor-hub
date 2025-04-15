@@ -19,6 +19,8 @@ const getUTCDayStart = (date: Date): Date => {
 @Injectable()
 export class StreakSchedulerService {
   private readonly logger = new Logger(StreakSchedulerService.name);
+  // Track the last notification sent for each user
+  private lastNotificationSent: Record<string, Date> = {};
 
   constructor(
     private readonly activityTrackingService: ActivityTrackingService,
@@ -29,9 +31,9 @@ export class StreakSchedulerService {
 
   /**
    * Check for streaks at risk every hour during active hours
-   * This runs at minute 0 of every hour from 8am to 11pm
+   * Run only once at 10pm to notify users 2 hours before streak resets
    */
-  @Cron('0 8-23 * * *')
+  @Cron('0 22 * * *')
   async checkStreaksAtRisk() {
     const startTime = new Date();
     this.logger.log(
@@ -51,12 +53,16 @@ export class StreakSchedulerService {
             streak.userId,
           );
 
+          // Only send notification if streak is at risk and we haven't sent one today
           if (isAtRisk) {
-            // Emit event for notification
+            // Emit event for notification with "2 hours remaining" message
             this.eventEmitter.emit(NotificationEventType.STREAK_AT_RISK, {
               userId: streak.userId,
               currentStreak: streak.currentStreak,
             });
+
+            // Remember that we sent a notification
+            this.lastNotificationSent[streak.userId] = new Date();
             notificationsCount++;
           }
         } catch (userError) {

@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { comments } from '@/lib/api';
 import { cn, getHighResAvatar } from '@/lib/utils';
 import type { LatestComment } from '@dyor-hub/types';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceStrict } from 'date-fns';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -140,7 +140,7 @@ export function LatestComments({
                   </Badge>
                 </div>
                 <span className='text-xs text-zinc-500 flex-shrink-0 ml-2 min-w-[70px] text-right'>
-                  {formatDistanceToNow(new Date(currentComment.createdAt), { addSuffix: true })}
+                  {formatDistanceStrict(new Date(currentComment.createdAt), new Date()) + ' ago'}
                 </span>
               </div>
               <p className='text-sm text-zinc-400 line-clamp-2'>{currentComment.content}</p>

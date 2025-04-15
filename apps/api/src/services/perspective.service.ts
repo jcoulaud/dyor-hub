@@ -57,12 +57,16 @@ export class PerspectiveService {
     'mcap',
     'market cap',
   ]);
+  private readonly isLocal: boolean;
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('PERSPECTIVE_API_KEY') || '';
     if (!this.apiKey) {
       this.logger.warn('PERSPECTIVE_API_KEY is not set');
     }
+
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+    this.isLocal = nodeEnv !== 'production';
   }
 
   async analyzeText(text: string): Promise<{
@@ -70,6 +74,16 @@ export class PerspectiveService {
     isToxic: boolean;
     scores: { spam: number; toxicity: number };
   }> {
+    // Skip all checks in local/development environment
+    if (this.isLocal) {
+      this.logger.debug('Skipping Perspective API check in local environment');
+      return {
+        isSpam: false,
+        isToxic: false,
+        scores: { spam: 0, toxicity: 0 },
+      };
+    }
+
     // Skip spam check for short comments or URLs
     if (text.trim().length <= 3 || this.urlRegex.test(text)) {
       if (!this.apiKey) {

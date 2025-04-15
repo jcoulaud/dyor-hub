@@ -21,6 +21,11 @@ const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
 
 const notificationTypes = [
   {
+    id: NotificationType.TOKEN_CALL_VERIFIED,
+    label: 'Token Call Results',
+    description: 'Get notified when your token call predictions are finished',
+  },
+  {
     id: NotificationType.STREAK_AT_RISK,
     label: 'Streak at Risk',
     description: 'Get notified when your streak is about to expire',

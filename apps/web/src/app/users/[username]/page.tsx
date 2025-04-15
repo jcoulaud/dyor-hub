@@ -1,4 +1,5 @@
 import { ProfileStats } from '@/components/profile/ProfileStats';
+import { UserProfileTokenCallsStats } from '@/components/profile/UserProfileTokenCallsStats';
 import { ShareButton } from '@/components/share/ShareButton';
 import { TwitterShareButton } from '@/components/share/TwitterShareButton';
 import { WalletBadge } from '@/components/wallet/WalletBadge';
@@ -108,7 +109,7 @@ export default async function UserProfilePage({ params }: UserPageProps) {
         <div className='container mx-auto px-4 py-12 relative z-10'>
           <div className='max-w-4xl mx-auto'>
             {/* Integrated Header Card - Reduced size */}
-            <div className='mb-10 backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-xl'>
+            <div className='mb-6 backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-xl'>
               {/* Top Section: Avatar, Name, Twitter */}
               <div className='p-6 pb-4 relative'>
                 {/* Background glow effect */}
@@ -140,14 +141,14 @@ export default async function UserProfilePage({ params }: UserPageProps) {
                       <div>
                         <div className='flex items-center gap-1 mb-1 md:hidden justify-center w-full'>
                           <ShareButton />
-                          <TwitterShareButton displayName={user.displayName} />
+                          <TwitterShareButton displayName={user.displayName} userId={user.id} />
                         </div>
                         <div className='flex flex-col items-center md:items-start'>
                           <h1 className='text-2xl font-bold text-white flex items-center gap-2'>
                             {user.displayName}
                             <div className='hidden md:flex items-center gap-1'>
                               <ShareButton />
-                              <TwitterShareButton displayName={user.displayName} />
+                              <TwitterShareButton displayName={user.displayName} userId={user.id} />
                             </div>
                           </h1>
                           <p className='text-zinc-400 text-sm'>@{user.username}</p>
@@ -209,6 +210,9 @@ export default async function UserProfilePage({ params }: UserPageProps) {
                 </div>
               </div>
             </div>
+
+            {/* Token Call Stats Section */}
+            <UserProfileTokenCallsStats userId={user.id} username={user.username} />
 
             {/* Activity Section */}
             <Activity

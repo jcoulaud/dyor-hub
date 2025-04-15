@@ -469,6 +469,10 @@ export class NotificationsService {
       case NotificationType.SYSTEM:
         emoji = '🔔';
         break;
+      case NotificationType.TOKEN_CALL_VERIFIED:
+        const callStatus = notification.relatedMetadata?.status;
+        emoji = callStatus === 'success' ? '✅' : '❌';
+        break;
     }
 
     return `${emoji} <b>${this.getNotificationTypeTitle(type)}</b>\n\n${message}`;
@@ -494,6 +498,8 @@ export class NotificationsService {
         return 'Upvote Received';
       case NotificationType.SYSTEM:
         return 'System Notification';
+      case NotificationType.TOKEN_CALL_VERIFIED:
+        return 'Token Call Ended';
       default:
         return 'Notification';
     }
@@ -513,7 +519,9 @@ export class NotificationsService {
         }
         break;
       case 'badge':
-        return `${baseUrl}/profile/badges`;
+        return `${baseUrl}/account/badges`;
+      case 'token_call':
+        return `${baseUrl}/token-calls/${entityId}`;
       default:
         return null;
     }

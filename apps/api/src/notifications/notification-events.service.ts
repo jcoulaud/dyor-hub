@@ -48,7 +48,7 @@ export class NotificationEventsService {
     await this.createAndEmitNotification(
       payload.userId,
       NotificationType.STREAK_AT_RISK,
-      `Your ${payload.currentStreak} day streak is at risk! Log in now to keep it going.`,
+      `Your ${payload.currentStreak} day streak is about to expire in 2 hours! Log in now to keep it going.`,
     );
   }
 
