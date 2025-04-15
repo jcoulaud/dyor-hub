@@ -650,7 +650,7 @@ export default function Page({ params, commentId }: PageProps) {
                           <Shield className='h-4 w-4 text-red-400 mr-2' />
                           <span className='text-sm font-medium text-zinc-200'>
                             {isDev
-                              ? 'Token information is disabled in local development mode'
+                              ? 'Token information is disabled in local development mode. To access token information, please run the app in production mode.'
                               : 'Unable to load token data. Please refresh or try again later.'}
                           </span>
                         </div>
