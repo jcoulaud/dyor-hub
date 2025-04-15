@@ -352,20 +352,6 @@ export class LeaderboardService {
           existingEntry.previousRank = existingEntry.rank;
           existingEntry.rank = rank;
           updatedEntries.push(existingEntry);
-
-          // Check for significant rank changes (improved by 3+ positions)
-          if (
-            existingEntry.previousRank &&
-            existingEntry.previousRank - rank >= 3
-          ) {
-            await this.notifyRankImprovement(
-              userId,
-              category,
-              timeframe,
-              rank,
-              existingEntry.previousRank,
-            );
-          }
         } else {
           // Create new entry
           const newEntry = this.leaderboardRepository.create({
