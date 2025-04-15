@@ -21,6 +21,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 interface CombinedLeaderboardEntry {
@@ -112,14 +113,28 @@ const formatCategoryName = (category: UiCategory) => {
 
 const LeaderboardPage = () => {
   const { user, isAuthenticated } = useAuthContext();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  const [activeCategory, setActiveCategory] = useState<UiCategory>('reputation');
+  // Get the initial category from URL search params or default to 'reputation'
+  const [activeCategory, setActiveCategory] = useState<UiCategory>(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam && Object.keys(categoryMapping).includes(categoryParam as UiCategory)) {
+      return categoryParam as UiCategory;
+    }
+    return 'reputation';
+  });
+
   const [entries, setEntries] = useState<CombinedLeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUserPosition, setCurrentUserPosition] = useState<CurrentUserPosition | null>(null);
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get('page');
+    return pageParam ? parseInt(pageParam, 10) : 1;
+  });
+
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 20;
 
@@ -228,11 +243,36 @@ const LeaderboardPage = () => {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
+  // Update state when URL parameters change
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    const pageParam = searchParams.get('page');
+
+    // Update category if it exists in the URL and is valid
+    if (categoryParam && Object.keys(categoryMapping).includes(categoryParam as UiCategory)) {
+      setActiveCategory(categoryParam as UiCategory);
+    }
+
+    // Update page if it exists in the URL
+    if (pageParam) {
+      const parsedPage = parseInt(pageParam, 10);
+      if (!isNaN(parsedPage) && parsedPage > 0) {
+        setPage(parsedPage);
+      }
+    }
+  }, [searchParams]);
+
   const handleCategoryChange = (category: UiCategory) => {
     // Check if the selected category key exists in our mapping
     if (categoryMapping.hasOwnProperty(category)) {
       setActiveCategory(category);
       setPage(1);
+
+      // Update URL with selected category
+      const params = new URLSearchParams(searchParams);
+      params.set('category', category);
+      params.set('page', '1');
+      router.replace(`/leaderboard?${params.toString()}`, { scroll: false });
     } else {
       console.warn(`Invalid category selected: ${category}`);
     }
@@ -240,6 +280,10 @@ const LeaderboardPage = () => {
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
+
+    const params = new URLSearchParams(searchParams);
+    params.set('page', newPage.toString());
+    router.replace(`/leaderboard?${params.toString()}`, { scroll: false });
   };
 
   const formatAccuracyRate = (rate: number | undefined | null) => {
