@@ -1,4 +1,5 @@
 import { tokenCalls, users } from '@/lib/api';
+import { formatLargeNumber } from '@/lib/utils';
 import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -11,6 +12,7 @@ interface TokenCallStats {
   averageGainPercent?: number | null;
   averageTimeToHitRatio?: number | null;
   averageMultiplier?: number | null;
+  averageMarketCapAtCallTime?: number | null;
 }
 
 export const alt = 'DYOR hub - User Profile';
@@ -389,14 +391,14 @@ export default async function Image({ params }: { params: { username: string } }
           <div
             style={{
               display: 'flex',
-              flexWrap: 'nowrap', // Ensure 4 items per row
+              flexWrap: 'nowrap',
               gap: 12,
               width: '100%',
             }}>
             {/* Total Calls Box */}
             <div
               style={{
-                flex: '1 1 23%',
+                flex: '1 1 18%',
                 backgroundColor: 'rgba(96, 165, 250, 0.1)',
                 borderRadius: 10,
                 padding: '10px 14px',
@@ -422,7 +424,7 @@ export default async function Image({ params }: { params: { username: string } }
             {/* Hit Rate Box */}
             <div
               style={{
-                flex: '1 1 23%',
+                flex: '1 1 18%', // Adjust flex basis for 5 items
                 backgroundColor: 'rgba(74, 222, 128, 0.1)',
                 borderRadius: 10,
                 padding: '10px 14px',
@@ -448,7 +450,7 @@ export default async function Image({ params }: { params: { username: string } }
             {/* Average Multiplier Box */}
             <div
               style={{
-                flex: '1 1 23%',
+                flex: '1 1 18%',
                 backgroundColor: 'rgba(250, 204, 21, 0.1)',
                 borderRadius: 10,
                 padding: '10px 14px',
@@ -471,10 +473,39 @@ export default async function Image({ params }: { params: { username: string } }
               <div style={{ color: '#a3a3a3', fontSize: 14, display: 'flex' }}>Avg Multiplier</div>
             </div>
 
+            {/* Average MCAP Box */}
+            <div
+              style={{
+                flex: '1 1 18%',
+                backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                borderRadius: 10,
+                padding: '10px 14px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <div
+                style={{
+                  fontSize: 38,
+                  fontWeight: 'bold',
+                  color: '#22d3ee',
+                  marginBottom: 2,
+                  display: 'flex',
+                }}>
+                {tokenCallStats?.averageMarketCapAtCallTime !== null &&
+                tokenCallStats?.averageMarketCapAtCallTime !== undefined
+                  ? `$${formatLargeNumber(tokenCallStats.averageMarketCapAtCallTime)}`
+                  : '-'}
+              </div>
+              <div style={{ color: '#a3a3a3', fontSize: 14, display: 'flex' }}>Avg Entry MCap</div>
+            </div>
+
             {/* Average Time to Hit Box */}
             <div
               style={{
-                flex: '1 1 23%',
+                flex: '1 1 18%',
                 backgroundColor: 'rgba(248, 113, 113, 0.1)',
                 borderRadius: 10,
                 padding: '10px 14px',
