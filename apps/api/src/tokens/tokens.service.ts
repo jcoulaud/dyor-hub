@@ -647,7 +647,7 @@ export class TokensService {
     mintAddress: string,
     startTime: Date,
     endTime: Date,
-    resolution: '15m' | '1H' | '1D' = '1D', // Default to daily resolution
+    resolution: '1m' | '5m' | '15m' | '30m' | '1H' | '2H' | '1D' = '1D',
   ): Promise<{ items: Array<{ unixTime: number; value: number }> }> {
     try {
       const startTimeUnix = Math.floor(startTime.getTime() / 1000);

@@ -88,13 +88,41 @@ export class TokenCallVerificationService {
     this.logger.log(`Verifying call ${call.id} for token ${call.tokenId}...`);
     let priceHistory: { items: Array<{ unixTime: number; value: number }> };
 
+    // Determine Adaptive Resolution
+    const durationMs = call.targetDate.getTime() - call.callTimestamp.getTime();
+    let resolution: '1m' | '5m' | '15m' | '30m' | '1H' | '2H' | '1D';
+
+    // Define thresholds
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    const SIX_HOURS_MS = 6 * ONE_HOUR_MS;
+    const ONE_DAY_MS = 24 * ONE_HOUR_MS;
+    const THREE_DAYS_MS = 3 * ONE_DAY_MS;
+    const ONE_WEEK_MS = 7 * ONE_DAY_MS;
+    const ONE_MONTH_MS = 30 * ONE_DAY_MS;
+
+    if (durationMs <= ONE_HOUR_MS) {
+      resolution = '1m'; // Use 1-minute data for calls <= 1 hour
+    } else if (durationMs <= SIX_HOURS_MS) {
+      resolution = '5m'; // Use 5-minute data for calls <= 6 hours
+    } else if (durationMs <= ONE_DAY_MS) {
+      resolution = '15m'; // Use 15-minute data for calls <= 1 day
+    } else if (durationMs <= THREE_DAYS_MS) {
+      resolution = '30m'; // Use 30-minute data for calls <= 3 days
+    } else if (durationMs <= ONE_WEEK_MS) {
+      resolution = '1H'; // Use 1-hour data for calls <= 1 week
+    } else if (durationMs <= ONE_MONTH_MS) {
+      resolution = '2H'; // Use 2-hour data for calls <= 1 month (approx)
+    } else {
+      resolution = '1D'; // Use daily data for calls > 1 month
+    }
+
     // 1. Fetch Price History
     try {
       priceHistory = await this.tokensService.getTokenPriceHistory(
         call.tokenId,
         call.callTimestamp,
         call.targetDate,
-        '1H',
+        resolution,
       );
     } catch (error) {
       if (error.message?.includes('Rate limit exceeded')) {
