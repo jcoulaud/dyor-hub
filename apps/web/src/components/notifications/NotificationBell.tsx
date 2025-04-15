@@ -285,6 +285,25 @@ export function NotificationBell() {
         return '/account/streak';
 
       case NotificationType.LEADERBOARD_CHANGE:
+        if (notification.relatedMetadata?.category) {
+          return `/leaderboard?category=${notification.relatedMetadata.category}`;
+        }
+
+        const message = notification.message.toLowerCase();
+        if (message.includes('reputation')) {
+          return '/leaderboard?category=reputation';
+        } else if (message.includes('comments')) {
+          return '/leaderboard?category=comments';
+        } else if (message.includes('posts')) {
+          return '/leaderboard?category=posts';
+        } else if (message.includes('upvotes given')) {
+          return '/leaderboard?category=upvotes_given';
+        } else if (message.includes('upvotes received')) {
+          return '/leaderboard?category=upvotes_received';
+        } else if (message.includes('token call')) {
+          return '/leaderboard?category=tokenCalls';
+        }
+
         return '/leaderboard';
 
       case NotificationType.REPUTATION_MILESTONE:
