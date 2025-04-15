@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { tokenCalls } from '@/lib/api';
-import { BarChart3, CheckCircle, Clock, HelpCircle, Scale } from 'lucide-react';
+import { formatLargeNumber } from '@/lib/utils';
+import { BarChart3, CheckCircle, Clock, HelpCircle, Scale, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -21,6 +22,7 @@ interface UserTokenCallStats {
   averageGainPercent?: number | null;
   averageTimeToHitRatio?: number | null;
   averageMultiplier?: number | null;
+  averageMarketCapAtCallTime?: number | null;
 }
 
 export function UserProfileTokenCallsStats({ userId, username }: UserProfileTokenCallsStatsProps) {
@@ -83,6 +85,13 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
                 </div>
               </div>
             ))}
+            <div className='flex items-center'>
+              <Skeleton className='h-10 w-10 rounded-md mr-3' />
+              <div>
+                <Skeleton className='h-3 w-16 mb-2' />
+                <Skeleton className='h-5 w-8' />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -112,7 +121,7 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
         </div>
 
         <div className='p-4'>
-          <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+          <div className='grid grid-cols-2 md:grid-cols-5 gap-4'>
             {/* Total Calls */}
             <div className='flex items-center'>
               <div className='w-10 h-10 rounded bg-zinc-800/80 flex items-center justify-center mr-3'>
@@ -188,25 +197,51 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
               </div>
             </div>
 
-            {/* Average Multiplier - Always show */}
+            {/* Average Multiplier */}
             <div className='flex items-center'>
               <div className='w-10 h-10 rounded bg-zinc-800/80 flex items-center justify-center mr-3'>
-                <Scale className='h-5 w-5 text-blue-400' />
+                <Scale className='h-5 w-5 text-purple-400' />
               </div>
               <div>
                 <p className='text-zinc-400 text-xs flex items-center gap-1'>
-                  Avg. Multiplier
+                  Avg Multiplier
                   <Tooltip>
                     <TooltipTrigger>
                       <HelpCircle className='h-3 w-3 opacity-60' />
                     </TooltipTrigger>
                     <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
-                      <p>Average multiplier of successful calls</p>
+                      <p>Average multiplier achieved on successful calls</p>
                     </TooltipContent>
                   </Tooltip>
                 </p>
                 <p className='text-base font-semibold text-white'>
                   {formatAvgMultiplier(stats.averageMultiplier)}
+                </p>
+              </div>
+            </div>
+
+            {/* Average MCAP */}
+            <div className='flex items-center'>
+              <div className='w-10 h-10 rounded bg-zinc-800/80 flex items-center justify-center mr-3'>
+                <Trophy className='h-5 w-5 text-teal-400' />
+              </div>
+              <div>
+                <p className='text-zinc-400 text-xs flex items-center gap-1'>
+                  Avg MCAP
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className='h-3 w-3 opacity-60' />
+                    </TooltipTrigger>
+                    <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
+                      <p>Average market cap at time of call</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </p>
+                <p className='text-base font-semibold text-white'>
+                  {stats.averageMarketCapAtCallTime !== null &&
+                  stats.averageMarketCapAtCallTime !== undefined
+                    ? `$${formatLargeNumber(stats.averageMarketCapAtCallTime)}`
+                    : '-'}
                 </p>
               </div>
             </div>

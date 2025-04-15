@@ -23,4 +23,7 @@ export class LeaderboardEntryDto {
 
   @Expose()
   averageMultiplier: number | null;
+
+  @Expose()
+  averageMarketCapAtCallTime: number | null;
 }

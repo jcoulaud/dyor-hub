@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Pagination } from '@/components/ui/pagination';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { leaderboards, tokenCallsLeaderboard } from '@/lib/api';
-import { cn, getHighResAvatar } from '@/lib/utils';
+import { cn, formatLargeNumber, getHighResAvatar } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import { LeaderboardCategory, LeaderboardTimeframe } from '@dyor-hub/types';
 import { motion } from 'framer-motion';
@@ -38,6 +38,7 @@ interface CombinedLeaderboardEntry {
   accuracyRate?: number;
   averageTimeToHitRatio?: number | null;
   averageMultiplier?: number | null;
+  averageMarketCapAtCallTime?: number | null;
 }
 
 interface CurrentUserPosition {
@@ -48,6 +49,7 @@ interface CurrentUserPosition {
   successfulCalls?: number;
   averageTimeToHitRatio?: number | null;
   averageMultiplier?: number | null;
+  averageMarketCapAtCallTime?: number | null;
   foundInCurrentPage: boolean;
 }
 
@@ -162,6 +164,7 @@ const LeaderboardPage = () => {
           accuracyRate: item.accuracyRate,
           averageTimeToHitRatio: item.averageTimeToHitRatio,
           averageMultiplier: item.averageMultiplier,
+          averageMarketCapAtCallTime: item.averageMarketCapAtCallTime,
         }));
         setTotalPages(Math.ceil(data.total / data.limit));
 
@@ -176,6 +179,7 @@ const LeaderboardPage = () => {
               successfulCalls: userEntry.successfulCalls,
               averageTimeToHitRatio: userEntry.averageTimeToHitRatio,
               averageMultiplier: userEntry.averageMultiplier,
+              averageMarketCapAtCallTime: userEntry.averageMarketCapAtCallTime,
               foundInCurrentPage: true,
             });
           }
@@ -443,6 +447,20 @@ const LeaderboardPage = () => {
                               </p>
                             </TooltipContent>
                           </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className='text-[10px] text-gray-400 flex items-center gap-1 cursor-help'>
+                                <Trophy className='h-2.5 w-2.5' /> Avg Mcap:{' '}
+                                {entries[1].averageMarketCapAtCallTime !== null &&
+                                entries[1].averageMarketCapAtCallTime !== undefined
+                                  ? `$${formatLargeNumber(entries[1].averageMarketCapAtCallTime)}`
+                                  : '-'}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
+                              <p>Average market cap at time of call</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </>
                       ) : (
                         <span>
@@ -519,6 +537,20 @@ const LeaderboardPage = () => {
                               <p>
                                 Avg. timing relative to target date (100% = hit on target date).
                               </p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className='text-[10px] text-amber-500 flex items-center gap-1 cursor-help'>
+                                <Trophy className='h-2.5 w-2.5' /> Avg Mcap:{' '}
+                                {entries[0].averageMarketCapAtCallTime !== null &&
+                                entries[0].averageMarketCapAtCallTime !== undefined
+                                  ? `$${formatLargeNumber(entries[0].averageMarketCapAtCallTime)}`
+                                  : '-'}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
+                              <p>Average market cap at time of call</p>
                             </TooltipContent>
                           </Tooltip>
                         </>
@@ -599,6 +631,20 @@ const LeaderboardPage = () => {
                               </p>
                             </TooltipContent>
                           </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className='text-[10px] text-amber-600 flex items-center gap-1 cursor-help'>
+                                <Trophy className='h-2.5 w-2.5' /> Avg Mcap:{' '}
+                                {entries[2].averageMarketCapAtCallTime !== null &&
+                                entries[2].averageMarketCapAtCallTime !== undefined
+                                  ? `$${formatLargeNumber(entries[2].averageMarketCapAtCallTime)}`
+                                  : '-'}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
+                              <p>Average market cap at time of call</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </>
                       ) : (
                         <span>
@@ -631,6 +677,16 @@ const LeaderboardPage = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
+                  <div className='w-24 sm:w-28 text-center hidden md:block'>
+                    <Tooltip>
+                      <TooltipTrigger className='flex items-center justify-center gap-1 w-full cursor-default'>
+                        Avg. MCAP <HelpCircle className='h-3 w-3 opacity-60' />
+                      </TooltipTrigger>
+                      <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
+                        <p>Average market cap at time of call.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <div className='w-28 sm:w-36 text-center hidden md:block'>
                     <Tooltip>
                       <TooltipTrigger className='flex items-center justify-center gap-1 w-full cursor-default'>
@@ -638,16 +694,6 @@ const LeaderboardPage = () => {
                       </TooltipTrigger>
                       <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
                         <p>Avg. timing relative to target date (100% = hit on target date).</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <div className='w-20 sm:w-24 text-center hidden sm:block'>
-                    <Tooltip>
-                      <TooltipTrigger className='flex items-center justify-center gap-1 w-full cursor-default'>
-                        Hit Rate <HelpCircle className='h-3 w-3 opacity-60' />
-                      </TooltipTrigger>
-                      <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
-                        <p>Percentage of verified calls that were successful.</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -697,14 +743,17 @@ const LeaderboardPage = () => {
                             {formatAvgMultiplier(currentUserPosition.averageMultiplier)}
                           </div>
                         </div>
+                        <div className='w-24 sm:w-28 text-center hidden md:block'>
+                          <div className='font-mono font-semibold text-amber-500 text-xs sm:text-sm'>
+                            {currentUserPosition.averageMarketCapAtCallTime !== null &&
+                            currentUserPosition.averageMarketCapAtCallTime !== undefined
+                              ? `$${formatLargeNumber(currentUserPosition.averageMarketCapAtCallTime)}`
+                              : '-'}
+                          </div>
+                        </div>
                         <div className='w-28 sm:w-36 text-center hidden md:block'>
                           <div className='font-mono font-semibold text-amber-500 text-xs sm:text-sm'>
                             {formatAvgTimeToHit(currentUserPosition.averageTimeToHitRatio)}
-                          </div>
-                        </div>
-                        <div className='w-20 sm:w-24 text-center hidden sm:block'>
-                          <div className='font-mono font-semibold text-amber-500 text-xs sm:text-sm'>
-                            {formatAccuracyRate(currentUserPosition.accuracyRate)}
                           </div>
                         </div>
                         <div className='w-28 sm:w-32 text-right'>
@@ -836,6 +885,18 @@ const LeaderboardPage = () => {
                             {formatAvgMultiplier(entry.averageMultiplier)}
                           </div>
                         </div>
+                        <div className='w-24 sm:w-28 text-center hidden md:block'>
+                          <div
+                            className={cn(
+                              'font-mono font-semibold text-xs sm:text-sm',
+                              isCurrentUser ? 'text-amber-500' : 'text-zinc-300',
+                            )}>
+                            {entry.averageMarketCapAtCallTime !== null &&
+                            entry.averageMarketCapAtCallTime !== undefined
+                              ? `$${formatLargeNumber(entry.averageMarketCapAtCallTime)}`
+                              : '-'}
+                          </div>
+                        </div>
                         <div className='w-28 sm:w-36 text-center hidden md:block'>
                           <div
                             className={cn(
@@ -843,15 +904,6 @@ const LeaderboardPage = () => {
                               isCurrentUser ? 'text-amber-500' : 'text-zinc-300',
                             )}>
                             {formatAvgTimeToHit(entry.averageTimeToHitRatio)}
-                          </div>
-                        </div>
-                        <div className='w-20 sm:w-24 text-center hidden sm:block'>
-                          <div
-                            className={cn(
-                              'font-mono font-semibold text-xs sm:text-sm',
-                              isCurrentUser ? 'text-amber-500' : 'text-zinc-300',
-                            )}>
-                            {formatAccuracyRate(entry.accuracyRate)}
                           </div>
                         </div>
                         <div className='w-28 sm:w-32 text-right'>

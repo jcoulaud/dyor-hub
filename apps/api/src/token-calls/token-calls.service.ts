@@ -440,6 +440,7 @@ export class TokenCallsService {
           'timeToHitRatio',
           'peakPriceDuringPeriod',
           'id',
+          'referenceSupply',
         ],
       });
 
@@ -457,9 +458,24 @@ export class TokenCallsService {
       let totalTimeToHitRatio = 0;
       let totalMultiplier = 0;
       let successfulCallsWithValidData = 0;
+      let totalMarketCapAtCallTime = 0;
+      let callsWithMarketCapAtCallTime = 0;
 
+      // Calculate average market cap at call time over ALL verified calls
+      for (const call of verifiedCalls) {
+        if (
+          call.referencePrice > 0 &&
+          call.referenceSupply &&
+          call.referenceSupply > 0
+        ) {
+          totalMarketCapAtCallTime +=
+            call.referencePrice * call.referenceSupply;
+          callsWithMarketCapAtCallTime++;
+        }
+      }
+
+      // Calculate averages for successful calls
       for (const call of successfulCalls) {
-        // Calculate gain percent for successful calls
         const refPrice = call.referencePrice;
         const targetPrice = call.targetPrice;
         const peakPrice = call.peakPriceDuringPeriod;
@@ -501,6 +517,12 @@ export class TokenCallsService {
           ? totalMultiplier / successfulCallsWithValidData
           : null;
 
+      // Calculate average MCAP at call time
+      const averageMarketCapAtCallTime =
+        callsWithMarketCapAtCallTime > 0
+          ? totalMarketCapAtCallTime / callsWithMarketCapAtCallTime
+          : null;
+
       return {
         totalCalls: allCalls,
         successfulCalls: successfulCalls.length,
@@ -509,6 +531,7 @@ export class TokenCallsService {
         averageGainPercent,
         averageTimeToHitRatio,
         averageMultiplier,
+        averageMarketCapAtCallTime,
       };
     } catch (error) {
       this.logger.error(

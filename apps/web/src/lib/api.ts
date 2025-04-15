@@ -1403,6 +1403,7 @@ export const tokenCalls = {
     averageGainPercent?: number | null;
     averageTimeToHitRatio?: number | null;
     averageMultiplier?: number | null;
+    averageMarketCapAtCallTime?: number | null;
   }> => {
     try {
       const endpoint = userId ? `users/${userId}/token-call-stats` : 'users/me/token-call-stats';
@@ -1414,6 +1415,7 @@ export const tokenCalls = {
         averageGainPercent?: number | null;
         averageTimeToHitRatio?: number | null;
         averageMultiplier?: number | null;
+        averageMarketCapAtCallTime?: number | null;
       }>(endpoint);
       return response;
     } catch (error) {
@@ -1485,6 +1487,7 @@ export const tokenCallsLeaderboard = {
       accuracyRate: number;
       averageTimeToHitRatio: number | null;
       averageMultiplier: number | null;
+      averageMarketCapAtCallTime: number | null;
     }>;
     total: number;
     page: number;
@@ -1511,6 +1514,7 @@ export const tokenCallsLeaderboard = {
           accuracyRate: number;
           averageTimeToHitRatio: number | null;
           averageMultiplier: number | null;
+          averageMarketCapAtCallTime: number | null;
         }>;
         total: number;
         page: number;
