@@ -1,5 +1,6 @@
 'use client';
 
+import { AuthModal } from '@/components/auth/AuthModal';
 import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
 import { TokenCallsSection } from '@/components/token-calls/token-page/TokenCallsSection';
@@ -70,6 +71,10 @@ export default function Page({ params, commentId }: PageProps) {
   const [tokenHistoryData, setTokenHistoryData] = useState<TwitterUsernameHistoryEntity | null>(
     null,
   );
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [pendingSentimentAction, setPendingSentimentAction] = useState<
+    (() => Promise<void>) | null
+  >(null);
 
   const { toast } = useToast();
 
@@ -100,16 +105,23 @@ export default function Page({ params, commentId }: PageProps) {
     [address, router],
   );
 
+  const handleAuthModalClose = () => {
+    setShowAuthModal(false);
+    setPendingSentimentAction(null);
+  };
+
   const handleSentimentVote = useCallback(
     async (sentimentType: SentimentType) => {
       if (!isAuthenticated) {
-        toast({ title: 'Authentication Required', description: 'Please log in to vote.' });
+        setPendingSentimentAction(() => async () => {
+          handleSentimentVote(sentimentType);
+        });
+        setShowAuthModal(true);
         return;
       }
 
       setIsVoting(true);
       try {
-        // If user already voted with this sentiment, remove it
         if (sentimentData?.userSentiment === sentimentType) {
           await tokens.removeSentiment(mintAddress);
           toast({
@@ -1108,6 +1120,13 @@ export default function Page({ params, commentId }: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* Add AuthModal at the end of the component */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={handleAuthModalClose}
+        onAuthSuccess={pendingSentimentAction ?? undefined}
+      />
     </div>
   );
 }
