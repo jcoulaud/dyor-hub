@@ -40,3 +40,6 @@ yarn-error.log*
 
 # Local HTTPS certificates
 /secrets/
+
+# Turbo
+.turbo
