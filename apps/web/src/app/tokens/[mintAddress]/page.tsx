@@ -3,9 +3,9 @@
 import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
 import { TokenCallsSection } from '@/components/token-calls/token-page/TokenCallsSection';
+import { TokenExternalLinks } from '@/components/tokens/TokenExternalLinks';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
-import { TokenExternalLinks } from "@/components/tokens/TokenExternalLinks";
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,13 +25,13 @@ import {
 import {
   BarChart3,
   Copy,
+  ExternalLink,
   Globe,
   MessageSquare,
   Search,
   Shield,
   Sparkles,
   Twitter,
-  ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, usePathname, useRouter } from 'next/navigation';
@@ -718,6 +718,28 @@ export default function Page({ params, commentId }: PageProps) {
               </Card>
             </div>
 
+            {/* External Links Card for mobile only */}
+            <div className='xl:hidden relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-2 relative'>
+                  <div className='flex items-center mb-4'>
+                    <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
+                      <ExternalLink className='h-5 w-5 text-blue-400' />
+                    </div>
+                    <CardTitle className='text-xl font-semibold text-white'>
+                      External links
+                    </CardTitle>
+                  </div>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
+                </CardHeader>
+                <CardContent className='pt-2 pb-6'>
+                  <TokenExternalLinks tokenAddress={mintAddress} className='gap-1' />
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Token Sentiment Card for mobile only */}
             <div className='xl:hidden relative group'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
@@ -966,6 +988,28 @@ export default function Page({ params, commentId }: PageProps) {
               </Card>
             </div>
 
+            {/* External Links */}
+            <div className='relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-2 relative'>
+                  <div className='flex items-center mb-4'>
+                    <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
+                      <ExternalLink className='h-5 w-5 text-blue-400' />
+                    </div>
+                    <CardTitle className='text-xl font-semibold text-white'>
+                      External links
+                    </CardTitle>
+                  </div>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
+                </CardHeader>
+                <CardContent className='pt-2 pb-6'>
+                  <TokenExternalLinks tokenAddress={mintAddress} className='gap-0' />
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Sentiment Card */}
             <div className='relative group'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
@@ -1059,29 +1103,6 @@ export default function Page({ params, commentId }: PageProps) {
                     </div>
                   )}
                 </CardContent>
-
-              </Card>
-            </div>
-            {/* External Links */}
-            <div className='relative group'>
-              <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
-              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
-                <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
-                <CardHeader className='pb-2 relative'>
-                  <div className='flex items-center mb-4'>
-                    <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
-                      <ExternalLink className='h-5 w-5 text-blue-400' />
-                    </div>
-                    <CardTitle className='text-xl font-semibold text-white'>
-                      External links
-                    </CardTitle>
-                  </div>
-                  <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
-                </CardHeader>
-                <CardContent className='pt-2 pb-6'>
-                  <TokenExternalLinks tokenAddress={mintAddress} className="gap-0" />
-                </CardContent>
-
               </Card>
             </div>
           </div>
