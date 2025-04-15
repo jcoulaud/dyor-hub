@@ -113,37 +113,6 @@ export function CommentInput({
     }
   }, [variant]);
 
-  const handleClickOutside = useCallback(
-    (event: MouseEvent) => {
-      if (
-        formRef.current &&
-        !formRef.current.contains(event.target as Node) &&
-        !content.trim() &&
-        !isSubmitting &&
-        mountedRef.current &&
-        variant === 'main'
-      ) {
-        setIsExpanded(false);
-      }
-    },
-    [content, isSubmitting, variant],
-  );
-
-  useEffect(() => {
-    if (variant === 'main') {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-  }, [handleClickOutside, variant]);
-
-  useEffect(() => {
-    if (content.trim() && mountedRef.current && variant === 'main') {
-      setIsExpanded(true);
-    }
-  }, [content, variant]);
-
   const handleInputClick = () => {
     if (!isAuthenticated) {
       onAuthRequired?.();
@@ -177,9 +146,9 @@ export function CommentInput({
           className={cn(
             variant === 'main'
               ? isExpanded
-                ? 'min-h-[60px] max-h-[600px]'
-                : 'h-[34px] sm:h-[38px] min-h-0'
-              : 'min-h-[60px] max-h-[600px]',
+                ? 'min-h-[60px] max-h-[600px] p-3'
+                : 'h-[34px] sm:h-[38px] min-h-0 px-4 py-2'
+              : 'min-h-[60px] max-h-[600px] p-3',
             !isAuthenticated && 'cursor-pointer',
           )}
         />
