@@ -47,11 +47,21 @@ jobs:
           cache-from: |
             type=registry,ref=ghcr.io/${{ github.repository }}/${{ matrix.app }}:buildcache
             type=gha
+            type=local,src=/tmp/.buildx-cache
+            type=gha,scope=${{ github.ref }}-${{ matrix.app }}
+            type=gha,scope=${{ github.ref }}
+            type=gha,scope=global
           cache-to: |
             type=registry,ref=ghcr.io/${{ github.repository }}/${{ matrix.app }}:buildcache,mode=max
             type=gha,mode=max
+            type=local,dest=/tmp/.buildx-cache-new
+            type=gha,mode=max,scope=${{ github.ref }}-${{ matrix.app }}
+            type=gha,mode=max,scope=${{ github.ref }}
+            type=gha,mode=max,scope=global
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+            PNPM_STORE_DIR=/root/.local/share/pnpm/store
+            NODE_ENV=production
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }} 
