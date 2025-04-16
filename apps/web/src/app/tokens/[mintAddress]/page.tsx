@@ -1,8 +1,10 @@
 'use client';
 
+import { AuthModal } from '@/components/auth/AuthModal';
 import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
 import { TokenCallsSection } from '@/components/token-calls/token-page/TokenCallsSection';
+import { TokenExternalLinks } from '@/components/tokens/TokenExternalLinks';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
@@ -24,6 +26,7 @@ import {
 import {
   BarChart3,
   Copy,
+  ExternalLink,
   Globe,
   MessageSquare,
   Search,
@@ -62,12 +65,16 @@ export default function Page({ params, commentId }: PageProps) {
   const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [sentimentData, setSentimentData] = useState<TokenSentimentStats | null>(null);
   const [isVoting, setIsVoting] = useState(false);
-  const [userCall, setUserCall] = useState<TokenCall | null | undefined>(undefined);
-  const [isLoadingUserCall, setIsLoadingUserCall] = useState<boolean>(true);
+  const [userCalls, setUserCalls] = useState<TokenCall[]>([]);
+  const [isLoadingUserCalls, setIsLoadingUserCalls] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState(true);
   const [tokenHistoryData, setTokenHistoryData] = useState<TwitterUsernameHistoryEntity | null>(
     null,
   );
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [pendingSentimentAction, setPendingSentimentAction] = useState<
+    (() => Promise<void>) | null
+  >(null);
 
   const { toast } = useToast();
 
@@ -98,16 +105,23 @@ export default function Page({ params, commentId }: PageProps) {
     [address, router],
   );
 
+  const handleAuthModalClose = () => {
+    setShowAuthModal(false);
+    setPendingSentimentAction(null);
+  };
+
   const handleSentimentVote = useCallback(
     async (sentimentType: SentimentType) => {
       if (!isAuthenticated) {
-        toast({ title: 'Authentication Required', description: 'Please log in to vote.' });
+        setPendingSentimentAction(() => async () => {
+          handleSentimentVote(sentimentType);
+        });
+        setShowAuthModal(true);
         return;
       }
 
       setIsVoting(true);
       try {
-        // If user already voted with this sentiment, remove it
         if (sentimentData?.userSentiment === sentimentType) {
           await tokens.removeSentiment(mintAddress);
           toast({
@@ -145,8 +159,8 @@ export default function Page({ params, commentId }: PageProps) {
       setIsLoading(true);
       setIsHeaderLoaded(false);
       setIsStatsLoaded(false);
-      setIsLoadingUserCall(true);
-      setUserCall(undefined);
+      setIsLoadingUserCalls(true);
+      setUserCalls([]);
       setTokenData(null);
       setTokenStatsData(null);
       setTokenHistoryData(null);
@@ -196,24 +210,20 @@ export default function Page({ params, commentId }: PageProps) {
           try {
             const userCallResponse = await tokenCalls.list(
               { userId: user.id, tokenId: mintAddress },
-              { limit: 1 },
+              {},
             );
             if (isMounted) {
-              if (userCallResponse.items.length > 0) {
-                setUserCall(userCallResponse.items[0]);
-              } else {
-                setUserCall(null);
-              }
+              setUserCalls(userCallResponse.items);
             }
           } catch {
-            if (isMounted) setUserCall(null);
+            if (isMounted) setUserCalls([]);
           } finally {
-            if (isMounted) setIsLoadingUserCall(false);
+            if (isMounted) setIsLoadingUserCalls(false);
           }
         } else {
           if (isMounted) {
-            setUserCall(null);
-            setIsLoadingUserCall(false);
+            setUserCalls([]);
+            setIsLoadingUserCalls(false);
           }
         }
       } catch {
@@ -248,18 +258,18 @@ export default function Page({ params, commentId }: PageProps) {
 
   const handleCallCreated = useCallback(async () => {
     if (isAuthenticated && user?.id && tokenData) {
-      setIsLoadingUserCall(true);
+      setIsLoadingUserCalls(true);
       try {
         const response = await tokenCalls.list(
           { userId: user.id, tokenId: tokenData.mintAddress },
-          { limit: 1 },
+          {},
         );
-        setUserCall(response.items.length > 0 ? response.items[0] : null);
+        setUserCalls(response.items);
         toast({ title: 'Prediction Submitted & Updated!' });
       } catch {
-        setUserCall(null);
+        setUserCalls([]);
       } finally {
-        setIsLoadingUserCall(false);
+        setIsLoadingUserCalls(false);
       }
     }
   }, [isAuthenticated, user?.id, tokenData, mintAddress, toast]);
@@ -664,6 +674,180 @@ export default function Page({ params, commentId }: PageProps) {
 
           {/* Middle column - Comments */}
           <div className='col-span-1 xxs:col-span-4 xs:col-span-4 sm:col-span-4 xl:col-span-6 space-y-4 sm:space-y-6 xl:space-y-8 order-3 xxs:order-none xs:order-none sm:order-none'>
+            {/* Token Calls Section for mobile only */}
+            <div className='xl:hidden relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-yellow-600/5 to-yellow-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                {tokenData ? (
+                  <TokenCallsSection
+                    tokenId={tokenData.mintAddress}
+                    tokenSymbol={tokenData.symbol}
+                    currentTokenPrice={currentPrice}
+                    isPriceValid={isPriceValid}
+                    userCalls={userCalls}
+                    isLoadingUserCalls={isLoadingUserCalls}
+                    onCallCreated={handleCallCreated}
+                    marketCap={tokenStatsData?.marketCap}
+                    circulatingSupply={tokenStatsData?.circulatingSupply}
+                  />
+                ) : (
+                  <>
+                    <CardHeader className='pb-2 relative'>
+                      <div className='flex items-center mb-4'>
+                        <Skeleton className='h-10 w-10 rounded-xl mr-4' />
+                        <Skeleton className='h-6 w-48' />
+                      </div>
+                      <div className='w-full h-0.5 bg-gradient-to-r from-yellow-500/20 to-transparent'></div>
+                    </CardHeader>
+                    <CardContent className='relative pt-4 pb-6'>
+                      <div className='space-y-4'>
+                        <div className='flex justify-between items-center'>
+                          <Skeleton className='h-5 w-32' />
+                          <Skeleton className='h-5 w-24' />
+                        </div>
+                        <div className='space-y-2'>
+                          <Skeleton className='h-10 w-full rounded-lg' />
+                          <div className='grid grid-cols-2 gap-2'>
+                            <Skeleton className='h-10 w-full rounded-lg' />
+                            <Skeleton className='h-10 w-full rounded-lg' />
+                          </div>
+                        </div>
+                        <div className='pt-2'>
+                          <Skeleton className='h-5 w-36 mb-2' />
+                          <div className='grid grid-cols-2 gap-2'>
+                            <Skeleton className='h-20 w-full rounded-lg' />
+                            <Skeleton className='h-20 w-full rounded-lg' />
+                          </div>
+                        </div>
+                        <div className='flex justify-end'>
+                          <Skeleton className='h-10 w-32 rounded-lg' />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </>
+                )}
+              </Card>
+            </div>
+
+            {/* External Links Card for mobile only */}
+            <div className='xl:hidden relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-2 relative'>
+                  <div className='flex items-center mb-4'>
+                    <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
+                      <ExternalLink className='h-5 w-5 text-blue-400' />
+                    </div>
+                    <CardTitle className='text-xl font-semibold text-white'>
+                      External links
+                    </CardTitle>
+                  </div>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
+                </CardHeader>
+                <CardContent className='pt-2 pb-6'>
+                  <TokenExternalLinks tokenAddress={mintAddress} className='gap-1' />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Token Sentiment Card for mobile only */}
+            <div className='xl:hidden relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-2 relative'>
+                  <div className='flex items-center mb-4'>
+                    {tokenData ? (
+                      <>
+                        <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
+                          <BarChart3 className='h-5 w-5 text-blue-400' />
+                        </div>
+                        <CardTitle className='text-xl font-semibold text-white'>
+                          Token Sentiment
+                        </CardTitle>
+                      </>
+                    ) : (
+                      <>
+                        <Skeleton className='h-10 w-10 rounded-xl mr-4' />
+                        <Skeleton className='h-6 w-48' />
+                      </>
+                    )}
+                  </div>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
+                </CardHeader>
+                <CardContent className='pt-2 pb-6'>
+                  {tokenData ? (
+                    <div className='grid grid-cols-3 gap-2'>
+                      {/* Bullish Card */}
+                      <div
+                        className={`flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border ${
+                          sentimentData?.userSentiment === SentimentType.BULLISH
+                            ? 'border-green-500/50 bg-green-900/20'
+                            : 'border-transparent hover:border-green-500/20 hover:bg-green-900/10'
+                        } transition-all duration-200 cursor-pointer ${
+                          isVoting ? 'opacity-50 pointer-events-none' : ''
+                        } transform hover:scale-105 active:scale-95`}
+                        onClick={() => handleSentimentVote(SentimentType.BULLISH)}>
+                        <div className='text-2xl mb-2'>🚀</div>
+                        <div className='font-bold text-xl text-white'>
+                          {sentimentData?.bullishCount || 0}
+                        </div>
+                      </div>
+
+                      {/* Bearish Card */}
+                      <div
+                        className={`flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border ${
+                          sentimentData?.userSentiment === SentimentType.BEARISH
+                            ? 'border-red-500/50 bg-red-900/20'
+                            : 'border-transparent hover:border-red-500/20 hover:bg-red-900/10'
+                        } transition-all duration-200 cursor-pointer ${
+                          isVoting ? 'opacity-50 pointer-events-none' : ''
+                        } transform hover:scale-105 active:scale-95`}
+                        onClick={() => handleSentimentVote(SentimentType.BEARISH)}>
+                        <div className='text-2xl mb-2'>💩</div>
+                        <div className='font-bold text-xl text-white'>
+                          {sentimentData?.bearishCount || 0}
+                        </div>
+                      </div>
+
+                      {/* Red Flag Card */}
+                      <div
+                        className={`flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border ${
+                          sentimentData?.userSentiment === SentimentType.RED_FLAG
+                            ? 'border-orange-500/50 bg-orange-900/20'
+                            : 'border-transparent hover:border-yellow-500/20 hover:bg-yellow-900/10'
+                        } transition-all duration-200 cursor-pointer ${
+                          isVoting ? 'opacity-50 pointer-events-none' : ''
+                        } transform hover:scale-105 active:scale-95`}
+                        onClick={() => handleSentimentVote(SentimentType.RED_FLAG)}>
+                        <div className='text-2xl mb-2'>🚩</div>
+                        <div className='font-bold text-xl text-white'>
+                          {sentimentData?.redFlagCount || 0}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className='grid grid-cols-3 gap-2'>
+                      <div className='flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border border-transparent'>
+                        <Skeleton className='h-8 w-8 rounded-full mb-2' />
+                        <Skeleton className='h-6 w-12 rounded-md' />
+                      </div>
+                      <div className='flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border border-transparent'>
+                        <Skeleton className='h-8 w-8 rounded-full mb-2' />
+                        <Skeleton className='h-6 w-12 rounded-md' />
+                      </div>
+                      <div className='flex flex-col items-center justify-center bg-zinc-900/60 rounded-lg p-3 border border-transparent'>
+                        <Skeleton className='h-8 w-8 rounded-full mb-2' />
+                        <Skeleton className='h-6 w-12 rounded-md' />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
             <div className='relative group'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
               <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
@@ -760,7 +944,7 @@ export default function Page({ params, commentId }: PageProps) {
               </Card>
             </div>
 
-            {/* Token Calls Section */}
+            {/* Token Calls Section for desktop only */}
             <div className='relative group'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
               <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
@@ -771,9 +955,11 @@ export default function Page({ params, commentId }: PageProps) {
                     tokenSymbol={tokenData.symbol}
                     currentTokenPrice={currentPrice}
                     isPriceValid={isPriceValid}
-                    userCall={userCall}
-                    isLoadingUserCall={isLoadingUserCall}
+                    userCalls={userCalls}
+                    isLoadingUserCalls={isLoadingUserCalls}
                     onCallCreated={handleCallCreated}
+                    marketCap={tokenStatsData?.marketCap}
+                    circulatingSupply={tokenStatsData?.circulatingSupply}
                   />
                 ) : (
                   <>
@@ -811,6 +997,28 @@ export default function Page({ params, commentId }: PageProps) {
                     </CardContent>
                   </>
                 )}
+              </Card>
+            </div>
+
+            {/* External Links */}
+            <div className='relative group'>
+              <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+              <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <CardHeader className='pb-2 relative'>
+                  <div className='flex items-center mb-4'>
+                    <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
+                      <ExternalLink className='h-5 w-5 text-blue-400' />
+                    </div>
+                    <CardTitle className='text-xl font-semibold text-white'>
+                      External links
+                    </CardTitle>
+                  </div>
+                  <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
+                </CardHeader>
+                <CardContent className='pt-2 pb-6'>
+                  <TokenExternalLinks tokenAddress={mintAddress} className='gap-0' />
+                </CardContent>
               </Card>
             </div>
 
@@ -912,6 +1120,13 @@ export default function Page({ params, commentId }: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* Add AuthModal at the end of the component */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={handleAuthModalClose}
+        onAuthSuccess={pendingSentimentAction ?? undefined}
+      />
     </div>
   );
 }

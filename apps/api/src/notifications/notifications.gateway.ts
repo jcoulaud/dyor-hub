@@ -57,9 +57,6 @@ export class NotificationsGateway
       }
       // Attempt 2: Manually parse if middleware didn't work but header exists
       else if (cookieHeader) {
-        this.logger.warn(
-          `[Auth Attempt] request.cookies not found. Manually parsing cookie header for socket ${client.id}.`,
-        );
         try {
           cookies = parse(cookieHeader);
         } catch (parseError) {
@@ -91,9 +88,6 @@ export class NotificationsGateway
         throw new WsException('Invalid token payload: Missing user ID.');
       }
 
-      this.logger.log(
-        `Client connected via secure cookie auth: ${client.id}, User ID: ${userId}`,
-      );
       this.clients.set(client.id, userId);
       client.join(userId);
     } catch (error) {
@@ -108,7 +102,6 @@ export class NotificationsGateway
   handleDisconnect(client: Socket) {
     const userId = this.clients.get(client.id);
     if (userId) {
-      this.logger.log(`Client disconnected: ${client.id}, User ID: ${userId}`);
       this.clients.delete(client.id);
     } else {
       this.logger.log(

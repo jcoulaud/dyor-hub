@@ -415,6 +415,14 @@ export class CommentsService {
         const analysis = await this.perspectiveService.analyzeText(
           createCommentDto.content,
         );
+
+        // Log whether we're checking or skipping in local environment
+        if (process.env.NODE_ENV !== 'production') {
+          this.logger.debug(
+            'In local environment - Perspective API check was skipped',
+          );
+        }
+
         if (analysis.isToxic) {
           throw new BadRequestException(
             'Comment contains toxic content and cannot be posted',

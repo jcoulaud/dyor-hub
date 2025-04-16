@@ -48,7 +48,7 @@ export class NotificationEventsService {
     await this.createAndEmitNotification(
       payload.userId,
       NotificationType.STREAK_AT_RISK,
-      `Your ${payload.currentStreak} day streak is at risk! Log in now to keep it going.`,
+      `Your ${payload.currentStreak} day streak is about to expire in 2 hours! Log in now to keep it going.`,
     );
   }
 
@@ -196,6 +196,7 @@ export class NotificationEventsService {
           posts: 'Posts',
           upvotes_given: 'Upvotes Given',
           upvotes_received: 'Upvotes Received',
+          tokenCalls: 'Token Calls',
         }[payload.category] || payload.category;
 
       leaderboardName = `${categoryDisplay} ${leaderboardName}`;
@@ -206,10 +207,21 @@ export class NotificationEventsService {
         ? `You've moved up to position #${payload.newPosition} on the ${leaderboardName}!`
         : `Your position on the ${leaderboardName} has changed to #${payload.newPosition}.`;
 
+    const metadata: Record<string, any> = {};
+    if (payload.category) {
+      metadata.category = payload.category;
+    }
+    if (payload.timeframe) {
+      metadata.timeframe = payload.timeframe;
+    }
+
     await this.createAndEmitNotification(
       payload.userId,
       NotificationType.LEADERBOARD_CHANGE,
       message,
+      undefined,
+      undefined,
+      Object.keys(metadata).length > 0 ? metadata : null,
     );
   }
 }

@@ -1,14 +1,13 @@
 import { cn } from '@/lib/utils';
-import Link from '@tiptap/extension-link';
+import data from '@emoji-mart/data';
+import Picker from '@emoji-mart/react';
 import Placeholder from '@tiptap/extension-placeholder';
 import { type Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Code, Italic, Link as LinkIcon, List, Quote } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { z } from 'zod';
+import { Bold, Code, Italic, List, Quote, Smile } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from './button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './dialog';
-import { Input } from './input';
+import { Popover, PopoverContent, PopoverTrigger } from './popover';
 
 import './rich-text-editor.css';
 
@@ -25,50 +24,19 @@ interface RichTextEditorProps {
   autoFocus?: boolean;
 }
 
+interface EmojiMartData {
+  native: string;
+}
+
 const MenuBar = ({ editor }: { editor: Editor | null }) => {
-  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
-  const [linkUrl, setLinkUrl] = useState('');
-  const [urlError, setUrlError] = useState<string | null>(null);
+  const [isEmojiPopoverOpen, setIsEmojiPopoverOpen] = useState(false);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
 
-  const urlSchema = z.string().url().or(z.literal(''));
-
-  const validateUrl = (url: string): boolean => {
-    // Allow empty string (validation will be handled by disabled state)
-    if (!url.trim()) return true;
-
-    // If no protocol is specified, prepend https:// for validation
-    const urlToValidate = url.match(/^https?:\/\//) ? url : `https://${url}`;
-
-    const result = urlSchema.safeParse(urlToValidate);
-    return result.success;
-  };
-
-  const handleLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newUrl = e.target.value;
-    setLinkUrl(newUrl);
-
-    if (!validateUrl(newUrl)) {
-      setUrlError('Please enter a valid URL (e.g., https://example.com)');
-    } else {
-      setUrlError(null);
+  const handleEmojiSelect = (emojiData: EmojiMartData) => {
+    if (editor) {
+      setIsEmojiPopoverOpen(false);
+      editor.chain().insertContent(emojiData.native).run();
     }
-  };
-
-  const handleLinkSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!editor || !linkUrl.trim() || !validateUrl(linkUrl)) {
-      return;
-    }
-
-    // Add https:// if no protocol is specified
-    const formattedUrl = linkUrl.match(/^https?:\/\//) ? linkUrl : `https://${linkUrl}`;
-    editor.chain().focus().extendMarkRange('link').setLink({ href: formattedUrl }).run();
-
-    setIsLinkDialogOpen(false);
-    setLinkUrl('');
-    setUrlError(null);
   };
 
   if (!editor) {
@@ -111,17 +79,6 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
       label: 'Quote',
       shortcut: '⌘+Shift+B',
     },
-    {
-      icon: LinkIcon,
-      action: () => {
-        const previousUrl = editor.getAttributes('link').href;
-        setLinkUrl(previousUrl || '');
-        setIsLinkDialogOpen(true);
-      },
-      isActive: editor.isActive('link'),
-      label: 'Link',
-      shortcut: '⌘+K',
-    },
   ];
 
   return (
@@ -147,51 +104,32 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
             </div>
           </Button>
         ))}
-      </div>
-
-      <Dialog
-        open={isLinkDialogOpen}
-        onOpenChange={(open) => {
-          setIsLinkDialogOpen(open);
-          if (!open) {
-            setLinkUrl('');
-            setUrlError(null);
-          }
-        }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Insert Link</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleLinkSubmit} onClick={(e) => e.stopPropagation()}>
-            <div className='py-4'>
-              <Input
-                placeholder='Enter URL'
-                value={linkUrl}
-                onChange={handleLinkChange}
-                autoFocus
-                className={cn(urlError && 'border-red-500')}
-              />
-              {urlError && <p className='text-sm text-red-500 mt-1'>{urlError}</p>}
+        <Popover open={isEmojiPopoverOpen} onOpenChange={setIsEmojiPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant='ghost'
+              size='sm'
+              className={cn('h-8 w-8 p-0 relative group')}
+              aria-label='Emoji'
+              title='Emoji'>
+              <Smile className='h-4 w-4' />
+              <span className='sr-only'>Emoji</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            className='w-auto p-0'
+            align='start'
+            onInteractOutside={(event: Event) => {
+              if (emojiPickerRef.current?.contains(event.target as Node)) {
+                event.preventDefault();
+              }
+            }}>
+            <div ref={emojiPickerRef}>
+              <Picker data={data} onEmojiSelect={handleEmojiSelect} theme='dark' />
             </div>
-            <DialogFooter>
-              <Button
-                type='button'
-                variant='ghost'
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsLinkDialogOpen(false);
-                  setLinkUrl('');
-                  setUrlError(null);
-                }}>
-                Cancel
-              </Button>
-              <Button type='submit' disabled={!linkUrl.trim() || !!urlError}>
-                Save
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </PopoverContent>
+        </Popover>
+      </div>
     </>
   );
 };
@@ -203,21 +141,14 @@ export function RichTextEditor({
   className,
   maxLength,
   readOnly = false,
-  isExpanded: controlledIsExpanded,
+  isExpanded = false,
   onExpandedChange,
   variant = 'main',
   autoFocus = false,
 }: RichTextEditorProps) {
-  const [internalIsExpanded, setInternalIsExpanded] = useState(variant === 'reply');
-  const isExpanded = variant === 'reply' ? true : (controlledIsExpanded ?? internalIsExpanded);
-
-  const handleExpand = useCallback(() => {
-    if (!readOnly && variant === 'main') {
-      const newExpandedState = true;
-      setInternalIsExpanded(newExpandedState);
-      onExpandedChange?.(newExpandedState);
-    }
-  }, [readOnly, onExpandedChange, variant]);
+  const handleMenuBarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
 
   const editor = useEditor({
     extensions: [
@@ -241,12 +172,6 @@ export function RichTextEditor({
         showOnlyWhenEditable: false,
         emptyEditorClass: 'is-editor-empty',
       }),
-      Link.configure({
-        openOnClick: true,
-        HTMLAttributes: {
-          class: 'text-blue-500 hover:underline cursor-pointer',
-        },
-      }),
     ],
     content,
     editable: !readOnly,
@@ -259,36 +184,31 @@ export function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: cn(
-          'prose prose-sm dark:prose-invert max-w-none focus:outline-hidden transition-[height] duration-200',
-          variant === 'main'
-            ? isExpanded
-              ? 'min-h-[100px] p-3'
-              : 'min-h-0 px-4 py-2'
-            : 'min-h-[100px] p-3',
-          className,
-        ),
+        class: cn('prose prose-sm dark:prose-invert max-w-none focus:outline-none', className),
       },
-      handleDrop: () => true, // Prevent default drop behavior
+      handleDrop: () => true,
     },
     immediatelyRender: false,
-    onFocus: handleExpand,
     autofocus: autoFocus,
   });
 
-  // Handle autofocus when the editor is mounted
   useEffect(() => {
     if (editor && autoFocus) {
       editor.commands.focus();
     }
   }, [editor, autoFocus]);
 
-  // Reset editor content when content prop changes
   useEffect(() => {
     if (editor && editor.getHTML() !== content) {
       editor.commands.setContent(content);
     }
   }, [editor, content]);
+
+  const handleRequestExpand = () => {
+    if (!readOnly && variant === 'main' && !isExpanded) {
+      onExpandedChange?.(true);
+    }
+  };
 
   return (
     <div
@@ -296,8 +216,12 @@ export function RichTextEditor({
         'bg-background overflow-hidden',
         variant === 'main' && !isExpanded && 'hover:bg-accent/50 cursor-text',
       )}
-      onClick={handleExpand}>
-      {!readOnly && (variant === 'reply' || isExpanded) && <MenuBar editor={editor} />}
+      onClick={handleRequestExpand}>
+      {!readOnly && isExpanded && (
+        <div onClick={handleMenuBarClick}>
+          <MenuBar editor={editor} />
+        </div>
+      )}
       <EditorContent editor={editor} />
     </div>
   );

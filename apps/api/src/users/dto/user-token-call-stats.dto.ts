@@ -21,4 +21,7 @@ export class UserTokenCallStatsDto {
 
   @Expose()
   averageMultiplier?: number | null;
+
+  @Expose()
+  averageMarketCapAtCallTime?: number | null;
 }

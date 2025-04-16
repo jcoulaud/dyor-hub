@@ -18,6 +18,9 @@ interface MakeCallModalProps {
   tokenSymbol: string;
   currentTokenPrice: number;
   onCallCreated?: () => void;
+  currentMarketCap?: number;
+  circulatingSupply?: string;
+  isMakingAnotherCall?: boolean;
 }
 
 export function MakeCallModal({
@@ -25,8 +28,12 @@ export function MakeCallModal({
   tokenSymbol,
   currentTokenPrice,
   onCallCreated,
+  currentMarketCap,
+  circulatingSupply,
+  isMakingAnotherCall,
 }: MakeCallModalProps) {
   const [open, setOpen] = useState(false);
+  const isPriceValid = currentTokenPrice > 0;
 
   const handleCallCreated = () => {
     onCallCreated?.();
@@ -36,25 +43,52 @@ export function MakeCallModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className='w-full bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md py-3 flex items-center justify-center'>
-          <ArrowUp className='h-4 w-4 text-white mr-2' />
-          <span>Make a Prediction</span>
+        <Button
+          variant={'default'}
+          className={`
+            w-full font-medium rounded-lg py-2.5 flex items-center justify-center
+            bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg
+            transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]
+          `}>
+          <ArrowUp className={`h-4 w-4 mr-2 text-white`} />
+          <span className={`font-medium text-white`}>
+            {isMakingAnotherCall ? 'Make Another Prediction' : 'Make a Prediction'}
+          </span>
         </Button>
       </DialogTrigger>
-      <DialogContent className='sm:max-w-[420px] bg-zinc-900 border-zinc-800'>
-        <DialogHeader>
-          <DialogTitle className='text-xl font-semibold'>Make a Price Prediction</DialogTitle>
+      <DialogContent className='sm:max-w-[450px] bg-zinc-900 border-zinc-800 rounded-xl shadow-xl'>
+        <div className='absolute inset-0 bg-gradient-to-br from-amber-600/5 to-amber-800/5 rounded-xl pointer-events-none' />
+        <DialogHeader className='relative'>
+          <DialogTitle className='text-xl font-semibold text-white'>
+            Make a Price Prediction
+          </DialogTitle>
           <DialogDescription className='text-zinc-400'>
             Predict where ${tokenSymbol} price will go and track your success rate.
           </DialogDescription>
+          <div className='w-full h-0.5 bg-gradient-to-r from-amber-500/20 to-transparent mt-4'></div>
         </DialogHeader>
-        <MakeCallForm
-          tokenId={tokenId}
-          tokenSymbol={tokenSymbol}
-          currentTokenPrice={currentTokenPrice}
-          onCallCreated={handleCallCreated}
-          onClose={() => setOpen(false)}
-        />
+
+        {!isPriceValid ? (
+          <div className='py-4'>
+            <div className='rounded-lg bg-amber-900/20 border border-amber-900 p-4 shadow-sm'>
+              <p className='text-sm font-medium text-amber-400 flex items-center'>
+                <span className='mr-2'>⚠️</span>
+                Current token price data is unavailable. You can view your existing predictions, but
+                new predictions can&apos;t be made until price data is available.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <MakeCallForm
+            tokenId={tokenId}
+            tokenSymbol={tokenSymbol}
+            currentTokenPrice={currentTokenPrice}
+            onCallCreated={handleCallCreated}
+            onClose={() => setOpen(false)}
+            currentMarketCap={currentMarketCap}
+            circulatingSupply={circulatingSupply}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { tokenCalls } from '@/lib/api';
-import { BarChart3, CheckCircle, Clock, HelpCircle, Scale } from 'lucide-react';
+import { formatLargeNumber } from '@/lib/utils';
+import { BarChart3, CheckCircle, Clock, HelpCircle, Scale, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -21,6 +22,7 @@ interface UserTokenCallStats {
   averageGainPercent?: number | null;
   averageTimeToHitRatio?: number | null;
   averageMultiplier?: number | null;
+  averageMarketCapAtCallTime?: number | null;
 }
 
 export function UserProfileTokenCallsStats({ userId, username }: UserProfileTokenCallsStatsProps) {
@@ -45,19 +47,24 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
     fetchTokenCallStats();
   }, [userId]);
 
-  const formatAccuracyRate = (rate: number | undefined) => {
-    if (rate === undefined || rate === null) return '-';
-    return `${(rate * 100).toFixed(1)}%`;
+  const formatAccuracyRate = (rate: number | undefined, verifiedCalls: number) => {
+    if (rate === undefined || rate === null || verifiedCalls === 0) return '-';
+
+    const percentage = rate * 100;
+    return percentage % 1 === 0 ? `${Math.round(percentage)}%` : `${percentage.toFixed(1)}%`;
   };
 
   const formatAvgTimeToHit = (ratio: number | undefined | null) => {
     if (ratio === undefined || ratio === null) return '-';
-    return `${(ratio * 100).toFixed(1)}%`;
+
+    const percentage = ratio * 100;
+    return percentage % 1 === 0 ? `${Math.round(percentage)}%` : `${percentage.toFixed(1)}%`;
   };
 
   const formatAvgMultiplier = (multiplier: number | undefined | null) => {
     if (multiplier === undefined || multiplier === null) return '-';
-    return `${multiplier.toFixed(2)}x`;
+
+    return multiplier % 1 === 0 ? `${Math.round(multiplier)}x` : `${multiplier.toFixed(2)}x`;
   };
 
   if (isLoading) {
@@ -78,6 +85,13 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
                 </div>
               </div>
             ))}
+            <div className='flex items-center'>
+              <Skeleton className='h-10 w-10 rounded-md mr-3' />
+              <div>
+                <Skeleton className='h-3 w-16 mb-2' />
+                <Skeleton className='h-5 w-8' />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -100,14 +114,14 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
             <Button
               variant='outline'
               size='sm'
-              className='text-xs border-zinc-700/50 bg-zinc-800/50 hover:bg-zinc-700/50 cursor-pointer'>
+              className='text-xs border-indigo-500/40 bg-indigo-900/30 hover:bg-indigo-800/40 text-indigo-300 hover:text-indigo-200 hover:border-indigo-500/60 transition-colors cursor-pointer'>
               View All Calls
             </Button>
           </Link>
         </div>
 
         <div className='p-4'>
-          <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+          <div className='grid grid-cols-2 md:grid-cols-5 gap-4'>
             {/* Total Calls */}
             <div className='flex items-center'>
               <div className='w-10 h-10 rounded bg-zinc-800/80 flex items-center justify-center mr-3'>
@@ -121,7 +135,7 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
                       <HelpCircle className='h-3 w-3 opacity-60' />
                     </TooltipTrigger>
                     <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
-                      <p>Total token calls made</p>
+                      <p>Total token calls made (Successful/Total)</p>
                     </TooltipContent>
                   </Tooltip>
                 </p>
@@ -147,12 +161,15 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
                       <HelpCircle className='h-3 w-3 opacity-60' />
                     </TooltipTrigger>
                     <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
-                      <p>Percentage of successful token calls</p>
+                      <p>Percentage of successful token calls out of verified calls</p>
                     </TooltipContent>
                   </Tooltip>
                 </p>
                 <p className='text-base font-semibold text-white'>
-                  {formatAccuracyRate(stats.accuracyRate)}
+                  {formatAccuracyRate(
+                    stats.accuracyRate,
+                    stats.successfulCalls + stats.failedCalls,
+                  )}
                 </p>
               </div>
             </div>
@@ -180,25 +197,51 @@ export function UserProfileTokenCallsStats({ userId, username }: UserProfileToke
               </div>
             </div>
 
-            {/* Average Multiplier - Always show */}
+            {/* Average Multiplier */}
             <div className='flex items-center'>
               <div className='w-10 h-10 rounded bg-zinc-800/80 flex items-center justify-center mr-3'>
-                <Scale className='h-5 w-5 text-blue-400' />
+                <Scale className='h-5 w-5 text-purple-400' />
               </div>
               <div>
                 <p className='text-zinc-400 text-xs flex items-center gap-1'>
-                  Avg. Multiplier
+                  Avg Multiplier
                   <Tooltip>
                     <TooltipTrigger>
                       <HelpCircle className='h-3 w-3 opacity-60' />
                     </TooltipTrigger>
                     <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
-                      <p>Average multiplier of successful calls</p>
+                      <p>Average multiplier achieved on successful calls</p>
                     </TooltipContent>
                   </Tooltip>
                 </p>
                 <p className='text-base font-semibold text-white'>
                   {formatAvgMultiplier(stats.averageMultiplier)}
+                </p>
+              </div>
+            </div>
+
+            {/* Average MCAP */}
+            <div className='flex items-center'>
+              <div className='w-10 h-10 rounded bg-zinc-800/80 flex items-center justify-center mr-3'>
+                <Trophy className='h-5 w-5 text-teal-400' />
+              </div>
+              <div>
+                <p className='text-zinc-400 text-xs flex items-center gap-1'>
+                  Avg MCAP
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className='h-3 w-3 opacity-60' />
+                    </TooltipTrigger>
+                    <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
+                      <p>Average market cap at time of call</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </p>
+                <p className='text-base font-semibold text-white'>
+                  {stats.averageMarketCapAtCallTime !== null &&
+                  stats.averageMarketCapAtCallTime !== undefined
+                    ? `$${formatLargeNumber(stats.averageMarketCapAtCallTime)}`
+                    : '-'}
                 </p>
               </div>
             </div>

@@ -458,16 +458,12 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     async (commentId: string) => {
       handleUserInteraction();
 
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-        setPendingAction(() => async () => handleRemoveComment(commentId));
-        return;
-      }
-
-      setCommentToDelete(commentId);
-      setIsDeleteDialogOpen(true);
+      await withAuth(async () => {
+        setCommentToDelete(commentId);
+        setIsDeleteDialogOpen(true);
+      });
     },
-    [isAuthenticated, handleUserInteraction],
+    [handleUserInteraction],
   );
 
   const confirmDeleteComment = useCallback(async () => {
@@ -577,12 +573,14 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
     const handleReplyClick = () => {
       handleUserInteraction();
 
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-        setPendingAction(null);
+      if (isReplying) {
+        setReplyingTo(null);
         return;
       }
-      setReplyingTo(isReplying ? null : comment.id);
+
+      withAuth(async () => {
+        setReplyingTo(comment.id);
+      });
     };
 
     const handleEditClick = () => {
@@ -868,6 +866,12 @@ export function CommentSection({ tokenMintAddress, commentId }: CommentSectionPr
             <p className='text-center text-muted-foreground'>Could not load comment thread.</p>
           )}
         </div>
+
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={handleAuthModalClose}
+          onAuthSuccess={pendingAction ?? undefined}
+        />
       </div>
     );
   }

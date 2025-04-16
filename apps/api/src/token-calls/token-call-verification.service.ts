@@ -1,4 +1,4 @@
-import { TokenCallStatus } from '@dyor-hub/types';
+import { NotificationType, TokenCallStatus } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -6,6 +6,7 @@ import { LessThanOrEqual, Repository } from 'typeorm';
 import { TokenCallEntity } from '../entities/token-call.entity';
 import { UserTokenCallStreakEntity } from '../entities/user-token-call-streak.entity';
 import { BadgeService } from '../gamification/services/badge.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { TokensService } from '../tokens/tokens.service';
 
 @Injectable()
@@ -20,10 +21,11 @@ export class TokenCallVerificationService {
     private readonly tokenCallStreakRepository: Repository<UserTokenCallStreakEntity>,
     private readonly tokensService: TokensService,
     private readonly badgeService: BadgeService,
+    private readonly notificationService: NotificationsService,
   ) {}
 
   // Run verification job
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
     this.logger.log('Starting Token Call Verification Job...');
 
@@ -86,13 +88,41 @@ export class TokenCallVerificationService {
     this.logger.log(`Verifying call ${call.id} for token ${call.tokenId}...`);
     let priceHistory: { items: Array<{ unixTime: number; value: number }> };
 
+    // Determine Adaptive Resolution
+    const durationMs = call.targetDate.getTime() - call.callTimestamp.getTime();
+    let resolution: '1m' | '5m' | '15m' | '30m' | '1H' | '2H' | '1D';
+
+    // Define thresholds
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    const SIX_HOURS_MS = 6 * ONE_HOUR_MS;
+    const ONE_DAY_MS = 24 * ONE_HOUR_MS;
+    const THREE_DAYS_MS = 3 * ONE_DAY_MS;
+    const ONE_WEEK_MS = 7 * ONE_DAY_MS;
+    const ONE_MONTH_MS = 30 * ONE_DAY_MS;
+
+    if (durationMs <= ONE_HOUR_MS) {
+      resolution = '1m'; // Use 1-minute data for calls <= 1 hour
+    } else if (durationMs <= SIX_HOURS_MS) {
+      resolution = '5m'; // Use 5-minute data for calls <= 6 hours
+    } else if (durationMs <= ONE_DAY_MS) {
+      resolution = '15m'; // Use 15-minute data for calls <= 1 day
+    } else if (durationMs <= THREE_DAYS_MS) {
+      resolution = '30m'; // Use 30-minute data for calls <= 3 days
+    } else if (durationMs <= ONE_WEEK_MS) {
+      resolution = '1H'; // Use 1-hour data for calls <= 1 week
+    } else if (durationMs <= ONE_MONTH_MS) {
+      resolution = '2H'; // Use 2-hour data for calls <= 1 month (approx)
+    } else {
+      resolution = '1D'; // Use daily data for calls > 1 month
+    }
+
     // 1. Fetch Price History
     try {
       priceHistory = await this.tokensService.getTokenPriceHistory(
         call.tokenId,
         call.callTimestamp,
         call.targetDate,
-        '1H',
+        resolution,
       );
     } catch (error) {
       if (error.message?.includes('Rate limit exceeded')) {
@@ -188,7 +218,55 @@ export class TokenCallVerificationService {
     await this.tokenCallRepository.save(call);
     this.logger.debug(`Saved verification results for call ${call.id}`);
 
-    // 6. Check for Badges on Success
+    // 6. Send Notification using generic service
+    try {
+      const token = await this.tokensService.getTokenData(call.tokenId);
+
+      const notificationType = NotificationType.TOKEN_CALL_VERIFIED;
+      const status =
+        call.status === TokenCallStatus.VERIFIED_SUCCESS ? 'success' : 'fail';
+      let message = '';
+
+      const tokenDisplay = token?.symbol || call.tokenId;
+      const targetPriceFormatted = call.targetPrice.toLocaleString(undefined, {
+        maximumFractionDigits: 8,
+      });
+
+      if (status === 'success') {
+        message = `✅ Your call for $${tokenDisplay} reached its target price of $${targetPriceFormatted}!`;
+      } else {
+        message = `❌ Your call for $${tokenDisplay} did not reach its target price of $${targetPriceFormatted}.`;
+      }
+
+      const metadata = {
+        callId: call.id,
+        tokenId: call.tokenId,
+        tokenSymbol: token?.symbol,
+        tokenName: token?.name,
+        status: status,
+        targetPrice: call.targetPrice,
+        finalPrice: call.finalPriceAtTargetDate,
+        peakPriceDuringPeriod: call.peakPriceDuringPeriod,
+        targetHitTimestamp: call.targetHitTimestamp?.toISOString() || null,
+        timeToHitRatio: call.timeToHitRatio,
+      };
+
+      await this.notificationService.createNotification(
+        call.userId,
+        notificationType,
+        message,
+        call.id,
+        'token_call',
+        metadata,
+      );
+    } catch (notificationError) {
+      this.logger.error(
+        `Failed to create notification for verified call ${call.id} for user ${call.userId}:`,
+        notificationError,
+      );
+    }
+
+    // 7. Check for Badges on Success
     if (call.status === TokenCallStatus.VERIFIED_SUCCESS) {
       try {
         await this.badgeService.checkTokenCallSuccessBadges(call.userId, call);

@@ -39,11 +39,6 @@ export function Header() {
                 Home
               </Link>
               <Link
-                href='/links'
-                className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-purple-600/90 to-indigo-800/90 hover:from-purple-500/90 hover:to-indigo-700/90 border border-white/10 shadow-md hover:shadow-indigo-900/20 hover:scale-[1.02]'>
-                Official Links
-              </Link>
-              <Link
                 href='/leaderboard'
                 className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-amber-600/90 to-orange-700/90 hover:from-amber-500/90 hover:to-orange-600/90 border border-white/10 shadow-md hover:shadow-orange-900/20 hover:scale-[1.02]'>
                 Leaderboard
@@ -52,6 +47,11 @@ export function Header() {
                 href='/token-calls'
                 className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-green-600/90 to-emerald-700/90 hover:from-green-500/90 hover:to-emerald-600/90 border border-white/10 shadow-md hover:shadow-emerald-900/20 hover:scale-[1.02]'>
                 Token Calls
+              </Link>
+              <Link
+                href='/links'
+                className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-purple-600/90 to-indigo-800/90 hover:from-purple-500/90 hover:to-indigo-700/90 border border-white/10 shadow-md hover:shadow-indigo-900/20 hover:scale-[1.02]'>
+                Official Links
               </Link>
               <a
                 href={DISCORD_URL}
@@ -87,13 +87,6 @@ export function Header() {
                     <span>Home</span>
                   </Link>
                   <Link
-                    href='/links'
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
-                    <LinkIcon className='h-4 w-4' />
-                    <span>Official Links</span>
-                  </Link>
-                  <Link
                     href='/leaderboard'
                     onClick={() => setIsMobileMenuOpen(false)}
                     className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
@@ -106,6 +99,13 @@ export function Header() {
                     className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
                     <BarChart2 className='h-4 w-4' />
                     <span>Token Calls</span>
+                  </Link>
+                  <Link
+                    href='/links'
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
+                    <LinkIcon className='h-4 w-4' />
+                    <span>Official Links</span>
                   </Link>
                   <a
                     href={DISCORD_URL}

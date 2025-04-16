@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { add, Duration } from 'date-fns';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { TokenCallEntity } from '../entities/token-call.entity';
 import { TokensService } from '../tokens/tokens.service';
 import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
@@ -37,28 +37,39 @@ export class TokenCallsService {
   ) {}
 
   /**
-   * Parses timeframe string (e.g., "3m", "1y") and returns a Duration object for date-fns.
-   * @param timeframeDuration e.g., "1d", "3w", "6m", "1y"
-   * @returns Duration object like { days: 1 }, { weeks: 3 }, { months: 6 }, { years: 1 }
+   * Parses timeframe string (e.g., "3M", "1y") and returns a Duration object for date-fns.
+   * @param timeframeDuration e.g., "15m", "1h", "1d", "3w", "6M", "1y"
+   * @returns Duration object like { minutes: 15 }, { hours: 1 }, { days: 1 }, { weeks: 3 }, { months: 6 }, { years: 1 }
    */
   private parseTimeframe(timeframeDuration: string): Duration {
-    const match = timeframeDuration.match(/^(\d+)(d|w|m|y)$/);
+    const match = timeframeDuration.match(/^(\d+)(m|h|d|w|M|y)$/);
     if (!match) {
+      // Add logging for better debugging
+      this.logger.error(
+        `Invalid timeframe format received: ${timeframeDuration}`,
+      );
       throw new Error(`Invalid timeframe format: ${timeframeDuration}`);
     }
     const value = parseInt(match[1], 10);
     const unit = match[2];
 
     switch (unit) {
+      case 'm':
+        return { minutes: value };
+      case 'h':
+        return { hours: value };
       case 'd':
         return { days: value };
       case 'w':
         return { weeks: value };
-      case 'm':
+      case 'M':
         return { months: value };
       case 'y':
         return { years: value };
       default:
+        this.logger.error(
+          `Unsupported timeframe unit encountered after regex match: ${unit}`,
+        );
         throw new Error(`Unsupported timeframe unit: ${unit}`);
     }
   }
@@ -68,9 +79,6 @@ export class TokenCallsService {
     userId: string,
   ): Promise<TokenCallEntity> {
     const { tokenId, targetPrice, timeframeDuration } = createTokenCallDto;
-    this.logger.log(
-      `Attempting to create token call for token ${tokenId} by user ${userId}`,
-    );
 
     // 1. Validate token exists
     try {
@@ -85,8 +93,9 @@ export class TokenCallsService {
       );
     }
 
-    // 2. Fetch the current price (Reference Price)
+    // 2. Fetch the current price (Reference Price) and Supply
     let referencePrice: number;
+    let referenceSupply: number | null = null;
     try {
       const overviewData = await this.tokensService.fetchTokenOverview(tokenId);
 
@@ -104,15 +113,34 @@ export class TokenCallsService {
         );
       }
       referencePrice = overviewData.price;
-      this.logger.debug(
-        `Reference price for token ${tokenId} from Birdeye: ${referencePrice}`,
-      );
+
+      // Check if circulatingSupply exists and is valid
+      if (
+        typeof overviewData.circulatingSupply === 'number' &&
+        overviewData.circulatingSupply > 0
+      ) {
+        referenceSupply = overviewData.circulatingSupply;
+      } else {
+        this.logger.warn(
+          `Reference supply fetch missing or invalid via Birdeye for token ID: ${tokenId}. Supply: ${overviewData?.circulatingSupply}. Proceeding without referenceSupply.`,
+        );
+      }
+
+      if (targetPrice <= referencePrice) {
+        throw new BadRequestException(
+          `Target price must be higher than current price of ${referencePrice}.`,
+        );
+      }
     } catch (error) {
       this.logger.error(
         `Error fetching Birdeye reference price for ${tokenId}:`,
         error.stack,
       );
-      if (error instanceof InternalServerErrorException) throw error;
+      if (
+        error instanceof InternalServerErrorException ||
+        error instanceof BadRequestException
+      )
+        throw error;
       throw new InternalServerErrorException(
         `Could not fetch reference price for token ${tokenId} via Birdeye.`,
       );
@@ -124,9 +152,6 @@ export class TokenCallsService {
     try {
       const duration = this.parseTimeframe(timeframeDuration);
       targetDate = add(callTimestamp, duration);
-      this.logger.debug(
-        `Calculated target date for duration ${timeframeDuration}: ${targetDate.toISOString()}`,
-      );
     } catch (error) {
       this.logger.error(
         `Failed to parse timeframe or calculate target date: ${timeframeDuration}`,
@@ -142,6 +167,7 @@ export class TokenCallsService {
         tokenId,
         callTimestamp,
         referencePrice,
+        referenceSupply,
         targetPrice,
         timeframeDuration,
         targetDate,
@@ -149,9 +175,6 @@ export class TokenCallsService {
       });
 
       const savedCall = await this.tokenCallRepository.save(newCall);
-      this.logger.log(
-        `Successfully created token call ${savedCall.id} for token ${tokenId} by user ${userId}`,
-      );
       return savedCall;
     } catch (error) {
       this.logger.error(
@@ -181,10 +204,6 @@ export class TokenCallsService {
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
     const { sortBy = 'createdAt', sortOrder = 'DESC' } = sort;
-
-    this.logger.log(
-      `Fetching public token calls, filters: ${JSON.stringify(filters)}, sort: ${sortBy} ${sortOrder}, page: ${page}, limit: ${limit}`,
-    );
 
     const queryBuilder = this.tokenCallRepository
       .createQueryBuilder('call')
@@ -234,6 +253,10 @@ export class TokenCallsService {
         whereConditions.push('call.status IN (:...statuses)');
         parameters.statuses = validStatuses;
       }
+    } else {
+      // Exclude tokens with ERROR status if no status filter is explicitly provided
+      whereConditions.push('call.status != :excludedStatus');
+      parameters.excludedStatus = TokenCallStatus.ERROR;
     }
     if (filters.callStartDate && filters.callEndDate) {
       try {
@@ -299,6 +322,7 @@ export class TokenCallsService {
 
       const items = calls.map((call) => ({
         ...call,
+        referenceSupply: call.referenceSupply,
         callTimestamp: call.callTimestamp.toISOString(),
         targetDate: call.targetDate.toISOString(),
         verificationTimestamp:
@@ -354,6 +378,7 @@ export class TokenCallsService {
           tokenId: true,
           callTimestamp: true,
           referencePrice: true,
+          referenceSupply: true,
           targetPrice: true,
           timeframeDuration: true,
           targetDate: true,
@@ -402,7 +427,15 @@ export class TokenCallsService {
     this.logger.log(`Calculating token call stats for user ${userId}`);
 
     try {
-      // Fetch all VERIFIED calls for the user
+      // First, get the total count of ALL calls (including pending ones)
+      const allCalls = await this.tokenCallRepository.count({
+        where: {
+          userId: userId,
+          status: Not(TokenCallStatus.ERROR), // Exclude ERROR status
+        },
+      });
+
+      // Fetch all VERIFIED calls for the user (for calculating success metrics)
       const verifiedCalls = await this.tokenCallRepository.find({
         where: {
           userId: userId,
@@ -418,36 +451,42 @@ export class TokenCallsService {
           'timeToHitRatio',
           'peakPriceDuringPeriod',
           'id',
+          'referenceSupply',
         ],
       });
-
-      const totalCalls = verifiedCalls.length;
-      if (totalCalls === 0) {
-        return {
-          totalCalls: 0,
-          successfulCalls: 0,
-          failedCalls: 0,
-          accuracyRate: 0,
-          averageGainPercent: null,
-          averageTimeToHitRatio: null,
-          averageMultiplier: null,
-        };
-      }
 
       const successfulCalls = verifiedCalls.filter(
         (call) => call.status === TokenCallStatus.VERIFIED_SUCCESS,
       );
-      const failedCalls = totalCalls - successfulCalls.length;
+      const verifiedCallsCount = verifiedCalls.length;
+      const failedCalls = verifiedCallsCount - successfulCalls.length;
       const accuracyRate =
-        totalCalls > 0 ? successfulCalls.length / totalCalls : 0;
+        verifiedCallsCount > 0
+          ? successfulCalls.length / verifiedCallsCount
+          : 0;
 
       let totalGainPercent = 0;
       let totalTimeToHitRatio = 0;
       let totalMultiplier = 0;
       let successfulCallsWithValidData = 0;
+      let totalMarketCapAtCallTime = 0;
+      let callsWithMarketCapAtCallTime = 0;
 
+      // Calculate average market cap at call time over ALL verified calls
+      for (const call of verifiedCalls) {
+        if (
+          call.referencePrice > 0 &&
+          call.referenceSupply &&
+          call.referenceSupply > 0
+        ) {
+          totalMarketCapAtCallTime +=
+            call.referencePrice * call.referenceSupply;
+          callsWithMarketCapAtCallTime++;
+        }
+      }
+
+      // Calculate averages for successful calls
       for (const call of successfulCalls) {
-        // Calculate gain percent for successful calls
         const refPrice = call.referencePrice;
         const targetPrice = call.targetPrice;
         const peakPrice = call.peakPriceDuringPeriod;
@@ -489,14 +528,21 @@ export class TokenCallsService {
           ? totalMultiplier / successfulCallsWithValidData
           : null;
 
+      // Calculate average MCAP at call time
+      const averageMarketCapAtCallTime =
+        callsWithMarketCapAtCallTime > 0
+          ? totalMarketCapAtCallTime / callsWithMarketCapAtCallTime
+          : null;
+
       return {
-        totalCalls,
+        totalCalls: allCalls,
         successfulCalls: successfulCalls.length,
         failedCalls,
         accuracyRate,
         averageGainPercent,
         averageTimeToHitRatio,
         averageMultiplier,
+        averageMarketCapAtCallTime,
       };
     } catch (error) {
       this.logger.error(

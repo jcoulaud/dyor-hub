@@ -90,7 +90,7 @@ export function sanitizeHtml(
 
   // Apply max length if specified
   if (maxLength && text.length > maxLength) {
-    text = text.substring(0, maxLength);
+    text = text.substring(0, maxLength) + '...';
   }
 
   return text;
@@ -125,4 +125,35 @@ export const formatPrice = (price: number | string | undefined | null): string =
     minimumFractionDigits: 2,
     maximumFractionDigits: 6,
   }).format(num);
+};
+
+/**
+ * Calculates the multiplier between target price and reference price
+ * @param referencePrice The reference price
+ * @param targetPrice The target price
+ * @returns The multiplier or null if reference price is 0 or invalid
+ */
+export const calculateMultiplier = (
+  referencePrice: number | string | null | undefined,
+  targetPrice: number | string | null | undefined,
+): number | null => {
+  if (
+    referencePrice === null ||
+    referencePrice === undefined ||
+    targetPrice === null ||
+    targetPrice === undefined
+  ) {
+    return null;
+  }
+
+  // Convert to numbers if they're strings
+  const refPrice = typeof referencePrice === 'string' ? parseFloat(referencePrice) : referencePrice;
+  const tgtPrice = typeof targetPrice === 'string' ? parseFloat(targetPrice) : targetPrice;
+
+  // Validate numbers
+  if (isNaN(refPrice) || isNaN(tgtPrice) || refPrice === 0) {
+    return null;
+  }
+
+  return tgtPrice / refPrice;
 };

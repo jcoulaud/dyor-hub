@@ -55,6 +55,14 @@ export class TokenCallEntity {
   @Column('numeric', { precision: 18, scale: 8, name: 'reference_price' })
   referencePrice: number;
 
+  @Column('numeric', {
+    precision: 30,
+    scale: 8,
+    name: 'reference_supply',
+    nullable: true,
+  })
+  referenceSupply?: number | null;
+
   @Column('numeric', { precision: 18, scale: 8, name: 'target_price' })
   targetPrice: number;
 

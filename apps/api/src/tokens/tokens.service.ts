@@ -66,6 +66,36 @@ interface BirdeyeV3HolderResponse {
   success?: boolean;
 }
 
+interface DexScreenerTokenPair {
+  chainId: string;
+  dexId: string;
+  url: string;
+  pairAddress: string;
+  baseToken: {
+    address: string;
+    name: string;
+    symbol: string;
+  };
+  quoteToken: {
+    address: string;
+    name: string;
+    symbol: string;
+  };
+  info?: {
+    imageUrl?: string;
+    websites?: Array<{
+      label?: string;
+      url: string;
+    }>;
+    socials?: Array<{
+      type?: string;
+      url?: string;
+      platform?: string;
+      handle?: string;
+    }>;
+  };
+}
+
 @Injectable()
 export class TokensService {
   private readonly logger = new Logger(TokensService.name);
@@ -73,6 +103,7 @@ export class TokensService {
   private readonly topHoldersCache: Map<string, any> = new Map();
   private readonly pendingRequests: Map<string, Promise<any>> = new Map();
   private readonly cacheTimestamps: Map<string, number> = new Map();
+  private readonly dexScreenerCache: Map<string, any> = new Map();
 
   constructor(
     @InjectRepository(TokenEntity)
@@ -139,7 +170,6 @@ export class TokensService {
         // Cache the data.data part
         this.tokenOverviewCache.set(cacheKey, data.data);
         this.cacheTimestamps.set(cacheKey, Date.now());
-        this.logger.debug(`Cached Birdeye overview for ${mintAddress}`);
 
         return data.data;
       } catch (error) {
@@ -155,6 +185,214 @@ export class TokensService {
 
     this.pendingRequests.set(cacheKey, requestPromise);
     return requestPromise;
+  }
+
+  /**
+   * Fetches token data from DexScreener to update social links
+   */
+  private async fetchDexScreenerData(
+    mintAddress: string,
+  ): Promise<DexScreenerTokenPair[] | null> {
+    const cacheKey = `dexscreener_${mintAddress}`;
+    const cachedData = this.dexScreenerCache.get(cacheKey);
+    const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
+    const DEXSCREENER_CACHE_TTL = 60 * 60 * 1000; // 1 hour cache
+
+    if (
+      cachedData &&
+      cachedTimestamp &&
+      Date.now() - cachedTimestamp < DEXSCREENER_CACHE_TTL
+    ) {
+      return cachedData;
+    }
+
+    // Request Deduplication
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
+    }
+
+    const requestPromise = (async () => {
+      const apiUrl = `https://api.dexscreener.com/tokens/v1/solana/${mintAddress}`;
+
+      try {
+        const response = await fetch(apiUrl);
+
+        if (!response.ok) {
+          throw new Error(
+            `DexScreener API error (${response.status}): ${response.statusText}`,
+          );
+        }
+
+        const data: DexScreenerTokenPair[] = await response.json();
+
+        if (!data || !Array.isArray(data) || data.length === 0) {
+          this.logger.warn(
+            `DexScreener response unsuccessful or missing data for ${mintAddress}`,
+          );
+          return null;
+        }
+
+        // Cache the data
+        this.dexScreenerCache.set(cacheKey, data);
+        this.cacheTimestamps.set(cacheKey, Date.now());
+
+        return data;
+      } catch (error) {
+        this.logger.error(
+          `Error fetching DexScreener data for ${mintAddress}:`,
+          error.message,
+        );
+        return null;
+      } finally {
+        this.pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
+  }
+
+  /**
+   * Updates token social links from DexScreener if they've changed
+   */
+  private async updateTokenSocialLinksFromDexScreener(
+    token: TokenEntity,
+  ): Promise<TokenEntity> {
+    try {
+      const dexScreenerData = await this.fetchDexScreenerData(
+        token.mintAddress,
+      );
+
+      if (!dexScreenerData || dexScreenerData.length === 0) {
+        return token;
+      }
+
+      // Use the first pair with info data
+      const pairWithInfo = dexScreenerData.find((pair) => pair.info);
+      if (!pairWithInfo || !pairWithInfo.info) {
+        return token;
+      }
+
+      let updated = false;
+      const updates: Partial<TokenEntity> = {};
+
+      // Check for website URL
+      if (pairWithInfo.info.websites && pairWithInfo.info.websites.length > 0) {
+        const websiteUrl = pairWithInfo.info.websites[0]?.url;
+        if (websiteUrl && token.websiteUrl !== websiteUrl) {
+          this.logger.log(
+            `Updating website URL for ${token.mintAddress} from ${token.websiteUrl || 'none'} to ${websiteUrl}`,
+          );
+          updates.websiteUrl = websiteUrl;
+          updated = true;
+        }
+      }
+
+      // Check for social links
+      if (pairWithInfo.info.socials && pairWithInfo.info.socials.length > 0) {
+        // Find Twitter handle - support both formats (platform and type fields)
+        const twitterInfo = pairWithInfo.info.socials.find(
+          (s) =>
+            (s.platform &&
+              (s.platform.toLowerCase() === 'twitter' ||
+                s.platform.toLowerCase() === 'x')) ||
+            (s.type && s.type.toLowerCase() === 'twitter') ||
+            (s.url &&
+              (s.url.includes('twitter.com') || s.url.includes('x.com'))),
+        );
+
+        if (twitterInfo) {
+          let twitterHandle = '';
+
+          // Handle the case where we have either handle or url
+          if (twitterInfo.handle) {
+            twitterHandle = twitterInfo.handle;
+          } else if (twitterInfo.url) {
+            // Extract handle from URL
+            twitterHandle = twitterInfo.url
+              .replace('https://x.com/', '')
+              .replace('https://twitter.com/', '')
+              .replace('@', '');
+          }
+
+          if (twitterHandle && token.twitterHandle !== twitterHandle) {
+            this.logger.log(
+              `Updating Twitter handle for ${token.mintAddress} from ${token.twitterHandle || 'none'} to ${twitterHandle}`,
+            );
+            updates.twitterHandle = twitterHandle;
+            updated = true;
+          }
+        }
+
+        // Find Telegram URL
+        const telegramInfo = pairWithInfo.info.socials.find(
+          (s) =>
+            (s.platform && s.platform.toLowerCase() === 'telegram') ||
+            (s.type && s.type.toLowerCase() === 'telegram') ||
+            (s.url && s.url.includes('t.me')),
+        );
+
+        if (telegramInfo) {
+          let telegramUrl = '';
+
+          if (telegramInfo.handle) {
+            telegramUrl = telegramInfo.handle;
+          } else if (telegramInfo.url) {
+            telegramUrl = telegramInfo.url;
+          }
+
+          if (!telegramUrl.startsWith('https://')) {
+            telegramUrl = `https://t.me/${telegramUrl.replace('@', '')}`;
+          }
+
+          if (telegramUrl && token.telegramUrl !== telegramUrl) {
+            this.logger.log(
+              `Updating Telegram URL for ${token.mintAddress} from ${token.telegramUrl || 'none'} to ${telegramUrl}`,
+            );
+            updates.telegramUrl = telegramUrl;
+            updated = true;
+          }
+        }
+      }
+
+      // Update token entity if changes were found
+      if (updated) {
+        try {
+          Object.assign(token, updates);
+          await this.tokenRepository.save(token);
+
+          // If Twitter handle was updated, fetch and store username history
+          if (updates.twitterHandle) {
+            await this.twitterHistoryService
+              .fetchAndStoreUsernameHistory(token)
+              .catch((error) => {
+                this.logger.error(
+                  `Error fetching Twitter history for ${token.mintAddress}:`,
+                  error,
+                );
+              });
+          }
+        } catch (saveError) {
+          this.logger.error(
+            `Error saving updated token data for ${token.mintAddress}:`,
+            saveError,
+          );
+          return (
+            (await this.tokenRepository.findOne({
+              where: { mintAddress: token.mintAddress },
+            })) || token
+          );
+        }
+      }
+
+      return token;
+    } catch (error) {
+      this.logger.error(
+        `Error updating token social links for ${token.mintAddress}:`,
+        error,
+      );
+      return token;
+    }
   }
 
   async getTokenData(
@@ -203,9 +441,12 @@ export class TokensService {
           await this.twitterHistoryService.fetchAndStoreUsernameHistory(token);
         }
       } else {
-        // Existing token: Track view count
+        // Existing token: Track view count and check for updated socials from DexScreener
         token.viewsCount = (token.viewsCount || 0) + 1;
         await this.tokenRepository.save(token);
+
+        // Check DexScreener for updated social links
+        token = await this.updateTokenSocialLinksFromDexScreener(token);
       }
 
       // Add watchlist status if user is authenticated
@@ -233,6 +474,7 @@ export class TokensService {
   public clearCaches() {
     this.tokenOverviewCache.clear();
     this.topHoldersCache.clear();
+    this.dexScreenerCache.clear();
     this.cacheTimestamps.clear();
     this.pendingRequests.clear();
   }
@@ -405,7 +647,7 @@ export class TokensService {
     mintAddress: string,
     startTime: Date,
     endTime: Date,
-    resolution: '15m' | '1H' | '1D' = '1D', // Default to daily resolution
+    resolution: '1m' | '5m' | '15m' | '30m' | '1H' | '2H' | '1D' = '1D',
   ): Promise<{ items: Array<{ unixTime: number; value: number }> }> {
     try {
       const startTimeUnix = Math.floor(startTime.getTime() / 1000);
@@ -455,9 +697,6 @@ export class TokensService {
         return { items: [] };
       }
 
-      this.logger.debug(
-        `Fetched ${data.data.items.length} price points from Birdeye for ${mintAddress}`,
-      );
       return data.data;
     } catch (error) {
       this.logger.error(

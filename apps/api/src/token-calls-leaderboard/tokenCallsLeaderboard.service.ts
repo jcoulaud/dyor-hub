@@ -26,6 +26,8 @@ interface RawLeaderboardResult {
   countSuccessfulCallsWithRatio: string;
   sumMultiplier: string | null;
   countSuccessfulCallsWithPrice: string;
+  sumMarketCapAtCallTime: string | null;
+  countCallsWithMarketCapAtCallTime: string;
 }
 
 export interface PaginatedLeaderboardResult {
@@ -78,6 +80,14 @@ export class TokenCallsLeaderboardService {
         .addSelect(
           `COUNT(CASE WHEN call.status = '${TokenCallStatus.VERIFIED_SUCCESS}' AND call.referencePrice <> 0 THEN 1 ELSE NULL END)`,
           'countSuccessfulCallsWithPrice',
+        )
+        .addSelect(
+          `SUM(CASE WHEN call.referencePrice > 0 AND call.referenceSupply > 0 THEN call.referencePrice * call.referenceSupply ELSE NULL END)`,
+          'sumMarketCapAtCallTime',
+        )
+        .addSelect(
+          `COUNT(CASE WHEN call.referencePrice > 0 AND call.referenceSupply > 0 THEN 1 ELSE NULL END)`,
+          'countCallsWithMarketCapAtCallTime',
         )
         .innerJoin('call.user', 'user')
         .addSelect('user.username', 'username')
@@ -145,6 +155,18 @@ export class TokenCallsLeaderboardService {
             ? sumMultiplier / countMultiplier
             : null;
 
+        const sumMarketCapAtCall = result.sumMarketCapAtCallTime
+          ? parseFloat(result.sumMarketCapAtCallTime)
+          : null;
+        const countMarketCapAtCall = parseInt(
+          result.countCallsWithMarketCapAtCallTime,
+          10,
+        );
+        const averageMarketCapAtCallTime =
+          sumMarketCapAtCall !== null && countMarketCapAtCall > 0
+            ? sumMarketCapAtCall / countMarketCapAtCall
+            : null;
+
         const user = plainToInstance(
           UserMinimumResponseDto,
           {
@@ -166,6 +188,7 @@ export class TokenCallsLeaderboardService {
             accuracyRate: accuracyRate,
             averageTimeToHitRatio: averageTimeToHitRatio,
             averageMultiplier: averageMultiplier,
+            averageMarketCapAtCallTime: averageMarketCapAtCallTime,
           },
           { excludeExtraneousValues: true },
         );

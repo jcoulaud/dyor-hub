@@ -293,6 +293,13 @@ export class BadgeService {
     userId: string,
     call: TokenCallEntity,
   ): Promise<UserBadgeEntity[]> {
+    if (!call || !call.id) {
+      this.logger.error(
+        `Invalid token call object provided for user ${userId}: ${JSON.stringify(call)}`,
+      );
+      return [];
+    }
+
     const requirementsToCheck = [
       BadgeRequirement.FIRST_SUCCESSFUL_TOKEN_CALL,
       BadgeRequirement.TOKEN_CALL_MOONSHOT_X,
@@ -489,10 +496,19 @@ export class BadgeService {
         case BadgeRequirement.FIRST_SUCCESSFUL_TOKEN_CALL:
           return this.checkFirstSuccessfulCall(userId);
         case BadgeRequirement.TOKEN_CALL_MOONSHOT_X:
-          return this.checkMoonshotCall(context!.call, badge.thresholdValue);
+          // Ensure context and context.call are available before checking
+          return (
+            isTokenCallCheck &&
+            this.checkMoonshotCall(context.call, badge.thresholdValue)
+          );
         case BadgeRequirement.TOKEN_CALL_EARLY_BIRD_RATIO:
-          return this.checkEarlyBirdCall(context!.call, badge.thresholdValue);
+          // Ensure context and context.call are available before checking
+          return (
+            isTokenCallCheck &&
+            this.checkEarlyBirdCall(context.call, badge.thresholdValue)
+          );
         case BadgeRequirement.TOKEN_CALL_SUCCESS_STREAK:
+          // Streaks are calculated based on user history, not a single call context
           return this.checkTokenCallStreak(userId, badge.thresholdValue);
         case BadgeRequirement.SUCCESSFUL_TOKEN_CALL_COUNT:
           return this.checkSuccessfulCallCount(userId, badge.thresholdValue);
@@ -1072,14 +1088,39 @@ export class BadgeService {
     call: TokenCallEntity,
     requiredMultiplier: number,
   ): boolean {
-    if (call.referencePrice <= 0) return false;
+    // Safely check if properties exist and have valid values
+    if (
+      !call ||
+      typeof call.referencePrice === 'undefined' ||
+      call.referencePrice === null ||
+      typeof call.targetPrice === 'undefined' ||
+      call.targetPrice === null ||
+      call.referencePrice <= 0
+    ) {
+      this.logger.error(
+        `Invalid call data for Moonshot check: refPrice=${call?.referencePrice}, targetPrice=${call?.targetPrice}`,
+      );
+      return false;
+    }
+
     const multiplier = call.targetPrice / call.referencePrice;
     return multiplier >= requiredMultiplier;
   }
 
   private checkEarlyBirdCall(call: TokenCallEntity, maxRatio: number): boolean {
-    // Ensure timeToHitRatio is not null and less than the threshold
-    return call.timeToHitRatio !== null && call.timeToHitRatio < maxRatio;
+    // Safely check if call and timeToHitRatio exist and are valid
+    if (
+      !call ||
+      typeof call.timeToHitRatio === 'undefined' ||
+      call.timeToHitRatio === null
+    ) {
+      this.logger.error(
+        `Invalid call data for Early Bird check: timeToHitRatio=${call?.timeToHitRatio}`,
+      );
+      return false;
+    }
+
+    return call.timeToHitRatio < maxRatio;
   }
 
   private async checkTokenCallStreak(

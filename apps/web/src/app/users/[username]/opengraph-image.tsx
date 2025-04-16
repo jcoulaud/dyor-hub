@@ -1,7 +1,19 @@
-import { users } from '@/lib/api';
+import { tokenCalls, users } from '@/lib/api';
+import { formatLargeNumber } from '@/lib/utils';
 import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+
+interface TokenCallStats {
+  totalCalls: number;
+  successfulCalls: number;
+  failedCalls: number;
+  accuracyRate: number;
+  averageGainPercent?: number | null;
+  averageTimeToHitRatio?: number | null;
+  averageMultiplier?: number | null;
+  averageMarketCapAtCallTime?: number | null;
+}
 
 export const alt = 'DYOR hub - User Profile';
 export const size = {
@@ -37,6 +49,20 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
   }
 }
 
+const formatPercentage = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return '-';
+  const percentage = value * 100;
+  // Remove decimal if it's zero (e.g., 56.0 -> 56)
+  const formattedValue = percentage.toFixed(1).replace(/\.0$/, '');
+  return `${formattedValue}%`;
+};
+
+const formatMultiplier = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return '-';
+  // Round to integer if above 10, otherwise show with 2 decimal places
+  return value >= 10 ? `${Math.round(value)}x` : `${value.toFixed(2)}x`;
+};
+
 export default async function Image({ params }: { params: { username: string } }) {
   const { username } = params;
 
@@ -48,18 +74,35 @@ export default async function Image({ params }: { params: { username: string } }
     upvotes: 0,
     downvotes: 0,
   };
+  let tokenCallStats: TokenCallStats | null = null;
+  let userId = '';
 
   try {
-    const [userData, userStats] = await Promise.all([
-      users.getByUsername(username),
-      users.getUserStats(username),
-    ]);
-
+    const userData = await users.getByUsername(username);
     displayName = userData.displayName || userData.username || 'Anonymous';
     avatarUrl = userData.avatarUrl || '';
-    stats = userStats;
-  } catch {
-    // Use default values set above if fetching fails
+    userId = userData.id;
+
+    if (userId) {
+      const [userStatsResult, tokenCallStatsResult] = await Promise.allSettled([
+        users.getUserStats(username),
+        tokenCalls.getUserStats(userId),
+      ]);
+
+      if (userStatsResult.status === 'fulfilled') {
+        stats = userStatsResult.value;
+      }
+
+      if (tokenCallStatsResult.status === 'fulfilled') {
+        if (tokenCallStatsResult.value.totalCalls > 0) {
+          tokenCallStats = tokenCallStatsResult.value;
+        }
+      }
+    } else {
+      stats = await users.getUserStats(username);
+    }
+  } catch (error) {
+    console.error(`Failed to fetch data for user ${username}:`, error);
   }
 
   const [avatarSrc, logoSrc] = await Promise.all([
@@ -201,24 +244,40 @@ export default async function Image({ params }: { params: { username: string } }
             borderRadius: 16,
             backgroundColor: 'rgba(255, 255, 255, 0.05)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
-            padding: '24px',
+            padding: '16px 24px 24px 24px',
             flex: 1,
             justifyContent: 'center',
           }}>
-          {/* Stats grid */}
+          {/* Social Stats Title */}
+          <div
+            style={{
+              color: '#a3a3a3',
+              fontSize: 20,
+              fontWeight: 'bold',
+              marginBottom: 10,
+              width: '100%',
+              textAlign: 'left',
+              paddingLeft: 4,
+              display: 'flex',
+            }}>
+            Social Stats
+          </div>
+          {/* First Row: Social Stats */}
           <div
             style={{
               display: 'flex',
-              flexWrap: 'wrap',
-              gap: 16,
+              flexWrap: 'nowrap', // Ensure 4 items per row
+              gap: 12,
               width: '100%',
+              marginBottom: 16, // Space before next title
             }}>
+            {/* Comments Stat Box */}
             <div
               style={{
-                width: '49.25%',
+                flex: '1 1 23%',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                borderRadius: 12,
-                padding: '19px 24px',
+                borderRadius: 10,
+                padding: '10px 14px',
                 textAlign: 'center',
                 display: 'flex',
                 flexDirection: 'column',
@@ -227,22 +286,23 @@ export default async function Image({ params }: { params: { username: string } }
               }}>
               <div
                 style={{
-                  fontSize: 52,
+                  fontSize: 38,
                   fontWeight: 'bold',
                   color: '#3b82f6',
-                  marginBottom: 4,
+                  marginBottom: 2,
                   display: 'flex',
                 }}>
                 {stats.comments}
               </div>
-              <div style={{ color: '#a3a3a3', fontSize: 20, display: 'flex' }}>Comments</div>
+              <div style={{ color: '#a3a3a3', fontSize: 14, display: 'flex' }}>Comments</div>
             </div>
+            {/* Replies Stat Box */}
             <div
               style={{
-                width: '49.25%',
+                flex: '1 1 23%',
                 backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                borderRadius: 12,
-                padding: '19px 24px',
+                borderRadius: 10,
+                padding: '10px 14px',
                 textAlign: 'center',
                 display: 'flex',
                 flexDirection: 'column',
@@ -251,22 +311,23 @@ export default async function Image({ params }: { params: { username: string } }
               }}>
               <div
                 style={{
-                  fontSize: 52,
+                  fontSize: 38,
                   fontWeight: 'bold',
                   color: '#8b5cf6',
-                  marginBottom: 4,
+                  marginBottom: 2,
                   display: 'flex',
                 }}>
                 {stats.replies}
               </div>
-              <div style={{ color: '#a3a3a3', fontSize: 20, display: 'flex' }}>Replies</div>
+              <div style={{ color: '#a3a3a3', fontSize: 14, display: 'flex' }}>Replies</div>
             </div>
+            {/* Upvotes Stat Box */}
             <div
               style={{
-                width: '49.25%',
+                flex: '1 1 23%',
                 backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                borderRadius: 12,
-                padding: '19px 24px',
+                borderRadius: 10,
+                padding: '10px 14px',
                 textAlign: 'center',
                 display: 'flex',
                 flexDirection: 'column',
@@ -275,22 +336,23 @@ export default async function Image({ params }: { params: { username: string } }
               }}>
               <div
                 style={{
-                  fontSize: 52,
+                  fontSize: 38,
                   fontWeight: 'bold',
                   color: '#22c55e',
-                  marginBottom: 4,
+                  marginBottom: 2,
                   display: 'flex',
                 }}>
                 {stats.upvotes}
               </div>
-              <div style={{ color: '#a3a3a3', fontSize: 20, display: 'flex' }}>Upvotes</div>
+              <div style={{ color: '#a3a3a3', fontSize: 14, display: 'flex' }}>Upvotes</div>
             </div>
+            {/* Downvotes Stat Box */}
             <div
               style={{
-                width: '49.25%',
+                flex: '1 1 23%',
                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                borderRadius: 12,
-                padding: '19px 24px',
+                borderRadius: 10,
+                padding: '10px 14px',
                 textAlign: 'center',
                 display: 'flex',
                 flexDirection: 'column',
@@ -299,15 +361,171 @@ export default async function Image({ params }: { params: { username: string } }
               }}>
               <div
                 style={{
-                  fontSize: 52,
+                  fontSize: 38,
                   fontWeight: 'bold',
                   color: '#ef4444',
-                  marginBottom: 4,
+                  marginBottom: 2,
                   display: 'flex',
                 }}>
                 {stats.downvotes}
               </div>
-              <div style={{ color: '#a3a3a3', fontSize: 20, display: 'flex' }}>Downvotes</div>
+              <div style={{ color: '#a3a3a3', fontSize: 14, display: 'flex' }}>Downvotes</div>
+            </div>
+          </div>
+
+          {/* Token Call Stats Title */}
+          <div
+            style={{
+              color: '#a3a3a3',
+              fontSize: 20,
+              fontWeight: 'bold',
+              marginBottom: 10,
+              width: '100%',
+              textAlign: 'left',
+              paddingLeft: 4,
+              display: 'flex',
+            }}>
+            Token Call Stats
+          </div>
+          {/* Second Row: Token Call Stats */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'nowrap',
+              gap: 12,
+              width: '100%',
+            }}>
+            {/* Total Calls Box */}
+            <div
+              style={{
+                flex: '1 1 18%',
+                backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                borderRadius: 10,
+                padding: '10px 14px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <div
+                style={{
+                  fontSize: 38,
+                  fontWeight: 'bold',
+                  color: '#60a5fa',
+                  marginBottom: 2,
+                  display: 'flex',
+                }}>
+                {tokenCallStats ? tokenCallStats.totalCalls : '-'}
+              </div>
+              <div style={{ color: '#a3a3a3', fontSize: 14, display: 'flex' }}>Total Calls</div>
+            </div>
+
+            {/* Hit Rate Box */}
+            <div
+              style={{
+                flex: '1 1 18%', // Adjust flex basis for 5 items
+                backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                borderRadius: 10,
+                padding: '10px 14px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <div
+                style={{
+                  fontSize: 38,
+                  fontWeight: 'bold',
+                  color: '#4ade80',
+                  marginBottom: 2,
+                  display: 'flex',
+                }}>
+                {tokenCallStats ? formatPercentage(tokenCallStats.accuracyRate) : '-'}
+              </div>
+              <div style={{ color: '#a3a3a3', fontSize: 14, display: 'flex' }}>Hit Rate</div>
+            </div>
+
+            {/* Average Multiplier Box */}
+            <div
+              style={{
+                flex: '1 1 18%',
+                backgroundColor: 'rgba(250, 204, 21, 0.1)',
+                borderRadius: 10,
+                padding: '10px 14px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <div
+                style={{
+                  fontSize: 38,
+                  fontWeight: 'bold',
+                  color: '#facc15',
+                  marginBottom: 2,
+                  display: 'flex',
+                }}>
+                {tokenCallStats ? formatMultiplier(tokenCallStats.averageMultiplier) : '-'}
+              </div>
+              <div style={{ color: '#a3a3a3', fontSize: 14, display: 'flex' }}>Avg Multiplier</div>
+            </div>
+
+            {/* Average MCAP Box */}
+            <div
+              style={{
+                flex: '1 1 18%',
+                backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                borderRadius: 10,
+                padding: '10px 14px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <div
+                style={{
+                  fontSize: 38,
+                  fontWeight: 'bold',
+                  color: '#22d3ee',
+                  marginBottom: 2,
+                  display: 'flex',
+                }}>
+                {tokenCallStats?.averageMarketCapAtCallTime !== null &&
+                tokenCallStats?.averageMarketCapAtCallTime !== undefined
+                  ? `$${formatLargeNumber(tokenCallStats.averageMarketCapAtCallTime)}`
+                  : '-'}
+              </div>
+              <div style={{ color: '#a3a3a3', fontSize: 14, display: 'flex' }}>Avg Entry MCap</div>
+            </div>
+
+            {/* Average Time to Hit Box */}
+            <div
+              style={{
+                flex: '1 1 18%',
+                backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                borderRadius: 10,
+                padding: '10px 14px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <div
+                style={{
+                  fontSize: 38,
+                  fontWeight: 'bold',
+                  color: '#f87171',
+                  marginBottom: 2,
+                  display: 'flex',
+                }}>
+                {tokenCallStats ? formatPercentage(tokenCallStats.averageTimeToHitRatio) : '-'}
+              </div>
+              <div style={{ color: '#a3a3a3', fontSize: 14, display: 'flex' }}>Avg Time/Hit</div>
             </div>
           </div>
         </div>
