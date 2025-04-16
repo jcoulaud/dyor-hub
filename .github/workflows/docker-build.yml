@@ -91,7 +91,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.app }}-dist
-          path: apps/${{ matrix.app }}/dist
+          path: apps/${{ matrix.app }}/${{ matrix.app == 'web' && '.next' || 'dist' }}
           retention-days: 1
 
   build-docker:
@@ -129,7 +129,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          path: dist
+          path: apps/${{ matrix.app }}/${{ matrix.app == 'web' && '.next' || 'dist' }}
 
       - name: Build and push apps
         uses: docker/build-push-action@v5
@@ -139,6 +139,11 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ghcr.io/${{ github.repository }}/${{ matrix.app }}:latest
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+            NODE_ENV=production
+            BUILDKIT_SANDBOX_HOSTNAME=buildkitd
+            APP_BUILD_DIR=${{ matrix.app == 'web' && '.next' || 'dist' }}
           cache-from: |
             type=registry,ref=ghcr.io/${{ github.repository }}/${{ matrix.app }}:buildcache
             type=gha
@@ -153,10 +158,6 @@ jobs:
             type=gha,mode=max,scope=${{ github.ref }}-${{ matrix.app }}
             type=gha,mode=max,scope=${{ github.ref }}
             type=gha,mode=max,scope=global
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
-            NODE_ENV=production
-            BUILDKIT_SANDBOX_HOSTNAME=buildkitd
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
