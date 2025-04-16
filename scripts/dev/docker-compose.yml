@@ -121,7 +121,7 @@ services:
              echo 'Database clearing completed. Starting database creation...' && 
              pnpm run db:create && 
              echo 'Database creation completed. Starting database initialization...' && 
-             pnpm run db:init && 
+             pnpm run db:init &&
              echo 'Database initialization completed. Starting migrations...' && 
              pnpm run migration:run && 
              echo 'Migrations completed. Starting seeding...' && 
