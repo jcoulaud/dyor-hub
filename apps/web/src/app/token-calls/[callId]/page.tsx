@@ -152,8 +152,10 @@ export default function TokenCallDetailPage() {
       multiplier,
       isUp,
       formattedMultiplier: multiplier ? `${multiplier.toFixed(2)}x` : '-',
-      targetDateFormatted: targetDate ? format(new Date(targetDate), 'MMM d, yyyy') : '-',
-      createdAtFormatted: createdAt ? format(new Date(createdAt), 'MMM d, yyyy') : 'N/A',
+      targetDate: targetDate ? new Date(targetDate) : null,
+      createdAt: createdAt ? new Date(createdAt) : null,
+      targetDateFormatted: targetDate ? format(new Date(targetDate), 'MMM d, yyyy h:mm a') : '-',
+      createdAtFormatted: createdAt ? format(new Date(createdAt), 'MMM d, yyyy h:mm a') : 'N/A',
       referenceMcap,
       targetMcap,
     };
@@ -657,23 +659,41 @@ export default function TokenCallDetailPage() {
                     {/* Dates */}
                     <div className='grid grid-cols-2 gap-3'>
                       <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3'>
-                        <div className='flex items-center gap-1.5 mb-1'>
+                        <div className='flex items-center gap-1.5 mb-1.5'>
                           <Clock className='h-3.5 w-3.5 text-amber-500/80' />
                           <span className='text-zinc-400 text-xs font-medium'>Created</span>
                         </div>
-                        <span className='font-medium text-zinc-200 text-sm'>
-                          {callDetails?.createdAtFormatted}
-                        </span>
+                        {callDetails?.createdAt ? (
+                          <div>
+                            <div className='font-bold text-zinc-100 text-lg leading-tight'>
+                              {format(callDetails.createdAt, 'MMM d, yyyy')}
+                            </div>
+                            <div className='font-medium text-amber-400/90 text-sm mt-0.5'>
+                              {format(callDetails.createdAt, 'h:mm a')}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className='font-medium text-zinc-200 text-sm'>N/A</span>
+                        )}
                       </div>
 
                       <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3'>
-                        <div className='flex items-center gap-1.5 mb-1'>
+                        <div className='flex items-center gap-1.5 mb-1.5'>
                           <CalendarClock className='h-3.5 w-3.5 text-amber-500/80' />
                           <span className='text-zinc-400 text-xs font-medium'>Target Date</span>
                         </div>
-                        <span className='font-medium text-zinc-200 text-sm'>
-                          {callDetails?.targetDateFormatted}
-                        </span>
+                        {callDetails?.targetDate ? (
+                          <div>
+                            <div className='font-bold text-zinc-100 text-lg leading-tight'>
+                              {format(callDetails.targetDate, 'MMM d, yyyy')}
+                            </div>
+                            <div className='font-medium text-amber-400/90 text-sm mt-0.5'>
+                              {format(callDetails.targetDate, 'h:mm a')}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className='font-medium text-zinc-200 text-sm'>-</span>
+                        )}
                       </div>
                     </div>
                   </div>
