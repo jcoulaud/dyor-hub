@@ -1,69 +1,82 @@
-name: Docker Build and Push
+version: '3.8'
 
-on:
-  push:
-    branches: [main]
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: dyor-hub-postgres
+    restart: always
+    env_file:
+      - ./apps/api/.env
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:5433:5432'
+    networks:
+      - dyor-hub-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      matrix:
-        app: [api, web]
-      fail-fast: false
+  # Redis for session management
+  redis:
+    image: redis:7-alpine
+    container_name: dyor-hub-redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - '127.0.0.1:6380:6379'
+    networks:
+      - dyor-hub-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-    steps:
-      - uses: actions/checkout@v4
+  # NestJS API
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: dyor-hub-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./apps/api/.env
+    ports:
+      - '127.0.0.1:3101:3001'
+    networks:
+      - dyor-hub-network
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:master
-            network=host
-          platforms: linux/amd64,linux/arm64
-          install: true
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+  # Next.js Frontend
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: dyor-hub-web
+    restart: always
+    depends_on:
+      - api
+    env_file:
+      - ./apps/web/.env
+    ports:
+      - '127.0.0.1:3100:3000'
+    networks:
+      - dyor-hub-network
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./apps/${{ matrix.app }}/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ghcr.io/${{ github.repository }}/${{ matrix.app }}:latest
-          cache-from: |
-            type=registry,ref=ghcr.io/${{ github.repository }}/${{ matrix.app }}:buildcache
-            type=gha
-            type=local,src=/tmp/.buildx-cache
-            type=gha,scope=${{ github.ref }}-${{ matrix.app }}
-            type=gha,scope=${{ github.ref }}
-            type=gha,scope=global
-          cache-to: |
-            type=registry,ref=ghcr.io/${{ github.repository }}/${{ matrix.app }}:buildcache,mode=max
-            type=gha,mode=max
-            type=local,dest=/tmp/.buildx-cache-new
-            type=gha,mode=max,scope=${{ github.ref }}-${{ matrix.app }}
-            type=gha,mode=max,scope=${{ github.ref }}
-            type=gha,mode=max,scope=global
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
-            PNPM_STORE_DIR=/root/.local/share/pnpm/store
-            NODE_ENV=production
-            BUILDKIT_SANDBOX_HOSTNAME=buildkitd
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+networks:
+  dyor-hub-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
