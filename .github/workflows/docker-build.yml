@@ -161,4 +161,4 @@ jobs:
             BUILDKIT_SANDBOX_HOSTNAME=buildkitd
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }} 
+            org.opencontainers.image.revision=${{ github.sha }}
