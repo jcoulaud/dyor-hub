@@ -1,4 +1,4 @@
-name: Docker Build and Push
+name: Deploy to Production v2 (Blue/Green)
 
 on:
   push:
