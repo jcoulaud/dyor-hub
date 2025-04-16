@@ -533,7 +533,12 @@ export default function TokenCallDetailPage() {
                   {/* Prediction content */}
                   <div className='p-4 pb-2'>
                     {/* Multiplier card */}
-                    <div className='relative overflow-hidden bg-gradient-to-r from-zinc-900 to-zinc-800 rounded-lg border border-zinc-700/50 p-4 mb-4'>
+                    <div
+                      className={`relative overflow-hidden rounded-lg border p-4 mb-4 ${
+                        callDetails?.isUp
+                          ? 'bg-green-500/10 border-green-500/30'
+                          : 'bg-gradient-to-r from-zinc-900 to-zinc-800 border-zinc-700/50'
+                      }`}>
                       <div className='flex flex-col items-center justify-center text-center relative z-10'>
                         <span className='text-zinc-400 uppercase tracking-wider text-xs font-semibold mb-1'>
                           Price Multiplier
@@ -598,8 +603,8 @@ export default function TokenCallDetailPage() {
                           <div
                             className={`flex flex-col rounded-lg p-3 border ${
                               status === TokenCallStatus.VERIFIED_FAIL
-                                ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                                : 'bg-green-500/10 border-green-500/30 text-green-400'
+                                ? 'border-red-500/30 text-red-400'
+                                : 'border-green-500/30 text-green-400'
                             }`}>
                             <span className='text-xs text-zinc-400 mb-1 font-medium'>
                               {status === TokenCallStatus.VERIFIED_SUCCESS
@@ -631,8 +636,8 @@ export default function TokenCallDetailPage() {
                           <div
                             className={`flex flex-col rounded-lg p-3 border ${
                               status === TokenCallStatus.VERIFIED_FAIL
-                                ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                                : 'bg-green-500/10 border-green-500/30 text-green-400'
+                                ? 'border-red-500/30 text-red-400'
+                                : 'border-green-500/30 text-green-400'
                             }`}>
                             <span className='text-xs text-zinc-400 mb-1 font-medium'>
                               {status === TokenCallStatus.VERIFIED_SUCCESS
