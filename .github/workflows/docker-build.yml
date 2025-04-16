@@ -2,7 +2,7 @@ name: Docker Build and Push
 
 on:
   push:
-    branches: [ main, fix_use_new_machines ]
+    branches: [ main ]
 
 jobs:
   build-types:
@@ -141,3 +141,132 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+
+  deploy:
+    needs: build-apps
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -t rsa,ecdsa,ed25519 ${{ secrets.DROPLET_IP }} >> ~/.ssh/known_hosts
+
+      - name: Copy deployment script
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          scp scripts/blue-green-deploy.prod.sh $DEPLOY_USER@$DROPLET_IP:/tmp/blue-green-deploy.sh
+
+      - name: Deploy to DigitalOcean
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          APP_DIR: /var/www/dyor-hub
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          echo "Starting blue-green deployment"
+          ssh $DEPLOY_USER@$DROPLET_IP "chmod +x /tmp/blue-green-deploy.sh && sudo GITHUB_REPO=$GITHUB_REPO APP_DIR=$APP_DIR /tmp/blue-green-deploy.sh"
+          echo "Deployment command executed successfully"
+
+      - name: Wait for services to stabilize
+        run: |
+          echo "Waiting for services to stabilize (30 seconds)..."
+          sleep 30
+
+      - name: Verify Deployment
+        if: always()
+        env:
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          echo "Checking container status..."
+          ssh $DEPLOY_USER@$DROPLET_IP "docker ps -a"
+
+          echo "Determining active environment..."
+          ACTIVE_ENV=$(ssh $DEPLOY_USER@$DROPLET_IP "grep -l '3100' /etc/nginx/sites-enabled/dyor-hub >/dev/null && echo 'blue' || echo 'green'")
+          echo "Active environment is: $ACTIVE_ENV"
+
+          echo "Checking if containers are running..."
+          if ! ssh $DEPLOY_USER@$DROPLET_IP "docker ps | grep 'dyor-hub-$ACTIVE_ENV'"; then
+            echo "ERROR: No containers for the active environment ($ACTIVE_ENV) are running!"
+            exit 1
+          fi
+
+          # Quick health check
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://dyorhub.xyz/ || echo "failed")
+            echo "Website health check response: $RESPONSE_CODE"
+            
+            if [[ "$RESPONSE_CODE" == "200" ]]; then
+              echo "Website is responding successfully!"
+              break
+            fi
+            
+            echo "Trying API health check..."
+            RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://api.dyorhub.xyz/health || echo "failed")
+            echo "API health check response: $RESPONSE_CODE"
+            
+            if [[ "$RESPONSE_CODE" == "200" ]]; then
+              echo "API is healthy!"
+              break
+            fi
+            
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "Retrying in 5 seconds... ($RETRY_COUNT/$MAX_RETRIES)"
+              sleep 5
+            fi
+          done
+
+      - name: Post Deployment to Discord
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commit = context.payload.head_commit;
+            const sender = context.payload.sender;
+            const environment = 'Production';
+
+            const message = {
+              embeds: [{
+                title: `🚀 Deployment Successful`,
+                description: `A new version has been deployed to ${environment}`,
+                color: 0x00ff00,
+                fields: [
+                  {
+                    name: 'Commit Message',
+                    value: commit.message,
+                    inline: false
+                  },
+                  {
+                    name: 'Deployed By',
+                    value: sender.login,
+                    inline: true
+                  }
+                ],
+                timestamp: new Date().toISOString()
+              }]
+            };
+
+            await fetch(process.env.DISCORD_WEBHOOK_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(message)
+            });
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
