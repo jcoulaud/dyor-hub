@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: dyor-hub-postgres
+    restart: always
+    env_file:
+      - ./apps/api/.env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:5433:5432'
+    networks:
+      - dyor-hub-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for session management
+  redis:
+    image: redis:7-alpine
+    container_name: dyor-hub-redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - '127.0.0.1:6380:6379'
+    networks:
+      - dyor-hub-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # NestJS API
+  api:
+    image: ghcr.io/jcoulaud/dyor-hub/api:latest
+    container_name: dyor-hub-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./apps/api/.env
+    ports:
+      - '127.0.0.1:3101:3001'
+    networks:
+      - dyor-hub-network
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://localhost:3001/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Next.js Frontend
+  web:
+    image: ghcr.io/jcoulaud/dyor-hub/web:latest
+    container_name: dyor-hub-web
+    restart: always
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - ./apps/web/.env
+    ports:
+      - '127.0.0.1:3100:3000'
+    networks:
+      - dyor-hub-network
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://localhost:3000']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  dyor-hub-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
