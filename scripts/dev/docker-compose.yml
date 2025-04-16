@@ -104,7 +104,7 @@ services:
              echo 'Database clearing completed. Starting database creation...' && 
              npm run db:create && 
              echo 'Database creation completed. Starting database initialization...' && 
-             npm run db:init &&
+             npm run db:init:dev &&
              echo 'Database initialization completed. Starting migrations...' && 
              npm run migration:run && 
              echo 'Migrations completed. Starting seeding...' && 
