@@ -40,9 +40,7 @@ services:
 
   # NestJS API
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    image: ghcr.io/jcoulaud/dyor-hub/api:latest
     container_name: dyor-hub-api
     restart: always
     depends_on:
@@ -56,22 +54,33 @@ services:
       - '127.0.0.1:3101:3001'
     networks:
       - dyor-hub-network
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://localhost:3001/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # Next.js Frontend
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+    image: ghcr.io/jcoulaud/dyor-hub/web:latest
     container_name: dyor-hub-web
     restart: always
     depends_on:
-      - api
+      api:
+        condition: service_started
     env_file:
       - ./apps/web/.env
     ports:
       - '127.0.0.1:3100:3000'
     networks:
       - dyor-hub-network
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://localhost:3000']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 networks:
   dyor-hub-network:
