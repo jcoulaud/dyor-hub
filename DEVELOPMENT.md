@@ -109,43 +109,12 @@ The development setup process will automatically check for the necessary certifi
 
 Once these certificates are in place, the development environment will automatically use them for HTTPS connections.
 
-**Note:** You'll access the development environment at these URLs:
+**Note:** The development environment uses the following HTTPS ports:
 
-- Web app: https://localhost:3000 (not 3100)
-- API: https://localhost:3001 (not 3101)
+- Web app: https://localhost:3000/
+- API: https://localhost:3001/
 
-These are the secure HTTPS ports that use the certificates you've generated. The non-HTTPS ports (3100 and 3101) remain available but shouldn't be used for development.
-
-## Manual Setup (Without Docker)
-
-If you prefer not to use Docker for development:
-
-1. Install dependencies:
-
-   - Node.js 20+
-   - pnpm
-   - PostgreSQL 16
-   - Redis 7
-
-2. Set up the environment:
-
-```bash
-# Install dependencies and setup environment
-pnpm install
-pnpm setup
-```
-
-3. Start the services in separate terminals:
-
-```bash
-# Terminal 1: Start the API
-cd apps/api
-pnpm run start:dev
-
-# Terminal 2: Start the web app
-cd apps/web
-pnpm run dev
-```
+HTTPS is mandatory for proper functionality with secure cookies and WebSocket authentication.
 
 ## Development Scripts
 
@@ -199,6 +168,31 @@ sudo pacman -S libusb
 ### Windows
 
 Native USB modules can be more challenging on Windows. Consider using the Docker setup or Windows Subsystem for Linux (WSL).
+
+## External API Requirements
+
+The following API keys need to be set in `apps/api/.env`:
+
+### Required API Keys
+- `HELIUS_API_KEY`: Get from [Helius](https://helius.xyz/)
+- `PERSPECTIVE_API_KEY`: Get from [Google Cloud Perspective API](https://perspectiveapi.com/)
+- `BIRDEYE_API_KEY`: Get from [Birdeye](https://birdeye.so/)
+- `TOTO_API_KEY`: Get from [Toto API](https://toto.io/)
+
+### Optional Integrations
+- Twitter OAuth 2.0 for Login:
+  - `TWITTER_CLIENT_ID`
+  - `TWITTER_CLIENT_SECRET`
+  Get these from [Twitter Developer Portal](https://developer.twitter.com/en/portal/dashboard/)
+
+- Telegram Notifications:
+  - `TELEGRAM_ADMIN_BOT_TOKEN`: For admin notifications
+  - `TELEGRAM_USER_BOT_TOKEN`: For user notifications
+  - `TELEGRAM_ADMIN_CHAT_ID`: Your admin chat ID
+  Create bots through [BotFather](https://t.me/botfather/)
+
+A template `.env` file is provided in `apps/api/.env.example`. Copy it and replace the placeholder values with your actual API keys.
+( this was done automatically if you did pnpm start)
 
 ## Troubleshooting
 

@@ -71,7 +71,6 @@ services:
       - SSL_KEY_PATH=/app/secrets/localhost+2-key.pem
       - SSL_CERT_PATH=/app/secrets/localhost+2.pem
     ports:
-      - '127.0.0.1:3101:3001'
       - '127.0.0.1:3001:3001'
     depends_on:
       postgres:
@@ -177,7 +176,6 @@ services:
       - SSL_KEY_PATH=/app/secrets/localhost+2-key.pem
       - SSL_CERT_PATH=/app/secrets/localhost+2.pem
     ports:
-      - '127.0.0.1:3100:3000'
       - '127.0.0.1:3000:3000'
     depends_on:
       - init-service
