@@ -1,16 +1,13 @@
 'use client';
 
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+import { CoinbaseWalletAdapter } from '@solana/wallet-adapter-coinbase';
+import { LedgerWalletAdapter } from '@solana/wallet-adapter-ledger';
+import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import {
-  CloverWalletAdapter,
-  CoinbaseWalletAdapter,
-  LedgerWalletAdapter,
-  PhantomWalletAdapter,
-  SolflareWalletAdapter,
-  TorusWalletAdapter,
-} from '@solana/wallet-adapter-wallets';
+import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
+import { TorusWalletAdapter } from '@solana/wallet-adapter-torus';
 import { clusterApiUrl } from '@solana/web3.js';
 import dynamic from 'next/dynamic';
 import { useMemo, type ReactNode } from 'react';
@@ -39,7 +36,6 @@ function WalletProviderInner({ children }: WalletProviderProps) {
       new SolflareWalletAdapter({ network }),
       new CoinbaseWalletAdapter(),
       new LedgerWalletAdapter(),
-      new CloverWalletAdapter(),
       new TorusWalletAdapter(),
     ],
     [network],
