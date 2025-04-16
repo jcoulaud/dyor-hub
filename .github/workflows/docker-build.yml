@@ -43,6 +43,9 @@ jobs:
       matrix:
         app: [api, web]
       fail-fast: false
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -86,24 +89,6 @@ jobs:
           
       - name: Build app
         run: cd apps/${{ matrix.app }} && pnpm run build
-        
-      - name: Upload app artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.app }}-dist
-          path: apps/${{ matrix.app }}/${{ matrix.app == 'web' && '.next' || 'dist' }}
-          retention-days: 1
-
-  build-docker:
-    needs: build-apps
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -125,11 +110,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: apps/${{ matrix.app }}/${{ matrix.app == 'web' && '.next' || 'dist' }}
 
       - name: Build and push apps
         uses: docker/build-push-action@v5
