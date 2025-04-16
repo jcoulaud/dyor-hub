@@ -142,7 +142,7 @@ docker-compose up -d ${NEW_ENV}-api ${NEW_ENV}-web || {
 
 # Wait for API service to become ready
 log "Waiting for API service to become ready"
-MAX_RETRIES=60
+MAX_RETRIES=10
 RETRY_COUNT=0
 until curl -s "http://127.0.0.1:$NEW_PORT_API/health" | grep -q "ok" || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
   log "Waiting for API to be available... $(( RETRY_COUNT + 1 ))/$MAX_RETRIES"
@@ -159,7 +159,7 @@ log "API service is healthy"
 
 # Wait for web service to become ready
 log "Waiting for Web service to become ready"
-MAX_RETRIES=30
+MAX_RETRIES=10
 RETRY_COUNT=0
 until curl -s "http://127.0.0.1:$NEW_PORT_WEB" > /dev/null || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
   log "Waiting for Web to be available... $(( RETRY_COUNT + 1 ))/$MAX_RETRIES"
