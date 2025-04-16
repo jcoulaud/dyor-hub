@@ -7,6 +7,7 @@ import {
   CheckCircle,
   Clock,
   Copy,
+  Info,
   TrendingDown,
   TrendingUp,
   Twitter,
@@ -16,9 +17,10 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  CartesianGrid,
   Line,
   LineChart,
-  ReferenceDot,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -31,8 +33,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TooltipProvider } from '@/components/ui/tooltip';
-
 import { useToast } from '@/hooks/use-toast';
 import { tokenCalls } from '@/lib/api';
 import { calculateMultiplier, formatLargeNumber, formatPrice } from '@/lib/utils';
@@ -86,7 +86,9 @@ export default function TokenCallDetailPage() {
 
   useEffect(() => {
     const fetchTokenCallData = async () => {
-      if (!callId) return;
+      if (!callId) {
+        return;
+      }
 
       setIsLoading(true);
       setError(null);
@@ -106,15 +108,22 @@ export default function TokenCallDetailPage() {
   }, [callId]);
 
   useEffect(() => {
-    if (!tokenCall) return;
+    if (!tokenCall) {
+      return;
+    }
+    if (!tokenCall.priceHistoryUrl) {
+      return;
+    }
     setIsHistoryLoading(true);
     setHistoryError(null);
-    fetch(`/api/token-calls/${tokenCall.id}/price-history`)
+    fetch(tokenCall.priceHistoryUrl)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch price history');
         return res.json();
       })
-      .then((data) => setPriceHistory(data))
+      .then((data) => {
+        setPriceHistory(data);
+      })
       .catch(() => {
         setHistoryError('Could not load price history');
         setPriceHistory(null);
@@ -200,283 +209,476 @@ export default function TokenCallDetailPage() {
   const { user, token, status } = tokenCall;
 
   return (
-    <TooltipProvider>
-      <div className='container mx-auto px-4 py-6 max-w-5xl'>
-        {/* Background elements */}
-        <div className='fixed inset-0 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 -z-10' />
-        <div className='fixed inset-0 bg-[url("/grid-pattern.svg")] bg-repeat opacity-10 -z-10' />
-        <div className='fixed inset-0 bg-gradient-radial from-amber-500/5 via-transparent to-transparent -z-10' />
+    <div className='container mx-auto px-4 py-6 max-w-5xl'>
+      {/* Background elements */}
+      <div className='fixed inset-0 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 -z-10' />
+      <div className='fixed inset-0 bg-[url("/grid-pattern.svg")] bg-repeat opacity-10 -z-10' />
+      <div className='fixed inset-0 bg-gradient-radial from-amber-500/5 via-transparent to-transparent -z-10' />
 
-        <h1 className='text-2xl sm:text-3xl font-bold mb-5 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600'>
-          Token Price Prediction
-        </h1>
+      <h1 className='text-2xl sm:text-3xl font-bold mb-5 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600'>
+        Token Price Prediction
+      </h1>
 
-        {/* Main Card */}
-        <div className='relative group transition-all duration-300'>
-          <div className='absolute -inset-1 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl blur opacity-20 group-hover:opacity-30 transition-opacity duration-300'></div>
-          <Card className='relative bg-zinc-900/70 backdrop-blur-lg border-zinc-800/50 rounded-xl overflow-hidden shadow-xl'>
-            <CardHeader className='flex flex-row items-center pb-2 border-b border-zinc-800/50'>
-              <div className='flex-1'>
-                <UserProfile user={user} />
-              </div>
-              <div className='flex items-center gap-2'>
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  className='h-8 gap-1.5 px-3 cursor-pointer bg-zinc-800/70 hover:bg-zinc-800 border border-zinc-700/40 rounded-md'
-                  onClick={handleCopy}>
-                  <Copy className='h-4 w-4 text-zinc-400' />
-                </Button>
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  className='h-8 gap-1.5 px-3 cursor-pointer bg-zinc-800/70 hover:bg-zinc-800 border border-zinc-700/40 rounded-md'
-                  onClick={handleShare}>
-                  <Twitter className='h-4 w-4 text-zinc-400' />
-                  <span className='text-xs font-medium text-zinc-400'>Share</span>
-                </Button>
-              </div>
-            </CardHeader>
-
-            {/* Subheader status badge and view all predictions button */}
-            <div className='flex items-center justify-between px-5 py-3'>
-              <StatusBadge status={status} />
+      {/* Main Card */}
+      <div className='relative group transition-all duration-300'>
+        <div className='absolute -inset-1 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl blur opacity-20 group-hover:opacity-30 transition-opacity duration-300'></div>
+        <Card className='relative bg-zinc-900/70 backdrop-blur-lg border-zinc-800/50 rounded-xl overflow-hidden shadow-xl'>
+          <CardHeader className='flex flex-row items-center pb-2 border-b border-zinc-800/50'>
+            <div className='flex-1'>
+              <UserProfile user={user} />
+            </div>
+            <div className='flex items-center gap-2'>
               <Button
-                variant='secondary'
+                variant='ghost'
                 size='sm'
-                className='h-8 px-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs font-medium border border-blue-500/40 shadow-sm'
-                asChild>
-                <Link href={`/token-calls?username=${user?.username || ''}`}>
-                  <span className='flex items-center gap-1.5'>
-                    View all predictions
-                    <ArrowUpRight className='h-3.5 w-3.5' />
-                  </span>
-                </Link>
+                className='h-8 gap-1.5 px-3 cursor-pointer bg-zinc-800/70 hover:bg-zinc-800 border border-zinc-700/40 rounded-md'
+                onClick={handleCopy}>
+                <Copy className='h-4 w-4 text-zinc-400' />
+              </Button>
+              <Button
+                variant='ghost'
+                size='sm'
+                className='h-8 gap-1.5 px-3 cursor-pointer bg-zinc-800/70 hover:bg-zinc-800 border border-zinc-700/40 rounded-md'
+                onClick={handleShare}>
+                <Twitter className='h-4 w-4 text-zinc-400' />
+                <span className='text-xs font-medium text-zinc-400'>Share</span>
               </Button>
             </div>
+          </CardHeader>
 
-            <CardContent className='p-5 pt-0'>
-              {/* Main content */}
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-                {/* Left column: Token */}
-                <div>
-                  {/* Token card */}
-                  <div className='bg-zinc-800/20 backdrop-blur-sm rounded-xl p-5 border border-zinc-700/30 h-full flex flex-col justify-center'>
-                    <Link href={`/tokens/${token?.mintAddress}`} className='block'>
-                      <div className='flex flex-col items-center justify-center h-full'>
-                        {/* Token image */}
-                        <div className='relative mb-3 group flex justify-center items-center'>
-                          <div className='absolute -inset-1 bg-gradient-to-r from-amber-500/40 to-amber-600/40 rounded-full blur-md opacity-70 group-hover:opacity-90 transition-opacity'></div>
-                          <Avatar className='h-28 w-28 shadow-lg'>
-                            <AvatarImage
-                              src={token?.imageUrl || ''}
-                              alt={token?.name || 'Token'}
-                              className='object-cover'
-                            />
-                            <AvatarFallback className='bg-gradient-to-br from-amber-600/40 to-amber-700/40 text-amber-200 text-2xl'>
-                              {token?.symbol.substring(0, 2).toUpperCase() || 'TK'}
-                            </AvatarFallback>
-                          </Avatar>
+          {/* Subheader status badge and view all predictions button */}
+          <div className='flex items-center justify-between px-5 py-3'>
+            <StatusBadge status={status} />
+            <Button
+              variant='secondary'
+              size='sm'
+              className='h-8 px-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs font-medium border border-blue-500/40 shadow-sm'
+              asChild>
+              <Link href={`/token-calls?username=${user?.username || ''}`}>
+                <span className='flex items-center gap-1.5'>
+                  View all predictions
+                  <ArrowUpRight className='h-3.5 w-3.5' />
+                </span>
+              </Link>
+            </Button>
+          </div>
+
+          <CardContent className='p-5 pt-0'>
+            {/* Main content */}
+            <div className='grid grid-cols-1 md:grid-cols-12 gap-6'>
+              {/* Left column: Token and Chart */}
+              <div className='md:col-span-7 space-y-5'>
+                {/* Token card */}
+                <div className='bg-zinc-800/40 backdrop-blur-sm rounded-xl border border-zinc-700/30 p-4'>
+                  <Link href={`/tokens/${token?.mintAddress}`} className='block'>
+                    <div className='flex items-center'>
+                      {/* Token image */}
+                      <div className='relative mr-3 flex-shrink-0'>
+                        <Avatar className='h-14 w-14 shadow-md border border-zinc-700/50'>
+                          <AvatarImage
+                            src={token?.imageUrl || ''}
+                            alt={token?.name || 'Token'}
+                            className='object-cover'
+                          />
+                          <AvatarFallback className='bg-gradient-to-br from-amber-600/40 to-amber-700/40 text-amber-200 text-lg'>
+                            {token?.symbol?.substring(0, 2).toUpperCase() || 'TK'}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+
+                      {/* Token name and symbol */}
+                      <div className='flex-grow'>
+                        <h3 className='text-base md:text-lg font-semibold text-zinc-100 mb-0.5 hover:text-amber-400 transition-colors'>
+                          {token?.name || 'Unknown Token'}
+                        </h3>
+                        <div className='flex items-center gap-2'>
+                          <span className='px-2 py-0.5 rounded-md bg-zinc-800/70 border border-zinc-700/30 text-zinc-300 text-xs font-medium'>
+                            ${token?.symbol || 'TOKEN'}
+                          </span>
                         </div>
+                      </div>
+                    </div>
+                  </Link>
+                </div>
 
-                        {/* Token name and symbol */}
-                        <div className='text-center'>
-                          <h3 className='text-xl font-semibold text-zinc-100 mb-1.5 hover:text-amber-400 transition-colors'>
-                            {token?.name || 'Unknown Token'}
-                          </h3>
-                          <div className='inline-flex items-center px-3 py-1 rounded-full bg-zinc-800/40 border border-zinc-700/30'>
-                            <span className='text-zinc-400 font-medium text-xs'>
-                              ${token?.symbol || 'TOKEN'}
+                {/* Chart card */}
+                <div className='bg-zinc-800/40 backdrop-blur-sm rounded-xl border border-zinc-700/30 overflow-hidden shadow-md'>
+                  <div>
+                    {isHistoryLoading ? (
+                      <div className='w-full flex items-center justify-center py-8'>
+                        <Skeleton className='w-full h-36' />
+                      </div>
+                    ) : historyError ? (
+                      <div className='text-red-500 flex items-center justify-center py-8 text-sm'>
+                        <XCircle className='h-4 w-4 mr-2' />
+                        {historyError}
+                      </div>
+                    ) : priceHistory && priceHistory.items.length > 0 ? (
+                      <div className='bg-zinc-800/10' style={{ height: '260px' }}>
+                        <ResponsiveContainer width='100%' height='100%'>
+                          <LineChart
+                            data={priceHistory.items.map((item) => {
+                              // Calculate market cap if needed
+                              const price = item.value;
+                              const mcap = tokenCall.referenceSupply
+                                ? price * parseFloat(String(tokenCall.referenceSupply))
+                                : null;
+
+                              return {
+                                time: item.unixTime * 1000,
+                                price,
+                                mcap,
+                              };
+                            })}
+                            margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
+                            <CartesianGrid
+                              stroke='#666'
+                              opacity={0.1}
+                              vertical={false}
+                              strokeDasharray='2 6'
+                              strokeWidth={0.8}
+                            />
+
+                            {/* X-axis */}
+                            <XAxis
+                              dataKey='time'
+                              type='number'
+                              scale='time'
+                              domain={['dataMin', 'dataMax']}
+                              tickFormatter={(timestamp) => {
+                                const date = new Date(timestamp);
+
+                                // Calculate if the data spans 5 or more days
+                                const firstDate =
+                                  priceHistory && new Date(priceHistory.items[0].unixTime * 1000);
+                                const lastDate =
+                                  priceHistory &&
+                                  new Date(
+                                    priceHistory.items[priceHistory.items.length - 1].unixTime *
+                                      1000,
+                                  );
+                                const daySpan =
+                                  firstDate && lastDate
+                                    ? Math.floor(
+                                        (lastDate.getTime() - firstDate.getTime()) /
+                                          (1000 * 60 * 60 * 24),
+                                      )
+                                    : 0;
+
+                                // Use date format if span is 5+ days, otherwise use time
+                                if (daySpan >= 5) {
+                                  return format(date, 'MMM d');
+                                } else {
+                                  return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+                                }
+                              }}
+                              stroke='#666'
+                              tick={{ fontSize: 10, fill: '#aaa' }}
+                              tickSize={3}
+                              axisLine={{ stroke: '#555' }}
+                              interval='preserveStartEnd'
+                              minTickGap={80}
+                              padding={{ left: 10, right: 10 }}
+                            />
+
+                            {/* Y-axis */}
+                            <YAxis
+                              dataKey={displayMode === 'mcap' ? 'mcap' : 'price'}
+                              tickFormatter={(value) => {
+                                if (displayMode === 'mcap') {
+                                  return `$${formatLargeNumber(value)}`;
+                                }
+                                return `$${value.toFixed(4)}`;
+                              }}
+                              domain={[
+                                (dataMin: number) =>
+                                  Math.min(
+                                    dataMin * 0.95,
+                                    status === TokenCallStatus.PENDING ||
+                                      status === TokenCallStatus.VERIFIED_SUCCESS
+                                      ? displayMode === 'mcap' && callDetails?.targetMcap
+                                        ? callDetails.targetMcap * 0.95
+                                        : parseFloat(String(tokenCall.targetPrice)) * 0.95
+                                      : dataMin * 0.95,
+                                  ),
+                                (dataMax: number) =>
+                                  Math.max(
+                                    dataMax * 1.05,
+                                    status === TokenCallStatus.PENDING ||
+                                      status === TokenCallStatus.VERIFIED_SUCCESS
+                                      ? displayMode === 'mcap' && callDetails?.targetMcap
+                                        ? callDetails.targetMcap * 1.05
+                                        : parseFloat(String(tokenCall.targetPrice)) * 1.05
+                                      : dataMax * 1.05,
+                                  ),
+                              ]}
+                              stroke='#666'
+                              tick={{ fontSize: 10, fill: '#aaa' }}
+                              width={58}
+                              tickSize={3}
+                              axisLine={{ stroke: '#555' }}
+                              tickMargin={5}
+                              allowDecimals={true}
+                              tickCount={5}
+                            />
+
+                            {/* Tooltip */}
+                            <Tooltip
+                              content={({ active, payload, label }) => {
+                                if (active && payload && payload.length) {
+                                  let value: string;
+                                  if (displayMode === 'mcap') {
+                                    const mcapValue = payload[0].value as number;
+                                    value = `$${formatLargeNumber(mcapValue)}`;
+                                  } else {
+                                    const priceValue = payload[0].value as number;
+                                    value = `$${Number(priceValue).toFixed(6)}`;
+                                  }
+
+                                  const date = new Date(label);
+                                  const formattedTime = format(date, 'h:mm a');
+                                  const formattedDate = format(date, 'MMM d, yyyy');
+
+                                  return (
+                                    <div className='bg-zinc-800/90 px-3 py-2 rounded-lg border border-zinc-700/50 shadow-lg backdrop-blur-sm'>
+                                      <p className='text-xs text-zinc-400 mb-1'>
+                                        {formattedDate} {formattedTime}
+                                      </p>
+                                      <p className='text-sm font-medium text-white'>{value}</p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                              cursor={{
+                                stroke:
+                                  status === TokenCallStatus.VERIFIED_FAIL ? '#ef4444' : '#22c55e',
+                                strokeOpacity: 0.7,
+                                strokeWidth: 1,
+                              }}
+                            />
+
+                            {/* Main line */}
+                            <Line
+                              type='monotone'
+                              dataKey={displayMode === 'mcap' ? 'mcap' : 'price'}
+                              stroke={
+                                status === TokenCallStatus.VERIFIED_FAIL ? '#ef4444' : '#22c55e'
+                              }
+                              strokeWidth={2}
+                              dot={false}
+                              activeDot={{
+                                r: 5,
+                                fill:
+                                  status === TokenCallStatus.VERIFIED_FAIL ? '#ef4444' : '#22c55e',
+                                stroke: '#222',
+                                strokeWidth: 1,
+                                strokeOpacity: 0.8,
+                              }}
+                              animationDuration={1200}
+                              animationEasing='ease-out'
+                            />
+
+                            {/* Target reference line */}
+                            {(status === TokenCallStatus.PENDING ||
+                              status === TokenCallStatus.VERIFIED_SUCCESS ||
+                              status === TokenCallStatus.VERIFIED_FAIL) && (
+                              <ReferenceLine
+                                y={
+                                  displayMode === 'mcap' && callDetails?.targetMcap
+                                    ? callDetails.targetMcap
+                                    : parseFloat(String(tokenCall.targetPrice))
+                                }
+                                stroke={
+                                  status === TokenCallStatus.VERIFIED_FAIL ? '#ef4444' : '#22c55e'
+                                }
+                                strokeDasharray='3 3'
+                                strokeWidth={1.5}
+                                isFront={true}
+                                ifOverflow='extendDomain'
+                                label={{
+                                  value: 'Target',
+                                  position: 'insideRight',
+                                  offset: 2,
+                                  dy: -10,
+                                  fill:
+                                    status === TokenCallStatus.VERIFIED_FAIL
+                                      ? '#ef4444'
+                                      : '#22c55e',
+                                  fontSize: 11,
+                                  fontWeight: 500,
+                                }}
+                              />
+                            )}
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div
+                        className='bg-zinc-800/10 flex items-center justify-center'
+                        style={{ height: '260px' }}>
+                        <div className='text-zinc-400 flex flex-col items-center justify-center py-8 text-sm'>
+                          <Info className='h-5 w-5 mb-2 text-zinc-500' />
+                          <p>Chart will be available when the token call is verified.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right column: Prediction details */}
+              <div className='md:col-span-5'>
+                <div className='bg-zinc-800/40 backdrop-blur-sm rounded-xl border border-zinc-700/30 h-full'>
+                  {/* Prediction content */}
+                  <div className='p-4 pb-2'>
+                    {/* Multiplier card */}
+                    <div className='relative overflow-hidden bg-gradient-to-r from-zinc-900 to-zinc-800 rounded-lg border border-zinc-700/50 p-4 mb-4'>
+                      <div className='flex flex-col items-center justify-center text-center relative z-10'>
+                        <span className='text-zinc-400 uppercase tracking-wider text-xs font-semibold mb-1'>
+                          Price Multiplier
+                        </span>
+                        <div
+                          className={`flex items-center justify-center ${
+                            callDetails?.isUp ? 'text-green-400' : 'text-red-400'
+                          }`}>
+                          {callDetails?.isUp ? (
+                            <TrendingUp className='h-6 w-6 mr-2' />
+                          ) : (
+                            <TrendingDown className='h-6 w-6 mr-2' />
+                          )}
+                          <span className='text-3xl font-bold'>
+                            {callDetails?.formattedMultiplier}
+                          </span>
+                        </div>
+                        <div
+                          className={`mt-1 text-sm font-medium ${
+                            callDetails?.isUp ? 'text-green-400' : 'text-red-400'
+                          }`}>
+                          {callDetails?.isUp ? 'Price Increase' : 'Price Decrease'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tabs for Price/Mcap */}
+                    <Tabs
+                      value={displayMode}
+                      onValueChange={(value) => setDisplayMode(value as 'price' | 'mcap')}
+                      className='mb-4'>
+                      <div className='flex flex-col relative'>
+                        <TabsList className='grid w-full grid-cols-2 h-9 bg-zinc-900/60 border border-zinc-700/40 p-0.5 rounded-full shadow-inner overflow-hidden'>
+                          {/* Mcap Trigger */}
+                          <TabsTrigger
+                            value='mcap'
+                            className='text-xs h-full rounded-full transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/70 data-[state=active]:to-amber-700/70 data-[state=active]:text-zinc-100 text-zinc-400 font-medium'>
+                            Market Cap
+                          </TabsTrigger>
+                          {/* Price Trigger */}
+                          <TabsTrigger
+                            value='price'
+                            className='text-xs h-full rounded-full transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/70 data-[state=active]:to-amber-700/70 data-[state=active]:text-zinc-100 text-zinc-400 font-medium'>
+                            Price
+                          </TabsTrigger>
+                        </TabsList>
+                      </div>
+
+                      {/* Mcap Content */}
+                      <TabsContent
+                        value='mcap'
+                        className='mt-4 animate-in fade-in-50 zoom-in-95 duration-300'>
+                        <div className='grid grid-cols-2 gap-3'>
+                          <div className='flex flex-col bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3'>
+                            <span className='text-xs text-zinc-400 mb-1 font-medium'>
+                              Current Mcap
+                            </span>
+                            <span className='font-semibold text-zinc-100 text-base'>
+                              ${formatLargeNumber(callDetails?.referenceMcap)}
+                            </span>
+                          </div>
+                          <div
+                            className={`flex flex-col rounded-lg p-3 border ${
+                              status === TokenCallStatus.VERIFIED_FAIL
+                                ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                                : 'bg-green-500/10 border-green-500/30 text-green-400'
+                            }`}>
+                            <span className='text-xs text-zinc-400 mb-1 font-medium'>
+                              {status === TokenCallStatus.VERIFIED_SUCCESS
+                                ? 'Target Hit'
+                                : status === TokenCallStatus.VERIFIED_FAIL
+                                  ? 'Target Missed'
+                                  : 'Target Mcap'}
+                            </span>
+                            <span className='font-semibold text-base'>
+                              ${formatLargeNumber(callDetails?.targetMcap)}
                             </span>
                           </div>
                         </div>
-                      </div>
-                    </Link>
-                  </div>
-                </div>
+                      </TabsContent>
 
-                {/* Right column: Prediction details */}
-                <div className='bg-zinc-800/20 backdrop-blur-sm rounded-xl p-5 border border-zinc-700/30'>
-                  {/* Prices row */}
-                  <Tabs
-                    value={displayMode}
-                    onValueChange={(value) => setDisplayMode(value as 'price' | 'mcap')}
-                    className='mb-3'>
-                    <div className='flex flex-col relative'>
-                      <TabsList className='grid w-full grid-cols-2 h-10 bg-zinc-900/60 border border-zinc-700/40 p-0.5 rounded-full shadow-inner overflow-hidden'>
-                        {/* Mcap Trigger First */}
-                        <TabsTrigger
-                          value='mcap'
-                          className='text-xs h-full rounded-full transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/70 data-[state=active]:to-amber-700/70 data-[state=active]:text-zinc-100 text-zinc-400 font-medium'>
-                          Market Cap
-                        </TabsTrigger>
-                        {/* Price Trigger Second */}
-                        <TabsTrigger
-                          value='price'
-                          className='text-xs h-full rounded-full transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/70 data-[state=active]:to-amber-700/70 data-[state=active]:text-zinc-100 text-zinc-400 font-medium'>
-                          Price
-                        </TabsTrigger>
-                      </TabsList>
-                    </div>
-
-                    {/* Mcap Content First */}
-                    <TabsContent
-                      value='mcap'
-                      className='mt-4 animate-in fade-in-50 zoom-in-95 duration-300'>
-                      <div className='grid grid-cols-2 gap-4'>
-                        <div className='flex flex-col bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-4 hover:bg-zinc-800/60 transition-colors duration-300'>
-                          <span className='text-xs text-zinc-400 mb-2 font-medium'>
-                            Reference Mcap
-                          </span>
-                          <span className='font-semibold text-zinc-100 text-lg'>
-                            ${formatLargeNumber(callDetails?.referenceMcap)}
-                          </span>
+                      {/* Price Content */}
+                      <TabsContent
+                        value='price'
+                        className='mt-4 animate-in fade-in-50 zoom-in-95 duration-300'>
+                        <div className='grid grid-cols-2 gap-3'>
+                          <div className='flex flex-col bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3'>
+                            <span className='text-xs text-zinc-400 mb-1 font-medium'>
+                              Current Price
+                            </span>
+                            <span className='font-semibold text-zinc-100 text-base'>
+                              ${formatPrice(tokenCall.referencePrice)}
+                            </span>
+                          </div>
+                          <div
+                            className={`flex flex-col rounded-lg p-3 border ${
+                              status === TokenCallStatus.VERIFIED_FAIL
+                                ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                                : 'bg-green-500/10 border-green-500/30 text-green-400'
+                            }`}>
+                            <span className='text-xs text-zinc-400 mb-1 font-medium'>
+                              {status === TokenCallStatus.VERIFIED_SUCCESS
+                                ? 'Target Hit'
+                                : status === TokenCallStatus.VERIFIED_FAIL
+                                  ? 'Target Missed'
+                                  : 'Target Price'}
+                            </span>
+                            <span className='font-semibold text-base'>
+                              ${formatPrice(tokenCall.targetPrice)}
+                            </span>
+                          </div>
                         </div>
-                        <div className='flex flex-col bg-green-500/10 rounded-lg border border-green-500/30 p-4 hover:bg-green-500/15 transition-colors duration-300'>
-                          <span className='text-xs text-zinc-400 mb-2 font-medium'>
-                            Target Mcap
-                          </span>
-                          <span className='font-semibold text-green-400 text-lg'>
-                            ${formatLargeNumber(callDetails?.targetMcap)}
-                          </span>
+                      </TabsContent>
+                    </Tabs>
+
+                    {/* Dates */}
+                    <div className='grid grid-cols-2 gap-3'>
+                      <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3'>
+                        <div className='flex items-center gap-1.5 mb-1'>
+                          <Clock className='h-3.5 w-3.5 text-amber-500/80' />
+                          <span className='text-zinc-400 text-xs font-medium'>Created</span>
                         </div>
+                        <span className='font-medium text-zinc-200 text-sm'>
+                          {callDetails?.createdAtFormatted}
+                        </span>
                       </div>
-                    </TabsContent>
 
-                    {/* Price Content Second */}
-                    <TabsContent
-                      value='price'
-                      className='mt-4 animate-in fade-in-50 zoom-in-95 duration-300'>
-                      <div className='grid grid-cols-2 gap-4'>
-                        <div className='flex flex-col bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-4 hover:bg-zinc-800/60 transition-colors duration-300'>
-                          <span className='text-xs text-zinc-400 mb-2 font-medium'>
-                            Reference Price
-                          </span>
-                          <span className='font-semibold text-zinc-100 text-lg'>
-                            ${formatPrice(tokenCall.referencePrice)}
-                          </span>
+                      <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3'>
+                        <div className='flex items-center gap-1.5 mb-1'>
+                          <CalendarClock className='h-3.5 w-3.5 text-amber-500/80' />
+                          <span className='text-zinc-400 text-xs font-medium'>Target Date</span>
                         </div>
-                        <div className='flex flex-col bg-green-500/10 rounded-lg border border-green-500/30 p-4 hover:bg-green-500/15 transition-colors duration-300'>
-                          <span className='text-xs text-zinc-400 mb-2 font-medium'>
-                            Target Price
-                          </span>
-                          <span className='font-semibold text-green-400 text-lg'>
-                            ${formatPrice(tokenCall.targetPrice)}
-                          </span>
-                        </div>
+                        <span className='font-medium text-zinc-200 text-sm'>
+                          {callDetails?.targetDateFormatted}
+                        </span>
                       </div>
-                    </TabsContent>
-                  </Tabs>
-
-                  {/* Multiplier */}
-                  <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-4 mb-4 mt-1 hover:bg-zinc-800/60 transition-colors duration-300'>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-zinc-400 text-sm'>Multiplier:</span>
-                      <div
-                        className={`font-medium px-3 py-1 rounded-md flex items-center gap-1.5 ${
-                          callDetails?.isUp
-                            ? 'text-green-500 bg-green-500/10'
-                            : 'text-red-500 bg-red-500/10'
-                        }`}>
-                        {callDetails?.isUp ? (
-                          <TrendingUp className='h-4 w-4' />
-                        ) : (
-                          <TrendingDown className='h-4 w-4' />
-                        )}
-                        {callDetails?.formattedMultiplier}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Dates */}
-                  <div className='space-y-4'>
-                    <div className='flex justify-between items-center bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-4 hover:bg-zinc-800/60 transition-colors duration-300'>
-                      <div className='flex items-center gap-2'>
-                        <Clock className='h-4 w-4 text-amber-500/80' />
-                        <span className='text-zinc-400 text-sm font-medium'>Call date:</span>
-                      </div>
-                      <span className='font-medium text-zinc-200 px-3 py-1 bg-zinc-800/60 rounded-md border border-zinc-700/40 text-xs'>
-                        {callDetails?.createdAtFormatted}
-                      </span>
-                    </div>
-
-                    <div className='flex justify-between items-center bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-4 hover:bg-zinc-800/60 transition-colors duration-300'>
-                      <div className='flex items-center gap-2'>
-                        <CalendarClock className='h-4 w-4 text-amber-500/80' />
-                        <span className='text-zinc-400 text-sm font-medium'>Target date:</span>
-                      </div>
-                      <span className='font-medium text-zinc-200 px-3 py-1 bg-zinc-800/60 rounded-md border border-zinc-700/40 text-xs'>
-                        {callDetails?.targetDateFormatted}
-                      </span>
                     </div>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Price History Chart */}
-        {tokenCall.priceHistoryUrl && (
-          <div className='my-8'>
-            <h2 className='text-lg font-semibold mb-2'>Price History</h2>
-            {isHistoryLoading ? (
-              <Skeleton className='w-full h-64' />
-            ) : historyError ? (
-              <div className='text-red-500'>{historyError}</div>
-            ) : priceHistory && priceHistory.items.length > 0 ? (
-              <ResponsiveContainer width='100%' height={300}>
-                <LineChart
-                  data={priceHistory.items.map((item) => ({
-                    ...item,
-                    date: new Date(item.unixTime * 1000),
-                  }))}
-                  margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                  <XAxis
-                    dataKey='date'
-                    tickFormatter={(date) => format(date, 'MMM d')}
-                    minTickGap={20}
-                    type='number'
-                    domain={['dataMin', 'dataMax']}
-                    scale='time'
-                  />
-                  <YAxis dataKey='value' tickFormatter={(v) => v.toFixed(4)} width={80} />
-                  <Tooltip
-                    labelFormatter={(label) => format(new Date(label), 'PPpp')}
-                    formatter={(value: number) => value.toFixed(8)}
-                  />
-                  <Line
-                    type='monotone'
-                    dataKey='value'
-                    stroke='#fbbf24'
-                    dot={false}
-                    strokeWidth={2}
-                  />
-                  {/* Mark the price hit if available */}
-                  {tokenCall.targetHitTimestamp && (
-                    <ReferenceDot
-                      x={new Date(tokenCall.targetHitTimestamp).getTime()}
-                      y={tokenCall.targetPrice}
-                      r={6}
-                      fill='#22c55e'
-                      stroke='none'
-                      label={{
-                        position: 'top',
-                        value: 'Target Hit',
-                        fill: '#22c55e',
-                        fontSize: 12,
-                      }}
-                    />
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className='text-zinc-400'>No price history data available.</div>
-            )}
-          </div>
-        )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </TooltipProvider>
+    </div>
   );
 }
 
@@ -511,7 +713,6 @@ function UserProfile({ user }: { user?: TokenCall['user'] }) {
   );
 }
 
-// Component for status badge
 function StatusBadge({ status }: { status: TokenCallStatus }) {
   const config = STATUS_CONFIG[status];
 

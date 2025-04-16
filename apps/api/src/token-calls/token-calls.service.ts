@@ -390,6 +390,7 @@ export class TokenCallsService {
           timeToHitRatio: true,
           createdAt: true,
           updatedAt: true,
+          priceHistoryUrl: true,
           token: {
             mintAddress: true,
             name: true,
