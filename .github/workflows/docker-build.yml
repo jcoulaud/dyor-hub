@@ -3,6 +3,13 @@ name: Docker Build and Push
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild of the current environment'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build-types:

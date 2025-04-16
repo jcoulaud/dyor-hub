@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+    if: false  # Disable this workflow
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -11,11 +12,13 @@ on:
         required: false
         default: false
         type: boolean
+    if: false  # Disable manual triggers too
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: false  # Double safety to prevent execution
 
     steps:
       - name: Checkout code
