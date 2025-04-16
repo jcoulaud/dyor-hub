@@ -2,22 +2,131 @@ name: Docker Build and Push
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, fix_use_new_machines ]
 
 jobs:
-  build-and-push:
+  build-types:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+          
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+          
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+          
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Build types
+        run: pnpm run build --filter=types
+        
+      - name: Upload types artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: types-dist
+          path: packages/types/dist
+          retention-days: 1
+
+  build-apps:
+    needs: build-types
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         app: [api, web]
       fail-fast: false
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            apps/${{ matrix.app }}
+            packages/types
+            pnpm-lock.yaml
+            pnpm-workspace.yaml
+            package.json
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+          
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+          
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Cache dist and next folders
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/${{ matrix.app }}/dist
+            apps/${{ matrix.app }}/.next
+          key: ${{ runner.os }}-${{ matrix.app }}-build-${{ hashFiles('apps/${{ matrix.app }}/**/*') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.app }}-build-
+          
+      - name: Download types artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: types-dist
+          path: packages/types/dist
+          
+      - name: Build app
+        run: pnpm run build --filter=${{ matrix.app }}
+        
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-dist
+          path: apps/${{ matrix.app }}/dist
+          retention-days: 1
+
+  build-docker:
+    needs: build-apps
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -40,11 +149,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Build and push apps
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./apps/${{ matrix.app }}/Dockerfile
+          file: ./apps/${{ matrix.app }}/Dockerfile.prod
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ghcr.io/${{ github.repository }}/${{ matrix.app }}:latest
@@ -64,7 +178,6 @@ jobs:
             type=gha,mode=max,scope=global
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-            PNPM_STORE_DIR=/root/.local/share/pnpm/store
             NODE_ENV=production
             BUILDKIT_SANDBOX_HOSTNAME=buildkitd
           labels: |
