@@ -13,7 +13,7 @@ on:
 
 jobs:
   build-types:
-    if: false  # Disable this workflow
+    if: true  # Disable this workflow
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
