@@ -1,6 +1,5 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -13,7 +12,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
-  backfill,
   badges as badgesApi,
   reputation,
   streaks as streaksApi,
@@ -21,7 +19,7 @@ import {
 } from '@/lib/api';
 import { BadgeActivity as ImportedBadgeActivity, TopStreakUsers, User } from '@dyor-hub/types';
 import { format } from 'date-fns';
-import { BadgeCheck, Calendar, Flame, Medal, RefreshCw, Users } from 'lucide-react';
+import { BadgeCheck, Calendar, Flame, Medal, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -48,7 +46,6 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [topStreakUsers, setTopStreakUsers] = useState<TopStreakUsers[]>([]);
   const [lastRegisteredUsers, setLastRegisteredUsers] = useState<User[]>([]);
-  const [isBackfilling, setIsBackfilling] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -145,57 +142,12 @@ export default function AdminDashboard() {
     fetchData();
   }, [toast]);
 
-  const handleBackfillClick = async () => {
-    setIsBackfilling(true);
-    try {
-      await backfill.triggerPriceHistoryBackfill();
-
-      toast({
-        title: 'Backfill Initiated',
-        description: 'Token call price history backfill started. Check server logs for progress.',
-      });
-    } catch (err) {
-      console.error('Error triggering backfill:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Backfill Failed',
-        description: err instanceof Error ? err.message : 'An unknown error occurred.',
-      });
-    } finally {
-      setIsBackfilling(false);
-    }
-  };
-
   return (
     <div className='space-y-6'>
       <div>
         <h1 className='text-2xl font-bold text-white'>Admin Dashboard</h1>
         <p className='text-sm text-zinc-400'>Monitor and manage gamification features</p>
       </div>
-
-      <Card className='bg-black/80 border-zinc-800/80'>
-        <CardHeader>
-          <CardTitle className='text-zinc-200 text-sm font-medium'>Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button
-            onClick={handleBackfillClick}
-            disabled={isBackfilling}
-            size='sm'
-            className='bg-indigo-600 hover:bg-indigo-500'>
-            {isBackfilling ? (
-              <RefreshCw className='mr-2 h-4 w-4 animate-spin' />
-            ) : (
-              <RefreshCw className='mr-2 h-4 w-4' />
-            )}
-            {isBackfilling ? 'Backfilling...' : 'Backfill Price History'}
-          </Button>
-          <p className='text-xs text-zinc-400 mt-2'>
-            Trigger a background process to fetch and store historical price data for verified token
-            calls.
-          </p>
-        </CardContent>
-      </Card>
 
       <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
         <Card className='bg-black/80 border-zinc-800/80'>

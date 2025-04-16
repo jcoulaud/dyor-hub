@@ -2,19 +2,15 @@ import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
-import { BackfillService } from '../backfill/backfill.service';
 import {
   BadgeEntity,
-  TokenCallEntity,
   UserBadgeEntity,
   UserEntity,
   UserStreakEntity,
 } from '../entities';
 import { GamificationModule } from '../gamification/gamification.module';
-import { TokensModule } from '../tokens/tokens.module';
 import { UsersModule } from '../users/users.module';
 import { AdminGuard } from './admin.guard';
-import { BackfillAdminController } from './controllers/backfill-admin.controller';
 import { BadgeAdminController } from './controllers/badge-admin.controller';
 import { ReputationAdminController } from './controllers/reputation-admin.controller';
 import { StreakAdminController } from './controllers/streak-admin.controller';
@@ -29,27 +25,19 @@ import { StreakAdminService } from './services/streak-admin.service';
       UserBadgeEntity,
       UserStreakEntity,
       UserEntity,
-      TokenCallEntity,
     ]),
     EventEmitterModule.forRoot(),
     AuthModule,
     GamificationModule,
     UsersModule,
-    TokensModule,
   ],
   controllers: [
     BadgeAdminController,
     StreakAdminController,
     ReputationAdminController,
     UserAdminController,
-    BackfillAdminController,
   ],
-  providers: [
-    AdminGuard,
-    BadgeAdminService,
-    StreakAdminService,
-    BackfillService,
-  ],
+  providers: [AdminGuard, BadgeAdminService, StreakAdminService],
   exports: [AdminGuard],
 })
 export class AdminModule {}
