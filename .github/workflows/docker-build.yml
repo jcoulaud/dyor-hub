@@ -19,6 +19,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        app: [api, web]
+      fail-fast: false
 
     steps:
       - name: Checkout code
@@ -28,6 +32,10 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:master
+            network=host
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -36,30 +44,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push API image
+      - name: Build and push image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./apps/api/Dockerfile
+          file: ./apps/${{ matrix.app }}/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository }}/api:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: Build and push Web image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./apps/web/Dockerfile
-          push: true
-          tags: ghcr.io/${{ github.repository }}/web:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ghcr.io/${{ github.repository }}/${{ matrix.app }}:latest
+          cache-from: |
+            type=registry,ref=ghcr.io/${{ github.repository }}/${{ matrix.app }}:buildcache
+            type=gha
+          cache-to: |
+            type=registry,ref=ghcr.io/${{ github.repository }}/${{ matrix.app }}:buildcache,mode=max
+            type=gha,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
           labels: |
