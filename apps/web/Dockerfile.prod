@@ -3,23 +3,21 @@ FROM node:22-alpine
 WORKDIR /app
 
 # Copy only dist files
-COPY apps/web/dist ./apps/web/dist
+COPY apps/web/.next ./apps/web/.next
 COPY packages/types/dist ./packages/types/dist
-
-WORKDIR /app/apps/web
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=3000
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Healthcheck to validate the service is running properly
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -q -O - http://localhost:3000/ || exit 1
+  CMD wget -q -O - http://localhost:3000/api/health || exit 1
 
 # Expose port
 EXPOSE 3000
 
 # Start the application
-CMD ["node", "dist/server.js"] 
+CMD ["sh", "-c", "cd apps/web && node_modules/.bin/next start"] 
