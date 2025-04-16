@@ -43,10 +43,14 @@ services:
   # NestJS API with hot reload
   api:
     depends_on:
-      - init-service
-      - types-watcher
-      - postgres
-      - redis
+      init-service:
+        condition: service_completed_successfully
+      types-watcher:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     image: node:22-alpine
     container_name: dyor-hub-api-dev
     working_dir: /app
@@ -88,7 +92,8 @@ services:
   # Initialization service for migrations and seeding
   init-service:
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     image: node:22-alpine
     container_name: dyor-hub-init-service
     working_dir: /app
@@ -117,8 +122,12 @@ services:
   # Next.js Frontend with hot reload
   web:
     depends_on:
-      - init-service
-      - types-watcher
+      init-service:
+        condition: service_completed_successfully
+      types-watcher:
+        condition: service_started
+      api:
+        condition: service_started
     image: node:22-alpine
     container_name: dyor-hub-web-dev
     working_dir: /app

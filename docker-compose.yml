@@ -72,7 +72,7 @@ services:
     restart: always
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
     env_file:
       - ./apps/web/.env
     ports:
