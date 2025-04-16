@@ -23,7 +23,7 @@ const colors = {
 // Print a welcome banner
 function printWelcomeBanner() {
   const title = 'DYOR Hub Development Environment Setup';
-  const width = title.length + 8;
+  const width = title.length + 6;
   const line = '═'.repeat(width);
 
   console.log(`\n${colors.magenta}╔${line}╗${colors.reset}`);

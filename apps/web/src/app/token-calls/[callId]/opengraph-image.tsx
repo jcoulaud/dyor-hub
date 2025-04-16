@@ -49,13 +49,28 @@ const formatCurrency = (value: number | string | null | undefined): string => {
 const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return 'N/A';
   try {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    const date = new Date(dateString);
+    return `${date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-    });
+    })}`;
   } catch {
     return 'Invalid Date';
+  }
+};
+
+const formatTime = (dateString: string | null | undefined): string => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return '';
   }
 };
 
@@ -591,25 +606,41 @@ export default async function ImageGenerator({ params }: ImageProps) {
                   <div
                     style={{
                       display: 'flex',
-                      fontWeight: 'bold',
-                      fontSize: 22,
-                      color: '#f1f5f9',
-                      alignItems: 'center',
+                      flexDirection: 'column',
                     }}>
                     <div
                       style={{
-                        width: 18,
-                        height: 18,
-                        marginRight: 8,
                         display: 'flex',
+                        fontWeight: 'bold',
+                        fontSize: 22,
+                        color: '#f1f5f9',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 12,
-                        color: '#9ca3af',
                       }}>
-                      📅
+                      <div
+                        style={{
+                          width: 18,
+                          height: 18,
+                          marginRight: 8,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          color: '#9ca3af',
+                        }}>
+                        📅
+                      </div>
+                      {formatDate(createdAt)}
                     </div>
-                    {formatDate(createdAt)}
+                    <div
+                      style={{
+                        marginTop: 2,
+                        marginLeft: 26,
+                        fontSize: 16,
+                        fontWeight: 'medium',
+                        color: '#f59e0b',
+                      }}>
+                      {formatTime(createdAt)}
+                    </div>
                   </div>
                 </div>
 
@@ -628,25 +659,41 @@ export default async function ImageGenerator({ params }: ImageProps) {
                   <div
                     style={{
                       display: 'flex',
-                      fontWeight: 'bold',
-                      fontSize: 22,
-                      color: '#f1f5f9',
-                      alignItems: 'center',
+                      flexDirection: 'column',
                     }}>
                     <div
                       style={{
-                        width: 18,
-                        height: 18,
-                        marginRight: 8,
                         display: 'flex',
+                        fontWeight: 'bold',
+                        fontSize: 22,
+                        color: '#f1f5f9',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 12,
-                        color: '#9ca3af',
                       }}>
-                      🎯
+                      <div
+                        style={{
+                          width: 18,
+                          height: 18,
+                          marginRight: 8,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          color: '#9ca3af',
+                        }}>
+                        🎯
+                      </div>
+                      {formatDate(targetDate)}
                     </div>
-                    {formatDate(targetDate)}
+                    <div
+                      style={{
+                        marginTop: 2,
+                        marginLeft: 26,
+                        fontSize: 16,
+                        fontWeight: 'medium',
+                        color: '#f59e0b',
+                      }}>
+                      {formatTime(targetDate)}
+                    </div>
                   </div>
                 </div>
               </div>

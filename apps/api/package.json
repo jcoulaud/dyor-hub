@@ -10,7 +10,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
-    "db:init": "npx tsx ./src/scripts/init-database.ts",
+    "db:init:dev": "npx tsx ./src/scripts/init-database.dev.ts",
     "db:truncate": "npx tsx ./src/scripts/reset-db.ts",
     "db:seed": "npx tsx ./src/scripts/seed-database.ts",
     "db:truncate-and-seed": "npx tsx ./src/scripts/reset-and-seed.ts",

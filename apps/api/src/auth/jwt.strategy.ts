@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Request } from 'express';
-import { Strategy } from 'passport-jwt';
+import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Repository } from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
 import { AuthService } from './auth.service';
@@ -20,16 +20,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly userRepository: Repository<UserEntity>,
   ) {
     super({
-      jwtFromRequest: (req: Request) => {
-        // Always skip JWT extraction for public routes
-        if (req && (req as any).isPublicRoute) {
-          return null;
-        }
-
-        // Regular JWT extraction from cookies
-        if (!req || !req.cookies) return null;
-        return req.cookies.jwt;
-      },
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        (req: Request) => {
+          if (req && (req as any).isPublicRoute) {
+            return null;
+          }
+          if (!req || !req.cookies) return null;
+          return req.cookies.jwt;
+        },
+      ]),
       ignoreExpiration: false,
       secretOrKey: authConfigService.jwtSecret,
       passReqToCallback: true,
@@ -49,7 +49,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     req: Request,
     payload: JwtPayload,
   ): Promise<UserEntity | null> {
-    // For public routes, we allow null user (unauthenticated access)
     if (req && (req as any).isPublicRoute) {
       return null;
     }
