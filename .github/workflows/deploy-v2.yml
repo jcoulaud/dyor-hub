@@ -1,9 +1,8 @@
-name: Docker Build and Push
+name: Deploy to Production v2 (Blue/Green)
 
 on:
   push:
     branches: [ main ]
-    if: false  # Disable this workflow
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -14,6 +13,7 @@ on:
 
 jobs:
   build-types:
+    if: true  # Disable this workflow
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

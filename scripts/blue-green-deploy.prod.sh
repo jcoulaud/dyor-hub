@@ -88,6 +88,19 @@ fi
 
 log "Current: $CURRENT_ENV, New: $NEW_ENV"
 
+# Migration step: Check and stop old service names if they exist
+log "Checking for old service names"
+if docker ps -a | grep -q "dyor-hub-api" || docker ps -a | grep -q "dyor-hub-web"; then
+  log "Found old service names, stopping them..."
+  docker-compose down api web || true
+  for container in "dyor-hub-api" "dyor-hub-web"; do
+    if docker ps -a | grep -q "$container"; then
+      docker stop "$container" && docker rm "$container"
+    fi
+  done
+  log "Old services stopped"
+fi
+
 # Backup and update code
 cd $APP_DIR
 mkdir -p /tmp/dyor-hub-backup/{apps/api,apps/web}
