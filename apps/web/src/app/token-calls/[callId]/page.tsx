@@ -519,7 +519,7 @@ export default function TokenCallDetailPage() {
                         style={{ height: '260px' }}>
                         <div className='text-zinc-400 flex flex-col items-center justify-center py-8 text-sm'>
                           <Info className='h-5 w-5 mb-2 text-zinc-500' />
-                          <p>Chart will be available when the token call is verified.</p>
+                          <p>Chart will be available when the target date is reached.</p>
                         </div>
                       </div>
                     )}
