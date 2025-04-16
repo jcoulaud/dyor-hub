@@ -60,7 +60,7 @@ export const dataSourceOptions: DataSourceOptions = {
   ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',
-  migrationsRun: true,
+  migrationsRun: false,
   synchronize: false,
   logging:
     process.env.NODE_ENV === 'production'
