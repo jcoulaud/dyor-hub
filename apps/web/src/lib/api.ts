@@ -1529,3 +1529,9 @@ export const tokenCallsLeaderboard = {
     }
   },
 };
+
+export const backfill = {
+  async triggerPriceHistoryBackfill(): Promise<void> {
+    await api<void>('admin/backfill/price-history', { method: 'POST' });
+  },
+};
