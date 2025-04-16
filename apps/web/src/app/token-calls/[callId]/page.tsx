@@ -15,6 +15,15 @@ import {
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import {
+  Line,
+  LineChart,
+  ReferenceDot,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -69,6 +78,11 @@ export default function TokenCallDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [displayMode, setDisplayMode] = useState<'price' | 'mcap'>('mcap');
+  const [priceHistory, setPriceHistory] = useState<{
+    items: { unixTime: number; value: number }[];
+  } | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTokenCallData = async () => {
@@ -90,6 +104,23 @@ export default function TokenCallDetailPage() {
 
     fetchTokenCallData();
   }, [callId]);
+
+  useEffect(() => {
+    if (!tokenCall) return;
+    setIsHistoryLoading(true);
+    setHistoryError(null);
+    fetch(`/api/token-calls/${tokenCall.id}/price-history`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch price history');
+        return res.json();
+      })
+      .then((data) => setPriceHistory(data))
+      .catch(() => {
+        setHistoryError('Could not load price history');
+        setPriceHistory(null);
+      })
+      .finally(() => setIsHistoryLoading(false));
+  }, [tokenCall]);
 
   const callDetails = useMemo(() => {
     if (!tokenCall) return null;
@@ -384,6 +415,66 @@ export default function TokenCallDetailPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Price History Chart */}
+        {tokenCall.priceHistoryUrl && (
+          <div className='my-8'>
+            <h2 className='text-lg font-semibold mb-2'>Price History</h2>
+            {isHistoryLoading ? (
+              <Skeleton className='w-full h-64' />
+            ) : historyError ? (
+              <div className='text-red-500'>{historyError}</div>
+            ) : priceHistory && priceHistory.items.length > 0 ? (
+              <ResponsiveContainer width='100%' height={300}>
+                <LineChart
+                  data={priceHistory.items.map((item) => ({
+                    ...item,
+                    date: new Date(item.unixTime * 1000),
+                  }))}
+                  margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                  <XAxis
+                    dataKey='date'
+                    tickFormatter={(date) => format(date, 'MMM d')}
+                    minTickGap={20}
+                    type='number'
+                    domain={['dataMin', 'dataMax']}
+                    scale='time'
+                  />
+                  <YAxis dataKey='value' tickFormatter={(v) => v.toFixed(4)} width={80} />
+                  <Tooltip
+                    labelFormatter={(label) => format(new Date(label), 'PPpp')}
+                    formatter={(value: number) => value.toFixed(8)}
+                  />
+                  <Line
+                    type='monotone'
+                    dataKey='value'
+                    stroke='#fbbf24'
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                  {/* Mark the price hit if available */}
+                  {tokenCall.targetHitTimestamp && (
+                    <ReferenceDot
+                      x={new Date(tokenCall.targetHitTimestamp).getTime()}
+                      y={tokenCall.targetPrice}
+                      r={6}
+                      fill='#22c55e'
+                      stroke='none'
+                      label={{
+                        position: 'top',
+                        value: 'Target Hit',
+                        fill: '#22c55e',
+                        fontSize: 12,
+                      }}
+                    />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className='text-zinc-400'>No price history data available.</div>
+            )}
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );

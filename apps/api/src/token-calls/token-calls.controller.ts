@@ -1,3 +1,4 @@
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import {
   PaginatedTokenCallsResult,
   TokenCallSortBy,
@@ -20,8 +21,11 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
+import { Stream } from 'stream';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UserEntity } from '../entities';
@@ -130,6 +134,68 @@ export class TokenCallsController {
       throw new InternalServerErrorException(
         `Failed to retrieve token call details.`,
       );
+    }
+  }
+
+  @Get(':callId/price-history')
+  async getPriceHistory(@Param('callId') callId: string, @Res() res: Response) {
+    try {
+      const call = await this.tokenCallsService.findOneById(callId);
+
+      if (!call?.priceHistoryUrl) {
+        return res.status(404).json({ message: 'No price history found' });
+      }
+
+      const match = call.priceHistoryUrl.match(/amazonaws\.com\/(.+)$/);
+      const key = match ? match[1] : null;
+
+      if (!key) {
+        return res.status(400).json({ message: 'Invalid S3 URL' });
+      }
+
+      const s3 = new S3Client({
+        region: process.env.S3_REGION,
+        credentials: {
+          accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+          secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+        },
+      });
+
+      try {
+        const s3Res = await s3.send(
+          new GetObjectCommand({
+            Bucket: process.env.S3_TOKEN_HISTORY_BUCKET!,
+            Key: key,
+          }),
+        );
+
+        res.setHeader('Content-Type', 'application/json');
+        (s3Res.Body as Stream).pipe(res);
+      } catch (s3Err) {
+        this.logger.error(
+          `getPriceHistory - S3 GetObject failed for key ${key}:`,
+          s3Err.stack || s3Err.message,
+        );
+        if (s3Err.name === 'NoSuchKey') {
+          return res
+            .status(404)
+            .json({ message: 'Price history file not found in S3' });
+        } else if (s3Err.name === 'AccessDenied') {
+          return res
+            .status(403)
+            .json({ message: 'Access denied fetching price history from S3' });
+        } else {
+          return res.status(500).json({
+            message: 'Error fetching price history from storage',
+          });
+        }
+      }
+    } catch (generalErr) {
+      this.logger.error(
+        `getPriceHistory - Unexpected error for call ${callId}:`,
+        generalErr.stack || generalErr.message,
+      );
+      return res.status(500).json({ message: 'Internal server error' });
     }
   }
 }
