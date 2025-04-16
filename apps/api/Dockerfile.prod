@@ -18,4 +18,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 EXPOSE 3001
 
 # Start the application
-CMD ["sh", "-c", "cd apps/api && NODE_ENV=production node dist/scripts/init-database.js && node dist/main.js"] 
+CMD ["sh", "-c", "cd apps/api && NODE_ENV=production node dist/main.js"] 

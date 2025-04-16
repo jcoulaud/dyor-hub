@@ -2,9 +2,12 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy only dist files
-COPY apps/web/.next ./apps/web/.next
-COPY packages/types/dist ./packages/types/dist
+# Copy standalone output
+COPY apps/web/.next/standalone ./
+
+# Copy static files and public directory
+COPY apps/web/.next/static ./.next/static
+COPY apps/web/public ./public
 
 # Set environment variables
 ENV NODE_ENV=production
@@ -19,5 +22,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["sh", "-c", "cd apps/web && node_modules/.bin/next start"] 
+# Start the application using the standalone server
+CMD ["node", "server.js"] 
