@@ -27,7 +27,7 @@ jobs:
         run: pnpm install --frozen-lockfile
         
       - name: Build types
-        run: pnpm run build --filter=types
+        run: cd packages/types && pnpm run build
         
       - name: Upload types artifact
         uses: actions/upload-artifact@v4
@@ -85,7 +85,7 @@ jobs:
           path: packages/types/dist
           
       - name: Build app
-        run: pnpm run build --filter=${{ matrix.app }}
+        run: cd apps/${{ matrix.app }} && pnpm run build
         
       - name: Upload app artifact
         uses: actions/upload-artifact@v4
