@@ -4,7 +4,7 @@
 node_modules
 .pnp
 .pnp.js
-.pnpm-store/
+.pnpm-store
 
 # Local env files
 .env
@@ -15,9 +15,6 @@ node_modules
 
 # Testing
 coverage
-
-# Turbo
-.turbo
 
 # Vercel
 .vercel
@@ -43,3 +40,6 @@ yarn-error.log*
 
 # Local HTTPS certificates
 /secrets/
+
+# Turbo
+.turbo

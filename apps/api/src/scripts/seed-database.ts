@@ -266,18 +266,6 @@ async function seedDatabase() {
       },
     ];
 
-    // Add streak badges to the badges array
-    for (const badgeData of streakBadges) {
-      const badge = new BadgeEntity();
-      badge.name = badgeData.name;
-      badge.description = badgeData.description;
-      badge.category = badgeData.category;
-      badge.requirement = badgeData.requirement;
-      badge.thresholdValue = badgeData.thresholdValue;
-      badge.isActive = true;
-      badges.push(badge);
-    }
-
     // Content Creator Badges
     const contentBadges = [
       {
@@ -593,7 +581,6 @@ async function seedDatabase() {
 
     // Regular badges (streak, content, etc)
     const allBadgeDefinitions = [
-      ...streakBadges,
       ...contentBadges,
       ...engagementBadges,
       ...votingBadges,
@@ -616,6 +603,18 @@ async function seedDatabase() {
       badges.push(badge);
     }
 
+    // Add streak badges to the badges array
+    for (const badgeData of streakBadges) {
+      const badge = new BadgeEntity();
+      badge.name = badgeData.name;
+      badge.description = badgeData.description;
+      badge.category = badgeData.category;
+      badge.requirement = badgeData.requirement;
+      badge.thresholdValue = badgeData.thresholdValue;
+      badge.isActive = true;
+      badges.push(badge);
+    }
+
     // Save all badges at once
     const savedBadges = await badgeRepository.save(badges);
     console.log(`${savedBadges.length} badges created`);
@@ -627,10 +626,23 @@ async function seedDatabase() {
     console.log('Seeding user badges...');
     const userBadges: UserBadgeEntity[] = [];
 
+    // Create a map to track which badges each user has
+    const userBadgeMap = new Map<string, Set<string>>();
+
     // Give each user 1-5 random badges
     for (const user of savedUsers) {
       const numBadges = faker.number.int({ min: 1, max: 5 });
-      const randomBadges = faker.helpers.arrayElements(savedBadges, numBadges);
+      const availableBadges = savedBadges.filter(badge => {
+        const userBadges = userBadgeMap.get(user.id) || new Set();
+        return !userBadges.has(badge.id);
+      });
+
+      if (availableBadges.length === 0) continue;
+
+      const randomBadges = faker.helpers.arrayElements(
+        availableBadges,
+        Math.min(numBadges, availableBadges.length)
+      );
 
       for (const badge of randomBadges) {
         const userBadge = new UserBadgeEntity();
@@ -638,11 +650,18 @@ async function seedDatabase() {
         userBadge.badge = badge;
         userBadge.earnedAt = faker.date.recent();
         userBadge.isDisplayed = true;
-        userBadges.push(userBadge);
+        
+        // Save each user badge individually to avoid duplicates
+        await userBadgeRepository.save(userBadge);
+
+        // Update the tracking map
+        if (!userBadgeMap.has(user.id)) {
+          userBadgeMap.set(user.id, new Set());
+        }
+        userBadgeMap.get(user.id)?.add(badge.id);
       }
     }
-    await userBadgeRepository.save(userBadges);
-    console.log(`${userBadges.length} user badges created`);
+    console.log(`${userBadgeMap.size} users received badges`);
 
     // Seed Comments
     console.log('Seeding comments...');
@@ -1021,14 +1040,21 @@ async function seedDatabase() {
         );
 
         if (firstCallBadge) {
-          const userBadge = new UserBadgeEntity();
-          userBadge.user = await userRepository.findOne({
-            where: { id: userId },
+          // Check if user already has this badge
+          const existingBadge = await userBadgeRepository.findOne({
+            where: { userId, badgeId: firstCallBadge.id },
           });
-          userBadge.badge = firstCallBadge;
-          userBadge.earnedAt = faker.date.recent();
-          userBadge.isDisplayed = true;
-          tokenCallUserBadges.push(userBadge);
+
+          if (!existingBadge) {
+            const userBadge = new UserBadgeEntity();
+            userBadge.user = await userRepository.findOne({
+              where: { id: userId },
+            });
+            userBadge.badge = firstCallBadge;
+            userBadge.earnedAt = faker.date.recent();
+            userBadge.isDisplayed = true;
+            await userBadgeRepository.save(userBadge);
+          }
         }
       }
 
@@ -1042,14 +1068,21 @@ async function seedDatabase() {
         );
 
         if (badgeToAward) {
-          const userBadge = new UserBadgeEntity();
-          userBadge.user = await userRepository.findOne({
-            where: { id: userId },
+          // Check if user already has this badge
+          const existingBadge = await userBadgeRepository.findOne({
+            where: { userId, badgeId: badgeToAward.id },
           });
-          userBadge.badge = badgeToAward;
-          userBadge.earnedAt = faker.date.recent();
-          userBadge.isDisplayed = true;
-          tokenCallUserBadges.push(userBadge);
+
+          if (!existingBadge) {
+            const userBadge = new UserBadgeEntity();
+            userBadge.user = await userRepository.findOne({
+              where: { id: userId },
+            });
+            userBadge.badge = badgeToAward;
+            userBadge.earnedAt = faker.date.recent();
+            userBadge.isDisplayed = true;
+            await userBadgeRepository.save(userBadge);
+          }
         }
       }
 
@@ -1063,25 +1096,26 @@ async function seedDatabase() {
         );
 
         if (streakBadge) {
-          const userBadge = new UserBadgeEntity();
-          userBadge.user = await userRepository.findOne({
-            where: { id: userId },
+          // Check if user already has this badge
+          const existingBadge = await userBadgeRepository.findOne({
+            where: { userId, badgeId: streakBadge.id },
           });
-          userBadge.badge = streakBadge;
-          userBadge.earnedAt = faker.date.recent();
-          userBadge.isDisplayed = true;
-          tokenCallUserBadges.push(userBadge);
+
+          if (!existingBadge) {
+            const userBadge = new UserBadgeEntity();
+            userBadge.user = await userRepository.findOne({
+              where: { id: userId },
+            });
+            userBadge.badge = streakBadge;
+            userBadge.earnedAt = faker.date.recent();
+            userBadge.isDisplayed = true;
+            await userBadgeRepository.save(userBadge);
+          }
         }
       }
     }
 
-    // Save all token call user badges
-    if (tokenCallUserBadges.length > 0) {
-      await userBadgeRepository.save(tokenCallUserBadges);
-      console.log(
-        `${tokenCallUserBadges.length} token call badges awarded to users`,
-      );
-    }
+    console.log('Token call badges awarded to users');
 
     console.log('Database seeding completed successfully!');
   } catch (error) {

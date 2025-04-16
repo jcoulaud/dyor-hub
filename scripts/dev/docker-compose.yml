@@ -1,0 +1,195 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: dyor-hub-postgres-dev
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=dyor_hub_dev
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:5433:5432'
+    networks:
+      - dyor-hub-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d dyor_hub_dev']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for session management
+  redis:
+    image: redis:7-alpine
+    container_name: dyor-hub-redis-dev
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - '127.0.0.1:6380:6379'
+    networks:
+      - dyor-hub-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # NestJS API with hot reload
+  api:
+    image: node:22-alpine
+    container_name: dyor-hub-api-dev
+    working_dir: /app
+    command: >
+      sh -c "apk add --no-cache python3 make g++ netcat-openbsd bc linux-headers eudev-dev libusb-dev && 
+             npm install -g pnpm && 
+             cp /scripts/wait-for-it.sh /tmp/ && 
+             chmod +x /tmp/wait-for-it.sh && 
+             /tmp/wait-for-it.sh postgres:5432 -t 60 && 
+             /tmp/wait-for-it.sh redis:6379 -t 30 && 
+             cd apps/api && 
+             echo 'usb_binary_host_mirror=https://github.com/tessel/node-usb/releases/download/' > .npmrc &&
+             pnpm install && 
+             pnpm run build && 
+             pnpm run start:dev"
+    volumes:
+      - ../../.:/app:delegated
+      - ./wait-for-it.sh:/scripts/wait-for-it.sh:ro
+      - api-node-modules:/app/node_modules
+      - ../../secrets:/app/secrets:ro
+    environment:
+      - NODE_ENV=development
+      - PYTHON=/usr/bin/python3
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/dyor_hub_dev
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=dyor_hub_dev
+      - REDIS_URL=redis://redis:6379
+      - SSL_KEY_PATH=/app/secrets/localhost+2-key.pem
+      - SSL_CERT_PATH=/app/secrets/localhost+2.pem
+    ports:
+      - '127.0.0.1:3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      types-watcher:
+        condition: service_started
+      init-service:
+        condition: service_completed_successfully
+    networks:
+      - dyor-hub-network
+
+  # Types package watcher for live reloading
+  types-watcher:
+    image: node:22-alpine
+    container_name: dyor-hub-types-watcher
+    working_dir: /packages/types
+    command: >
+      sh -c "apk add --no-cache python3 make g++ && 
+             npm install -g pnpm && 
+             pnpm install && 
+             pnpm run dev"
+    volumes:
+      - ../../packages/types:/packages/types:delegated
+      - types-node-modules:/packages/types/node_modules
+    environment:
+      - NODE_ENV=development
+    networks:
+      - dyor-hub-network
+
+  # Initialization service for migrations and seeding
+  init-service:
+    image: node:22-alpine
+    container_name: dyor-hub-init-service
+    working_dir: /app
+    command: >
+      sh -c "apk add --no-cache python3 make g++ netcat-openbsd bc linux-headers eudev-dev libusb-dev && 
+             npm install -g pnpm && 
+             cp /scripts/wait-for-it.sh /tmp/ && 
+             chmod +x /tmp/wait-for-it.sh && 
+             /tmp/wait-for-it.sh postgres:5432 -t 60 && 
+             cd apps/api && 
+             echo 'usb_binary_host_mirror=https://github.com/tessel/node-usb/releases/download/' > .npmrc &&
+             pnpm install && 
+             echo 'Starting database clearing...' && 
+             pnpm run db:clear && 
+             echo 'Database clearing completed. Starting database creation...' && 
+             pnpm run db:create && 
+             echo 'Database creation completed. Starting database initialization...' && 
+             pnpm run db:init &&
+             echo 'Database initialization completed. Starting migrations...' && 
+             pnpm run migration:run && 
+             echo 'Migrations completed. Starting seeding...' && 
+             pnpm run db:seed && 
+             echo 'Database seeding completed.'"
+    volumes:
+      - ../../.:/app:delegated
+      - ./wait-for-it.sh:/scripts/wait-for-it.sh:ro
+      - api-node-modules:/app/node_modules
+      - ../../secrets:/app/secrets
+    environment:
+      - NODE_ENV=development
+      - PYTHON=/usr/bin/python3
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/dyor_hub_dev
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=dyor_hub_dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dyor-hub-network
+
+  # Next.js Frontend with hot reload
+  web:
+    image: node:22-alpine
+    container_name: dyor-hub-web-dev
+    working_dir: /app
+    command: >
+      sh -c "apk add --no-cache python3 make g++ netcat-openbsd bc linux-headers eudev-dev libusb-dev && 
+             npm install -g pnpm && 
+             cp /scripts/wait-for-it.sh /tmp/ && 
+             chmod +x /tmp/wait-for-it.sh && 
+             /tmp/wait-for-it.sh api:3001 -t 120 && 
+             cd apps/web && 
+             echo 'usb_binary_host_mirror=https://github.com/tessel/node-usb/releases/download/' > .npmrc &&
+             pnpm install && 
+             pnpm run dev"
+    volumes:
+      - ../../.:/app:delegated
+      - ./wait-for-it.sh:/scripts/wait-for-it.sh:ro
+      - web-node-modules:/app/node_modules
+      - web-next-cache:/app/apps/web/.next
+      - ../../secrets:/app/secrets:ro
+    env_file:
+      - ../../apps/web/.env
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - PYTHON=/usr/bin/python3
+      - NEXT_PUBLIC_API_URL=https://localhost:3001
+      - SSL_KEY_PATH=/app/secrets/localhost+2-key.pem
+      - SSL_CERT_PATH=/app/secrets/localhost+2.pem
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      - init-service
+    networks:
+      - dyor-hub-network
+
+networks:
+  dyor-hub-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  api-node-modules:
+  web-node-modules:
+  web-next-cache:
+  types-node-modules:

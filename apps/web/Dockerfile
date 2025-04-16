@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Set BuildKit cache settings
 ENV BUILDKIT_INLINE_CACHE=1
@@ -39,7 +39,7 @@ RUN cd packages/types && pnpm build
 RUN cd apps/web && NEXT_TELEMETRY_DISABLED=1 pnpm build
 
 # Production stage
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 # Install runtime dependencies for USB (needed for hardware wallets)
 RUN apk add --no-cache eudev libusb python3

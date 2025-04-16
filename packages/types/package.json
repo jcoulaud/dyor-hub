@@ -16,7 +16,7 @@
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "dev": "tsup --watch",
     "lint": "eslint src/",
-    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
+    "clean": "rm -rf node_modules && rm -rf dist"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",
