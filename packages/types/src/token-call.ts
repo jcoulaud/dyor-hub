@@ -34,6 +34,7 @@ export interface TokenCall {
   updatedAt: string;
   user?: UserMinimum;
   token?: TokenMinimum;
+  priceHistoryUrl?: string | null;
 }
 
 export interface PaginatedTokenCallsResult {

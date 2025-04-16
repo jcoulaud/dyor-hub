@@ -117,4 +117,7 @@ export class TokenCallEntity {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
+
+  @Column({ name: 'price_history_url', type: 'varchar', nullable: true })
+  priceHistoryUrl?: string | null;
 }

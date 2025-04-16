@@ -8,6 +8,7 @@ import { UserTokenCallStreakEntity } from '../entities/user-token-call-streak.en
 import { BadgeService } from '../gamification/services/badge.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TokensService } from '../tokens/tokens.service';
+import { uploadJsonToS3 } from '../utils/s3';
 
 @Injectable()
 export class TokenCallVerificationService {
@@ -154,6 +155,10 @@ export class TokenCallVerificationService {
       await this.tokenCallRepository.save(call);
       return;
     }
+
+    // Upload price history to S3 and store the URL
+    const s3Key = `token-history/${call.id}.json`;
+    call.priceHistoryUrl = await uploadJsonToS3(s3Key, priceHistory);
 
     // 2. Analyze Price History
     let peakPriceDuringPeriod = 0;

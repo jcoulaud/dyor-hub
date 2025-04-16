@@ -1,19 +1,19 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddReferenceSupplyInTokenCalls1745000000001
+export class AddPriceHistoryUrlToTokenCalls1744813282209
   implements MigrationInterface
 {
-  name = 'AddReferenceSupplyInTokenCalls1745000000001';
+  name = 'AddPriceHistoryUrlToTokenCalls1744813282209';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "token_calls" ADD "reference_supply" numeric(30,8)`,
+      `ALTER TABLE "token_calls" ADD "price_history_url" character varying`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "token_calls" DROP COLUMN "reference_supply"`,
+      `ALTER TABLE "token_calls" DROP COLUMN "price_history_url"`,
     );
   }
 }

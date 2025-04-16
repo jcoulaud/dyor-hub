@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class SeedTokenCallBadges1745000000000 implements MigrationInterface {
-  name = 'SeedTokenCallBadges1745000000000';
+export class SeedTokenCallBadges1744382955119 implements MigrationInterface {
+  name = 'SeedTokenCallBadges1744382955119';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Token Call Badges
