@@ -3,6 +3,7 @@ name: Docker Build and Push
 on:
   push:
     branches: [ main ]
+    if: false  # Disable this workflow
   workflow_dispatch:
     inputs:
       force_rebuild:
