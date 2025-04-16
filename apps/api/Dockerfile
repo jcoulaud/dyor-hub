@@ -40,7 +40,7 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 # Set environment variables
-ENV NODE_ENV production
+ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=1024"
 ENV PYTHON=/usr/bin/python3
 
