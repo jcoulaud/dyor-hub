@@ -51,3 +51,13 @@ export interface UpdateCommentDto {
   /** @maxLength {COMMENT_MAX_LENGTH} The content of the comment */
   content: string;
 }
+
+export interface PaginatedLatestCommentsResponse {
+  data: LatestComment[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}

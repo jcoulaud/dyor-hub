@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
@@ -20,7 +20,7 @@ import { CommentsService } from './comments.service';
       TokenEntity,
       UserEntity,
     ]),
-    AuthModule,
+    forwardRef(() => AuthModule),
     PerspectiveModule,
     GamificationModule,
     TelegramModule,

@@ -599,9 +599,6 @@ export class BadgeService {
 
       const count =
         result && result.upvoteCount ? parseInt(result.upvoteCount, 10) : 0;
-      this.logger.debug(
-        `User ${userId} received ${count} upvotes (Threshold: ${requiredCount})`,
-      );
       return count >= requiredCount;
     } catch (error) {
       this.logger.error(
@@ -629,9 +626,7 @@ export class BadgeService {
 
       const count =
         result && result.replyCount ? parseInt(result.replyCount, 10) : 0;
-      this.logger.debug(
-        `User ${userId} received replies on ${count} comments (Threshold: ${requiredCount})`,
-      );
+
       return count >= requiredCount;
     } catch (error) {
       this.logger.error(
@@ -662,9 +657,6 @@ export class BadgeService {
         return false;
       }
 
-      this.logger.debug(
-        `Comment ${commentId} (User ${userId}) has ${comment.upvotes} upvotes (Threshold: ${minUpvotes})`,
-      );
       // Check if the comment's upvotes meet the threshold
       return comment.upvotes >= minUpvotes;
     } catch (error) {

@@ -1,4 +1,9 @@
-import { TokenHolder, TokenStats } from '@dyor-hub/types';
+import {
+  HotTokenResult,
+  PaginatedTokensResponse,
+  TokenHolder,
+  TokenStats,
+} from '@dyor-hub/types';
 import {
   Injectable,
   InternalServerErrorException,
@@ -7,7 +12,9 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { subHours } from 'date-fns';
+import { FindManyOptions, In, Repository } from 'typeorm';
+import { CommentEntity } from '../entities/comment.entity';
 import { TokenEntity } from '../entities/token.entity';
 import { WatchlistService } from '../watchlist/watchlist.service';
 import { TwitterHistoryService } from './twitter-history.service';
@@ -108,6 +115,8 @@ export class TokensService {
   constructor(
     @InjectRepository(TokenEntity)
     private readonly tokenRepository: Repository<TokenEntity>,
+    @InjectRepository(CommentEntity)
+    private readonly commentRepository: Repository<CommentEntity>,
     private readonly configService: ConfigService,
     private readonly twitterHistoryService: TwitterHistoryService,
     private readonly watchlistService?: WatchlistService,
@@ -479,14 +488,34 @@ export class TokensService {
     this.pendingRequests.clear();
   }
 
-  async getAllTokens(): Promise<TokenEntity[]> {
-    return this.tokenRepository.find();
-  }
+  async getTokens(
+    page: number = 1,
+    limit: number = 10,
+    sortBy?: string,
+  ): Promise<PaginatedTokensResponse> {
+    const options: FindManyOptions<TokenEntity> = {
+      take: limit,
+      skip: (page - 1) * limit,
+    };
 
-  async getTokens(mintAddresses: string[]): Promise<TokenEntity[]> {
-    return this.tokenRepository.find({
-      where: { mintAddress: In(mintAddresses) },
-    });
+    if (sortBy === 'createdAt') {
+      options.order = { createdAt: 'DESC' };
+    } else {
+      options.order = { viewsCount: 'DESC' };
+    }
+
+    const [tokens, total] = await this.tokenRepository.findAndCount(options);
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: tokens,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    };
   }
 
   async getTokenStats(mintAddress: string): Promise<TokenStats> {
@@ -752,5 +781,66 @@ export class TokensService {
 
     this.pendingRequests.set(cacheKey, requestPromise);
     return requestPromise;
+  }
+
+  /**
+   * Finds tokens with the most comments in the last 24 hours.
+   */
+  async getHotTokens(limit: number = 8): Promise<HotTokenResult[]> {
+    try {
+      const twentyFourHoursAgo = subHours(new Date(), 24);
+
+      const results = await this.commentRepository
+        .createQueryBuilder('comment')
+        .select('comment.tokenMintAddress', 'mintAddress')
+        .addSelect('COUNT(comment.id)::int', 'commentCount')
+        .where('comment.createdAt >= :date', { date: twentyFourHoursAgo })
+        .andWhere('comment.removedById IS NULL')
+        .groupBy('comment.tokenMintAddress')
+        .orderBy('"commentCount"', 'DESC')
+        .limit(limit)
+        .getRawMany();
+
+      if (results.length === 0) {
+        return [];
+      }
+
+      const mintAddresses = results.map((r) => r.mintAddress);
+      const tokens = await this.tokenRepository.find({
+        where: { mintAddress: In(mintAddresses) },
+        select: ['mintAddress', 'name', 'symbol', 'imageUrl'],
+      });
+
+      const tokenMap = new Map<
+        string,
+        Pick<TokenEntity, 'name' | 'symbol' | 'imageUrl'>
+      >();
+      tokens.forEach((token) => tokenMap.set(token.mintAddress, token));
+
+      const hotTokens: HotTokenResult[] = results
+        .map((result) => {
+          const tokenInfo = tokenMap.get(result.mintAddress);
+          const intermediateToken = tokenInfo
+            ? {
+                mintAddress: result.mintAddress,
+                name: tokenInfo.name,
+                symbol: tokenInfo.symbol,
+                imageUrl: tokenInfo.imageUrl ?? null,
+                commentCount: result.commentCount,
+              }
+            : null;
+          return intermediateToken;
+        })
+        .filter(
+          (token): token is HotTokenResult & { imageUrl: string | null } =>
+            token !== null,
+        )
+        .sort((a, b) => b.commentCount - a.commentCount);
+
+      return hotTokens;
+    } catch (error) {
+      this.logger.error('[getHotTokens] Error finding hot tokens:', error);
+      return [];
+    }
   }
 }

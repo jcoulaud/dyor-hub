@@ -1,11 +1,23 @@
-import { TokenStats } from '@dyor-hub/types';
-import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
+import {
+  HotTokenResult,
+  PaginatedTokensResponse,
+  TokenStats,
+  TwitterUsernameHistoryEntity,
+} from '@dyor-hub/types';
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  NotFoundException,
+  Param,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common';
 import { subDays } from 'date-fns';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
 import { TokenEntity } from '../entities/token.entity';
-import { TwitterUsernameHistoryEntity } from '../entities/twitter-username-history.entity';
 import { UserEntity } from '../entities/user.entity';
 import { TokensService } from './tokens.service';
 import { TwitterHistoryService } from './twitter-history.service';
@@ -16,6 +28,26 @@ export class TokensController {
     private readonly tokensService: TokensService,
     private readonly twitterHistoryService: TwitterHistoryService,
   ) {}
+
+  @Public()
+  @Get()
+  async getTokens(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number = 10,
+    @Query('sortBy') sortBy?: string,
+  ): Promise<PaginatedTokensResponse> {
+    limit = Math.min(Math.max(limit, 1), 50);
+    return this.tokensService.getTokens(page, limit, sortBy);
+  }
+
+  @Public()
+  @Get('hot')
+  async getHotTokens(
+    @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number = 8,
+  ): Promise<HotTokenResult[]> {
+    limit = Math.min(Math.max(limit, 1), 20);
+    return this.tokensService.getHotTokens(limit);
+  }
 
   @Public()
   @Get(':mintAddress')
@@ -40,12 +72,6 @@ export class TokensController {
     @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
   ): Promise<TwitterUsernameHistoryEntity | null> {
     return this.twitterHistoryService.getUsernameHistory(mintAddress);
-  }
-
-  @Public()
-  @Get()
-  async getAllTokens(): Promise<TokenEntity[]> {
-    return this.tokensService.getAllTokens();
   }
 
   @Public()

@@ -1,5 +1,7 @@
 import {
+  LatestComment,
   NotificationEventType,
+  PaginatedLatestCommentsResponse,
   UpdateCommentDto,
   VoteType,
 } from '@dyor-hub/types';
@@ -24,7 +26,6 @@ import { TelegramAdminService } from '../telegram/admin/telegram-admin.service';
 import { sanitizeHtml } from '../utils/utils';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { LatestCommentResponseDto } from './dto/latest-comment-response.dto';
 import { VoteResponseDto } from './dto/vote-response.dto';
 
 @Injectable()
@@ -671,12 +672,16 @@ export class CommentsService {
     return this.commentRepository.save(comment);
   }
 
-  async findLatestComments(
-    limit: number = 5,
-  ): Promise<LatestCommentResponseDto[]> {
-    const comments = await this.commentRepository.find({
+  /**
+   * Finds all comments globally, sorted by creation date, with pagination.
+   */
+  async findAllGlobal(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedLatestCommentsResponse> {
+    const [comments, total] = await this.commentRepository.findAndCount({
       where: {
-        removedById: IsNull(),
+        removedById: IsNull(), // Exclude removed comments
       },
       relations: {
         user: true,
@@ -686,16 +691,13 @@ export class CommentsService {
         createdAt: 'DESC',
       },
       take: limit,
+      skip: (page - 1) * limit,
     });
 
-    if (!comments || comments.length === 0) {
-      return [];
-    }
-
-    return comments.map((comment) => ({
+    const data: LatestComment[] = comments.map((comment) => ({
       id: comment.id,
       content: sanitizeHtml(comment.content),
-      createdAt: comment.createdAt,
+      createdAt: comment.createdAt.toISOString(),
       token: {
         tokenMintAddress: comment.tokenMintAddress,
         symbol: comment.token.symbol,
@@ -706,6 +708,18 @@ export class CommentsService {
         avatarUrl: comment.user.avatarUrl,
       },
     }));
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    };
   }
 
   async findCommentThread(
