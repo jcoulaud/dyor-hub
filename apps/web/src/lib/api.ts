@@ -648,6 +648,9 @@ export const tokens = {
       throw error; // Re-throw for the component to handle
     }
   },
+
+  getCurrentTokenPrice: (mintAddress: string): Promise<{ price: number }> =>
+    api<{ price: number }>(`tokens/${mintAddress}/current-price`),
 };
 
 export const users = {

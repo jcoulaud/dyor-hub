@@ -1,5 +1,15 @@
 'use client';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { ApiError, tokenCalls } from '@/lib/api';
+import { ApiError, tokenCalls, tokens } from '@/lib/api';
 import { cn, formatPrice } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import { CreateTokenCallInput } from '@dyor-hub/types';
@@ -89,8 +99,21 @@ interface MakeCallFormProps {
 }
 
 const formatMarketCapDisplay = (value: number): string => {
-  if (!value) return '0';
-  return Math.floor(value).toLocaleString('en-US');
+  if (!value || value === 0) return '0';
+  if (value < 1) {
+    return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+  }
+  return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+};
+
+type ConfirmationDialogState = {
+  isOpen: boolean;
+  initialPrice: number;
+  currentPrice: number;
+  initialMarketCap: number | null;
+  currentMarketCap: number | null;
+  displayMode: DisplayMode;
+  onConfirm: () => void;
 };
 
 export function MakeCallForm({
@@ -116,15 +139,28 @@ export function MakeCallForm({
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const isPriceInvalid = !currentTokenPrice || currentTokenPrice <= 0;
+  const [isCheckingPrice, setIsCheckingPrice] = useState(false);
+  const [confirmationDialog, setConfirmationDialog] = useState<ConfirmationDialogState>({
+    isOpen: false,
+    initialPrice: 0,
+    currentPrice: 0,
+    initialMarketCap: null,
+    currentMarketCap: null,
+    displayMode: 'marketcap',
+    onConfirm: () => {},
+  });
+
+  const initialReferencePrice = useMemo(() => currentTokenPrice, [currentTokenPrice]);
 
   const calculateMarketCap = useCallback(() => {
     if (currentMarketCap) {
       return currentMarketCap;
     }
 
-    if (circulatingSupply && currentTokenPrice) {
+    if (circulatingSupply && currentTokenPrice > 0) {
       try {
         const supply = parseFloat(circulatingSupply);
+        if (isNaN(supply)) return 0;
         return currentTokenPrice * supply;
       } catch {
         return 0;
@@ -174,25 +210,25 @@ export function MakeCallForm({
 
   const calculatedTargetPrice = useMemo(() => {
     const numericValue = parseFloat(inputValue);
-    if (isNaN(numericValue) || numericValue <= 0 || currentTokenPrice <= 0) {
+    if (isNaN(numericValue) || numericValue <= 0 || initialReferencePrice <= 0) {
       return null;
     }
 
     try {
       switch (predictionType) {
         case 'price':
-          return numericValue < currentTokenPrice ? null : numericValue;
+          return numericValue < initialReferencePrice ? null : numericValue;
         case 'percent':
-          return currentTokenPrice * (1 + numericValue / 100);
+          return initialReferencePrice * (1 + numericValue / 100);
         case 'multiple':
-          return numericValue <= 1 ? null : currentTokenPrice * numericValue;
+          return numericValue <= 1 ? null : initialReferencePrice * numericValue;
         default:
           return null;
       }
     } catch {
       return null;
     }
-  }, [predictionType, inputValue, currentTokenPrice]);
+  }, [predictionType, inputValue, initialReferencePrice]);
 
   // Calculate predicted market cap from target price
   const predictedMarketCap = useMemo(() => {
@@ -206,9 +242,10 @@ export function MakeCallForm({
 
     // For price/percent/multiple calculation
     if (!calculatedTargetPrice) return null;
-    return (calculatedTargetPrice / currentTokenPrice) * tokenMarketCap;
+    return (calculatedTargetPrice / initialReferencePrice) * tokenMarketCap;
   }, [
     calculatedTargetPrice,
+    initialReferencePrice,
     currentTokenPrice,
     tokenMarketCap,
     predictionType,
@@ -247,16 +284,179 @@ export function MakeCallForm({
     }
 
     // Default price-based validation
-    if (!calculatedTargetPrice || currentTokenPrice <= 0) return true;
-    return calculatedTargetPrice <= currentTokenPrice * 10000;
+    if (!calculatedTargetPrice || initialReferencePrice <= 0) return true;
+    return calculatedTargetPrice <= initialReferencePrice * 10000;
   }, [
     calculatedTargetPrice,
-    currentTokenPrice,
+    initialReferencePrice,
     displayMode,
     predictionType,
     inputValue,
     predictedMarketCap,
     tokenMarketCap,
+  ]);
+
+  const proceedWithSubmission = useCallback(async () => {
+    setIsLoading(true);
+    setFormError(null);
+
+    let targetPriceValue = 0;
+    let finalCalculatedTargetPrice = null;
+    const numericValue = parseFloat(inputValue);
+
+    if (!isNaN(numericValue) && numericValue > 0 && initialReferencePrice > 0) {
+      try {
+        switch (predictionType) {
+          case 'price':
+            finalCalculatedTargetPrice = numericValue;
+            break;
+          case 'percent':
+            finalCalculatedTargetPrice = initialReferencePrice * (1 + numericValue / 100);
+            break;
+          case 'multiple':
+            finalCalculatedTargetPrice =
+              numericValue <= 1 ? null : initialReferencePrice * numericValue;
+            break;
+        }
+      } catch {
+        finalCalculatedTargetPrice = null;
+      }
+    }
+
+    if (finalCalculatedTargetPrice === null || finalCalculatedTargetPrice <= 0) {
+      setFormError('Could not determine a valid target price for submission.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (displayMode === 'marketcap' && predictionType === 'price') {
+      // For direct market cap entry, calculate equivalent token price
+      const inputNum = parseFloat(inputValue);
+      if (!isNaN(inputNum) && tokenMarketCap > 0 && initialReferencePrice > 0) {
+        const rawValue = (inputNum / tokenMarketCap) * initialReferencePrice;
+        if (!Number.isFinite(rawValue) || rawValue > 1e15) {
+          setFormError('The market cap value is too large to convert to a valid token price.');
+          setIsLoading(false);
+          return;
+        }
+        targetPriceValue = parseFloat(rawValue.toFixed(8));
+      }
+    } else {
+      targetPriceValue = finalCalculatedTargetPrice
+        ? parseFloat(finalCalculatedTargetPrice.toFixed(8))
+        : 0;
+    }
+
+    if (targetPriceValue <= 0) {
+      setFormError('Calculated target price is invalid after rounding.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (targetPriceValue <= initialReferencePrice) {
+      setFormError('Target price must be higher than the initial reference price.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!isTargetPriceValid) {
+      setFormError(
+        displayMode === 'marketcap'
+          ? 'Target market cap cannot exceed 10,000x the initial market cap.'
+          : 'Target price cannot exceed 10,000x the initial reference price.',
+      );
+      setIsLoading(false);
+      return;
+    }
+
+    if (!isTargetMarketCapValid) {
+      setFormError('Target market cap must be higher than the initial market cap.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!Number.isFinite(targetPriceValue) || targetPriceValue > 1e15) {
+      setFormError('Target price value is too large. Please enter a smaller target.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!selectedDate || !isFuture(selectedDate)) {
+      setFormError('Please select a future date.');
+      setIsLoading(false);
+      return;
+    }
+
+    const payload: CreateTokenCallInput = {
+      tokenId,
+      targetPrice: targetPriceValue,
+      timeframeDuration, // This might need adjustment if using calendar date
+    };
+
+    try {
+      await tokenCalls.create(payload);
+      let toastMessage = '';
+
+      const displayTarget = finalCalculatedTargetPrice;
+
+      if (displayMode === 'marketcap') {
+        const displayMarketCap =
+          predictionType === 'price'
+            ? parseFloat(inputValue) // Direct mcap input
+            : displayTarget && initialReferencePrice > 0
+              ? (displayTarget / initialReferencePrice) * tokenMarketCap
+              : 0;
+
+        toastMessage = `Your call for ${tokenSymbol} to reach a market cap of $${formatMarketCapDisplay(displayMarketCap)} by ${format(selectedDate, 'PPP')} has been recorded.`;
+      } else {
+        toastMessage = `Your call for ${tokenSymbol} to reach $${formatPrice(targetPriceValue)} by ${format(selectedDate, 'PPP')} has been recorded.`;
+      }
+
+      toast({
+        title: 'Prediction Submitted!',
+        description: toastMessage,
+      });
+
+      setInputValue('');
+      setPredictionType('percent');
+      setTimeframeDuration('1M');
+      setSelectedDate(getDateFromTimeframe('1M'));
+      setDateSelectionMethod('preset');
+      setDisplayMode('marketcap');
+      setFormError(null);
+      onCallCreated?.();
+      onClose?.();
+    } catch (error) {
+      let errorMsg = 'Failed to submit prediction. Please try again.';
+      if (error instanceof ApiError && error.message) {
+        errorMsg = error.message;
+      }
+      toast({
+        title: 'Error',
+        description: errorMsg,
+        variant: 'destructive',
+      });
+      setFormError(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    tokenId,
+    initialReferencePrice,
+    inputValue,
+    predictionType,
+    displayMode,
+    tokenMarketCap,
+    timeframeDuration,
+    selectedDate,
+    dateSelectionMethod,
+    tokenSymbol,
+    isTargetMarketCapValid,
+    isTargetPriceValid,
+    isAuthenticated,
+    onCallCreated,
+    onClose,
+    toast,
   ]);
 
   const handleSubmit = useCallback(
@@ -269,34 +469,49 @@ export function MakeCallForm({
         return;
       }
 
-      if (!calculatedTargetPrice || calculatedTargetPrice <= 0) {
+      // --- Initial Validations ---
+      let validationTargetPrice: number | null = null;
+      const numericValue = parseFloat(inputValue);
+      if (!isNaN(numericValue) && numericValue > 0 && initialReferencePrice > 0) {
+        try {
+          switch (predictionType) {
+            case 'price':
+              validationTargetPrice = numericValue;
+              break;
+            case 'percent':
+              validationTargetPrice = initialReferencePrice * (1 + numericValue / 100);
+              break;
+            case 'multiple':
+              validationTargetPrice =
+                numericValue <= 1 ? null : initialReferencePrice * numericValue;
+              break;
+          }
+        } catch {
+          /* ignore calculation error for validation */
+        }
+      }
+
+      if (validationTargetPrice === null || validationTargetPrice <= 0) {
         setFormError('Please enter a valid positive target.');
         return;
       }
 
-      if (calculatedTargetPrice <= currentTokenPrice) {
-        setFormError('Target price must be higher than the current price.');
+      if (validationTargetPrice <= initialReferencePrice) {
+        setFormError('Target price must be higher than the initial reference price.');
         return;
       }
 
-      // Check if target price exceeds the maximum allowed (x10000)
+      if (!isTargetMarketCapValid) {
+        setFormError('Target market cap must be higher than the initial market cap.');
+        return;
+      }
+
       if (!isTargetPriceValid) {
         setFormError(
           displayMode === 'marketcap'
-            ? 'Target market cap cannot exceed 10,000x the current market cap.'
-            : 'Target price cannot exceed 10,000x the current price.',
+            ? 'Target market cap cannot exceed 10,000x the initial market cap.'
+            : 'Target price cannot exceed 10,000x the initial reference price.',
         );
-        return;
-      }
-
-      // Validate market cap if in market cap mode
-      if (!isTargetMarketCapValid) {
-        setFormError('Target market cap must be higher than the current market cap.');
-        return;
-      }
-
-      if (!timeframeDuration) {
-        setFormError('Please select a timeframe.');
         return;
       }
 
@@ -304,113 +519,83 @@ export function MakeCallForm({
         setFormError('Please select a future date.');
         return;
       }
+      // --- End Initial Validations ---
 
-      setIsLoading(true);
-
-      let targetPriceValue = 0;
-
-      if (displayMode === 'marketcap' && predictionType === 'price') {
-        // For direct market cap entry, calculate equivalent token price
-        const inputNum = parseFloat(inputValue);
-        if (!isNaN(inputNum) && tokenMarketCap > 0 && currentTokenPrice > 0) {
-          // Calculate price and ensure it's formatted properly with 8 decimal places maximum
-          const rawValue = (inputNum / tokenMarketCap) * currentTokenPrice;
-
-          // Check if the conversion produces a massive or NaN value
-          if (!Number.isFinite(rawValue) || rawValue > 1e15) {
-            setFormError('The market cap value is too large to convert to a valid token price.');
-            setIsLoading(false);
-            return;
-          }
-
-          targetPriceValue = parseFloat(rawValue.toFixed(8));
-        }
-      } else {
-        // Normal price calculation
-        targetPriceValue = calculatedTargetPrice ? parseFloat(calculatedTargetPrice.toFixed(8)) : 0;
-      }
-
-      if (targetPriceValue <= 0) {
-        setFormError('Calculated target price is invalid after rounding.');
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if the target price is too large (beyond what API might accept)
-      if (!Number.isFinite(targetPriceValue) || targetPriceValue > 1e15) {
-        setFormError('Target price value is too large. Please enter a smaller target.');
-        setIsLoading(false);
-        return;
-      }
-
-      const payload: CreateTokenCallInput = {
-        tokenId,
-        targetPrice: targetPriceValue,
-        timeframeDuration,
-      };
+      setIsCheckingPrice(true);
 
       try {
-        await tokenCalls.create(payload);
+        const priceData = await tokens.getCurrentTokenPrice(tokenId);
+        const currentPrice = priceData.price;
 
-        let toastMessage = '';
-        if (displayMode === 'marketcap') {
-          const displayMarketCap =
-            predictionType === 'price'
-              ? parseFloat(inputValue)
-              : (calculatedTargetPrice / currentTokenPrice) * tokenMarketCap;
-          toastMessage = `Your call for ${tokenSymbol} to reach a market cap of $${formatMarketCapDisplay(displayMarketCap)} by ${format(selectedDate, 'PPP')} has been recorded.`;
+        if (currentPrice === null || typeof currentPrice !== 'number') {
+          setFormError('Could not verify the current price. Please try again.');
+          setIsCheckingPrice(false);
+          return;
+        }
+
+        // Calculate current Market Cap based on fetched price
+        let currentMarketCap: number | null = null;
+
+        if (circulatingSupply && typeof currentPrice === 'number' && currentPrice > 0) {
+          try {
+            const supply = parseFloat(circulatingSupply);
+
+            if (!isNaN(supply) && supply > 0) {
+              currentMarketCap = currentPrice * supply;
+            } else {
+              currentMarketCap = 0;
+            }
+          } catch (e) {
+            currentMarketCap = 0;
+          }
         } else {
-          toastMessage = `Your call for ${tokenSymbol} to reach $${formatPrice(targetPriceValue)} by ${format(selectedDate, 'PPP')} has been recorded.`;
+          currentMarketCap = 0;
         }
 
-        toast({
-          title: 'Prediction Submitted!',
-          description: toastMessage,
-        });
+        const priceDifferencePercent =
+          Math.abs((currentPrice - initialReferencePrice) / initialReferencePrice) * 100;
 
-        setInputValue('');
-        setPredictionType('price');
-        setTimeframeDuration('1M');
-        setSelectedDate(getDateFromTimeframe('1M'));
-        setDateSelectionMethod('preset');
-        setDisplayMode('price');
-        setFormError(null);
-        onCallCreated?.();
-        onClose?.();
+        const PRICE_CHANGE_THRESHOLD = 1;
+
+        if (priceDifferencePercent > PRICE_CHANGE_THRESHOLD) {
+          setConfirmationDialog({
+            isOpen: true,
+            initialPrice: initialReferencePrice,
+            currentPrice: currentPrice,
+            initialMarketCap: tokenMarketCap,
+            currentMarketCap: currentMarketCap,
+            displayMode: displayMode,
+            onConfirm: () => {
+              setConfirmationDialog({ ...confirmationDialog, isOpen: false });
+              proceedWithSubmission();
+            },
+          });
+          setIsCheckingPrice(false);
+        } else {
+          await proceedWithSubmission();
+        }
       } catch (error) {
-        let errorMsg = 'Failed to submit prediction. Please try again.';
-        if (error instanceof ApiError && error.message) {
-          errorMsg = error.message;
-        }
-        toast({
-          title: 'Error',
-          description: errorMsg,
-          variant: 'destructive',
-        });
-        setFormError(errorMsg);
-      } finally {
-        setIsLoading(false);
+        setFormError(
+          error instanceof ApiError
+            ? error.message
+            : 'An unexpected error occurred during price check.',
+        );
+        setIsCheckingPrice(false);
       }
     },
     [
       isAuthenticated,
       predictionType,
       inputValue,
-      calculatedTargetPrice,
-      currentTokenPrice,
+      initialReferencePrice,
       timeframeDuration,
       tokenId,
-      tokenSymbol,
-      onCallCreated,
-      onClose,
-      toast,
       selectedDate,
-      setDisplayMode,
-      displayMode,
-      tokenMarketCap,
-      predictedMarketCap,
+      proceedWithSubmission,
       isTargetMarketCapValid,
       isTargetPriceValid,
+      displayMode,
+      confirmationDialog,
     ],
   );
 
@@ -453,7 +638,7 @@ export function MakeCallForm({
               <TabsTrigger
                 value='marketcap'
                 className='h-6 px-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white w-1/2'
-                disabled={isLoading}>
+                disabled={isLoading || isCheckingPrice}>
                 <span className='text-xs flex items-center justify-center gap-1'>
                   <BarChart className='h-3 w-3' /> Market Cap
                 </span>
@@ -461,7 +646,7 @@ export function MakeCallForm({
               <TabsTrigger
                 value='price'
                 className='h-6 px-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white w-1/2'
-                disabled={isLoading}>
+                disabled={isLoading || isCheckingPrice}>
                 <span className='text-xs flex items-center justify-center gap-1'>
                   <LineChart className='h-3 w-3' /> Price
                 </span>
@@ -505,7 +690,7 @@ export function MakeCallForm({
                     ? formatMarketCapDisplay(
                         predictionType === 'price' && displayMode === 'marketcap'
                           ? parseFloat(inputValue)
-                          : (calculatedTargetPrice / currentTokenPrice) * tokenMarketCap,
+                          : (calculatedTargetPrice / initialReferencePrice) * tokenMarketCap,
                       )
                     : formatMarketCapDisplay(calculatedTargetPrice)}
               </div>
@@ -548,14 +733,17 @@ export function MakeCallForm({
             <div
               key={option.value}
               onClick={() =>
-                !isLoading && !isPriceInvalid && handlePredictionTypeChange(option.value)
+                !isLoading &&
+                !isCheckingPrice &&
+                !isPriceInvalid &&
+                handlePredictionTypeChange(option.value)
               }
               className={cn(
                 'relative cursor-pointer rounded-lg overflow-hidden border p-2 transition-all',
                 predictionType === option.value
                   ? 'border-blue-500 bg-blue-900/20'
                   : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700',
-                (isLoading || isPriceInvalid) && 'opacity-50 cursor-not-allowed',
+                (isLoading || isCheckingPrice || isPriceInvalid) && 'opacity-50 cursor-not-allowed',
               )}>
               <div className='flex items-center justify-center mb-1'>
                 {getIconForPredictionType(option.value as PredictionType)}
@@ -606,12 +794,12 @@ export function MakeCallForm({
             predictionType === 'multiple'
               ? '1.00001' // Ensures > 1
               : predictionType === 'price'
-                ? currentTokenPrice.toString()
+                ? (initialReferencePrice * 1.000001).toFixed(8) // Min slightly above current
                 : '0'
           }
           step='any'
           required
-          disabled={isLoading || isPriceInvalid}
+          disabled={isLoading || isCheckingPrice || isPriceInvalid}
           className='bg-zinc-900 border-zinc-800 focus:border-blue-500'
         />
       </div>
@@ -628,13 +816,13 @@ export function MakeCallForm({
               <TabsTrigger
                 value='preset'
                 className='h-6 px-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white'
-                disabled={isLoading || isPriceInvalid}>
+                disabled={isLoading || isCheckingPrice || isPriceInvalid}>
                 <span className='text-xs'>Preset</span>
               </TabsTrigger>
               <TabsTrigger
                 value='calendar'
                 className='h-6 px-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white'
-                disabled={isLoading || isPriceInvalid}>
+                disabled={isLoading || isCheckingPrice || isPriceInvalid}>
                 <span className='text-xs'>Custom</span>
               </TabsTrigger>
             </TabsList>
@@ -645,7 +833,7 @@ export function MakeCallForm({
           <Select
             value={timeframeDuration}
             onValueChange={setTimeframeDuration}
-            disabled={isLoading || isPriceInvalid}>
+            disabled={isLoading || isCheckingPrice || isPriceInvalid}>
             <SelectTrigger className='bg-zinc-900 border-zinc-800 h-9'>
               <SelectValue placeholder='Select timeframe' />
             </SelectTrigger>
@@ -676,7 +864,7 @@ export function MakeCallForm({
                   className='h-9 bg-zinc-800 border-zinc-700 text-center pl-7'
                   placeholder='MM'
                   aria-label='Month'
-                  disabled={isLoading || isPriceInvalid}
+                  disabled={isLoading || isCheckingPrice || isPriceInvalid}
                 />
               </div>
               <span className='text-zinc-500 text-sm'>/</span>
@@ -694,7 +882,7 @@ export function MakeCallForm({
                   className='h-9 bg-zinc-800 border-zinc-700 text-center pl-7'
                   placeholder='DD'
                   aria-label='Day'
-                  disabled={isLoading || isPriceInvalid}
+                  disabled={isLoading || isCheckingPrice || isPriceInvalid}
                 />
               </div>
               <span className='text-zinc-500 text-sm'>/</span>
@@ -712,7 +900,7 @@ export function MakeCallForm({
                   className='h-9 bg-zinc-800 border-zinc-700 text-center pl-7'
                   placeholder='YYYY'
                   aria-label='Year'
-                  disabled={isLoading || isPriceInvalid}
+                  disabled={isLoading || isCheckingPrice || isPriceInvalid}
                 />
               </div>
             </div>
@@ -748,26 +936,88 @@ export function MakeCallForm({
         </div>
       )}
 
+      {/* Submit Button */}
       <Button
         type='submit'
+        className='w-full rounded-md h-10 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2'
         disabled={
-          !isAuthenticated ||
-          isLoading ||
-          !calculatedTargetPrice ||
-          isPriceInvalid ||
-          !isTargetMarketCapValid ||
-          !isTargetPriceValid
-        }
-        className='w-full rounded-md h-10 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2'>
-        {isLoading ? (
-          <>
-            <Loader2 className='h-4 w-4 animate-spin' />
-            <span>Submitting...</span>
-          </>
-        ) : (
-          <span>Submit Prediction</span>
-        )}
+          isLoading || isCheckingPrice || !isAuthenticated || isPriceInvalid || !inputValue.trim()
+        }>
+        {(isLoading || isCheckingPrice) && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+        {isCheckingPrice ? 'Checking Price...' : isLoading ? 'Submitting...' : 'Submit Prediction'}
       </Button>
+
+      {/* Disclaimer Text */}
+      <p className='text-xs text-zinc-500 text-center px-2'>
+        Note: The prediction is recorded using the token price at the exact moment of submission.
+      </p>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog
+        open={confirmationDialog.isOpen}
+        onOpenChange={(open) =>
+          !open && setConfirmationDialog({ ...confirmationDialog, isOpen: false })
+        }>
+        <AlertDialogContent className='bg-zinc-900 border-zinc-800 text-zinc-100'>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Price Change Confirmation</AlertDialogTitle>
+            <AlertDialogDescription className='text-zinc-400'>
+              The market conditions for ${tokenSymbol} changed while you were setting up your
+              prediction.
+              <br />
+              <br />
+              {confirmationDialog.displayMode === 'price' ? (
+                <>
+                  Initial Price: <strong>${formatPrice(confirmationDialog.initialPrice)}</strong>
+                  <br />
+                  Current Price: <strong>${formatPrice(confirmationDialog.currentPrice)}</strong>
+                </>
+              ) : (
+                <>
+                  Initial Market Cap:{' '}
+                  <strong>
+                    ${formatMarketCapDisplay(confirmationDialog.initialMarketCap ?? 0)}
+                  </strong>
+                  <br />
+                  Current Market Cap:{' '}
+                  <strong>
+                    ${formatMarketCapDisplay(confirmationDialog.currentMarketCap ?? 0)}
+                  </strong>
+                </>
+              )}
+              <br />
+              <br />
+              <span>
+                Do you still want to submit your prediction with this new{' '}
+                {confirmationDialog.displayMode === 'price' ? 'price' : 'market cap'} of{' '}
+                <strong>
+                  {confirmationDialog.displayMode === 'price'
+                    ? `$${formatPrice(confirmationDialog.currentPrice)}`
+                    : `$${formatMarketCapDisplay(confirmationDialog.currentMarketCap ?? 0)}`}
+                </strong>
+                ?
+              </span>
+              <br />
+              <br />
+              <span className='text-xs italic'>
+                P.S. The final price will be calculated at the exact moment of submission.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              className='bg-zinc-700 hover:bg-zinc-600 border-zinc-600 text-zinc-100'
+              onClick={() => setConfirmationDialog({ ...confirmationDialog, isOpen: false })}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className='bg-blue-600 hover:bg-blue-700 text-white'
+              onClick={confirmationDialog.onConfirm}>
+              Yes, Proceed
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }

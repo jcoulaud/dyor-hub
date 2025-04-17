@@ -376,7 +376,7 @@ export default function TokenCallsExplorerPage() {
   };
 
   const formatCurrency = (price: number | undefined | null): string => {
-    if (price === undefined || price === null) return 'N/A';
+    if (price === undefined || price === null) return '-';
     return `$${formatPrice(price)}`;
   };
 
@@ -384,7 +384,7 @@ export default function TokenCallsExplorerPage() {
     price: number | undefined | null,
     supply: number | null | undefined,
   ): string => {
-    if (price === undefined || price === null || !supply) return 'N/A';
+    if (price === undefined || price === null || !supply) return '-';
     const mcap = price * supply;
     return `$${formatLargeNumber(mcap)}`;
   };

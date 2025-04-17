@@ -265,7 +265,6 @@ export default function Page({ params, commentId }: PageProps) {
           {},
         );
         setUserCalls(response.items);
-        toast({ title: 'Prediction Submitted & Updated!' });
       } catch {
         setUserCalls([]);
       } finally {
@@ -377,7 +376,9 @@ export default function Page({ params, commentId }: PageProps) {
                         mintAddress={tokenData.mintAddress}
                         initialWatchlistStatus={tokenData.isWatchlisted}
                         onStatusChange={(isWatchlisted) => {
-                          setTokenData((prev) => (prev ? { ...prev, isWatchlisted } : null));
+                          setTokenData((prev: TokenWithWatchlistStatus | null) =>
+                            prev ? { ...prev, isWatchlisted } : null,
+                          );
                         }}
                         size='sm'
                         tokenSymbol={tokenData.symbol}
@@ -405,7 +406,7 @@ export default function Page({ params, commentId }: PageProps) {
                                 mintAddress={tokenData.mintAddress}
                                 initialWatchlistStatus={tokenData.isWatchlisted}
                                 onStatusChange={(isWatchlisted) => {
-                                  setTokenData((prev) =>
+                                  setTokenData((prev: TokenWithWatchlistStatus | null) =>
                                     prev ? { ...prev, isWatchlisted } : null,
                                   );
                                 }}
@@ -688,7 +689,6 @@ export default function Page({ params, commentId }: PageProps) {
                     userCalls={userCalls}
                     isLoadingUserCalls={isLoadingUserCalls}
                     onCallCreated={handleCallCreated}
-                    marketCap={tokenStatsData?.marketCap}
                     circulatingSupply={tokenStatsData?.circulatingSupply}
                   />
                 ) : (
@@ -958,7 +958,6 @@ export default function Page({ params, commentId }: PageProps) {
                     userCalls={userCalls}
                     isLoadingUserCalls={isLoadingUserCalls}
                     onCallCreated={handleCallCreated}
-                    marketCap={tokenStatsData?.marketCap}
                     circulatingSupply={tokenStatsData?.circulatingSupply}
                   />
                 ) : (

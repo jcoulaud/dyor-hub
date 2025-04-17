@@ -509,22 +509,12 @@ export class TokensService {
 
       const topHolders = await this.fetchTopHolders(mintAddress, overviewData);
 
-      const decimals = overviewData.decimals ?? 0;
-      const rawTotalSupply = overviewData.totalSupply ?? 0;
-      const rawCirculatingSupply =
-        overviewData.circulatingSupply ?? overviewData.totalSupply ?? 0; // Fallback circ to total
-
-      const calculatedTotalSupply =
-        rawTotalSupply > 0 && decimals >= 0
-          ? rawTotalSupply / Math.pow(10, decimals)
-          : 0;
-      const calculatedCirculatingSupply =
-        rawCirculatingSupply > 0 && decimals >= 0
-          ? rawCirculatingSupply / Math.pow(10, decimals)
-          : 0;
-
-      const totalSupplyString = calculatedTotalSupply.toString();
-      const circulatingSupplyString = calculatedCirculatingSupply.toString();
+      const totalSupplyString =
+        overviewData.circulatingSupply?.toString() ?? '0';
+      const circulatingSupplyString =
+        (
+          overviewData.circulatingSupply ?? overviewData.totalSupply
+        )?.toString() ?? '0';
 
       return {
         price: overviewData.price,
@@ -705,5 +695,62 @@ export class TokensService {
       );
       throw error;
     }
+  }
+
+  public async fetchCurrentTokenPrice(
+    mintAddress: string,
+  ): Promise<{ price: number } | null> {
+    const cacheKey = `token_price_${mintAddress}`;
+
+    // Request Deduplication
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
+    }
+
+    const requestPromise = (async () => {
+      const apiUrl = `https://public-api.birdeye.so/defi/price?address=${mintAddress}`;
+      try {
+        const response = await fetch(apiUrl, {
+          headers: {
+            'X-API-KEY': this.configService.get('BIRDEYE_API_KEY') || '',
+            'x-chain': 'solana',
+          },
+        });
+
+        if (!response.ok) {
+          const errorData = await response
+            .json()
+            .catch(() => ({ message: 'Failed to parse error JSON' }));
+          const errorMessage = errorData?.message || response.statusText;
+          throw new Error(
+            `Birdeye Price API error (${response.status}): ${errorMessage}`,
+          );
+        }
+
+        const data = await response.json();
+
+        const price = data?.data?.value;
+
+        if (typeof price !== 'number') {
+          this.logger.warn(
+            `Birdeye price response did not contain a valid number for ${mintAddress}`,
+          );
+          return null;
+        }
+
+        return { price };
+      } catch (error) {
+        this.logger.error(
+          `Error fetching Birdeye current price for ${mintAddress}:`,
+          error.message,
+        );
+        return null;
+      } finally {
+        this.pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
   }
 }

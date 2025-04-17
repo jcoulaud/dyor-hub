@@ -10,15 +10,14 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ArrowUp } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MakeCallForm } from './MakeCallForm';
 
-interface MakeCallModalProps {
+export interface MakeCallModalProps {
   tokenId: string;
   tokenSymbol: string;
   currentTokenPrice: number;
-  onCallCreated?: () => void;
-  currentMarketCap?: number;
+  onCallCreated: () => void;
   circulatingSupply?: string;
   isMakingAnotherCall?: boolean;
 }
@@ -28,11 +27,15 @@ export function MakeCallModal({
   tokenSymbol,
   currentTokenPrice,
   onCallCreated,
-  currentMarketCap,
   circulatingSupply,
   isMakingAnotherCall,
 }: MakeCallModalProps) {
   const [open, setOpen] = useState(false);
+
+  const handleOpenChange = (newOpenState: boolean) => {
+    setOpen(newOpenState);
+  };
+
   const isPriceValid = currentTokenPrice > 0;
 
   const handleCallCreated = () => {
@@ -40,8 +43,21 @@ export function MakeCallModal({
     setOpen(false);
   };
 
+  const formContent = useMemo(() => {
+    return (
+      <MakeCallForm
+        tokenId={tokenId}
+        tokenSymbol={tokenSymbol}
+        currentTokenPrice={currentTokenPrice}
+        onCallCreated={handleCallCreated}
+        onClose={() => setOpen(false)}
+        circulatingSupply={circulatingSupply}
+      />
+    );
+  }, [tokenId, tokenSymbol, currentTokenPrice, onCallCreated, circulatingSupply]);
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
           variant={'default'}
@@ -79,15 +95,7 @@ export function MakeCallModal({
             </div>
           </div>
         ) : (
-          <MakeCallForm
-            tokenId={tokenId}
-            tokenSymbol={tokenSymbol}
-            currentTokenPrice={currentTokenPrice}
-            onCallCreated={handleCallCreated}
-            onClose={() => setOpen(false)}
-            currentMarketCap={currentMarketCap}
-            circulatingSupply={circulatingSupply}
-          />
+          formContent
         )}
       </DialogContent>
     </Dialog>
