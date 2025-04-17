@@ -167,7 +167,7 @@ export default function StreaksAdminPage() {
                                   Last active:{' '}
                                   {user.lastActivityDate
                                     ? format(new Date(user.lastActivityDate), 'MMM d, yyyy')
-                                    : 'N/A'}
+                                    : '-'}
                                 </div>
                               </div>
                             </div>

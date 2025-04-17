@@ -98,6 +98,11 @@ export const TokenStats = ({
     );
   }
 
+  const adjustedTotalSupply = stats.totalSupply ? parseFloat(stats.totalSupply) : null;
+  const adjustedCirculatingSupply = stats.circulatingSupply
+    ? parseFloat(stats.circulatingSupply)
+    : null;
+
   return (
     <div className='space-y-6 text-zinc-300'>
       {/* Market Data */}
@@ -146,16 +151,14 @@ export const TokenStats = ({
         <div className='space-y-2'>
           <div className='flex justify-between items-center'>
             <span className='text-sm'>Total Supply:</span>
-            <span className='font-medium'>{formatLargeNumber(stats.totalSupply)}</span>
+            <span className='font-medium'>{formatLargeNumber(adjustedTotalSupply) || '-'}</span>
           </div>
-          {stats.circulatingSupply &&
-            stats.circulatingSupply !== stats.totalSupply &&
-            parseFloat(stats.circulatingSupply) > 0 && (
-              <div className='flex justify-between items-center'>
-                <span className='text-sm'>Circulating Supply:</span>
-                <span className='font-medium'>{formatLargeNumber(stats.circulatingSupply)}</span>
-              </div>
-            )}
+          {adjustedCirculatingSupply !== null && adjustedCirculatingSupply > 0 && (
+            <div className='flex justify-between items-center'>
+              <span className='text-sm'>Circulating Supply:</span>
+              <span className='font-medium'>{formatLargeNumber(adjustedCirculatingSupply)}</span>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { TokenStats } from '@dyor-hub/types';
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 import { subDays } from 'date-fns';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -62,5 +62,19 @@ export class TokensController {
       endTime,
       '1H',
     );
+  }
+
+  @Public()
+  @Get(':mintAddress/current-price')
+  async getCurrentTokenPrice(
+    @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
+  ): Promise<{ price: number }> {
+    const result = await this.tokensService.fetchCurrentTokenPrice(mintAddress);
+    if (result === null) {
+      throw new NotFoundException(
+        `Could not fetch current price for token ${mintAddress}`,
+      );
+    }
+    return result;
   }
 }

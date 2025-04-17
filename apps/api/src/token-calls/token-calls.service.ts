@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { add, Duration } from 'date-fns';
 import { In, Not, Repository } from 'typeorm';
 import { TokenCallEntity } from '../entities/token-call.entity';
+import { TokenEntity } from '../entities/token.entity';
 import { TokensService } from '../tokens/tokens.service';
 import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
@@ -81,8 +82,9 @@ export class TokenCallsService {
     const { tokenId, targetPrice, timeframeDuration } = createTokenCallDto;
 
     // 1. Validate token exists
+    let tokenInfo: TokenEntity | null = null;
     try {
-      await this.tokensService.getTokenData(tokenId, userId);
+      tokenInfo = await this.tokensService.getTokenData(tokenId, userId);
     } catch (error) {
       this.logger.warn(
         `Token validation failed during call creation for ${tokenId}: ${error.message}`,
@@ -93,60 +95,48 @@ export class TokenCallsService {
       );
     }
 
-    // 2. Fetch the current price (Reference Price) and Supply
-    let referencePrice: number;
+    // 2. Fetch the CURRENT price and supply
+    let referencePrice: number | null = null;
     let referenceSupply: number | null = null;
     try {
       const overviewData = await this.tokensService.fetchTokenOverview(tokenId);
 
-      // Check if data and price exist and are valid
       if (
-        !overviewData ||
-        typeof overviewData.price !== 'number' ||
-        overviewData.price <= 0
+        overviewData &&
+        typeof overviewData.price === 'number' &&
+        overviewData.price > 0
       ) {
-        this.logger.error(
-          `Reference price fetch failed or invalid via Birdeye for token ID: ${tokenId}. Price: ${overviewData?.price}`,
-        );
-        throw new InternalServerErrorException(
-          `Failed to fetch a valid reference price for token ${tokenId} via Birdeye at this time.`,
-        );
-      }
-      referencePrice = overviewData.price;
-
-      // Check if circulatingSupply exists and is valid
-      if (
-        typeof overviewData.circulatingSupply === 'number' &&
-        overviewData.circulatingSupply > 0
-      ) {
-        referenceSupply = overviewData.circulatingSupply;
+        referencePrice = overviewData.price;
+        referenceSupply =
+          overviewData.circulatingSupply ?? overviewData.totalSupply ?? null;
+        if (typeof referenceSupply !== 'number' || referenceSupply <= 0) {
+          this.logger.warn(
+            `Invalid or missing reference supply for ${tokenId}, setting to null.`,
+          );
+          referenceSupply = null;
+        }
       } else {
-        this.logger.warn(
-          `Reference supply fetch missing or invalid via Birdeye for token ID: ${tokenId}. Supply: ${overviewData?.circulatingSupply}. Proceeding without referenceSupply.`,
-        );
-      }
-
-      if (targetPrice <= referencePrice) {
-        throw new BadRequestException(
-          `Target price must be higher than current price of ${referencePrice}.`,
+        throw new Error(
+          'Fetched overview data or price is invalid or missing.',
         );
       }
     } catch (error) {
       this.logger.error(
-        `Error fetching Birdeye reference price for ${tokenId}:`,
-        error.stack,
+        `Failed to fetch token overview for ${tokenId} during creation: ${error.message}`,
       );
-      if (
-        error instanceof InternalServerErrorException ||
-        error instanceof BadRequestException
-      )
-        throw error;
       throw new InternalServerErrorException(
-        `Could not fetch reference price for token ${tokenId} via Birdeye.`,
+        `Could not fetch accurate price and supply for ${tokenId} at the time of submission.`,
       );
     }
 
-    // 3. Calculate Target Date
+    // 3. Basic Validation: Target price vs fetched current price
+    if (targetPrice <= referencePrice) {
+      throw new BadRequestException(
+        `Target price ($${targetPrice}) must be higher than the reference price ($${referencePrice}) at the time of submission.`,
+      );
+    }
+
+    // 4. Calculate Target Date
     const callTimestamp = new Date();
     let targetDate: Date;
     try {
@@ -160,14 +150,14 @@ export class TokenCallsService {
       throw new InternalServerErrorException('Invalid timeframe duration.');
     }
 
-    // 4. Create and Save the TokenCallEntity
+    // 5. Create and Save the TokenCallEntity
     try {
       const newCall = this.tokenCallRepository.create({
         userId,
         tokenId,
         callTimestamp,
-        referencePrice,
-        referenceSupply,
+        referencePrice: referencePrice,
+        referenceSupply: referenceSupply,
         targetPrice,
         timeframeDuration,
         targetDate,
@@ -175,6 +165,7 @@ export class TokenCallsService {
       });
 
       const savedCall = await this.tokenCallRepository.save(newCall);
+
       return savedCall;
     } catch (error) {
       this.logger.error(

@@ -21,7 +21,6 @@ interface TokenCallsSectionProps {
   userCalls: TokenCall[];
   isLoadingUserCalls: boolean;
   onCallCreated?: () => void;
-  marketCap?: number;
   circulatingSupply?: string;
 }
 
@@ -33,7 +32,6 @@ export function TokenCallsSection({
   userCalls,
   isLoadingUserCalls,
   onCallCreated,
-  marketCap,
   circulatingSupply,
 }: TokenCallsSectionProps) {
   const [tokenCallsData, setTokenCallsData] = useState<TokenCall[]>([]);
@@ -188,7 +186,6 @@ export function TokenCallsSection({
               tokenSymbol={tokenSymbol}
               currentTokenPrice={currentTokenPrice}
               onCallCreated={handleCallCreated}
-              currentMarketCap={marketCap}
               circulatingSupply={circulatingSupply}
               isMakingAnotherCall={true}
             />
@@ -204,7 +201,6 @@ export function TokenCallsSection({
           tokenSymbol={tokenSymbol}
           currentTokenPrice={currentTokenPrice}
           onCallCreated={handleCallCreated}
-          currentMarketCap={marketCap}
           circulatingSupply={circulatingSupply}
         />
       );
@@ -235,7 +231,6 @@ export function TokenCallsSection({
     tokenId,
     tokenSymbol,
     handleCallCreated,
-    marketCap,
     circulatingSupply,
     handlePredictionNavigate,
   ]);

@@ -27,13 +27,27 @@ export const DisplayUserCall = memo(function DisplayUserCall({
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<'price' | 'mcap'>('mcap');
 
-  const targetMcap = useMemo(() => {
-    const supply =
-      typeof call.referenceSupply === 'string'
-        ? parseFloat(call.referenceSupply)
-        : call.referenceSupply;
+  const canCalculateMcap = useMemo(() => {
+    if (typeof call.referenceSupply !== 'string' || call.referenceSupply === null) return false;
+    try {
+      const supplyNum = parseFloat(call.referenceSupply);
+      return !isNaN(supplyNum) && supplyNum > 0;
+    } catch {
+      return false;
+    }
+  }, [call.referenceSupply]);
 
-    if (typeof supply === 'number' && !isNaN(supply) && supply > 0) {
+  const targetMcap = useMemo(() => {
+    if (!canCalculateMcap) return null;
+
+    let supply: number | null = null;
+    try {
+      supply = parseFloat(String(call.referenceSupply));
+    } catch {
+      return null;
+    }
+
+    if (supply !== null && supply > 0) {
       const price =
         typeof call.targetPrice === 'string' ? parseFloat(call.targetPrice) : call.targetPrice;
 
@@ -42,10 +56,10 @@ export const DisplayUserCall = memo(function DisplayUserCall({
       }
     }
     return null;
-  }, [call.targetPrice, call.referenceSupply]);
+  }, [call.targetPrice, call.referenceSupply, canCalculateMcap]);
 
   const formatRatio = (ratio: number | undefined | null) =>
-    ratio ? `${(ratio * 100).toFixed(1)}%` : 'N/A';
+    ratio ? `${(ratio * 100).toFixed(1)}%` : '-';
 
   const getStatusColor = () => {
     switch (call.status) {
@@ -78,7 +92,7 @@ export const DisplayUserCall = memo(function DisplayUserCall({
       (!isPriceUp && currentTokenPrice < call.referencePrice));
   const formattedDistance = hasValidCurrentPrice
     ? `${Math.abs(distanceToTarget).toFixed(2)}%`
-    : 'N/A';
+    : '-';
 
   return (
     <div className='relative group'>
@@ -191,9 +205,9 @@ export const DisplayUserCall = memo(function DisplayUserCall({
               <div className='text-2xl font-bold text-white mt-1.5 mb-1.5'>
                 {viewMode === 'price'
                   ? `$${formatPrice(call.targetPrice)}`
-                  : targetMcap !== null
+                  : canCalculateMcap && targetMcap !== null
                     ? `$${formatLargeNumber(targetMcap)}`
-                    : '$?'}
+                    : '-'}
               </div>
 
               <Tabs
@@ -205,7 +219,7 @@ export const DisplayUserCall = memo(function DisplayUserCall({
                 <TabsList className='h-7 p-0.5 bg-zinc-700/50 border border-zinc-600/50 rounded-lg'>
                   <TabsTrigger
                     value='mcap'
-                    disabled={targetMcap === null}
+                    disabled={!canCalculateMcap}
                     className='h-6 px-3 text-xs data-[state=active]:bg-zinc-600/80 data-[state=active]:text-zinc-100 text-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-md'
                     onClick={(e) => e.stopPropagation()}>
                     Target Mcap
@@ -242,7 +256,7 @@ export const DisplayUserCall = memo(function DisplayUserCall({
                     </div>
                     <div className='font-medium text-zinc-300 group-hover/item:text-white transition-colors'>
                       $
-                      {viewMode === 'mcap' && targetMcap !== null
+                      {viewMode === 'mcap' && targetMcap !== null && canCalculateMcap
                         ? formatLargeNumber((call.referencePrice / call.targetPrice) * targetMcap)
                         : formatPrice(call.referencePrice)}
                     </div>
@@ -300,7 +314,10 @@ export const DisplayUserCall = memo(function DisplayUserCall({
                       </div>
                       <div className='font-medium text-zinc-300 group-hover/item:text-white transition-colors'>
                         $
-                        {viewMode === 'mcap' && targetMcap !== null && call.peakPriceDuringPeriod
+                        {viewMode === 'mcap' &&
+                        targetMcap !== null &&
+                        canCalculateMcap &&
+                        call.peakPriceDuringPeriod
                           ? formatLargeNumber(
                               (call.peakPriceDuringPeriod / call.targetPrice) * targetMcap,
                             )
@@ -348,7 +365,10 @@ export const DisplayUserCall = memo(function DisplayUserCall({
                         </div>
                         <div className='font-medium text-zinc-300 group-hover/item:text-white transition-colors'>
                           $
-                          {viewMode === 'mcap' && targetMcap !== null && call.finalPriceAtTargetDate
+                          {viewMode === 'mcap' &&
+                          targetMcap !== null &&
+                          canCalculateMcap &&
+                          call.finalPriceAtTargetDate
                             ? formatLargeNumber(
                                 (call.finalPriceAtTargetDate / call.targetPrice) * targetMcap,
                               )

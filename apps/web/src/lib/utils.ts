@@ -97,19 +97,23 @@ export function sanitizeHtml(
 }
 
 const formatLargeNumber = (num: string | number | undefined | null): string => {
-  if (num === null || num === undefined) return 'N/A';
+  if (num === null || num === undefined) return '-';
   const number = typeof num === 'string' ? parseFloat(num) : num;
-  if (isNaN(number)) return 'N/A';
+  if (isNaN(number)) return '-';
   if (number === 0) return '0';
 
   const absNum = Math.abs(number);
   const sign = number < 0 ? '-' : '';
 
-  if (absNum < 999.5) return `${sign}${number.toFixed(2)}`; // Keep decimals below 1K
-  if (absNum < 999500) return `${sign}${(number / 1e3).toFixed(1)}K`; // Use 1 decimal for K (up to ~1M)
-  if (absNum < 999500000) return `${sign}${(number / 1e6).toFixed(1)}M`; // Use 1 decimal for M (up to ~1B)
-  if (absNum < 999500000000) return `${sign}${(number / 1e9).toFixed(1)}B`; // Use 1 decimal for B (up to ~1T)
-  return `${sign}${(number / 1e12).toFixed(1)}T`; // Use 1 decimal for T
+  const formatOptions: Intl.NumberFormatOptions = { maximumFractionDigits: 0 };
+
+  if (absNum < 1000)
+    return `${sign}${number.toLocaleString('en-US', { maximumFractionDigits: 2 })}`; // Show decimals below 1K
+  if (absNum < 999500) return `${sign}${(number / 1e3).toLocaleString('en-US', formatOptions)}K`;
+  if (absNum < 999500000) return `${sign}${(number / 1e6).toLocaleString('en-US', formatOptions)}M`;
+  if (absNum < 999500000000)
+    return `${sign}${(number / 1e9).toLocaleString('en-US', formatOptions)}B`;
+  return `${sign}${(number / 1e12).toLocaleString('en-US', formatOptions)}T`;
 };
 
 export { formatLargeNumber };

@@ -41,13 +41,13 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
 
 // Format large number for display with dollar sign
 const formatCurrency = (value: number | string | null | undefined): string => {
-  if (value === null || value === undefined) return 'N/A';
+  if (value === null || value === undefined) return '-';
   const formatted = formatLargeNumber(value);
-  return formatted === 'N/A' ? formatted : `$${formatted}`;
+  return formatted === '-' ? formatted : `$${formatted}`;
 };
 
 const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return 'N/A';
+  if (!dateString) return '-';
   try {
     const date = new Date(dateString);
     return `${date.toLocaleDateString('en-US', {

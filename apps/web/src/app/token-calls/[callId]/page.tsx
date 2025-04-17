@@ -155,7 +155,7 @@ export default function TokenCallDetailPage() {
       targetDate: targetDate ? new Date(targetDate) : null,
       createdAt: createdAt ? new Date(createdAt) : null,
       targetDateFormatted: targetDate ? format(new Date(targetDate), 'MMM d, yyyy h:mm a') : '-',
-      createdAtFormatted: createdAt ? format(new Date(createdAt), 'MMM d, yyyy h:mm a') : 'N/A',
+      createdAtFormatted: createdAt ? format(new Date(createdAt), 'MMM d, yyyy h:mm a') : '-',
       referenceMcap,
       targetMcap,
     };
@@ -596,7 +596,7 @@ export default function TokenCallDetailPage() {
                         <div className='grid grid-cols-2 gap-3'>
                           <div className='flex flex-col bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3'>
                             <span className='text-xs text-zinc-400 mb-1 font-medium'>
-                              Current Mcap
+                              Initial Mcap
                             </span>
                             <span className='font-semibold text-zinc-100 text-base'>
                               ${formatLargeNumber(callDetails?.referenceMcap)}
@@ -629,7 +629,7 @@ export default function TokenCallDetailPage() {
                         <div className='grid grid-cols-2 gap-3'>
                           <div className='flex flex-col bg-zinc-800/40 rounded-lg border border-zinc-700/30 p-3'>
                             <span className='text-xs text-zinc-400 mb-1 font-medium'>
-                              Current Price
+                              Initial Price
                             </span>
                             <span className='font-semibold text-zinc-100 text-base'>
                               ${formatPrice(tokenCall.referencePrice)}
@@ -673,7 +673,7 @@ export default function TokenCallDetailPage() {
                             </div>
                           </div>
                         ) : (
-                          <span className='font-medium text-zinc-200 text-sm'>N/A</span>
+                          <span className='font-medium text-zinc-200 text-sm'>-</span>
                         )}
                       </div>
 

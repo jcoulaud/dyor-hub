@@ -50,7 +50,7 @@ export interface TokenStats {
 
   // Supply information
   totalSupply: string;
-  circulatingSupply?: string;
+  circulatingSupply: string;
 
   // Holder information
   topHolders?: TokenHolder[];
