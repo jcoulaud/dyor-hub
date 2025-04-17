@@ -545,7 +545,7 @@ export function MakeCallForm({
             } else {
               currentMarketCap = 0;
             }
-          } catch (e) {
+          } catch {
             currentMarketCap = 0;
           }
         } else {
