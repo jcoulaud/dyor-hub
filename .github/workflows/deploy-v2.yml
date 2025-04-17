@@ -2,7 +2,7 @@ name: Deploy to Production v2 (Blue/Green)
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -13,13 +13,13 @@ on:
 
 jobs:
   build-types:
-    if: true  # Disable this workflow
+    if: false # Disable this workflow
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -30,13 +30,13 @@ jobs:
         with:
           node-version: '22'
           cache: 'pnpm'
-          
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        
+
       - name: Build types
         run: cd packages/types && pnpm run build
-        
+
       - name: Upload types artifact
         uses: actions/upload-artifact@v4
         with:
@@ -64,7 +64,7 @@ jobs:
             pnpm-lock.yaml
             pnpm-workspace.yaml
             package.json
-          
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -75,7 +75,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'pnpm'
-          
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -88,13 +88,13 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.app }}-build-${{ hashFiles('apps/${{ matrix.app }}/**/*') }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.app }}-build-
-          
+
       - name: Download types artifact
         uses: actions/download-artifact@v4
         with:
           name: types-dist
           path: packages/types/dist
-          
+
       - name: Build app
         run: cd apps/${{ matrix.app }} && pnpm run build
 
