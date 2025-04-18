@@ -1,5 +1,6 @@
 import {
   HotTokenResult,
+  PaginatedHotTokensResult,
   PaginatedTokensResponse,
   TokenHolder,
   TokenStats,
@@ -12,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { subHours } from 'date-fns';
+import { subDays, subMonths } from 'date-fns';
 import { FindManyOptions, In, Repository } from 'typeorm';
 import { CommentEntity } from '../entities/comment.entity';
 import { TokenEntity } from '../entities/token.entity';
@@ -784,25 +785,74 @@ export class TokensService {
   }
 
   /**
-   * Finds tokens with the most comments in the last 24 hours.
+   * Finds tokens with the most comments in a specified time period.
+   * @param page Page number for pagination
+   * @param limit Items per page
+   * @param timePeriod Time period to consider ('1d', '4d', '7d', '1M', etc.)
+   * @returns Paginated hot tokens result
    */
-  async getHotTokens(limit: number = 8): Promise<HotTokenResult[]> {
+  async getHotTokens(
+    page: number = 1,
+    limit: number = 8,
+    timePeriod: string = '7d',
+  ): Promise<PaginatedHotTokensResult> {
     try {
-      const twentyFourHoursAgo = subHours(new Date(), 24);
+      const now = new Date();
+      let startDate: Date;
 
-      const results = await this.commentRepository
+      if (timePeriod.endsWith('d')) {
+        const days = parseInt(timePeriod.slice(0, -1));
+        if (isNaN(days) || days < 1) {
+          this.logger.warn(
+            `Invalid time period format: ${timePeriod}, using default 7d`,
+          );
+          startDate = subDays(now, 7);
+        } else {
+          startDate = subDays(now, days);
+        }
+      } else if (timePeriod.endsWith('M')) {
+        const months = parseInt(timePeriod.slice(0, -1));
+        if (isNaN(months) || months < 1) {
+          this.logger.warn(
+            `Invalid time period format: ${timePeriod}, using default 7d`,
+          );
+          startDate = subDays(now, 7);
+        } else {
+          startDate = subMonths(now, months);
+        }
+      } else {
+        this.logger.warn(
+          `Unsupported time period format: ${timePeriod}, using default 7d`,
+        );
+        startDate = subDays(now, 7);
+      }
+
+      const skip = (page - 1) * limit;
+
+      const resultsQueryBuilder = this.commentRepository
         .createQueryBuilder('comment')
         .select('comment.tokenMintAddress', 'mintAddress')
         .addSelect('COUNT(comment.id)::int', 'commentCount')
-        .where('comment.createdAt >= :date', { date: twentyFourHoursAgo })
+        .where('comment.createdAt >= :date', { date: startDate })
         .andWhere('comment.removedById IS NULL')
         .groupBy('comment.tokenMintAddress')
         .orderBy('"commentCount"', 'DESC')
-        .limit(limit)
-        .getRawMany();
+        .offset(skip)
+        .limit(limit);
+
+      const results = await resultsQueryBuilder.getRawMany();
+
+      // Separate query to get the total count of distinct tokens meeting the criteria
+      const total = await this.commentRepository
+        .createQueryBuilder('comment')
+        .select('comment.tokenMintAddress')
+        .where('comment.createdAt >= :date', { date: startDate })
+        .andWhere('comment.removedById IS NULL')
+        .groupBy('comment.tokenMintAddress')
+        .getCount();
 
       if (results.length === 0) {
-        return [];
+        return { items: [], meta: { total: 0, page, limit, totalPages: 0 } };
       }
 
       const mintAddresses = results.map((r) => r.mintAddress);
@@ -820,7 +870,7 @@ export class TokensService {
       const hotTokens: HotTokenResult[] = results
         .map((result) => {
           const tokenInfo = tokenMap.get(result.mintAddress);
-          const intermediateToken = tokenInfo
+          return tokenInfo
             ? {
                 mintAddress: result.mintAddress,
                 name: tokenInfo.name,
@@ -829,18 +879,15 @@ export class TokensService {
                 commentCount: result.commentCount,
               }
             : null;
-          return intermediateToken;
         })
-        .filter(
-          (token): token is HotTokenResult & { imageUrl: string | null } =>
-            token !== null,
-        )
-        .sort((a, b) => b.commentCount - a.commentCount);
+        .filter((token) => token !== null);
 
-      return hotTokens;
+      const totalPages = Math.ceil(total / limit);
+
+      return { items: hotTokens, meta: { total, page, limit, totalPages } };
     } catch (error) {
       this.logger.error('[getHotTokens] Error finding hot tokens:', error);
-      return [];
+      return { items: [], meta: { total: 0, page, limit, totalPages: 0 } };
     }
   }
 }

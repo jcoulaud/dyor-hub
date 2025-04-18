@@ -1,5 +1,5 @@
 import {
-  HotTokenResult,
+  PaginatedHotTokensResult,
   PaginatedTokensResponse,
   TokenStats,
   TwitterUsernameHistoryEntity,
@@ -43,10 +43,13 @@ export class TokensController {
   @Public()
   @Get('hot')
   async getHotTokens(
-    @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number = 8,
-  ): Promise<HotTokenResult[]> {
-    limit = Math.min(Math.max(limit, 1), 20);
-    return this.tokensService.getHotTokens(limit);
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+    @Query('limit', new DefaultValuePipe(5), ParseIntPipe) limit: number = 5,
+    @Query('timePeriod', new DefaultValuePipe('7d')) timePeriod: string = '7d',
+  ): Promise<PaginatedHotTokensResult> {
+    limit = Math.min(Math.max(limit, 1), 25);
+    page = Math.max(page, 1);
+    return this.tokensService.getHotTokens(page, limit, timePeriod);
   }
 
   @Public()

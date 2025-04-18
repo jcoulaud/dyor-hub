@@ -93,6 +93,16 @@ export interface HotTokenResult {
   mintAddress: string;
   name: string;
   symbol: string;
-  imageUrl?: string | null;
+  imageUrl: string | null;
   commentCount: number;
+}
+
+export interface PaginatedHotTokensResult {
+  items: HotTokenResult[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }

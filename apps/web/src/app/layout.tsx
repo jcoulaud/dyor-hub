@@ -18,9 +18,9 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
   description:
-    'Your trusted platform for Solana memecoin discussions, research, and real-time updates. Connect with verified Twitter users, discover trending tokens, and make informed decisions.',
+    'Your trusted platform for Solana memecoin insights, discussions, and real-time updates. Connect with verified users, share research, make predictions, and trade smarter.',
   keywords:
-    'Solana, memecoin, cryptocurrency, token research, crypto community, DYOR, blockchain, token discussions',
+    'Solana, memecoin, cryptocurrency, token research, predcrypto community, DYOR, blockchain, token discussions',
   metadataBase: new URL(process.env.NEXT_PUBLIC_URL || 'https://dyorhub.xyz'),
   icons: {
     icon: [
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
     description:
-      'Your trusted platform for Solana memecoin discussions, research, and real-time updates. Connect with verified Twitter users, discover trending tokens, and make informed decisions.',
+      'Your trusted platform for Solana memecoin insights, discussions, and real-time updates. Connect with verified users, share research, make predictions, and trade smarter.',
     type: 'website',
     images: [
       {
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
     description:
-      'Your trusted platform for Solana memecoin discussions, research, and real-time updates. Connect with verified Twitter users, discover trending tokens, and make informed decisions.',
+      'Your trusted platform for Solana memecoin insights, discussions, and real-time updates. Connect with verified users, share research, make predictions, and trade smarter.',
     creator: '@JulienCoulaud',
   },
 };

@@ -8,11 +8,11 @@ import {
   Comment,
   CreateCommentDto,
   CreateTokenCallInput,
-  HotTokenResult,
   LeaderboardEntry,
   LeaderboardResponse,
   NotificationPreference,
   NotificationsResponse,
+  PaginatedHotTokensResult,
   PaginatedLatestCommentsResponse,
   PaginatedTokenCallsResult,
   PaginatedTokensResponse,
@@ -665,14 +665,22 @@ export const tokens = {
   getCurrentTokenPrice: (mintAddress: string): Promise<{ price: number }> =>
     api<{ price: number }>(`tokens/${mintAddress}/current-price`),
 
-  hot: async (limit: number = 8): Promise<HotTokenResult[]> => {
+  hot: async (
+    page: number = 1,
+    limit: number = 5,
+    timePeriod: string = '7d',
+  ): Promise<PaginatedHotTokensResult> => {
     try {
-      const endpoint = `tokens/hot?limit=${limit}`;
-      const data = await api<HotTokenResult[]>(endpoint);
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      params.append('timePeriod', timePeriod);
+      const endpoint = `tokens/hot?${params.toString()}`;
+      const data = await api<PaginatedHotTokensResult>(endpoint);
       return data;
     } catch (error) {
       console.error(`Error fetching hot tokens:`, error);
-      throw error;
+      return { items: [], meta: { total: 0, page: 1, limit: limit, totalPages: 0 } };
     }
   },
 };

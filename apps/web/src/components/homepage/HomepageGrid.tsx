@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { HotTokensFeed } from './HotTokensFeed';
 import { LatestAddedTokens } from './LatestAddedTokens';
 import { LatestCommentsFeed } from './LatestCommentsFeed';
@@ -8,50 +8,56 @@ import { SearchToken } from './SearchToken';
 import { SuccessfulTokenCallsFeed } from './SuccessfulTokenCallsFeed';
 import { TopReputationUsers } from './TopReputationUsers';
 
-export const HomepageGrid: React.FC = () => {
+export const HomepageGrid = memo(() => {
   return (
-    <div className='w-full bg-black py-4 min-h-screen'>
-      <div className='max-w-[1600px] mx-auto px-3 sm:px-6'>
-        {/* Bento Grid Layout */}
-        <div className='grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 mt-6 relative z-10'>
-          {/* Left Column */}
-          <div className='lg:col-span-3 space-y-5'>
-            <LatestTokenCallsFeed />
-            <LatestAddedTokens />
-          </div>
-
-          {/* Middle-Right Columns */}
-          <div className='lg:col-span-9 space-y-5'>
-            {/* Platform Features and Hot Tokens */}
-            <div className='grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5'>
-              <div className='lg:col-span-8'>
-                <PlatformFeatures />
+    <div className='w-full py-12 relative overflow-x-hidden'>
+      <div className='max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
+        {/* Grid Layout */}
+        <div className='flex flex-col gap-6'>
+          {/* Main Content Area */}
+          <div className='grid grid-cols-12 gap-6'>
+            {/* Left Column */}
+            <div className='col-span-12 lg:col-span-3 flex flex-col gap-6 h-full'>
+              <div className='h-full transform hover:scale-[1.02] transition-transform duration-300'>
+                <LatestTokenCallsFeed />
               </div>
-              <div className='lg:col-span-4'>
-                <HotTokensFeed />
+              <div className='h-full transform hover:scale-[1.02] transition-transform duration-300'>
+                <LatestAddedTokens />
               </div>
             </div>
 
-            {/* Search, Comments and Successful Calls */}
-            <div className='grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5'>
-              <div className='lg:col-span-7'>
+            {/* Middle Column */}
+            <div className='col-span-12 lg:col-span-6 flex flex-col gap-6 h-full'>
+              <div className='transform hover:scale-[1.01] transition-transform duration-300'>
                 <SearchToken />
-                <div className='mt-5'>
-                  <LatestCommentsFeed />
-                </div>
               </div>
-              <div className='lg:col-span-5'>
+              <div className='transform hover:scale-[1.01] transition-transform duration-300'>
+                <LatestCommentsFeed />
+              </div>
+              <div className='transform hover:scale-[1.01] transition-transform duration-300'>
+                <TopReputationUsers />
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className='col-span-12 lg:col-span-3 flex flex-col gap-6 h-full'>
+              <div className='h-full transform hover:scale-[1.02] transition-transform duration-300'>
+                <HotTokensFeed />
+              </div>
+              <div className='h-full transform hover:scale-[1.02] transition-transform duration-300'>
                 <SuccessfulTokenCallsFeed />
               </div>
             </div>
+          </div>
 
-            {/* Top Contributors */}
-            <div className='w-full'>
-              <TopReputationUsers />
-            </div>
+          {/* Bottom Full Width Row */}
+          <div className='w-full mt-6 transform hover:scale-[1.01] transition-transform duration-300'>
+            <PlatformFeatures />
           </div>
         </div>
       </div>
     </div>
   );
-};
+});
+
+HomepageGrid.displayName = 'HomepageGrid';

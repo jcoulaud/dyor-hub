@@ -1,121 +1,129 @@
 import { TokenImage } from '@/components/tokens/TokenImage';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Pagination } from '@/components/ui/pagination';
+import { SectionCarousel } from '@/components/ui/section-carousel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { tokens } from '@/lib/api';
 import { Token } from '@dyor-hub/types';
-import { Coins } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-const TOKENS_PER_PAGE = 8;
-const MAX_PAGES = 5;
+const ITEMS_PER_PAGE = 5;
+const TOTAL_ITEMS_TO_FETCH = 25;
 
-export const LatestAddedTokens: React.FC = () => {
-  const [latestTokens, setLatestTokens] = useState<Token[]>([]);
+export const LatestAddedTokens = () => {
+  const [allTokens, setAllTokens] = useState<Token[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-
-  const fetchTokens = useCallback(async (page: number) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await tokens.list(page, TOKENS_PER_PAGE, 'createdAt');
-      setLatestTokens(result.data || []);
-      setTotalPages(Math.min(result.meta.totalPages || 1, MAX_PAGES));
-    } catch {
-      setError('Failed to load tokens.');
-      setLatestTokens([]);
-      setTotalPages(1);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
-    fetchTokens(currentPage);
-  }, [fetchTokens, currentPage]);
+    const fetchTokens = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await tokens.list(1, TOTAL_ITEMS_TO_FETCH, 'createdAt');
+        setAllTokens(result.data || []);
+      } catch {
+        setError('Failed to load tokens');
+        setAllTokens([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTokens();
+  }, []);
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) {
-      setCurrentPage(newPage);
+  const paginatedTokens = useMemo(() => {
+    const pages: Token[][] = [];
+    if (allTokens.length > 0) {
+      for (let i = 0; i < allTokens.length; i += ITEMS_PER_PAGE) {
+        pages.push(allTokens.slice(i, i + ITEMS_PER_PAGE));
+      }
     }
-  };
+    return pages.length > 0 ? pages : [[]];
+  }, [allTokens]);
 
   const renderSkeleton = () => (
-    <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3'>
-      {[...Array(TOKENS_PER_PAGE)].map((_, i) => (
-        <div key={i} className='flex flex-col items-center space-y-1 p-2'>
-          <Skeleton className='h-10 w-10 rounded-full' />
-          <Skeleton className='h-4 w-16' />
-          <Skeleton className='h-3 w-12' />
+    <div className='p-2 space-y-2'>
+      {[...Array(ITEMS_PER_PAGE)].map((_, i) => (
+        <div key={i} className='p-2 flex items-center gap-2 bg-zinc-900/40 rounded-lg opacity-50'>
+          <Skeleton className='h-8 w-8 rounded-full' />
+          <div className='flex-1'>
+            <Skeleton className='h-4 w-28 mb-1' />
+            <Skeleton className='h-3 w-16' />
+          </div>
         </div>
       ))}
     </div>
   );
 
-  const renderContent = () => {
-    if (error) {
-      return <p className='text-sm text-red-500 text-center py-4'>{error}</p>;
+  const renderTokenList = (tokensToRender: Token[]) => {
+    if (!tokensToRender || tokensToRender.length === 0) {
+      return (
+        <div className='p-2 text-sm text-zinc-400 h-full flex items-center justify-center'>
+          No tokens found for this page.
+        </div>
+      );
     }
-
-    if (isLoading && latestTokens.length === 0) {
-      return renderSkeleton();
-    }
-
-    if (latestTokens.length === 0 && !isLoading) {
-      return <p className='text-sm text-zinc-500 text-center py-4'>No tokens found.</p>;
-    }
-
     return (
-      <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3'>
-        {latestTokens.map((token) => (
+      <div className='p-2 space-y-2'>
+        {tokensToRender.map((token) => (
           <Link
-            href={`/tokens/${token.mintAddress}`}
             key={token.mintAddress}
-            className='flex flex-col items-center p-2 rounded-md hover:bg-zinc-800/50 transition-colors text-center group'>
+            href={`/tokens/${token.mintAddress}`}
+            className='flex items-center gap-2 p-2.5 rounded-lg bg-zinc-800/40 border border-green-800/20 hover:border-green-500/30 hover:bg-zinc-800/60 transition-all duration-200 group'>
             <TokenImage
               imageUrl={token.imageUrl}
               name={token.name}
               symbol={token.symbol}
-              size='medium'
+              size='small'
+              className='h-9 w-9 border border-zinc-700/50'
             />
-            <p className='text-sm font-medium text-zinc-200 mt-2 truncate w-full group-hover:text-blue-400 transition-colors'>
-              {token.name}
-            </p>
-            <p className='text-xs text-zinc-500 group-hover:text-zinc-400 transition-colors'>
-              ${token.symbol}
-            </p>
+            <div className='flex-1 min-w-0 py-0.5'>
+              <p className='text-sm font-medium text-white truncate'>{token.name}</p>
+              <p className='text-xs text-zinc-400 truncate'>${token.symbol}</p>
+            </div>
           </Link>
         ))}
       </div>
     );
   };
 
+  const renderContent = () => {
+    if (error) {
+      return [
+        <div key='error' className='text-sm text-red-500 px-3 py-2'>
+          {error}
+        </div>,
+      ];
+    }
+
+    if (isLoading) {
+      return [<div key='loading'>{renderSkeleton()}</div>];
+    }
+
+    if (allTokens.length === 0) {
+      return [
+        <div
+          key='empty'
+          className='text-sm text-zinc-500 px-3 py-2 h-full flex items-center justify-center'>
+          No tokens found
+        </div>,
+      ];
+    }
+
+    return paginatedTokens.map((pageTokens, pageIndex) => (
+      <div key={`page-${pageIndex}`} className='h-full'>
+        {renderTokenList(pageTokens)}
+      </div>
+    ));
+  };
+
   return (
-    <Card className='backdrop-blur-sm bg-zinc-900/40 border-zinc-800/60 overflow-hidden h-full rounded-xl'>
-      <CardHeader className='py-4 px-5'>
-        <div className='flex items-center gap-3'>
-          <div className='h-7 w-7 rounded-full bg-gradient-to-br from-blue-500/30 to-indigo-500/30 flex items-center justify-center'>
-            <Coins className='h-4 w-4 text-blue-500' />
-          </div>
-          <CardTitle className='text-base font-semibold text-white'>Latest Added Tokens</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className='flex-grow flex items-center justify-center min-h-0 p-5 pt-0'>
-        {isLoading && currentPage === 1 ? renderSkeleton() : renderContent()}
-      </CardContent>
-      {totalPages > 1 && (
-        <CardFooter className='pt-4 border-t border-zinc-800/50'>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
-        </CardFooter>
-      )}
-    </Card>
+    <SectionCarousel
+      title='Latest Added Tokens'
+      icon={<Plus className='h-5 w-5 text-green-500' />}
+      gradient='from-zinc-900/90 via-zinc-800/80 to-zinc-900/90'>
+      {renderContent()}
+    </SectionCarousel>
   );
 };

@@ -61,7 +61,9 @@ export default function LinksPage() {
       <div className='mx-auto max-w-xl'>
         <div className='mb-8 text-center space-y-2'>
           <h1 className='text-2xl font-medium text-zinc-200'>DYOR hub</h1>
-          <p className='text-zinc-400'>Your trusted platform for Solana memecoin discussions</p>
+          <p className='text-zinc-400'>
+            Your trusted platform for Solana memecoin insights, discussions, and real-time updates.
+          </p>
         </div>
 
         <div className='space-y-3'>
