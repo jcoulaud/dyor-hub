@@ -5,14 +5,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { leaderboards } from '@/lib/api';
 import { formatLargeNumber, getHighResAvatar } from '@/lib/utils';
 import { LeaderboardCategory, LeaderboardTimeframe, UserReputation } from '@dyor-hub/types';
-import { Award, ChevronRight, TrendingUp } from 'lucide-react';
+import { Award, ChevronLeft, ChevronRight, Trophy } from 'lucide-react';
 import Link from 'next/link';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export const TopReputationUsers: React.FC = () => {
   const [users, setUsers] = useState<UserReputation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -23,9 +24,9 @@ export const TopReputationUsers: React.FC = () => {
           LeaderboardCategory.REPUTATION,
           LeaderboardTimeframe.ALL_TIME,
           1, // Page 1
-          10, // Limit 10
+          8, // Limit 8
         );
-        setUsers(result.users || []);
+        setUsers(result.users?.slice(0, 8) || []);
       } catch {
         setError('Failed to load users.');
         setUsers([]);
@@ -37,16 +38,33 @@ export const TopReputationUsers: React.FC = () => {
     fetchUsers();
   }, []);
 
+  const nextSlide = () => {
+    if (carouselRef.current) {
+      carouselRef.current.scrollBy({
+        left: carouselRef.current.offsetWidth / 2,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  const prevSlide = () => {
+    if (carouselRef.current) {
+      carouselRef.current.scrollBy({
+        left: -carouselRef.current.offsetWidth / 2,
+        behavior: 'smooth',
+      });
+    }
+  };
+
   const renderSkeleton = () => (
-    <div className='space-y-3 px-3 pb-3'>
-      {[...Array(10)].map((_, i) => (
-        <div key={i} className='flex items-center space-x-3 py-2'>
-          <Skeleton className='h-10 w-10 rounded-full' />
-          <div className='flex-1 space-y-1'>
-            <Skeleton className='h-4 w-3/4' />
-            <Skeleton className='h-3 w-1/2' />
-          </div>
-          <Skeleton className='h-6 w-16' />
+    <div className='flex gap-4 overflow-hidden pb-4'>
+      {[...Array(4)].map((_, i) => (
+        <div
+          key={i}
+          className='flex-shrink-0 w-40 flex flex-col items-center p-4 rounded-lg bg-zinc-900/60 border border-zinc-800/60'>
+          <Skeleton className='h-14 w-14 rounded-full mb-3' />
+          <Skeleton className='h-4 w-3/4 mb-2' />
+          <Skeleton className='h-3 w-1/2' />
         </div>
       ))}
     </div>
@@ -54,49 +72,79 @@ export const TopReputationUsers: React.FC = () => {
 
   const renderContent = () => {
     if (error) {
-      return <p className='text-sm text-red-500 px-4 pb-4'>{error}</p>;
+      return <p className='text-sm text-red-500 text-center py-4'>{error}</p>;
     }
 
     if (users.length === 0) {
-      return <p className='text-sm text-zinc-500 px-4 pb-4'>No users yet.</p>;
+      return <p className='text-sm text-zinc-500 text-center py-4'>No users found.</p>;
     }
 
     return (
-      <div className='space-y-1'>
+      <div
+        ref={carouselRef}
+        className='flex gap-4 overflow-x-auto pb-4 snap-x scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent'>
         {users.map((user, index) => {
           const userAvatarSrc = user.avatarUrl && getHighResAvatar(user.avatarUrl);
+
+          const medalClasses = {
+            bgColor:
+              index === 0
+                ? 'bg-amber-500/20'
+                : index === 1
+                  ? 'bg-zinc-300/20'
+                  : index === 2
+                    ? 'bg-amber-700/20'
+                    : 'bg-zinc-800/80',
+            borderColor:
+              index === 0
+                ? 'border-amber-500/40'
+                : index === 1
+                  ? 'border-zinc-400/40'
+                  : index === 2
+                    ? 'border-amber-700/40'
+                    : 'border-zinc-700/40',
+            textColor:
+              index === 0
+                ? 'text-amber-500'
+                : index === 1
+                  ? 'text-zinc-300'
+                  : index === 2
+                    ? 'text-amber-700'
+                    : 'text-zinc-500',
+          };
+
+          const medalEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null;
 
           return (
             <Link
               href={`/users/${user.username}`}
               key={user.userId}
-              className='flex items-center p-3 rounded-md hover:bg-zinc-800/50 transition-colors group'>
-              <span className='w-6 text-center font-medium text-zinc-400 mr-3 flex-shrink-0'>
-                {index === 0 && '🥇'}
-                {index === 1 && '🥈'}
-                {index === 2 && '🥉'}
-                {index > 2 && `#${index + 1}`}
-              </span>
-              <Avatar className='h-10 w-10 border border-zinc-700'>
+              className={`flex-shrink-0 w-40 flex flex-col items-center p-4 rounded-xl ${medalClasses.bgColor} border ${medalClasses.borderColor} hover:bg-zinc-800/60 transition-all duration-300 snap-start group`}>
+              {medalEmoji && (
+                <div className='mb-1'>
+                  <span className='text-lg'>{medalEmoji}</span>
+                </div>
+              )}
+
+              <Avatar className='h-16 w-16 border-2 border-zinc-700 group-hover:border-zinc-600 transition-colors mb-3'>
                 <AvatarImage src={userAvatarSrc ?? undefined} alt={user.displayName} />
-                <AvatarFallback className='text-sm bg-zinc-800'>
+                <AvatarFallback className='text-base bg-zinc-800'>
                   {user.displayName?.substring(0, 2).toUpperCase() || '??'}
                 </AvatarFallback>
               </Avatar>
-              <div className='flex-1 min-w-0 ml-3'>
-                <p className='text-sm font-medium text-zinc-200 truncate group-hover:text-amber-400 transition-colors'>
+
+              <div className='text-center mb-2 w-full'>
+                <p className='text-sm font-medium text-white truncate group-hover:text-blue-400 transition-colors'>
                   {user.displayName}
                 </p>
-                <p className='text-xs text-zinc-500'>@{user.username}</p>
+                <p className='text-xs text-zinc-500 truncate'>@{user.username}</p>
               </div>
-              <div className='text-right flex-shrink-0 ml-2'>
-                <p className='font-bold text-sm text-zinc-200'>
-                  {formatLargeNumber(user.totalPoints)}
-                </p>
-                <p className='text-xs text-green-500 flex items-center justify-end'>
-                  <TrendingUp className='h-3 w-3 mr-0.5' />
-                  {formatLargeNumber(user.weeklyPoints)} this week
-                </p>
+
+              <div className='flex items-center gap-1 bg-zinc-800/70 px-2 py-1 rounded-full'>
+                <Award className='h-3 w-3 text-amber-400' />
+                <span className='text-xs font-medium text-zinc-300'>
+                  {formatLargeNumber(user.totalPoints || 0)}
+                </span>
               </div>
             </Link>
           );
@@ -106,22 +154,43 @@ export const TopReputationUsers: React.FC = () => {
   };
 
   return (
-    <Card className='h-full flex flex-col'>
-      <CardHeader className='flex flex-row items-center justify-between pb-2'>
-        <CardTitle className='text-base font-medium flex items-center'>
-          <Award className='h-4 w-4 mr-2 text-amber-400' />
-          Top Reputation Users
-        </CardTitle>
-        <Button variant='ghost' size='sm' className='h-7 px-2 py-1' asChild>
-          <Link href='/leaderboard?category=reputation&page=1'>
-            View All
-            <ChevronRight className='h-4 w-4 ml-1' />
-          </Link>
-        </Button>
+    <Card className='border-zinc-800/60 bg-zinc-900/40 overflow-hidden'>
+      <CardHeader className='pb-3 flex flex-row items-center justify-between'>
+        <div className='flex items-center'>
+          <div className='p-1.5 bg-amber-500/20 rounded-lg mr-2'>
+            <Trophy className='h-4 w-4 text-amber-500' />
+          </div>
+          <CardTitle className='text-lg font-medium text-white'>Top Contributors</CardTitle>
+        </div>
+
+        <div className='flex items-center gap-2'>
+          <Button
+            variant='ghost'
+            size='icon'
+            className='h-7 w-7 rounded-full hover:bg-zinc-800'
+            onClick={prevSlide}>
+            <ChevronLeft className='h-4 w-4 text-zinc-400' />
+          </Button>
+
+          <Button
+            variant='ghost'
+            size='icon'
+            className='h-7 w-7 rounded-full hover:bg-zinc-800'
+            onClick={nextSlide}>
+            <ChevronRight className='h-4 w-4 text-zinc-400' />
+          </Button>
+
+          <Button
+            asChild
+            variant='outline'
+            size='sm'
+            className='text-zinc-400 hover:text-white h-7 ml-2'>
+            <Link href='/leaderboard'>View All</Link>
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className='flex-grow overflow-hidden pt-0'>
-        {isLoading ? renderSkeleton() : renderContent()}
-      </CardContent>
+
+      <CardContent className='px-6'>{isLoading ? renderSkeleton() : renderContent()}</CardContent>
     </Card>
   );
 };

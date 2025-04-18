@@ -1,4 +1,4 @@
-import { TokenImage } from '@/components/tokens/TokenImage'; // Reuse TokenImage
+import { TokenImage } from '@/components/tokens/TokenImage';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Pagination } from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -95,14 +95,16 @@ export const LatestAddedTokens: React.FC = () => {
   };
 
   return (
-    <Card className='h-full flex flex-col'>
-      <CardHeader className='pb-2'>
-        <CardTitle className='text-base font-medium flex items-center'>
-          <Coins className='h-4 w-4 mr-2 text-yellow-400' />
-          Latest Added Tokens
-        </CardTitle>
+    <Card className='backdrop-blur-sm bg-zinc-900/40 border-zinc-800/60 overflow-hidden h-full rounded-xl'>
+      <CardHeader className='py-4 px-5'>
+        <div className='flex items-center gap-3'>
+          <div className='h-7 w-7 rounded-full bg-gradient-to-br from-blue-500/30 to-indigo-500/30 flex items-center justify-center'>
+            <Coins className='h-4 w-4 text-blue-500' />
+          </div>
+          <CardTitle className='text-base font-semibold text-white'>Latest Added Tokens</CardTitle>
+        </div>
       </CardHeader>
-      <CardContent className='flex-grow flex items-center justify-center min-h-0 pt-0'>
+      <CardContent className='flex-grow flex items-center justify-center min-h-0 p-5 pt-0'>
         {isLoading && currentPage === 1 ? renderSkeleton() : renderContent()}
       </CardContent>
       {totalPages > 1 && (

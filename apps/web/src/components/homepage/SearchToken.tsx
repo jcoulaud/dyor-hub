@@ -40,45 +40,46 @@ export const SearchToken: React.FC = () => {
   );
 
   return (
-    <div className='h-full bg-zinc-900/50 border border-zinc-800/60 rounded-lg p-6 flex flex-col justify-center'>
-      <h1 className='text-xl font-semibold text-zinc-200 mb-2'>DYOR Hub</h1>
-      <p className='text-sm text-zinc-400 mb-4'>
-        Search for Solana tokens to find insights and community sentiment.
-      </p>
-      <form onSubmit={handleSubmit} className='space-y-3'>
-        <div className='flex flex-col sm:flex-row gap-3'>
-          <div className='relative flex-grow'>
-            {!isSearching && (
-              <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none' />
+    <div className='bg-zinc-900/40 border border-zinc-800/60 rounded-xl overflow-hidden p-4 relative'>
+      <form onSubmit={handleSubmit} className='flex flex-col gap-2'>
+        <div className='flex items-center gap-2 mb-2'>
+          <Search className='h-5 w-5 text-blue-400' />
+          <h2 className='text-base font-medium text-white'>Search Tokens</h2>
+        </div>
+
+        <div className='flex gap-2'>
+          <div className='relative flex-1'>
+            {isSearching ? (
+              <Loader2 className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 animate-spin' />
+            ) : (
+              <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500' />
             )}
-            {isSearching && (
-              <Loader2 className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 animate-spin' />
-            )}
+
             <Input
-              type='search'
+              type='text'
               value={address}
               onChange={(e) => {
                 setAddress(e.target.value);
                 setError('');
               }}
-              placeholder='Enter token name or mint address...'
-              className={cn('pl-10 h-11 w-full', isSearching && 'opacity-70 cursor-not-allowed')}
+              placeholder='Enter Solana token address'
+              className={cn(
+                'pl-10 py-2 h-10 bg-zinc-800/50 border-zinc-700/50 rounded-lg text-white text-sm placeholder:text-zinc-500',
+                isSearching && 'opacity-70',
+              )}
               disabled={isSearching}
             />
           </div>
+
           <Button
             type='submit'
             disabled={isSearching || !address.trim()}
-            className='h-11 min-w-[110px] bg-gradient-to-r from-blue-500 to-purple-500 hover:brightness-110 transition-all duration-200 shadow-lg hover:shadow-blue-500/30 flex-shrink-0'
-            aria-label={isSearching ? 'Searching...' : 'Find Token'}>
-            {isSearching ? <Loader2 className='h-5 w-5 animate-spin' /> : 'Find Token'}
+            className='bg-blue-600 hover:bg-blue-700 text-white h-10 rounded-lg text-sm px-4'>
+            {isSearching ? 'Searching...' : 'Find'}
           </Button>
         </div>
-        {error && (
-          <p className='text-sm font-medium text-red-500' role='alert'>
-            {error}
-          </p>
-        )}
+
+        {error && <p className='text-sm text-red-400 mt-1'>{error}</p>}
       </form>
     </div>
   );

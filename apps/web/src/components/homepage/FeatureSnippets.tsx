@@ -1,63 +1,97 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare, Newspaper, Users } from 'lucide-react';
+import { BarChart3, Globe, ShieldCheck } from 'lucide-react';
 import React from 'react';
 
 const features = [
   {
-    icon: Users,
-    title: 'Discuss',
+    icon: ShieldCheck,
+    title: 'Verified Research',
     description:
-      'Join conversations about memecoins with Twitter-verified users and build a trusted network of reliable sources.',
-    color: 'blue',
+      'Access reliable memecoin research from verified sources to make informed investment decisions.',
+    color: 'blue' as const,
   },
   {
-    icon: Newspaper,
-    title: 'Get Updates',
+    icon: Globe,
+    title: 'Community Insights',
     description:
-      'Find memecoin news and updates from verified sources with real-time notifications and alerts about important developments.',
-    color: 'purple',
+      'Connect with a trusted network of verified users sharing real-time updates and discoveries.',
+    color: 'purple' as const,
   },
   {
-    icon: MessageSquare,
-    title: 'Share Knowledge',
+    icon: BarChart3,
+    title: 'Token Analytics',
     description:
-      'Help others avoid scams by sharing your memecoin research and due diligence with the community of verified users.',
-    color: 'green',
+      'Track memecoin performance with comprehensive analytics, sentiment tracking, and price action.',
+    color: 'green' as const,
   },
 ];
 
+type FeatureColor = 'blue' | 'purple' | 'green';
+
 export const FeatureSnippets: React.FC = () => {
   return (
-    <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-      {features.map((feature) => {
-        const Icon = feature.icon;
-        const iconColorClass = {
-          blue: 'text-blue-400 bg-blue-500/10 group-hover:bg-blue-500/20',
-          purple: 'text-purple-400 bg-purple-500/10 group-hover:bg-purple-500/20',
-          green: 'text-green-400 bg-green-500/10 group-hover:bg-green-500/20',
-        }[feature.color];
+    <section className='py-6'>
+      <h2 className='text-2xl font-bold text-center mb-8 bg-clip-text text-transparent bg-gradient-to-r from-zinc-100 to-zinc-400'>
+        Why Choose DYOR Hub
+      </h2>
 
-        return (
-          <Card
-            key={feature.title}
-            className='relative group h-full bg-zinc-900/40 backdrop-blur-sm border border-zinc-800/60 rounded-xl overflow-hidden hover:bg-zinc-800/30 transition-colors'>
-            <CardHeader className='pb-3'>
-              <div className='flex items-center mb-2'>
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+        {features.map((feature) => {
+          const Icon = feature.icon;
+          const styles = {
+            blue: {
+              bgGradient: 'from-blue-500/10 to-blue-600/5',
+              iconBg: 'bg-blue-500/20',
+              iconColor: 'text-blue-400',
+              hoverBorder: 'group-hover:border-blue-500/30',
+              hoverText: 'group-hover:text-blue-400',
+            },
+            purple: {
+              bgGradient: 'from-purple-500/10 to-purple-600/5',
+              iconBg: 'bg-purple-500/20',
+              iconColor: 'text-purple-400',
+              hoverBorder: 'group-hover:border-purple-500/30',
+              hoverText: 'group-hover:text-purple-400',
+            },
+            green: {
+              bgGradient: 'from-emerald-500/10 to-emerald-600/5',
+              iconBg: 'bg-emerald-500/20',
+              iconColor: 'text-emerald-400',
+              hoverBorder: 'group-hover:border-emerald-500/30',
+              hoverText: 'group-hover:text-emerald-400',
+            },
+          };
+          const colorStyle = styles[feature.color as FeatureColor];
+
+          return (
+            <Card
+              key={feature.title}
+              className={`group relative overflow-hidden bg-zinc-900/40 border border-zinc-800/60 rounded-xl transition-all duration-300 hover:bg-zinc-900/60 ${colorStyle.hoverBorder}`}>
+              {/* Background gradient */}
+              <div
+                className={`absolute inset-0 bg-gradient-to-br ${colorStyle.bgGradient} opacity-40`}
+              />
+
+              <CardHeader className='pb-2 relative z-10'>
                 <div
-                  className={`h-10 w-10 rounded-lg ${iconColorClass} flex items-center justify-center mr-3 transition-colors duration-300`}>
-                  <Icon className='h-5 w-5' />
+                  className={`w-10 h-10 rounded-lg ${colorStyle.iconBg} flex items-center justify-center mb-4`}>
+                  <Icon className={`h-5 w-5 ${colorStyle.iconColor}`} />
                 </div>
-                <CardTitle className='text-lg font-semibold text-white'>{feature.title}</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className='text-zinc-300 text-sm'>
-                {feature.description}
-              </CardDescription>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+                <CardTitle
+                  className={`text-lg font-medium text-white transition-colors duration-300 ${colorStyle.hoverText}`}>
+                  {feature.title}
+                </CardTitle>
+              </CardHeader>
+
+              <CardContent className='relative z-10'>
+                <CardDescription className='text-zinc-400 text-sm'>
+                  {feature.description}
+                </CardDescription>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </section>
   );
 };
