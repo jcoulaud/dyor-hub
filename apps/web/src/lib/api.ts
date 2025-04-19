@@ -8,12 +8,14 @@ import {
   Comment,
   CreateCommentDto,
   CreateTokenCallInput,
-  LatestComment,
   LeaderboardEntry,
   LeaderboardResponse,
   NotificationPreference,
   NotificationsResponse,
+  PaginatedHotTokensResult,
+  PaginatedLatestCommentsResponse,
   PaginatedTokenCallsResult,
+  PaginatedTokensResponse,
   SentimentType,
   StreakMilestone,
   StreakMilestonesResponse,
@@ -58,7 +60,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3001'
 // (Removed unused TTL constants)
 
 type TokenWithWatchlistStatus = Token & { isWatchlisted?: boolean };
-type TokenListItem = Token;
+// type TokenListItem = Token; // Removed unused type alias
 
 const isApiSubdomain = (() => {
   try {
@@ -125,16 +127,22 @@ const setCache = <T>(key: string, data: T, ttl: number = CACHE_TTL): void => {
 // Helper function to determine if an endpoint is for public user data
 const isPublicUserRoute = (endpoint: string): boolean => {
   const normalizedEndpoint = endpoint.replace(/^\/+/, '');
+  // Exclude exact match for 'users' base path if needed, depends on API structure
   return (
     normalizedEndpoint.startsWith('users/') && // User profiles
-    !normalizedEndpoint.startsWith('users/me/') // Exclude my profile
+    !normalizedEndpoint.startsWith('users/me/') && // Exclude my profile
+    normalizedEndpoint !== 'users' // Assuming GET /users is not public
   );
 };
 
 // Helper function to determine if an endpoint is for public token data
 const isPublicTokenRoute = (endpoint: string): boolean => {
   const normalizedEndpoint = endpoint.replace(/^\/+/, '');
-  return normalizedEndpoint.startsWith('tokens/');
+  return (
+    normalizedEndpoint.startsWith('tokens/') &&
+    normalizedEndpoint !== 'tokens' &&
+    normalizedEndpoint !== 'tokens/hot'
+  );
 };
 
 // Handle public endpoints separately with a no-auth approach
@@ -230,16 +238,25 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
     method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH';
 
   // Check for specific authenticated actions OR paths that always need auth context
-  const isSentimentEndpoint = endpoint.includes('/sentiment'); // Any sentiment action needs auth
-  const isWatchlistMutation = endpoint.startsWith('watchlist/tokens/') && requiresAuth; // Only watchlist mutations need auth here
+  const isSentimentEndpoint = endpoint.includes('/sentiment');
+  const isWatchlistMutation = endpoint.startsWith('watchlist/tokens/') && requiresAuth;
 
-  // If it's NOT a sentiment endpoint, AND NOT a watchlist mutation,
-  // AND it matches the general public route patterns, use publicApi.
-  if (
+  // Determine if this specific path should use publicApi
+  const usePublicApi =
     !isSentimentEndpoint &&
     !isWatchlistMutation &&
-    (isPublicUserRoute(endpoint) || isPublicTokenRoute(endpoint))
-  ) {
+    (isPublicUserRoute(endpoint) ||
+      isPublicTokenRoute(endpoint) ||
+      // Explicitly allow specific public non-token/user routes like tokens/hot or base tokens list
+      endpoint === 'tokens/hot' ||
+      endpoint.startsWith('tokens/hot?') ||
+      endpoint === 'tokens' ||
+      endpoint.startsWith('tokens?') ||
+      endpoint === 'comments/global' ||
+      endpoint.startsWith('comments/global?'));
+  // Add other specific public routes here
+
+  if (usePublicApi) {
     return publicApi<T>(endpoint, options);
   }
 
@@ -375,8 +392,13 @@ export const comments = {
     }
   },
 
-  latest: async (limit: number = 5): Promise<LatestComment[]> => {
-    const response = await api<LatestComment[]>(`comments/latest?limit=${limit}`);
+  listGlobal: async (
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedLatestCommentsResponse> => {
+    const response = await api<PaginatedLatestCommentsResponse>(
+      `comments/global?page=${page}&limit=${limit}`,
+    );
     return response;
   },
 
@@ -454,26 +476,17 @@ export const tokens = {
     page: number = 1,
     limit: number = 10,
     sortBy: string = '',
-    filter: string = '',
-  ): Promise<TokenListItem[]> => {
+  ): Promise<PaginatedTokensResponse> => {
     try {
       const params = new URLSearchParams();
       params.append('page', page.toString());
       params.append('limit', limit.toString());
       if (sortBy) params.append('sortBy', sortBy);
-      if (filter) params.append('filter', filter);
 
       const endpoint = `tokens?${params.toString()}`;
-      const cacheKey = `api:${endpoint}`;
+      apiCache.delete(`api:${endpoint}`);
 
-      // Short cache for token list
-      const cachedData = getCache<TokenListItem[]>(cacheKey);
-      if (cachedData) {
-        return cachedData;
-      }
-
-      const data = await api<TokenListItem[]>(endpoint);
-      setCache(cacheKey, data, 5 * 1000);
+      const data = await api<PaginatedTokensResponse>(endpoint);
       return data;
     } catch (error) {
       console.error(`Error fetching token list:`, error);
@@ -651,6 +664,25 @@ export const tokens = {
 
   getCurrentTokenPrice: (mintAddress: string): Promise<{ price: number }> =>
     api<{ price: number }>(`tokens/${mintAddress}/current-price`),
+
+  hot: async (
+    page: number = 1,
+    limit: number = 5,
+    timePeriod: string = '7d',
+  ): Promise<PaginatedHotTokensResult> => {
+    try {
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      params.append('timePeriod', timePeriod);
+      const endpoint = `tokens/hot?${params.toString()}`;
+      const data = await api<PaginatedHotTokensResult>(endpoint);
+      return data;
+    } catch (error) {
+      console.error(`Error fetching hot tokens:`, error);
+      return { items: [], meta: { total: 0, page: 1, limit: limit, totalPages: 0 } };
+    }
+  },
 };
 
 export const users = {

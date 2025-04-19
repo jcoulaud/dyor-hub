@@ -1,15 +1,22 @@
-import { CreateCommentDto, UpdateCommentDto, VoteType } from '@dyor-hub/types';
+import {
+  CreateCommentDto,
+  PaginatedLatestCommentsResponse,
+  UpdateCommentDto,
+  VoteType,
+} from '@dyor-hub/types';
 import {
   BadRequestException,
   Body,
   ClassSerializerInterceptor,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   InternalServerErrorException,
   Logger,
   NotFoundException,
   Param,
+  ParseIntPipe,
   Post,
   Put,
   Query,
@@ -23,7 +30,6 @@ import { Public } from '../auth/decorators/public.decorator';
 import { CommentsService } from './comments.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CommentThreadResponseDto } from './dto/comment-thread-response.dto';
-import { LatestCommentResponseDto } from './dto/latest-comment-response.dto';
 import { VoteResponseDto } from './dto/vote-response.dto';
 
 @Controller('comments')
@@ -155,19 +161,15 @@ export class CommentsController {
   }
 
   @Public()
-  @Get('latest')
-  async getLatestComments(
-    @Query('limit') limit = '5',
-  ): Promise<LatestCommentResponseDto[]> {
-    const comments = await this.commentsService.findLatestComments(
-      parseInt(limit, 10),
-    );
+  @Get('global')
+  async getGlobalComments(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number = 10,
+  ): Promise<PaginatedLatestCommentsResponse> {
+    limit = Math.min(Math.max(limit, 1), 50);
+    const result = await this.commentsService.findAllGlobal(page, limit);
 
-    return comments.map((comment) =>
-      plainToInstance(LatestCommentResponseDto, comment, {
-        excludeExtraneousValues: true,
-      }),
-    );
+    return result;
   }
 
   @Get(':id')
