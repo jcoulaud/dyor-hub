@@ -412,7 +412,7 @@ export function NotificationBell() {
                       }}>
                       <p
                         className={cn(
-                          'text-xs leading-snug mb-0.5 group-hover:text-sky-300 transition-colors truncate',
+                          'text-xs leading-snug mb-0.5 group-hover:text-sky-300 transition-colors',
                           notification.isRead ? 'text-zinc-400' : 'text-zinc-200 font-medium',
                         )}>
                         {sanitizeHtml(notification.message)}
