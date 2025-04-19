@@ -221,7 +221,7 @@ const TokenPriceChartComponent = memo(
                   const data = payload[0].payload as ChartPoint;
                   const value = dataKey === 'marketCap' ? data.marketCap! : data.price;
 
-                  const displayValue = dataKey === 'marketCap' ? value * 1000000 : value;
+                  const displayValue = value;
 
                   return (
                     <div className='bg-zinc-800/90 px-3 py-2 rounded-lg border border-zinc-700/50 shadow-lg backdrop-blur-sm'>
