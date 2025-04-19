@@ -172,8 +172,7 @@ export const HotTokensFeed = memo(() => {
     <SectionCarousel
       title='Hot Tokens'
       icon={<Flame className='h-5 w-5 text-amber-400' />}
-      gradient='from-zinc-900/95 via-zinc-800/90 to-amber-950/10'
-      viewAllLink='/tokens'>
+      gradient='from-zinc-900/95 via-zinc-800/90 to-amber-950/10'>
       {renderContent()}
     </SectionCarousel>
   );

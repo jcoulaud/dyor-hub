@@ -3,15 +3,6 @@ import { memo } from 'react';
 export const Hero = memo(() => {
   return (
     <section className='relative w-full py-6 md:py-8 lg:py-12 overflow-hidden'>
-      {/* Animated background elements */}
-      <div className='absolute inset-0 -z-10'>
-        <div className='absolute top-0 left-0 w-[800px] h-[800px] bg-gradient-to-r from-blue-500/20 to-emerald-500/20 rounded-full filter blur-[100px] opacity-60 animate-pulse animate-slow'></div>
-        <div className='absolute bottom-0 right-0 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full filter blur-[100px] opacity-60 animate-pulse animate-slower'></div>
-      </div>
-
-      {/* Subtle grid pattern overlay */}
-      <div className='absolute inset-0 bg-[url("/grid-pattern.svg")] bg-repeat opacity-5 -z-10'></div>
-
       <div className='container mx-auto px-3 md:px-6 relative z-10'>
         <div className='flex flex-col items-center text-center max-w-4xl mx-auto'>
           <div className='space-y-3 md:space-y-4'>
@@ -32,26 +23,6 @@ export const Hero = memo(() => {
           </div>
         </div>
       </div>
-
-      {/* Animated lines decorative element */}
-      <div className='absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-zinc-700/50 to-transparent'></div>
-
-      {/* Add custom style for removing scrollbar but keeping scroll functionality */}
-      <style jsx global>{`
-        .no-scrollbar {
-          -ms-overflow-style: none; /* IE and Edge */
-          scrollbar-width: none; /* Firefox */
-        }
-        .no-scrollbar::-webkit-scrollbar {
-          display: none; /* Chrome, Safari and Opera */
-        }
-        .animate-slow {
-          animation-duration: 8s;
-        }
-        .animate-slower {
-          animation-duration: 10s;
-        }
-      `}</style>
     </section>
   );
 });

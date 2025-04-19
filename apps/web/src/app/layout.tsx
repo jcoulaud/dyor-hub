@@ -57,7 +57,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang='en' suppressHydrationWarning className={`${poppins.variable}`}>
-      <body className='bg-black font-sans antialiased' suppressHydrationWarning>
+      <body className='font-sans antialiased' suppressHydrationWarning>
         <PlausibleProvider domain='dyorhub.xyz'>
           <ThemeProvider>
             <AuthProvider>
@@ -65,7 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Toaster>
                   <div className='flex flex-col min-h-screen w-full'>
                     <Header />
-                    <main className='flex-1 flex flex-col w-full'>{children}</main>
+                    <main className='flex-1 flex flex-col w-full relative'>{children}</main>
                     <Footer />
                   </div>
                 </Toaster>

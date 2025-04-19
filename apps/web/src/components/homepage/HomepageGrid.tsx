@@ -10,7 +10,7 @@ import { TopReputationUsers } from './TopReputationUsers';
 
 export const HomepageGrid = memo(() => {
   return (
-    <div className='w-full py-12 relative overflow-x-hidden'>
+    <div className='w-full pt-4 pb-24 relative overflow-x-hidden'>
       <div className='max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
         {/* Grid Layout */}
         <div className='flex flex-col gap-6'>

@@ -64,7 +64,6 @@ export const SectionCarousel: React.FC<SectionCarouselProps> = ({
     };
 
     emblaApi.on('select', onSelect);
-    // Initial calculation and trigger
     onSelect();
 
     return () => {
@@ -72,27 +71,15 @@ export const SectionCarousel: React.FC<SectionCarouselProps> = ({
     };
   }, [emblaApi, onPageVisible]);
 
-  // Add this useEffect to update totalSlides when children change
   useEffect(() => {
     if (!emblaApi) return;
     // Recalculate total slides and button states when children array changes length
     const currentChildrenCount = React.Children.count(children);
-    console.log(`SectionCarousel [${title}]: Children count is ${currentChildrenCount}`); // Log children count
     const slidesLength = emblaApi.scrollSnapList().length;
-    console.log(
-      `SectionCarousel [${title}]: Current embla scrollSnapList().length is ${slidesLength}`,
-    ); // Log embla's count
 
-    // Only update if the length actually changed to avoid unnecessary re-renders
-    // Let's also try updating if the direct children count doesn't match totalSlides yet
     if (slidesLength !== totalSlides || currentChildrenCount !== totalSlides) {
-      // Use currentChildrenCount as the most reliable source of truth for total slides
       const newTotalSlides = currentChildrenCount;
-      console.log(
-        `SectionCarousel [${title}]: Updating totalSlides from ${totalSlides} to ${newTotalSlides}`,
-      ); // Log update
       setTotalSlides(newTotalSlides);
-      // Re-initialize embla if necessary (might help if slide count changes drastically)
       emblaApi.reInit();
       setCanScrollPrev(emblaApi.canScrollPrev());
       setCanScrollNext(emblaApi.canScrollNext());

@@ -41,45 +41,57 @@ type FeatureCardProps = {
 const FeatureCard = memo(({ feature }: FeatureCardProps) => {
   const colorClasses = {
     blue: {
-      bg: 'from-blue-950/20 to-blue-900/10',
-      border: 'border-blue-700/20',
-      icon: 'text-blue-400',
-      glow: 'after:bg-blue-500/5',
-      hover: 'hover:border-blue-500/30 hover:shadow-blue-500/10',
+      bgGradient: 'from-blue-950 to-blue-900/80',
+      iconBg: 'bg-blue-900/40',
+      iconColor: 'text-blue-400',
+      borderColor: 'border-blue-600/20',
+      orb: 'bg-blue-500/10',
+      glowColor: '#3B82F6',
     },
     purple: {
-      bg: 'from-purple-950/20 to-purple-900/10',
-      border: 'border-purple-700/20',
-      icon: 'text-purple-400',
-      glow: 'after:bg-purple-500/5',
-      hover: 'hover:border-purple-500/30 hover:shadow-purple-500/10',
+      bgGradient: 'from-purple-950 to-purple-900/80',
+      iconBg: 'bg-purple-900/40',
+      iconColor: 'text-purple-400',
+      borderColor: 'border-purple-600/20',
+      orb: 'bg-purple-500/10',
+      glowColor: '#8B5CF6',
     },
     green: {
-      bg: 'from-emerald-950/20 to-emerald-900/10',
-      border: 'border-emerald-700/20',
-      icon: 'text-emerald-400',
-      glow: 'after:bg-emerald-500/5',
-      hover: 'hover:border-emerald-500/30 hover:shadow-emerald-500/10',
+      bgGradient: 'from-emerald-950 to-emerald-900/80',
+      iconBg: 'bg-emerald-900/40',
+      iconColor: 'text-emerald-400',
+      borderColor: 'border-emerald-600/20',
+      orb: 'bg-emerald-500/10',
+      glowColor: '#10B981',
     },
   };
 
-  const colors = colorClasses[feature.color];
+  const colors = colorClasses[feature.color as FeatureColor];
   const Icon = feature.icon;
 
   return (
     <div
-      className={`relative flex-1 rounded-xl border ${colors.border} overflow-hidden 
-        bg-gradient-to-b ${colors.bg} p-6 md:p-7 
-        ${colors.hover} hover:shadow-xl
-        transition-all duration-300 backdrop-blur-sm
-        after:absolute after:rounded-full ${colors.glow} after:opacity-60 after:blur-3xl
-        after:w-[200px] after:h-[200px] after:-bottom-[100px] after:-right-[100px] after:z-0`}>
-      <div className='relative z-10'>
+      className={`relative flex-1 rounded-xl border ${colors.borderColor} overflow-hidden backdrop-blur-sm shadow-lg`}>
+      {/* Background layers */}
+      <div className='absolute inset-0 bg-black/70' />
+      <div className={`absolute inset-0 bg-gradient-to-br ${colors.bgGradient} opacity-30`} />
+
+      {/* Gradient orb */}
+      <div
+        className={`absolute -right-5 -bottom-5 w-48 h-48 rounded-full ${colors.orb} blur-2xl opacity-20`}
+      />
+
+      {/* Grid and noise overlay */}
+      <div className='absolute inset-0 bg-grid-pattern opacity-[0.03]' />
+      <div className='absolute inset-0 bg-noise opacity-[0.02]' />
+
+      {/* Content */}
+      <div className='relative z-10 p-6 md:p-7'>
         <div
           className={`inline-flex items-center justify-center p-3 rounded-xl
-          bg-zinc-800/60 border border-zinc-700/30 backdrop-blur-sm
-          mb-4 ${colors.icon}`}>
-          <Icon className={`h-5 w-5 ${colors.icon}`} />
+          ${colors.iconBg} border border-zinc-700/30 backdrop-blur-sm
+          mb-4 ${colors.iconColor} shadow-sm`}>
+          <Icon className={`h-5 w-5 ${colors.iconColor}`} />
         </div>
 
         <h3 className='text-lg md:text-xl font-semibold text-white mb-3'>{feature.title}</h3>
@@ -94,20 +106,72 @@ FeatureCard.displayName = 'FeatureCard';
 
 export const PlatformFeatures = memo(() => {
   return (
-    <div className='relative overflow-hidden rounded-xl bg-gradient-to-b from-zinc-900 to-black border border-zinc-800/50 shadow-xl'>
-      {/* Background effects */}
-      <div className='absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.1),transparent_70%)] pointer-events-none' />
-      <div className='absolute inset-0 bg-grid-pattern opacity-[0.03]' />
+    <div className='relative overflow-hidden rounded-xl border border-zinc-800/50 shadow-xl'>
+      {/* Layered background */}
+      <div className='absolute inset-0 bg-black' />
+
+      {/* Depth effect with staggered gradients */}
+      <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.15),transparent_60%)]' />
+      <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.1),transparent_70%)]' />
+      <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(16,185,129,0.12),transparent_70%)]' />
+
+      {/* Gradient orbs with animation */}
+      <div className='absolute top-[-100px] right-[10%] w-[400px] h-[400px] rounded-full bg-blue-600/5 filter blur-[120px] opacity-60 animate-float-slower' />
+      <div className='absolute bottom-[-150px] left-[20%] w-[500px] h-[500px] rounded-full bg-purple-600/5 filter blur-[120px] opacity-50 animate-float-delayed' />
+      <div className='absolute top-[30%] left-[-100px] w-[300px] h-[300px] rounded-full bg-emerald-500/8 filter blur-[100px] opacity-60' />
+
+      {/* Grid pattern with perspective */}
+      <div
+        className='absolute inset-0 bg-grid-pattern opacity-[0.04]'
+        style={{
+          backgroundSize: '40px 40px',
+          transform: 'perspective(1000px) rotateX(2deg)',
+        }}
+      />
+
+      {/* Noise texture for added depth */}
+      <div className='absolute inset-0 bg-noise opacity-[0.02]' />
+
+      {/* Particle effect */}
+      <div className='absolute inset-0 pointer-events-none overflow-hidden'>
+        {Array.from({ length: 25 }).map((_, i) => (
+          <div
+            key={i}
+            className='absolute rounded-full opacity-0 animate-twinkle'
+            style={{
+              width: `${Math.random() * 3 + 1}px`,
+              height: `${Math.random() * 3 + 1}px`,
+              backgroundColor:
+                i % 5 === 0
+                  ? 'rgba(96,165,250,0.8)'
+                  : i % 5 === 1
+                    ? 'rgba(16,185,129,0.8)'
+                    : i % 5 === 2
+                      ? 'rgba(139,92,246,0.8)'
+                      : i % 5 === 3
+                        ? 'rgba(236,72,153,0.8)'
+                        : 'rgba(255,255,255,0.8)',
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${i * 0.4}s`,
+              animationDuration: `${Math.random() * 12 + 4}s`,
+              boxShadow: i % 3 === 0 ? '0 0 4px rgba(255,255,255,0.3)' : 'none',
+            }}
+          />
+        ))}
+      </div>
 
       <div className='p-8 md:p-10 relative z-10'>
         {/* Header */}
         <div className='flex flex-col items-center text-center mb-12'>
-          <div className='inline-flex items-center justify-center p-2 rounded-full bg-zinc-800/70 border border-zinc-700/30 mb-4 backdrop-blur-sm'>
+          <div className='inline-flex items-center justify-center p-2 rounded-full bg-zinc-800/70 border border-zinc-700/30 mb-4 backdrop-blur-sm shadow-xl'>
             <Sparkles className='h-6 w-6 text-blue-400 mr-1' />
             <Sparkles className='h-6 w-6 text-emerald-400' />
           </div>
-          <h2 className='text-2xl md:text-3xl font-bold text-white mb-2'>Platform Features</h2>
-          <p className='text-zinc-400 max-w-xl'>
+          <h2 className='text-2xl md:text-3xl font-bold text-white mb-3 bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-white'>
+            Platform Features
+          </h2>
+          <p className='text-zinc-300 max-w-xl'>
             Our platform provides essential tools for navigating the Solana memecoin ecosystem
             safely and effectively.
           </p>
@@ -121,9 +185,23 @@ export const PlatformFeatures = memo(() => {
         </div>
       </div>
 
+      {/* Custom animation for orbs */}
       <style jsx>{`
-        .bg-grid-pattern {
-          background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3cdefs%3e%3cpattern id='grid' width='20' height='20' patternUnits='userSpaceOnUse'%3e%3cpath d='M 20 0 L 0 0 0 20' fill='none' stroke='%23FFFFFF' stroke-width='0.2' opacity='0.2'/%3e%3c/pattern%3e%3c/defs%3e%3crect width='100%25' height='100%25' fill='url(%23grid)' /%3e%3c/svg%3e");
+        @keyframes orbFloat {
+          0%,
+          100% {
+            transform: translateY(0) translateX(0);
+          }
+          50% {
+            transform: translateY(-15px) translateX(10px);
+          }
+        }
+        .animate-float-slower {
+          animation: orbFloat 15s ease-in-out infinite;
+        }
+        .animate-float-delayed {
+          animation: orbFloat 12s ease-in-out infinite;
+          animation-delay: 2s;
         }
       `}</style>
     </div>

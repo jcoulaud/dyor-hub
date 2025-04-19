@@ -1,6 +1,6 @@
-export { FeatureSnippets } from './FeatureSnippets';
 export { Hero } from './Hero';
 export { HomepageGrid } from './HomepageGrid';
+export { HomepageLayout } from './HomepageLayout';
 export { HotTokensFeed } from './HotTokensFeed';
 export { LatestAddedTokens } from './LatestAddedTokens';
 export { LatestCommentsFeed } from './LatestCommentsFeed';

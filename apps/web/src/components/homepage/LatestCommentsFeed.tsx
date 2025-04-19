@@ -154,7 +154,6 @@ export const LatestCommentsFeed: React.FC = () => {
     <SectionCarousel
       title='Latest Comments'
       icon={<MessageSquare className='h-5 w-5 text-blue-400' />}
-      viewAllLink='/comments'
       gradient='from-zinc-900/90 via-zinc-800/80 to-zinc-900/90'>
       {renderContent()}
     </SectionCarousel>
