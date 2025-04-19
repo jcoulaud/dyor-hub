@@ -19,8 +19,8 @@ export function TokenImage({
   // Size mapping
   const sizeMap = {
     small: {
-      container: 'w-5 h-5',
-      icon: 'w-3 h-3',
+      container: 'w-8 h-8',
+      icon: 'w-8 h-8',
       fontSize: 'text-xs',
     },
     medium: {

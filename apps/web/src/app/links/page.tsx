@@ -44,7 +44,7 @@ export default function LinksPage() {
     },
     {
       title: 'DexScreener',
-      url: 'https://dexscreener.com/solana/2MCmXsjSXHoQYR6ckg6Af4mhQKDMJMGy6JKh8C4Qpump',
+      url: `https://dexscreener.com/solana/${CONTRACT_ADDRESS}`,
       icon: <LineChart className='h-4 w-4' />,
       description: 'Live price chart and info',
     },
