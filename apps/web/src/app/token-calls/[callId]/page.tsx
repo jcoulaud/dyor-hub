@@ -167,9 +167,10 @@ export default function TokenCallDetailPage() {
     const shareUrl = window.location.href;
     const tokenSymbol = tokenCall.token?.symbol ? `$${tokenCall.token.symbol}` : 'token';
     const predictedPrice = formatPrice(tokenCall.targetPrice);
-    const multiplierText = callDetails?.multiplier
-      ? `(${callDetails.isUp ? '▲' : '▼'}${callDetails.multiplier.toFixed(2)}x)`
-      : '';
+    const percentChange =
+      ((tokenCall.targetPrice - tokenCall.referencePrice) / tokenCall.referencePrice) * 100;
+    const percentageText = `(${callDetails?.isUp ? '+' : ''}${percentChange.toFixed(2)}%)`;
+    const tokenAddress = tokenCall.token?.mintAddress || '';
 
     // Check if this is the current user's prediction
     const isOwnPrediction = isAuthenticated && currentUser?.id === tokenCall.user?.id;
@@ -179,11 +180,20 @@ export default function TokenCallDetailPage() {
       ? new Date(tokenCall.targetDate) < new Date()
       : false;
 
-    const baseText = isOwnPrediction
-      ? `I${isTargetDatePassed ? ' predicted' : "'m predicting"} a price of $${predictedPrice} ${multiplierText} for ${tokenSymbol} on #DYORhub!`
-      : `Check out ${tokenCall.user?.username ? `@${tokenCall.user.username}'s` : "this user's"} price prediction of $${predictedPrice} ${multiplierText} for ${tokenSymbol} on #DYORhub!`;
+    let baseText = '';
 
-    const text = `${baseText} What do you think? 🔥 ${shareUrl}`;
+    if (displayMode === 'mcap' && callDetails?.targetMcap) {
+      const formattedMcap = formatLargeNumber(callDetails.targetMcap);
+      baseText = isOwnPrediction
+        ? `I${isTargetDatePassed ? ' predicted' : "'m predicting"} a market cap of $${formattedMcap} ${percentageText} for ${tokenSymbol} on #DYORhub!`
+        : `Check out ${tokenCall.user?.username ? `@${tokenCall.user.username}'s` : "this user's"} market cap prediction of $${formattedMcap} ${percentageText} for ${tokenSymbol} on #DYORhub!`;
+    } else {
+      baseText = isOwnPrediction
+        ? `I${isTargetDatePassed ? ' predicted' : "'m predicting"} a price of $${predictedPrice} ${percentageText} for ${tokenSymbol} on #DYORhub!`
+        : `Check out ${tokenCall.user?.username ? `@${tokenCall.user.username}'s` : "this user's"} price prediction of $${predictedPrice} ${percentageText} for ${tokenSymbol} on #DYORhub!`;
+    }
+
+    const text = `${baseText} What do you think? 🔥\n\n${tokenAddress}\n\n${shareUrl}`;
 
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(twitterUrl, '_blank', 'noopener,noreferrer,width=800,height=600');

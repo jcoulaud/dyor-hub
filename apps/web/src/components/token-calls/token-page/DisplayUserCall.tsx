@@ -153,9 +153,17 @@ export const DisplayUserCall = memo(function DisplayUserCall({
                       const predictedPrice = formatPrice(call.targetPrice);
                       const percentChange =
                         ((call.targetPrice - call.referencePrice) / call.referencePrice) * 100;
-                      const multiplierText = `(${isPriceUp ? '▲' : '▼'}${Math.abs(percentChange / 100).toFixed(2)}x)`;
+                      const percentageText = `(${isPriceUp ? '+' : ''}${percentChange.toFixed(2)}%)`;
 
-                      const text = `I'm predicting a price of $${predictedPrice} ${multiplierText} for ${tokenSymbol} on #DYORhub! What do you think? 🔥 ${shareUrl}`;
+                      const tokenAddress = call.token?.mintAddress ? call.token.mintAddress : '';
+
+                      let text = '';
+                      if (viewMode === 'mcap' && targetMcap !== null) {
+                        const formattedMcap = formatLargeNumber(targetMcap);
+                        text = `I'm predicting a market cap of $${formattedMcap} ${percentageText} for ${tokenSymbol} on #DYORhub! What do you think? 🔥\n\n${tokenAddress}\n\n${shareUrl}`;
+                      } else {
+                        text = `I'm predicting a price of $${predictedPrice} ${percentageText} for ${tokenSymbol} on #DYORhub! What do you think? 🔥\n\n${tokenAddress}\n\n${shareUrl}`;
+                      }
 
                       const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
                       window.open(twitterUrl, '_blank', 'noopener,noreferrer,width=800,height=600');
