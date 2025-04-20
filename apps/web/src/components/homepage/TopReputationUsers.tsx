@@ -169,7 +169,7 @@ export const TopReputationUsers = memo(() => {
     <SectionCarousel
       title='Top Contributors'
       icon={<Trophy className='h-5 w-5 text-amber-400' />}
-      viewAllLink='/leaderboard'
+      viewAllLink='/leaderboard?category=reputation'
       gradient='from-zinc-900/95 via-zinc-800/90 to-amber-950/10'>
       {isLoading ? [<div key='loading'>{renderSkeleton()}</div>] : renderContent()}
     </SectionCarousel>
