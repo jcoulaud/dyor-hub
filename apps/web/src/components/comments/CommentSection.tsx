@@ -57,6 +57,7 @@ interface CommentSectionProps {
 
 export interface CommentSectionHandle {
   refetchComments: (page?: number) => Promise<void>;
+  addComment: (comment: CommentType) => void;
 }
 
 type CommentType = Comment & {
@@ -186,7 +187,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
           if (comment.id === parentId) {
             return {
               ...comment,
-              replies: [newReply, ...(comment.replies ?? [])],
+              replies: [newReply, ...(Array.isArray(comment.replies) ? comment.replies : [])],
             };
           }
           if (comment.replies && comment.replies.length > 0) {
@@ -441,14 +442,15 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
         };
 
         try {
-          await comments.create(createCommentDto);
+          const createdComment = await comments.create(createCommentDto);
           setNewComment('');
 
-          // Refetch the comments to show the new comment
-          if (parentId && commentId) {
-            await fetchThreadData(commentId); // Refetch thread if replying in thread view
-          } else {
-            await fetchComments(1); // Refetch all comments if posting a new top-level comment
+          if (!parentId && !commentId) {
+            setComments((prev) => [createdComment, ...prev]);
+          } else if (parentId && !commentId) {
+            setComments((prev) => addReplyToState(prev, parentId, createdComment));
+          } else if (parentId && commentId) {
+            await fetchThreadData(commentId);
           }
 
           toast({
@@ -543,6 +545,9 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
 
     useImperativeHandle(ref, () => ({
       refetchComments: fetchComments,
+      addComment: (comment: CommentType) => {
+        setComments((prev) => [comment, ...prev]);
+      },
     }));
 
     const Comment = ({ comment, depth = 0 }: { comment: CommentType; depth?: number }) => {
@@ -795,7 +800,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
                         )}
                       />
                     </Button>
-                    <span>{comment.voteCount}</span>
+                    <span>{typeof comment.voteCount === 'number' ? comment.voteCount : 0}</span>
                     <Button
                       variant='ghost'
                       size='sm'

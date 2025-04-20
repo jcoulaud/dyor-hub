@@ -13,8 +13,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { isFuture } from 'date-fns';
 import { DataSource, In, Not, Repository } from 'typeorm';
+import { CommentResponseDto } from '../comments/dto/comment-response.dto';
 import { CommentEntity } from '../entities/comment.entity';
 import { TokenCallEntity } from '../entities/token-call.entity';
+import { UserEntity } from '../entities/user.entity';
 import { TokensService } from '../tokens/tokens.service';
 import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
@@ -45,7 +47,7 @@ export class TokenCallsService {
   async create(
     createTokenCallDto: CreateTokenCallDto,
     userId: string,
-  ): Promise<TokenCallEntity> {
+  ): Promise<{ tokenCall: TokenCallEntity; comment: CommentResponseDto }> {
     const { tokenMintAddress, targetPrice, targetDate, explanation } =
       createTokenCallDto;
 
@@ -147,11 +149,55 @@ export class TokenCallsService {
         downvotes: 0,
       });
 
-      await queryRunner.manager.save(CommentEntity, explanationComment);
+      const savedComment = await queryRunner.manager.save(
+        CommentEntity,
+        explanationComment,
+      );
+
+      const user = await queryRunner.manager.findOne(UserEntity, {
+        where: { id: userId },
+      });
 
       await queryRunner.commitTransaction();
 
-      return savedCall;
+      const commentDto = {
+        id: savedComment.id,
+        content: savedComment.content,
+        createdAt: savedComment.createdAt,
+        updatedAt: savedComment.updatedAt,
+        voteCount: 0,
+        parentId: null,
+        user: user
+          ? {
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName,
+              avatarUrl: user.avatarUrl,
+            }
+          : {
+              id: userId,
+              username: null,
+              displayName: null,
+              avatarUrl: null,
+            },
+        userVoteType: null,
+        isRemoved: false,
+        isEdited: false,
+        type: savedComment.type,
+        tokenCallId: savedCall.id,
+        tokenCall: {
+          id: savedCall.id,
+          targetPrice: savedCall.targetPrice,
+          targetDate: savedCall.targetDate.toISOString(),
+          status: savedCall.status,
+          referencePrice: savedCall.referencePrice,
+          referenceSupply: savedCall.referenceSupply,
+        },
+        removedBy: null,
+        replies: [],
+      };
+
+      return { tokenCall: savedCall, comment: commentDto };
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(

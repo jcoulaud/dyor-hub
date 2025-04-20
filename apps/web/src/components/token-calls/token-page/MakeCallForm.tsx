@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ApiError, tokenCalls, tokens } from '@/lib/api';
 import { cn, formatPrice } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
-import { CreateTokenCallInput } from '@dyor-hub/types';
+import { Comment, CreateTokenCallInput } from '@dyor-hub/types';
 import {
   addDays,
   addHours,
@@ -97,6 +97,7 @@ interface MakeCallFormProps {
   onClose?: () => void;
   currentMarketCap?: number;
   circulatingSupply?: string;
+  onAddComment?: (comment: Comment) => void;
 }
 
 const formatMarketCapDisplay = (value: number): string => {
@@ -125,6 +126,7 @@ export function MakeCallForm({
   onClose,
   currentMarketCap,
   circulatingSupply,
+  onAddComment,
 }: MakeCallFormProps) {
   const { toast } = useToast();
   const { isAuthenticated } = useAuthContext();
@@ -413,7 +415,7 @@ export function MakeCallForm({
     };
 
     try {
-      await tokenCalls.create(payload);
+      const { comment } = await tokenCalls.create(payload);
       let toastMessage = '';
 
       const displayTarget =
@@ -446,6 +448,10 @@ export function MakeCallForm({
       setExplanation('');
       onCallCreated?.();
       onClose?.();
+
+      if (onAddComment && comment) {
+        onAddComment({ ...comment, replies: comment.replies ?? [] });
+      }
     } catch (error) {
       let errorMsg = 'Failed to submit prediction. Please try again.';
       if (error instanceof ApiError && error.message) {
@@ -478,6 +484,7 @@ export function MakeCallForm({
     onClose,
     toast,
     explanation,
+    onAddComment,
   ]);
 
   const handleSubmit = useCallback(
