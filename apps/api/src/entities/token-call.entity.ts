@@ -120,8 +120,18 @@ export class TokenCallEntity {
   @Column({ name: 'price_history_url', type: 'varchar', nullable: true })
   priceHistoryUrl?: string | null;
 
+  @Column({
+    name: 'explanation_comment_id',
+    type: 'uuid',
+    nullable: true,
+    unique: true,
+  })
+  explanationCommentId?: string | null;
+
   @OneToOne(() => CommentEntity, (comment) => comment.tokenCall, {
     nullable: true,
+    onDelete: 'SET NULL',
   })
+  @JoinColumn({ name: 'explanation_comment_id' })
   explanationComment: CommentEntity | null;
 }

@@ -13,6 +13,18 @@ export class DevAdminController {
   @Post('backfill-default-token-call-comments')
   async backfillDefaultComments() {
     const count = await this.devAdminService.backfillDefaultTokenCallComments();
-    return { message: `Successfully backfilled ${count} default comments.` };
+    return { message: `Successfully created ${count} new default comments.` };
+  }
+
+  @Post('link-existing-token-call-comments')
+  async linkExistingComments() {
+    const result = await this.devAdminService.linkExistingExplanationComments();
+    return {
+      message: 'Linking process finished.',
+      updated: result.updatedCount,
+      failed: result.failedCount,
+      skippedAlreadyLinked: result.skippedAlreadyLinked,
+      skippedNotFound: result.skippedNotFound,
+    };
   }
 }

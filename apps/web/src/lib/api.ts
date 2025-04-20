@@ -1578,5 +1578,20 @@ export const dev = {
         method: 'POST',
       });
     },
+    linkExistingExplanationComments: async (): Promise<{
+      message: string;
+      updated: number;
+      failed: number;
+      skippedAlreadyLinked: number;
+      skippedNotFound: number;
+    }> => {
+      return api<{
+        message: string;
+        updated: number;
+        failed: number;
+        skippedAlreadyLinked: number;
+        skippedNotFound: number;
+      }>('admin/dev/link-existing-token-call-comments', { method: 'POST' });
+    },
   },
 };
