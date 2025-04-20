@@ -212,6 +212,17 @@ export default function TokenCallDetailPage() {
     });
   };
 
+  const handleCopyMint: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+    e.stopPropagation();
+    if (!tokenCall?.token?.mintAddress) return;
+    navigator.clipboard.writeText(tokenCall.token.mintAddress).then(() => {
+      toast({
+        title: 'Mint Address Copied',
+        description: 'Token mint address copied to clipboard',
+      });
+    });
+  };
+
   if (isLoading) {
     return <TokenCallSkeleton />;
   }
@@ -286,9 +297,10 @@ export default function TokenCallDetailPage() {
               <div className='md:col-span-7 flex flex-col h-full'>
                 {/* Token card */}
                 <div className='bg-zinc-800/40 backdrop-blur-sm rounded-xl border border-zinc-700/30 p-4 mb-2'>
-                  <Link href={`/tokens/${token?.mintAddress}`} className='block'>
-                    <div className='flex items-center'>
-                      {/* Token image */}
+                  <div className='flex items-center justify-between w-full'>
+                    <Link
+                      href={`/tokens/${token?.mintAddress}`}
+                      className='flex items-center min-w-0'>
                       <div className='relative mr-3 flex-shrink-0'>
                         <Avatar className='h-14 w-14 shadow-md border border-zinc-700/50'>
                           <AvatarImage
@@ -301,19 +313,29 @@ export default function TokenCallDetailPage() {
                           </AvatarFallback>
                         </Avatar>
                       </div>
-                      {/* Token name and symbol */}
-                      <div className='flex-grow'>
-                        <h3 className='text-base md:text-lg font-semibold text-zinc-100 mb-0.5 hover:text-amber-400 transition-colors'>
-                          {token?.name || 'Unknown Token'}
-                        </h3>
+                      <div>
+                        <div className='flex items-center'>
+                          <h3 className='text-base md:text-lg font-semibold text-zinc-100 mb-0.5 hover:text-amber-400 transition-colors truncate'>
+                            {token?.name || 'Unknown Token'}
+                          </h3>
+                        </div>
                         <div className='flex items-center gap-2'>
-                          <span className='px-2 py-0.5 rounded-md bg-zinc-800/70 border border-zinc-700/30 text-zinc-300 text-xs font-medium'>
+                          <span className='px-2 py-0.5 rounded-md bg-zinc-800/70 border border-zinc-700/30 text-zinc-300 text-xs font-medium truncate'>
                             ${token?.symbol || 'TOKEN'}
                           </span>
                         </div>
                       </div>
-                    </div>
-                  </Link>
+                    </Link>
+                    {token?.mintAddress && (
+                      <button
+                        type='button'
+                        onClick={handleCopyMint}
+                        className='ml-2 p-1.5 rounded-md bg-zinc-800/70 border border-zinc-700/30 hover:bg-zinc-700/40 transition-colors cursor-pointer flex-shrink-0'
+                        title='Copy mint address'>
+                        <Copy className='h-4 w-4 text-zinc-400' />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className='flex-1' />
                 {/* Chart card */}
