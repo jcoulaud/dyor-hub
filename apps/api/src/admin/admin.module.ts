@@ -4,6 +4,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import {
   BadgeEntity,
+  CommentEntity,
+  TokenCallEntity,
+  TokenEntity,
   UserBadgeEntity,
   UserEntity,
   UserStreakEntity,
@@ -12,10 +15,12 @@ import { GamificationModule } from '../gamification/gamification.module';
 import { UsersModule } from '../users/users.module';
 import { AdminGuard } from './admin.guard';
 import { BadgeAdminController } from './controllers/badge-admin.controller';
+import { DevAdminController } from './controllers/dev-admin.controller';
 import { ReputationAdminController } from './controllers/reputation-admin.controller';
 import { StreakAdminController } from './controllers/streak-admin.controller';
 import { UserAdminController } from './controllers/user-admin.controller';
 import { BadgeAdminService } from './services/badge-admin.service';
+import { DevAdminService } from './services/dev-admin.service';
 import { StreakAdminService } from './services/streak-admin.service';
 
 @Module({
@@ -25,6 +30,9 @@ import { StreakAdminService } from './services/streak-admin.service';
       UserBadgeEntity,
       UserStreakEntity,
       UserEntity,
+      TokenCallEntity,
+      CommentEntity,
+      TokenEntity,
     ]),
     EventEmitterModule.forRoot(),
     AuthModule,
@@ -36,8 +44,14 @@ import { StreakAdminService } from './services/streak-admin.service';
     StreakAdminController,
     ReputationAdminController,
     UserAdminController,
+    DevAdminController,
   ],
-  providers: [AdminGuard, BadgeAdminService, StreakAdminService],
+  providers: [
+    AdminGuard,
+    BadgeAdminService,
+    StreakAdminService,
+    DevAdminService,
+  ],
   exports: [AdminGuard],
 })
 export class AdminModule {}

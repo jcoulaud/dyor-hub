@@ -1570,3 +1570,13 @@ export const tokenCallsLeaderboard = {
     }
   },
 };
+
+export const dev = {
+  admin: {
+    backfillDefaultComments: async (): Promise<{ message: string }> => {
+      return api<{ message: string }>('admin/dev/backfill-default-token-call-comments', {
+        method: 'POST',
+      });
+    },
+  },
+};
