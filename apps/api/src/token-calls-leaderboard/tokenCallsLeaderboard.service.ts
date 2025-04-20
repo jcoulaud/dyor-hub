@@ -10,10 +10,7 @@ import { Repository } from 'typeorm';
 import { TokenCallEntity } from '../entities/token-call.entity';
 import { UserMinimumResponseDto } from '../users/dto/user-minimum-response.dto';
 import { LeaderboardEntryDto } from './dto/tokenCallsLeaderboard-entry.dto';
-import {
-  LeaderboardQueryDto,
-  LeaderboardSortField,
-} from './dto/tokenCallsLeaderboard-query.dto';
+import { LeaderboardQueryDto } from './dto/tokenCallsLeaderboard-query.dto'; // Removed unused LeaderboardSortField
 
 interface RawLeaderboardResult {
   userId: string;
@@ -28,6 +25,20 @@ interface RawLeaderboardResult {
   countSuccessfulCallsWithPrice: string;
   sumMarketCapAtCallTime: string | null;
   countCallsWithMarketCapAtCallTime: string;
+}
+
+interface ProcessedLeaderboardUser {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  totalCalls: number;
+  successfulCalls: number;
+  accuracyRate: number;
+  averageTimeToHitRatio: number | null;
+  averageMultiplier: number | null;
+  averageMarketCapAtCallTime: number | null;
+  adjustedScore: number; // Added adjusted score
 }
 
 export interface PaginatedLeaderboardResult {
@@ -49,14 +60,13 @@ export class TokenCallsLeaderboardService {
   async getTokenCallLeaderboard(
     queryDto: LeaderboardQueryDto,
   ): Promise<PaginatedLeaderboardResult> {
-    const {
-      page = 1,
-      limit = 25,
-      sortBy = LeaderboardSortField.ACCURACY_RATE,
-    } = queryDto;
-    const skip = (page - 1) * limit;
+    const { page = 1, limit = 25 } = queryDto;
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(100, Math.max(5, limit));
+    const skip = (validPage - 1) * validLimit;
 
     try {
+      // 1. Build Query to Fetch Raw Aggregated Data
       const queryBuilder = this.tokenCallRepository
         .createQueryBuilder('call')
         .select('call.userId', 'userId')
@@ -74,10 +84,12 @@ export class TokenCallsLeaderboardService {
           'countSuccessfulCallsWithRatio',
         )
         .addSelect(
+          // Calculate sum of multipliers (target/reference) for successful calls where reference price is not zero
           `SUM(CASE WHEN call.status = '${TokenCallStatus.VERIFIED_SUCCESS}' AND call.referencePrice <> 0 THEN call.targetPrice / call.referencePrice ELSE NULL END)`,
           'sumMultiplier',
         )
         .addSelect(
+          // Count successful calls where multiplier can be calculated
           `COUNT(CASE WHEN call.status = '${TokenCallStatus.VERIFIED_SUCCESS}' AND call.referencePrice <> 0 THEN 1 ELSE NULL END)`,
           'countSuccessfulCallsWithPrice',
         )
@@ -94,6 +106,7 @@ export class TokenCallsLeaderboardService {
         .addSelect('user.displayName', 'displayName')
         .addSelect('user.avatarUrl', 'avatarUrl')
         .where('call.status IN (:...statuses)', {
+          // Only consider verified calls for leaderboard stats
           statuses: [
             TokenCallStatus.VERIFIED_SUCCESS,
             TokenCallStatus.VERIFIED_FAIL,
@@ -102,78 +115,109 @@ export class TokenCallsLeaderboardService {
         .groupBy('call.userId')
         .addGroupBy('user.id');
 
-      queryBuilder.addSelect(
-        `(SUM(CASE WHEN call.status = '${TokenCallStatus.VERIFIED_SUCCESS}' THEN 1.0 ELSE 0.0 END) / COALESCE(NULLIF(COUNT(call.id), 0), 1.0))`,
-        'accuracyRate',
-      );
-
-      switch (sortBy) {
-        case LeaderboardSortField.SUCCESSFUL_CALLS:
-          queryBuilder.orderBy(`"successfulCalls"`, 'DESC');
-          break;
-        case LeaderboardSortField.TOTAL_CALLS:
-          queryBuilder.orderBy(`"totalCalls"`, 'DESC');
-          break;
-        case LeaderboardSortField.ACCURACY_RATE:
-        default:
-          queryBuilder.orderBy(`"accuracyRate"`, 'DESC');
-          queryBuilder.addOrderBy(`"totalCalls"`, 'DESC');
-          break;
-      }
-
-      queryBuilder.addOrderBy('"userId"', 'ASC');
-
-      const total = await queryBuilder.getCount();
-
-      queryBuilder.offset(skip).limit(limit);
-
+      // Fetch ALL raw results
       const rawResults: RawLeaderboardResult[] =
         await queryBuilder.getRawMany();
 
-      const items = rawResults.map((result, index) => {
-        const totalCallsNum = parseInt(result.totalCalls, 10);
-        const successfulCallsNum = parseInt(result.successfulCalls, 10);
-        const accuracyRate =
-          totalCallsNum > 0 ? successfulCallsNum / totalCallsNum : 0;
+      if (!rawResults || rawResults.length === 0) {
+        return { items: [], total: 0, page: validPage, limit: validLimit };
+      }
 
-        const sumRatio = result.sumTimeToHitRatio
-          ? parseFloat(result.sumTimeToHitRatio)
-          : null;
-        const countRatio = parseInt(result.countSuccessfulCallsWithRatio, 10);
-        const averageTimeToHitRatio =
-          sumRatio !== null && countRatio > 0 ? sumRatio / countRatio : null;
+      // 2. Process Raw Results: Calculate Derived Stats and Adjusted Score
+      const processedUsers: ProcessedLeaderboardUser[] = rawResults.map(
+        (result) => {
+          const totalCallsNum = parseInt(result.totalCalls, 10);
+          const successfulCallsNum = parseInt(result.successfulCalls, 10);
+          const accuracyRate =
+            totalCallsNum > 0 ? successfulCallsNum / totalCallsNum : 0;
 
-        const sumMultiplier = result.sumMultiplier
-          ? parseFloat(result.sumMultiplier)
-          : null;
-        const countMultiplier = parseInt(
-          result.countSuccessfulCallsWithPrice,
-          10,
-        );
-        const averageMultiplier =
-          sumMultiplier !== null && countMultiplier > 0
-            ? sumMultiplier / countMultiplier
+          // Calculate Average Time To Hit Ratio
+          const sumRatio = result.sumTimeToHitRatio
+            ? parseFloat(result.sumTimeToHitRatio)
             : null;
+          const countRatio = parseInt(result.countSuccessfulCallsWithRatio, 10);
+          const averageTimeToHitRatio =
+            sumRatio !== null && countRatio > 0 ? sumRatio / countRatio : null;
 
-        const sumMarketCapAtCall = result.sumMarketCapAtCallTime
-          ? parseFloat(result.sumMarketCapAtCallTime)
-          : null;
-        const countMarketCapAtCall = parseInt(
-          result.countCallsWithMarketCapAtCallTime,
-          10,
-        );
-        const averageMarketCapAtCallTime =
-          sumMarketCapAtCall !== null && countMarketCapAtCall > 0
-            ? sumMarketCapAtCall / countMarketCapAtCall
+          // Calculate Average Multiplier
+          const sumMultiplier = result.sumMultiplier
+            ? parseFloat(result.sumMultiplier)
             : null;
+          const countMultiplier = parseInt(
+            result.countSuccessfulCallsWithPrice,
+            10,
+          );
+          const averageMultiplier =
+            sumMultiplier !== null && countMultiplier > 0
+              ? sumMultiplier / countMultiplier
+              : null;
 
-        const user = plainToInstance(
-          UserMinimumResponseDto,
-          {
-            id: result.userId,
+          // Calculate Average Market Cap At Call Time
+          const sumMarketCapAtCall = result.sumMarketCapAtCallTime
+            ? parseFloat(result.sumMarketCapAtCallTime)
+            : null;
+          const countMarketCapAtCall = parseInt(
+            result.countCallsWithMarketCapAtCallTime,
+            10,
+          );
+          const averageMarketCapAtCallTime =
+            sumMarketCapAtCall !== null && countMarketCapAtCall > 0
+              ? sumMarketCapAtCall / countMarketCapAtCall
+              : null;
+
+          // Calculate Adjusted Score
+          let adjustedScore = 0;
+          if (totalCallsNum > 0) {
+            const accuracy = successfulCallsNum / totalCallsNum;
+            const volumeFactor = Math.log(totalCallsNum + 1);
+            adjustedScore = accuracy * volumeFactor;
+          }
+
+          return {
+            userId: result.userId,
             username: result.username,
             displayName: result.displayName,
             avatarUrl: result.avatarUrl,
+            totalCalls: totalCallsNum,
+            successfulCalls: successfulCallsNum,
+            accuracyRate: accuracyRate,
+            averageTimeToHitRatio: averageTimeToHitRatio,
+            averageMultiplier: averageMultiplier,
+            averageMarketCapAtCallTime: averageMarketCapAtCallTime,
+            adjustedScore: adjustedScore,
+          };
+        },
+      );
+
+      // 3. Sort Processed Results In-Memory
+      processedUsers.sort((a, b) => {
+        // Primary sort: Adjusted Score (Descending)
+        if (b.adjustedScore !== a.adjustedScore) {
+          return b.adjustedScore - a.adjustedScore;
+        }
+        // Secondary sort: Average Multiplier (Descending, handle nulls)
+        const multiplierA = a.averageMultiplier ?? 0;
+        const multiplierB = b.averageMultiplier ?? 0;
+        if (multiplierB !== multiplierA) {
+          return multiplierB - multiplierA;
+        }
+        // Tertiary sort: Total Calls (Descending, optional tie-breaker)
+        return b.totalCalls - a.totalCalls;
+      });
+
+      // 4. Apply Pagination to Sorted Array
+      const totalCount = processedUsers.length;
+      const paginatedUsers = processedUsers.slice(skip, skip + validLimit);
+
+      // 5. Map to DTO and Assign Rank
+      const items = paginatedUsers.map((userStats, index) => {
+        const userDto = plainToInstance(
+          UserMinimumResponseDto,
+          {
+            id: userStats.userId,
+            username: userStats.username,
+            displayName: userStats.displayName,
+            avatarUrl: userStats.avatarUrl,
           },
           { excludeExtraneousValues: true },
         );
@@ -181,20 +225,21 @@ export class TokenCallsLeaderboardService {
         return plainToInstance(
           LeaderboardEntryDto,
           {
-            rank: skip + index + 1,
-            user: user,
-            totalCalls: totalCallsNum,
-            successfulCalls: successfulCallsNum,
-            accuracyRate: accuracyRate,
-            averageTimeToHitRatio: averageTimeToHitRatio,
-            averageMultiplier: averageMultiplier,
-            averageMarketCapAtCallTime: averageMarketCapAtCallTime,
+            rank: skip + index + 1, // Calculate rank based on position in sorted, paginated list
+            user: userDto,
+            totalCalls: userStats.totalCalls,
+            successfulCalls: userStats.successfulCalls,
+            accuracyRate: userStats.accuracyRate,
+            averageTimeToHitRatio: userStats.averageTimeToHitRatio,
+            averageMultiplier: userStats.averageMultiplier,
+            averageMarketCapAtCallTime: userStats.averageMarketCapAtCallTime,
+            adjustedScore: userStats.adjustedScore, // Include adjusted score in response
           },
           { excludeExtraneousValues: true },
         );
       });
 
-      return { items, total, page, limit };
+      return { items, total: totalCount, page: validPage, limit: validLimit };
     } catch (error) {
       this.logger.error('Failed to fetch token call leaderboard:', error);
       throw new InternalServerErrorException(

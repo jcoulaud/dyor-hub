@@ -10,12 +10,10 @@ import { LeaderboardCategory, LeaderboardTimeframe } from '@dyor-hub/types';
 import { motion } from 'framer-motion';
 import {
   CheckCircle,
-  Clock,
   Heart,
   HelpCircle,
   Loader2,
   MessageSquare,
-  Scale,
   ThumbsUp,
   TrendingUp,
   Trophy,
@@ -68,8 +66,8 @@ const categoryMapping: Record<UiCategory, LeaderboardCategory | 'tokenCalls'> = 
 
 // Define explicit tab order
 const tabOrder: UiCategory[] = [
-  'reputation',
   'tokenCalls',
+  'reputation',
   LeaderboardCategory.POSTS,
   LeaderboardCategory.COMMENTS,
   LeaderboardCategory.UPVOTES_GIVEN,
@@ -305,6 +303,11 @@ const LeaderboardPage = () => {
     return `${multiplier.toFixed(2)}x`;
   };
 
+  const formatHitRate = (successfulCalls?: number, totalCalls?: number) => {
+    if (!totalCalls || totalCalls === 0 || successfulCalls === undefined) return '-';
+    return `${((successfulCalls / totalCalls) * 100).toFixed(1)}%`;
+  };
+
   return (
     <TooltipProvider>
       <div className='container max-w-6xl py-8 md:py-12'>
@@ -402,31 +405,20 @@ const LeaderboardPage = () => {
                         {entries[1].displayName}
                       </Link>
                     </h3>
+                    {/* Token Call Stats */}
                     <div className='flex flex-col items-center justify-center gap-0.5 text-xs text-gray-300 font-mono font-medium'>
                       {activeCategory === 'tokenCalls' ? (
                         <>
-                          <span className='font-semibold text-base'>
+                          {/* Hit Rate */}
+                          <span className='text-[10px] text-gray-400 flex items-center gap-1 mt-0.5'>
+                            <span className='text-gray-400'>Hit Rate:</span>
                             {formatAccuracyRate(entries[1].accuracyRate)}
                           </span>
-                          <span className='text-[10px] text-gray-500'>
-                            <Link
-                              href={`/token-calls?tab=success&username=${entries[1].username}&status=VERIFIED_SUCCESS`}
-                              className='hover:underline text-gray-500'>
-                              {entries[1].successfulCalls?.toLocaleString() ?? '-'}
-                            </Link>
-                            /
-                            <Link
-                              href={`/token-calls?username=${entries[1].username}`}
-                              className='hover:underline'>
-                              {entries[1].totalCalls?.toLocaleString() ?? '-'}
-                            </Link>{' '}
-                            calls
-                          </span>
+                          {/* Avg Multi Tooltip */}
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className='text-[10px] text-gray-400 flex items-center gap-1 mt-0.5 cursor-help'>
-                                <Scale className='h-2.5 w-2.5' /> Avg Multi:{' '}
-                                {formatAvgMultiplier(entries[1].averageMultiplier)}
+                                Avg Multi: {formatAvgMultiplier(entries[1].averageMultiplier)}
                               </span>
                             </TooltipTrigger>
                             <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
@@ -436,7 +428,6 @@ const LeaderboardPage = () => {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className='text-[10px] text-gray-400 flex items-center gap-1 cursor-help'>
-                                <Clock className='h-2.5 w-2.5' />
                                 <span className='mr-0.5'>Time Acc:</span>
                                 {formatAvgTimeToHit(entries[1].averageTimeToHitRatio)}
                               </span>
@@ -450,7 +441,7 @@ const LeaderboardPage = () => {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className='text-[10px] text-gray-400 flex items-center gap-1 cursor-help'>
-                                <Trophy className='h-2.5 w-2.5' /> Avg Mcap:{' '}
+                                Avg Mcap:{' '}
                                 {entries[1].averageMarketCapAtCallTime !== null &&
                                 entries[1].averageMarketCapAtCallTime !== undefined
                                   ? `$${formatLargeNumber(entries[1].averageMarketCapAtCallTime)}`
@@ -494,31 +485,20 @@ const LeaderboardPage = () => {
                         {entries[0].displayName}
                       </Link>
                     </h3>
+                    {/* Token Call Stats */}
                     <div className='flex flex-col items-center justify-center gap-0.5 text-xs text-amber-400 font-mono font-semibold'>
                       {activeCategory === 'tokenCalls' ? (
                         <>
-                          <span className='font-semibold text-lg'>
+                          {/* Hit Rate */}
+                          <span className='text-[10px] text-amber-500 flex items-center gap-1 mt-0.5'>
+                            <span className='text-amber-500'>Hit Rate:</span>
                             {formatAccuracyRate(entries[0].accuracyRate)}
                           </span>
-                          <span className='text-[10px] text-amber-600'>
-                            <Link
-                              href={`/token-calls?tab=success&username=${entries[0].username}&status=VERIFIED_SUCCESS`}
-                              className='hover:underline text-amber-500'>
-                              {entries[0].successfulCalls?.toLocaleString() ?? '-'}
-                            </Link>
-                            /
-                            <Link
-                              href={`/token-calls?username=${entries[0].username}`}
-                              className='hover:underline'>
-                              {entries[0].totalCalls?.toLocaleString() ?? '-'}
-                            </Link>{' '}
-                            calls
-                          </span>
+                          {/* Avg Multi Tooltip */}
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className='text-[10px] text-amber-500 flex items-center gap-1 mt-0.5 cursor-help'>
-                                <Scale className='h-2.5 w-2.5' /> Avg Multi:{' '}
-                                {formatAvgMultiplier(entries[0].averageMultiplier)}
+                                Avg Multi: {formatAvgMultiplier(entries[0].averageMultiplier)}
                               </span>
                             </TooltipTrigger>
                             <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
@@ -528,7 +508,6 @@ const LeaderboardPage = () => {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className='text-[10px] text-amber-500 flex items-center gap-1 cursor-help'>
-                                <Clock className='h-2.5 w-2.5' />
                                 <span className='mr-0.5'>Time Acc:</span>
                                 {formatAvgTimeToHit(entries[0].averageTimeToHitRatio)}
                               </span>
@@ -542,7 +521,7 @@ const LeaderboardPage = () => {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className='text-[10px] text-amber-500 flex items-center gap-1 cursor-help'>
-                                <Trophy className='h-2.5 w-2.5' /> Avg Mcap:{' '}
+                                Avg Mcap:{' '}
                                 {entries[0].averageMarketCapAtCallTime !== null &&
                                 entries[0].averageMarketCapAtCallTime !== undefined
                                   ? `$${formatLargeNumber(entries[0].averageMarketCapAtCallTime)}`
@@ -586,31 +565,20 @@ const LeaderboardPage = () => {
                         {entries[2].displayName}
                       </Link>
                     </h3>
+                    {/* Token Call Stats */}
                     <div className='flex flex-col items-center justify-center gap-0.5 text-xs text-amber-700/90 font-mono font-medium'>
                       {activeCategory === 'tokenCalls' ? (
                         <>
-                          <span className='font-semibold text-base'>
+                          {/* Hit Rate */}
+                          <span className='text-[10px] text-amber-600 flex items-center gap-1 mt-0.5'>
+                            <span className='text-amber-600'>Hit Rate:</span>
                             {formatAccuracyRate(entries[2].accuracyRate)}
                           </span>
-                          <span className='text-[10px] text-amber-800'>
-                            <Link
-                              href={`/token-calls?tab=success&username=${entries[2].username}&status=VERIFIED_SUCCESS`}
-                              className='hover:underline text-amber-700'>
-                              {entries[2].successfulCalls?.toLocaleString() ?? '-'}
-                            </Link>
-                            /
-                            <Link
-                              href={`/token-calls?username=${entries[2].username}`}
-                              className='hover:underline'>
-                              {entries[2].totalCalls?.toLocaleString() ?? '-'}
-                            </Link>{' '}
-                            calls
-                          </span>
+                          {/* Avg Multi Tooltip */}
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className='text-[10px] text-amber-600 flex items-center gap-1 mt-0.5 cursor-help'>
-                                <Scale className='h-2.5 w-2.5' /> Avg Multi:{' '}
-                                {formatAvgMultiplier(entries[2].averageMultiplier)}
+                                Avg Multi: {formatAvgMultiplier(entries[2].averageMultiplier)}
                               </span>
                             </TooltipTrigger>
                             <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
@@ -620,7 +588,6 @@ const LeaderboardPage = () => {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className='text-[10px] text-amber-600 flex items-center gap-1 cursor-help'>
-                                <Clock className='h-2.5 w-2.5' />
                                 <span className='mr-0.5'>Time Acc:</span>
                                 {formatAvgTimeToHit(entries[2].averageTimeToHitRatio)}
                               </span>
@@ -634,7 +601,7 @@ const LeaderboardPage = () => {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className='text-[10px] text-amber-600 flex items-center gap-1 cursor-help'>
-                                <Trophy className='h-2.5 w-2.5' /> Avg Mcap:{' '}
+                                Avg Mcap:{' '}
                                 {entries[2].averageMarketCapAtCallTime !== null &&
                                 entries[2].averageMarketCapAtCallTime !== undefined
                                   ? `$${formatLargeNumber(entries[2].averageMarketCapAtCallTime)}`
@@ -667,6 +634,7 @@ const LeaderboardPage = () => {
               <div className='flex-1 px-1 sm:px-2 text-left'>User</div>
               {activeCategory === 'tokenCalls' ? (
                 <>
+                  {/* Avg Multi Column */}
                   <div className='w-24 sm:w-28 text-center hidden sm:block'>
                     <Tooltip>
                       <TooltipTrigger className='flex items-center justify-center gap-1 w-full cursor-default'>
@@ -677,6 +645,7 @@ const LeaderboardPage = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
+                  {/* Avg Mcap Column */}
                   <div className='w-24 sm:w-28 text-center hidden md:block'>
                     <Tooltip>
                       <TooltipTrigger className='flex items-center justify-center gap-1 w-full cursor-default'>
@@ -687,6 +656,7 @@ const LeaderboardPage = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
+                  {/* Time Accuracy Column */}
                   <div className='w-28 sm:w-36 text-center hidden md:block'>
                     <Tooltip>
                       <TooltipTrigger className='flex items-center justify-center gap-1 w-full cursor-default'>
@@ -697,6 +667,18 @@ const LeaderboardPage = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
+                  {/* Hit Rate Column */}
+                  <div className='w-24 sm:w-28 text-center'>
+                    <Tooltip>
+                      <TooltipTrigger className='flex items-center justify-center gap-1 w-full cursor-default'>
+                        Hit Rate <HelpCircle className='h-3 w-3 opacity-60' />
+                      </TooltipTrigger>
+                      <TooltipContent className='bg-zinc-800 border-zinc-700 text-zinc-200'>
+                        <p>Percentage of successful calls out of total calls.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  {/* Calls (Success) Column */}
                   <div className='w-28 sm:w-32 text-right'>Calls (Success)</div>
                 </>
               ) : (
@@ -738,11 +720,13 @@ const LeaderboardPage = () => {
                     </div>
                     {activeCategory === 'tokenCalls' ? (
                       <>
+                        {/* Avg Multi - Restored Data */}
                         <div className='w-24 sm:w-28 text-center hidden sm:block'>
                           <div className='font-mono font-semibold text-amber-500 text-xs sm:text-sm'>
                             {formatAvgMultiplier(currentUserPosition.averageMultiplier)}
                           </div>
                         </div>
+                        {/* Avg Mcap */}
                         <div className='w-24 sm:w-28 text-center hidden md:block'>
                           <div className='font-mono font-semibold text-amber-500 text-xs sm:text-sm'>
                             {currentUserPosition.averageMarketCapAtCallTime !== null &&
@@ -751,11 +735,22 @@ const LeaderboardPage = () => {
                               : '-'}
                           </div>
                         </div>
+                        {/* Time Accuracy */}
                         <div className='w-28 sm:w-36 text-center hidden md:block'>
                           <div className='font-mono font-semibold text-amber-500 text-xs sm:text-sm'>
                             {formatAvgTimeToHit(currentUserPosition.averageTimeToHitRatio)}
                           </div>
                         </div>
+                        {/* Hit Rate */}
+                        <div className='w-24 sm:w-28 text-center'>
+                          <div className='font-mono font-semibold text-amber-500 text-xs sm:text-sm'>
+                            {formatHitRate(
+                              currentUserPosition.successfulCalls,
+                              currentUserPosition.totalCalls,
+                            )}
+                          </div>
+                        </div>
+                        {/* Calls (Success) */}
                         <div className='w-28 sm:w-32 text-right'>
                           <div className='font-mono font-semibold text-amber-500 text-xs sm:text-sm'>
                             <Link
@@ -765,7 +760,7 @@ const LeaderboardPage = () => {
                             </Link>
                             <span className='text-zinc-500 mx-0.5'>
                               (
-                              <span className='text-amber-500/90'>
+                              <span className='text-green-500'>
                                 <Link
                                   href={`/token-calls?tab=success&username=${user.username}&status=VERIFIED_SUCCESS`}
                                   className='hover:underline'>
@@ -876,6 +871,7 @@ const LeaderboardPage = () => {
                     {/* Score/Stats */}
                     {activeCategory === 'tokenCalls' ? (
                       <>
+                        {/* Avg Multi */}
                         <div className='w-24 sm:w-28 text-center hidden sm:block'>
                           <div
                             className={cn(
@@ -885,6 +881,7 @@ const LeaderboardPage = () => {
                             {formatAvgMultiplier(entry.averageMultiplier)}
                           </div>
                         </div>
+                        {/* Avg Mcap */}
                         <div className='w-24 sm:w-28 text-center hidden md:block'>
                           <div
                             className={cn(
@@ -897,6 +894,7 @@ const LeaderboardPage = () => {
                               : '-'}
                           </div>
                         </div>
+                        {/* Time Accuracy */}
                         <div className='w-28 sm:w-36 text-center hidden md:block'>
                           <div
                             className={cn(
@@ -906,23 +904,27 @@ const LeaderboardPage = () => {
                             {formatAvgTimeToHit(entry.averageTimeToHitRatio)}
                           </div>
                         </div>
-                        <div className='w-28 sm:w-32 text-right'>
+                        {/* Hit Rate */}
+                        <div className='w-24 sm:w-28 text-center'>
                           <div
                             className={cn(
                               'font-mono font-semibold text-xs sm:text-sm',
                               isCurrentUser ? 'text-amber-500' : 'text-zinc-300',
                             )}>
-                            <Link
-                              href={`/token-calls?username=${entry.username}`}
-                              className='hover:underline'>
-                              {entry.totalCalls?.toLocaleString() ?? '-'}
-                            </Link>
+                            {formatHitRate(entry.successfulCalls, entry.totalCalls)}
+                          </div>
+                        </div>
+                        {/* Calls (Success) */}
+                        <div className='w-28 sm:w-32 text-right'>
+                          <div
+                            className={cn(
+                              'font-mono font-semibold text-xs sm:text-sm',
+                              isCurrentUser ? 'text-amber-500' : 'text-zinc-400',
+                            )}>
+                            {entry.totalCalls?.toLocaleString() ?? '0'}
                             <span className='text-zinc-500 mx-0.5'>
                               (
-                              <span
-                                className={cn(
-                                  isCurrentUser ? 'text-amber-500/90' : 'text-green-500',
-                                )}>
+                              <span className='text-green-500'>
                                 <Link
                                   href={`/token-calls?tab=success&username=${entry.username}&status=VERIFIED_SUCCESS`}
                                   className='hover:underline'>

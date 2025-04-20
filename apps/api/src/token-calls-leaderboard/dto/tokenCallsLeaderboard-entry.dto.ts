@@ -3,6 +3,9 @@ import { UserMinimumResponseDto } from '../../users/dto/user-minimum-response.dt
 
 export class LeaderboardEntryDto {
   @Expose()
+  adjustedScore: number;
+
+  @Expose()
   rank: number;
 
   @Expose()
