@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 import { TokenCallListFilters, TokenCallListSort, tokenCalls } from '@/lib/api';
 import { cn, formatLargeNumber, formatPrice, getHighResAvatar } from '@/lib/utils';
 import { TokenCall, TokenCallSortBy, TokenCallStatus } from '@dyor-hub/types';
@@ -26,6 +27,7 @@ import {
   ArrowUpDown,
   CheckCircle,
   Clock,
+  Copy,
   Eye,
   Filter,
   HelpCircle,
@@ -63,6 +65,7 @@ const getStatusIcon = (status: TokenCallStatus) => {
 export default function TokenCallsExplorerPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
 
   const [calls, setCalls] = useState<TokenCall[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -141,6 +144,14 @@ export default function TokenCallsExplorerPage() {
     const sortOrderParam = searchParams.get('sortOrder');
     return sortOrderParam === 'ASC' || sortOrderParam === 'DESC' ? sortOrderParam : 'DESC';
   });
+
+  const handleCopyMint = (mintAddress: string) => {
+    navigator.clipboard.writeText(mintAddress);
+    toast({
+      title: 'Copied!',
+      description: 'Mint address copied to clipboard',
+    });
+  };
 
   // Update URL with current filters
   const updateUrlParams = useCallback(() => {
@@ -639,24 +650,45 @@ export default function TokenCallsExplorerPage() {
 
                             <TableCell className='px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap'>
                               {call.token ? (
-                                <Link
-                                  href={`/tokens/${call.token.mintAddress}`}
-                                  className='group inline-flex items-center gap-2 rounded p-1 -m-1 transition-colors'>
-                                  <Avatar className='h-8 w-8 border border-zinc-700 group-hover:border-amber-500 transition-all group-hover:shadow-[0_0_10px_rgba(245,158,11,0.3)]'>
-                                    <AvatarImage src={tokenImageSrc} alt={call.token.name} />
-                                    <AvatarFallback className='text-xs bg-zinc-800'>
-                                      {call.token.symbol.substring(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className='flex flex-col'>
-                                    <span className='text-sm font-medium text-zinc-200 group-hover:text-amber-400 transition-colors truncate max-w-[80px] sm:max-w-[120px]'>
-                                      {call.token.name}
-                                    </span>
-                                    <span className='text-xs text-zinc-500 group-hover:text-zinc-400 transition-colors'>
-                                      ${call.token.symbol}
-                                    </span>
-                                  </div>
-                                </Link>
+                                <div className='flex items-center gap-2'>
+                                  <Link
+                                    href={`/tokens/${call.token.mintAddress}`}
+                                    className='group inline-flex items-center gap-2 rounded p-1 -m-1 transition-colors'>
+                                    <Avatar className='h-8 w-8 border border-zinc-700 group-hover:border-amber-500 transition-all group-hover:shadow-[0_0_10px_rgba(245,158,11,0.3)]'>
+                                      <AvatarImage src={tokenImageSrc} alt={call.token.name} />
+                                      <AvatarFallback className='text-xs bg-zinc-800'>
+                                        {call.token.symbol.substring(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className='flex flex-col'>
+                                      <span className='text-sm font-medium text-zinc-200 group-hover:text-amber-400 transition-colors truncate max-w-[80px] sm:max-w-[120px]'>
+                                        {call.token.name}
+                                      </span>
+                                      <span className='text-xs text-zinc-500 group-hover:text-zinc-400 transition-colors'>
+                                        ${call.token.symbol}
+                                      </span>
+                                    </div>
+                                  </Link>
+                                  {call.token.mintAddress && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <button
+                                            type='button'
+                                            className='ml-1 p-1 rounded border border-transparent cursor-pointer group'
+                                            onClick={() => {
+                                              if (call.token && call.token.mintAddress)
+                                                handleCopyMint(call.token.mintAddress);
+                                            }}
+                                            aria-label='Copy mint address'>
+                                            <Copy className='h-4 w-4 text-zinc-400 group-hover:text-white transition-colors' />
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side='top'>Copy CA</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
                               ) : (
                                 <span className='text-sm text-zinc-500'>Unknown Token</span>
                               )}
