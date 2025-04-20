@@ -7,9 +7,11 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { CommentEntity } from './comment.entity';
 import { TokenEntity } from './token.entity';
 import { UserEntity } from './user.entity';
 
@@ -66,9 +68,6 @@ export class TokenCallEntity {
   @Column('numeric', { precision: 18, scale: 8, name: 'target_price' })
   targetPrice: number;
 
-  @Column({ name: 'timeframe_duration', type: 'varchar' })
-  timeframeDuration: string;
-
   @Column({ name: 'target_date', type: 'timestamptz' })
   targetDate: Date;
 
@@ -120,4 +119,9 @@ export class TokenCallEntity {
 
   @Column({ name: 'price_history_url', type: 'varchar', nullable: true })
   priceHistoryUrl?: string | null;
+
+  @OneToOne(() => CommentEntity, (comment) => comment.tokenCall, {
+    nullable: true,
+  })
+  explanationComment: CommentEntity | null;
 }

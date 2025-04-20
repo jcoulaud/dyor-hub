@@ -1,4 +1,4 @@
-import { COMMENT_MAX_LENGTH } from '@dyor-hub/types';
+import { COMMENT_MAX_LENGTH, CommentType } from '@dyor-hub/types';
 import { MaxLength } from 'class-validator';
 import {
   Column,
@@ -12,6 +12,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { CommentVoteEntity } from './comment-vote.entity';
+import { TokenCallEntity } from './token-call.entity';
 import { TokenEntity } from './token.entity';
 import { UserEntity } from './user.entity';
 
@@ -26,6 +27,14 @@ export class CommentEntity {
   })
   content: string;
 
+  @Column({
+    name: 'type',
+    type: 'enum',
+    enum: CommentType,
+    default: CommentType.COMMENT,
+  })
+  type: CommentType;
+
   @Column({ name: 'token_mint_address', type: 'varchar' })
   tokenMintAddress: string;
 
@@ -34,6 +43,9 @@ export class CommentEntity {
 
   @Column({ name: 'parent_id', nullable: true, type: 'uuid' })
   parentId: string | null;
+
+  @Column({ name: 'token_call_id', nullable: true, type: 'uuid' })
+  tokenCallId: string | null;
 
   @Column({ name: 'upvotes_count', type: 'integer', default: 0 })
   upvotes: number;
@@ -68,6 +80,17 @@ export class CommentEntity {
   })
   @JoinColumn({ name: 'parent_id' })
   parent: CommentEntity | null;
+
+  @ManyToOne(
+    () => TokenCallEntity,
+    (tokenCall) => tokenCall.explanationComment,
+    {
+      nullable: true,
+      onDelete: 'SET NULL',
+    },
+  )
+  @JoinColumn({ name: 'token_call_id' })
+  tokenCall: TokenCallEntity | null;
 
   @OneToMany(() => CommentEntity, (comment) => comment.parent)
   replies: CommentEntity[];

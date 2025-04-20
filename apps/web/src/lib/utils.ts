@@ -105,15 +105,44 @@ const formatLargeNumber = (num: string | number | undefined | null): string => {
   const absNum = Math.abs(number);
   const sign = number < 0 ? '-' : '';
 
-  const formatOptions: Intl.NumberFormatOptions = { maximumFractionDigits: 0 };
+  // Options for K and T (no decimals)
+  const formatOptionsNoDecimals: Intl.NumberFormatOptions = { maximumFractionDigits: 0 };
+  // Options for M and B (two decimals)
+  const formatOptionsTwoDecimals: Intl.NumberFormatOptions = {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  };
 
   if (absNum < 1000)
-    return `${sign}${number.toLocaleString('en-US', { maximumFractionDigits: 2 })}`; // Show decimals below 1K
-  if (absNum < 999500) return `${sign}${(number / 1e3).toLocaleString('en-US', formatOptions)}K`;
-  if (absNum < 999500000) return `${sign}${(number / 1e6).toLocaleString('en-US', formatOptions)}M`;
-  if (absNum < 999500000000)
-    return `${sign}${(number / 1e9).toLocaleString('en-US', formatOptions)}B`;
-  return `${sign}${(number / 1e12).toLocaleString('en-US', formatOptions)}T`;
+    return `${sign}${number.toLocaleString('en-US', { maximumFractionDigits: 2 })}`; // Keep original logic for < 1k
+
+  let formattedNum = '';
+  let suffix = '';
+
+  if (absNum < 999500) {
+    // K: No decimals
+    formattedNum = (number / 1e3).toLocaleString('en-US', formatOptionsNoDecimals);
+    suffix = 'K';
+  } else if (absNum < 999500000) {
+    // M: Always 2 decimals, remove .00
+    formattedNum = (number / 1e6).toLocaleString('en-US', formatOptionsTwoDecimals);
+    suffix = 'M';
+  } else if (absNum < 999500000000) {
+    // B: Always 2 decimals, remove .00
+    formattedNum = (number / 1e9).toLocaleString('en-US', formatOptionsTwoDecimals);
+    suffix = 'B';
+  } else {
+    // T: No decimals
+    formattedNum = (number / 1e12).toLocaleString('en-US', formatOptionsNoDecimals);
+    suffix = 'T';
+  }
+
+  // Remove .00 for M and B if necessary
+  if ((suffix === 'M' || suffix === 'B') && formattedNum.endsWith('.00')) {
+    formattedNum = formattedNum.slice(0, -3); // Remove the last 3 characters (.00)
+  }
+
+  return `${sign}${formattedNum}${suffix}`;
 };
 
 export { formatLargeNumber };

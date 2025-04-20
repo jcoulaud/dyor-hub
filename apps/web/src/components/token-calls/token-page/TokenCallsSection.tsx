@@ -68,9 +68,7 @@ export function TokenCallsSection({
 
   const handleCallCreated = useCallback(() => {
     fetchStatsData();
-    if (onCallCreated) {
-      onCallCreated();
-    }
+    onCallCreated?.();
   }, [fetchStatsData, onCallCreated]);
 
   const handlePredictionNavigate = (index: number) => {
@@ -187,7 +185,7 @@ export function TokenCallsSection({
               currentTokenPrice={currentTokenPrice}
               onCallCreated={handleCallCreated}
               circulatingSupply={circulatingSupply}
-              isMakingAnotherCall={true}
+              isMakingAnotherCall={userCalls.length > 0}
             />
           </div>
         </div>
@@ -230,7 +228,7 @@ export function TokenCallsSection({
     isPriceValid,
     tokenId,
     tokenSymbol,
-    handleCallCreated,
+    onCallCreated,
     circulatingSupply,
     handlePredictionNavigate,
   ]);
