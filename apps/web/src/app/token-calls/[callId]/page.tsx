@@ -7,7 +7,6 @@ import {
   CheckCircle,
   Clock,
   Copy,
-  Info,
   MessageCircle,
   TrendingDown,
   TrendingUp,
@@ -282,11 +281,11 @@ export default function TokenCallDetailPage() {
 
           <CardContent className='p-5 pt-0'>
             {/* Main content */}
-            <div className='grid grid-cols-1 md:grid-cols-12 gap-6'>
-              {/* Left column: Token and Chart */}
-              <div className='md:col-span-7 space-y-5'>
+            <div className='grid grid-cols-1 md:grid-cols-12 gap-4'>
+              {/* Left column: Token and Chart, chart bottom-aligned */}
+              <div className='md:col-span-7 flex flex-col h-full'>
                 {/* Token card */}
-                <div className='bg-zinc-800/40 backdrop-blur-sm rounded-xl border border-zinc-700/30 p-4'>
+                <div className='bg-zinc-800/40 backdrop-blur-sm rounded-xl border border-zinc-700/30 p-4 mb-2'>
                   <Link href={`/tokens/${token?.mintAddress}`} className='block'>
                     <div className='flex items-center'>
                       {/* Token image */}
@@ -302,7 +301,6 @@ export default function TokenCallDetailPage() {
                           </AvatarFallback>
                         </Avatar>
                       </div>
-
                       {/* Token name and symbol */}
                       <div className='flex-grow'>
                         <h3 className='text-base md:text-lg font-semibold text-zinc-100 mb-0.5 hover:text-amber-400 transition-colors'>
@@ -317,21 +315,21 @@ export default function TokenCallDetailPage() {
                     </div>
                   </Link>
                 </div>
-
+                <div className='flex-1' />
                 {/* Chart card */}
                 <div className='bg-zinc-800/40 backdrop-blur-sm rounded-xl border border-zinc-700/30 overflow-hidden shadow-md'>
                   <div>
                     {isHistoryLoading ? (
-                      <div className='w-full flex items-center justify-center py-8'>
+                      <div className='w-full flex items-center justify-center py-4'>
                         <Skeleton className='w-full h-36' />
                       </div>
                     ) : historyError ? (
-                      <div className='text-red-500 flex items-center justify-center py-8 text-sm'>
+                      <div className='text-red-500 flex items-center justify-center py-4 text-sm'>
                         <XCircle className='h-4 w-4 mr-2' />
                         {historyError}
                       </div>
                     ) : priceHistory && priceHistory.items.length > 0 ? (
-                      <div className='bg-zinc-800/10' style={{ height: '260px' }}>
+                      <div className='bg-zinc-800/10' style={{ height: '285px' }}>
                         <ResponsiveContainer width='100%' height='100%'>
                           <LineChart
                             data={priceHistory.items.map((item) => {
@@ -340,7 +338,6 @@ export default function TokenCallDetailPage() {
                               const mcap = tokenCall.referenceSupply
                                 ? price * parseFloat(String(tokenCall.referenceSupply))
                                 : null;
-
                               return {
                                 time: item.unixTime * 1000,
                                 price,
@@ -355,7 +352,6 @@ export default function TokenCallDetailPage() {
                               strokeDasharray='2 6'
                               strokeWidth={0.8}
                             />
-
                             {/* X-axis */}
                             <XAxis
                               dataKey='time'
@@ -364,7 +360,6 @@ export default function TokenCallDetailPage() {
                               domain={['dataMin', 'dataMax']}
                               tickFormatter={(timestamp) => {
                                 const date = new Date(timestamp);
-
                                 // Calculate if the data spans 5 or more days
                                 const firstDate =
                                   priceHistory && new Date(priceHistory.items[0].unixTime * 1000);
@@ -381,7 +376,6 @@ export default function TokenCallDetailPage() {
                                           (1000 * 60 * 60 * 24),
                                       )
                                     : 0;
-
                                 // Use date format if span is 5+ days, otherwise use time
                                 if (daySpan >= 5) {
                                   return format(date, 'MMM d');
@@ -397,7 +391,6 @@ export default function TokenCallDetailPage() {
                               minTickGap={80}
                               padding={{ left: 10, right: 10 }}
                             />
-
                             {/* Y-axis */}
                             <YAxis
                               dataKey={displayMode === 'mcap' ? 'mcap' : 'price'}
@@ -438,7 +431,6 @@ export default function TokenCallDetailPage() {
                               allowDecimals={true}
                               tickCount={5}
                             />
-
                             {/* Tooltip */}
                             <Tooltip
                               content={({ active, payload, label }) => {
@@ -451,11 +443,9 @@ export default function TokenCallDetailPage() {
                                     const priceValue = payload[0].value as number;
                                     value = `$${Number(priceValue).toFixed(6)}`;
                                   }
-
                                   const date = new Date(label);
                                   const formattedTime = format(date, 'h:mm a');
                                   const formattedDate = format(date, 'MMM d, yyyy');
-
                                   return (
                                     <div className='bg-zinc-800/90 px-3 py-2 rounded-lg border border-zinc-700/50 shadow-lg backdrop-blur-sm'>
                                       <p className='text-xs text-zinc-400 mb-1'>
@@ -474,7 +464,6 @@ export default function TokenCallDetailPage() {
                                 strokeWidth: 1,
                               }}
                             />
-
                             {/* Main line */}
                             <Line
                               type='monotone'
@@ -495,7 +484,6 @@ export default function TokenCallDetailPage() {
                               animationDuration={1200}
                               animationEasing='ease-out'
                             />
-
                             {/* Target reference line */}
                             {(status === TokenCallStatus.PENDING ||
                               status === TokenCallStatus.VERIFIED_SUCCESS ||
@@ -531,27 +519,34 @@ export default function TokenCallDetailPage() {
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div
-                        className='bg-zinc-800/10 flex items-center justify-center'
-                        style={{ height: '273px' }}>
-                        <div className='text-zinc-400 flex flex-col items-center justify-center py-8 text-sm'>
-                          <Info className='h-5 w-5 mb-2 text-zinc-500' />
-                          <p>Chart will be available when the target date is reached.</p>
-                        </div>
-                      </div>
+                      <PendingPredictionChart
+                        referenceDate={callDetails?.createdAt || new Date()}
+                        targetDate={callDetails?.targetDate || new Date()}
+                        referenceValue={
+                          displayMode === 'mcap'
+                            ? callDetails?.referenceMcap || 0
+                            : parseFloat(String(tokenCall.referencePrice))
+                        }
+                        targetValue={
+                          displayMode === 'mcap'
+                            ? callDetails?.targetMcap || 0
+                            : parseFloat(String(tokenCall.targetPrice))
+                        }
+                        displayMode={displayMode}
+                      />
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Right column: Prediction details */}
-              <div className='md:col-span-5'>
-                <div className='bg-zinc-800/40 backdrop-blur-sm rounded-xl border border-zinc-700/30 h-full'>
+              {/* Right column: Prediction details and chart at the bottom */}
+              <div className='md:col-span-5 flex flex-col gap-4'>
+                <div className='bg-zinc-800/40 backdrop-blur-sm rounded-xl border border-zinc-700/30 flex flex-col'>
                   {/* Prediction content */}
-                  <div className='p-4 pb-2'>
+                  <div className='p-4 flex flex-col gap-4'>
                     {/* Multiplier card */}
                     <div
-                      className={`relative overflow-hidden rounded-lg border p-4 mb-4 ${
+                      className={`relative overflow-hidden rounded-lg border p-4 ${
                         callDetails?.isUp
                           ? 'bg-green-500/10 border-green-500/30'
                           : 'bg-gradient-to-r from-zinc-900 to-zinc-800 border-zinc-700/50'
@@ -586,7 +581,7 @@ export default function TokenCallDetailPage() {
                     <Tabs
                       value={displayMode}
                       onValueChange={(value) => setDisplayMode(value as 'price' | 'mcap')}
-                      className='mb-4'>
+                      className=''>
                       <div className='flex flex-col relative'>
                         <TabsList className='grid w-full grid-cols-2 h-9 bg-zinc-900/60 border border-zinc-700/40 p-0.5 rounded-full shadow-inner overflow-hidden'>
                           {/* Mcap Trigger */}
@@ -876,6 +871,130 @@ function TokenCallError({ errorMessage }: { errorMessage?: string }) {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function PendingPredictionChart({
+  referenceDate,
+  targetDate,
+  referenceValue,
+  targetValue,
+  displayMode,
+}: {
+  referenceDate: Date;
+  targetDate: Date;
+  referenceValue: number;
+  targetValue: number;
+  displayMode: 'price' | 'mcap';
+}) {
+  const data = [
+    { time: referenceDate.getTime(), value: referenceValue, label: 'Reference' },
+    { time: targetDate.getTime(), value: targetValue, label: 'Target' },
+  ];
+
+  return (
+    <div className='bg-zinc-800/10' style={{ height: '285px' }}>
+      <ResponsiveContainer width='100%' height='100%'>
+        <LineChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
+          <CartesianGrid
+            stroke='#666'
+            opacity={0.1}
+            vertical={false}
+            strokeDasharray='2 6'
+            strokeWidth={0.8}
+          />
+          <XAxis
+            dataKey='time'
+            type='number'
+            scale='time'
+            domain={['dataMin', 'dataMax']}
+            tickFormatter={(timestamp) => {
+              const date = new Date(timestamp);
+              return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+            }}
+            stroke='#666'
+            tick={{ fontSize: 10, fill: '#aaa' }}
+            tickSize={3}
+            axisLine={{ stroke: '#555' }}
+            interval='preserveStartEnd'
+            minTickGap={80}
+            padding={{ left: 10, right: 10 }}
+          />
+          <YAxis
+            dataKey='value'
+            tickFormatter={(value) =>
+              displayMode === 'mcap' ? `$${formatLargeNumber(value)}` : `$${value.toFixed(4)}`
+            }
+            domain={[(dataMin: number) => dataMin * 0.95, (dataMax: number) => dataMax * 1.05]}
+            stroke='#666'
+            tick={{ fontSize: 10, fill: '#aaa' }}
+            width={58}
+            tickSize={3}
+            axisLine={{ stroke: '#555' }}
+            tickMargin={5}
+            allowDecimals={true}
+            tickCount={5}
+          />
+          <Tooltip
+            content={({ active, payload, label }) => {
+              if (active && payload && payload.length) {
+                const displayValue =
+                  displayMode === 'mcap'
+                    ? `$${formatLargeNumber(payload[0].value as number)}`
+                    : `$${Number(payload[0].value).toFixed(6)}`;
+                const date = new Date(label);
+                return (
+                  <div className='bg-zinc-800/90 px-3 py-2 rounded-lg border border-zinc-700/50 shadow-lg backdrop-blur-sm'>
+                    <p className='text-xs text-zinc-400 mb-1'>
+                      {date.toLocaleDateString()}{' '}
+                      {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <p className='text-sm font-medium text-white'>{displayValue}</p>
+                  </div>
+                );
+              }
+              return null;
+            }}
+            cursor={{ stroke: '#22c55e', strokeOpacity: 0.7, strokeWidth: 1 }}
+          />
+          <Line
+            type='linear'
+            dataKey='value'
+            stroke='#22c55e'
+            strokeWidth={2}
+            dot={{ r: 5, fill: '#22c55e', stroke: '#222', strokeWidth: 1, strokeOpacity: 0.8 }}
+            activeDot={{
+              r: 6,
+              fill: '#22c55e',
+              stroke: '#222',
+              strokeWidth: 1,
+              strokeOpacity: 0.8,
+            }}
+            strokeDasharray='6 6'
+            animationDuration={800}
+            animationEasing='ease-out'
+          />
+          {/* Target reference line */}
+          <ReferenceLine
+            y={targetValue}
+            stroke={'#22c55e'}
+            strokeDasharray='3 3'
+            strokeWidth={1.5}
+            isFront={true}
+            ifOverflow='extendDomain'
+            label={{
+              value: 'Target',
+              position: 'insideRight',
+              offset: 2,
+              dy: -10,
+              fill: '#22c55e',
+              fontSize: 11,
+              fontWeight: 500,
+            }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   );
 }
