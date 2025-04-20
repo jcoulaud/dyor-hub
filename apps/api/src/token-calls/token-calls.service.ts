@@ -154,6 +154,12 @@ export class TokenCallsService {
         explanationComment,
       );
 
+      await queryRunner.manager.update(TokenCallEntity, savedCall.id, {
+        explanationCommentId: savedComment.id,
+      });
+
+      savedCall.explanationCommentId = savedComment.id;
+
       const user = await queryRunner.manager.findOne(UserEntity, {
         where: { id: userId },
       });
