@@ -8,6 +8,7 @@ import {
   Clock,
   Copy,
   Info,
+  MessageCircle,
   TrendingDown,
   TrendingUp,
   Twitter,
@@ -37,7 +38,9 @@ import { useToast } from '@/hooks/use-toast';
 import { tokenCalls } from '@/lib/api';
 import { calculateMultiplier, formatLargeNumber, formatPrice } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
-import { TokenCall, TokenCallStatus } from '@dyor-hub/types';
+import { TokenCall as BaseTokenCall, Comment, TokenCallStatus } from '@dyor-hub/types';
+
+type TokenCall = BaseTokenCall & { explanationComment?: Comment | null };
 
 type StatusConfig = {
   icon: React.ReactNode;
@@ -218,7 +221,9 @@ export default function TokenCallDetailPage() {
     return <TokenCallError errorMessage={error || undefined} />;
   }
 
-  const { user, token, status } = tokenCall;
+  const user = tokenCall.user;
+  const token = tokenCall.token;
+  const status = tokenCall.status;
 
   return (
     <div className='container mx-auto px-4 py-6 max-w-5xl'>
@@ -528,7 +533,7 @@ export default function TokenCallDetailPage() {
                     ) : (
                       <div
                         className='bg-zinc-800/10 flex items-center justify-center'
-                        style={{ height: '260px' }}>
+                        style={{ height: '273px' }}>
                         <div className='text-zinc-400 flex flex-col items-center justify-center py-8 text-sm'>
                           <Info className='h-5 w-5 mb-2 text-zinc-500' />
                           <p>Chart will be available when the target date is reached.</p>
@@ -710,6 +715,47 @@ export default function TokenCallDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* Explanation comment */}
+            {tokenCall.explanationComment && (
+              <div className='mt-4 w-full'>
+                <div className='w-full rounded-xl border border-zinc-700/30 bg-zinc-800/40 backdrop-blur-sm shadow-md p-5 relative'>
+                  <a
+                    href={`/tokens/${token?.mintAddress}/comments/${tokenCall.explanationComment.id}`}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='absolute top-4 right-4 p-2 rounded-full bg-zinc-900/70 hover:bg-zinc-800 border border-zinc-700/40 text-zinc-400 hover:text-amber-400 transition-colors shadow-sm'
+                    title='Open comment thread'>
+                    <MessageCircle className='h-5 w-5' />
+                  </a>
+                  <div className='flex items-center mb-3'>
+                    <Avatar className='h-10 w-10 mr-3 border border-amber-700/30'>
+                      <AvatarImage
+                        src={tokenCall.explanationComment.user?.avatarUrl || ''}
+                        alt={tokenCall.explanationComment.user?.displayName || ''}
+                      />
+                      <AvatarFallback className='bg-amber-700/40 text-amber-200 text-base'>
+                        {tokenCall.explanationComment.user?.displayName?.[0]?.toUpperCase() || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className='flex flex-1 items-center gap-2'>
+                      <span className='font-semibold text-zinc-100 text-base'>
+                        {tokenCall.explanationComment.user?.displayName || 'User'}
+                      </span>
+                      <span className='text-xs text-zinc-500'>
+                        {format(
+                          new Date(tokenCall.explanationComment.createdAt),
+                          'MMMM d, yyyy • h:mm a',
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  <div className='text-zinc-100 text-base leading-relaxed whitespace-pre-line px-1'>
+                    {tokenCall.explanationComment.content}
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -9,6 +9,8 @@ import {
   IsPositive,
   IsString,
 } from 'class-validator';
+import { TokenDto } from './token.dto';
+import { UserDto } from './user.dto';
 
 export class TokenCallResponseDto {
   @IsString()
@@ -102,4 +104,12 @@ export class TokenCallResponseDto {
   @IsNotEmpty()
   @Expose()
   updatedAt: Date;
+
+  @Expose()
+  @Type(() => UserDto)
+  user: UserDto;
+
+  @Expose()
+  @Type(() => TokenDto)
+  token: TokenDto;
 }

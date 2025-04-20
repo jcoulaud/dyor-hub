@@ -1492,13 +1492,17 @@ export const tokenCalls = {
   getById: async (callId: string): Promise<TokenCall> => {
     try {
       const endpoint = `token-calls/${callId}`;
-      const response = await api<TokenCall>(endpoint);
-
-      if (!response) {
+      const response = await api<{
+        tokenCall: TokenCall;
+        comment: Comment | null;
+      }>(endpoint);
+      if (!response || !response.tokenCall) {
         throw new Error(`Failed to fetch token call data for ID: ${callId}`);
       }
-
-      return response;
+      return {
+        ...response.tokenCall,
+        explanationComment: response.comment || null,
+      } as TokenCall & { explanationComment: Comment | null };
     } catch (error) {
       throw error;
     }

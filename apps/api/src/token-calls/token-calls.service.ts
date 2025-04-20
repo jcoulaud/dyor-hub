@@ -407,6 +407,7 @@ export class TokenCallsService {
         relations: {
           token: true,
           user: true,
+          explanationComment: { user: true },
         },
         select: {
           id: true,

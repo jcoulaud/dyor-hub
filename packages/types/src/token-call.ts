@@ -1,3 +1,4 @@
+import { Comment } from './comment';
 import { TokenMinimum } from './token';
 import { UserMinimum } from './user';
 
@@ -35,6 +36,7 @@ export interface TokenCall {
   user?: UserMinimum;
   token?: TokenMinimum;
   priceHistoryUrl?: string | null;
+  explanationComment?: Comment | null;
 }
 
 export interface PaginatedTokenCallsResult {

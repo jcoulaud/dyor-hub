@@ -1,5 +1,6 @@
 import { CommentType, TokenCallStatus, VoteType } from '@dyor-hub/types';
 import { Expose, Type } from 'class-transformer';
+import { UserDto } from '../../token-calls/dto/user.dto';
 
 class CommentUserDto {
   @Expose()
@@ -86,8 +87,8 @@ export class CommentResponseDto {
   removedBy: RemovedByDto | null;
 
   @Expose()
-  @Type(() => CommentUserDto)
-  user: CommentUserDto;
+  @Type(() => UserDto)
+  user: UserDto;
 
   @Expose()
   @Type(() => CommentResponseDto)

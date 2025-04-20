@@ -24,13 +24,13 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
 import { Response } from 'express';
 import { Stream } from 'stream';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CommentResponseDto } from '../comments/dto/comment-response.dto';
 import { UserEntity } from '../entities';
-import { TokenCallEntity } from '../entities/token-call.entity';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
 import { TokenCallResponseDto } from './dto/token-call-response.dto';
 import { TokenCallFilters, TokenCallsService } from './token-calls.service';
@@ -122,11 +122,22 @@ export class TokenCallsController {
   }
 
   @Get(':callId')
-  async findOne(
-    @Param('callId', ParseUUIDPipe) callId: string,
-  ): Promise<TokenCallEntity> {
+  async findOne(@Param('callId', ParseUUIDPipe) callId: string): Promise<{
+    tokenCall: TokenCallResponseDto;
+    comment: CommentResponseDto | null;
+  }> {
     try {
-      return await this.tokenCallsService.findOneById(callId);
+      const call = await this.tokenCallsService.findOneById(callId);
+      const tokenCall = plainToInstance(TokenCallResponseDto, call, {
+        excludeExtraneousValues: true,
+      });
+      let comment: CommentResponseDto | null = null;
+      if (call.explanationComment) {
+        comment = plainToInstance(CommentResponseDto, call.explanationComment, {
+          excludeExtraneousValues: true,
+        });
+      }
+      return { tokenCall, comment };
     } catch (error) {
       if (error instanceof NotFoundException) {
         this.logger.warn(`Public call not found for ID ${callId}`);

@@ -142,7 +142,6 @@ export function MakeCallForm({
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string>('');
-  const [explanationError, setExplanationError] = useState<string | null>(null);
   const isPriceInvalid = !currentTokenPrice || currentTokenPrice <= 0;
   const [isCheckingPrice, setIsCheckingPrice] = useState(false);
   const [confirmationDialog, setConfirmationDialog] = useState<ConfirmationDialogState>({
@@ -211,17 +210,12 @@ export function MakeCallForm({
     setPredictionType(value as PredictionType);
     setInputValue('');
     setFormError(null);
-    setExplanationError(null);
   };
 
-  const validateExplanation = (): boolean => {
-    if (explanation.trim().length < 10) {
-      setExplanationError('Explanation must be at least 10 characters long.');
-      return false;
-    }
-    setExplanationError(null);
-    return true;
-  };
+  const getDefaultExplanation = useCallback(
+    () => `I just made a prediction on $${tokenSymbol}. What do you think?`,
+    [tokenSymbol],
+  );
 
   const calculatedTargetPrice = useMemo(() => {
     const numericValue = parseFloat(inputValue);
@@ -243,7 +237,7 @@ export function MakeCallForm({
     } catch {
       return null;
     }
-  }, [predictionType, inputValue, initialReferencePrice, explanationError]);
+  }, [predictionType, inputValue, initialReferencePrice]);
 
   // Calculate predicted market cap from target price
   const predictedMarketCap = useMemo(() => {
@@ -402,16 +396,11 @@ export function MakeCallForm({
       return;
     }
 
-    if (!validateExplanation()) {
-      setIsLoading(false);
-      return;
-    }
-
     const payload: CreateTokenCallInput = {
       tokenMintAddress: tokenId,
       targetPrice: targetPriceValue,
       targetDate: selectedDate,
-      explanation: explanation.trim(),
+      explanation: explanation.trim() || getDefaultExplanation(),
     };
 
     try {
@@ -485,6 +474,7 @@ export function MakeCallForm({
     toast,
     explanation,
     onAddComment,
+    getDefaultExplanation,
   ]);
 
   const handleSubmit = useCallback(
@@ -545,10 +535,6 @@ export function MakeCallForm({
 
       if (!selectedDate || !isFuture(selectedDate)) {
         setFormError('Please select a future date.');
-        return;
-      }
-
-      if (!validateExplanation()) {
         return;
       }
 
@@ -629,7 +615,6 @@ export function MakeCallForm({
       isTargetPriceValid,
       displayMode,
       confirmationDialog,
-      validateExplanation,
     ],
   );
 
@@ -959,22 +944,19 @@ export function MakeCallForm({
 
       {/* Explanation Textarea */}
       <div className='space-y-2'>
-        <Label htmlFor='explanation'>Explanation (Required)</Label>
+        <Label htmlFor='explanation'>
+          Explanation <span className='text-zinc-400'>(Optional)</span>
+        </Label>
         <Textarea
           id='explanation'
           value={explanation}
           onChange={(e) => {
             setExplanation(e.target.value);
-            if (explanationError) {
-              validateExplanation();
-            }
           }}
-          placeholder='Why do you think the price will reach this target? (min. 10 characters)'
-          required
-          minLength={10}
-          className={cn(explanationError && 'border-red-500 focus-visible:ring-red-500')}
+          placeholder={'Why do you think the price will reach this target?'}
+          className={cn()}
+          disabled={isLoading || isCheckingPrice}
         />
-        {explanationError && <p className='text-sm text-red-600'>{explanationError}</p>}
       </div>
 
       {/* Error Display */}
@@ -995,12 +977,7 @@ export function MakeCallForm({
         type='submit'
         className='w-full rounded-md h-10 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2'
         disabled={
-          isLoading ||
-          isCheckingPrice ||
-          !isAuthenticated ||
-          isPriceInvalid ||
-          !inputValue.trim() ||
-          explanation.trim().length < 10
+          isLoading || isCheckingPrice || !isAuthenticated || isPriceInvalid || !inputValue.trim()
         }>
         {(isLoading || isCheckingPrice) && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
         {isCheckingPrice ? 'Checking Price...' : isLoading ? 'Submitting...' : 'Submit Prediction'}
