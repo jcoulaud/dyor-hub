@@ -28,9 +28,11 @@ import { Response } from 'express';
 import { Stream } from 'stream';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CommentResponseDto } from '../comments/dto/comment-response.dto';
 import { UserEntity } from '../entities';
 import { TokenCallEntity } from '../entities/token-call.entity';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
+import { TokenCallResponseDto } from './dto/token-call-response.dto';
 import { TokenCallFilters, TokenCallsService } from './token-calls.service';
 
 @Controller('token-calls')
@@ -45,7 +47,7 @@ export class TokenCallsController {
   async create(
     @Body() createTokenCallDto: CreateTokenCallDto,
     @CurrentUser() user: UserEntity,
-  ): Promise<TokenCallEntity> {
+  ): Promise<{ tokenCall: TokenCallResponseDto; comment: CommentResponseDto }> {
     if (!user) {
       this.logger.error(
         'User object not found after auth guard. Auth configuration issue?',

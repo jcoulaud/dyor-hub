@@ -21,11 +21,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError, tokenCalls, tokens } from '@/lib/api';
 import { cn, formatPrice } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
-import { CreateTokenCallInput } from '@dyor-hub/types';
+import { Comment, CreateTokenCallInput } from '@dyor-hub/types';
 import {
   addDays,
   addHours,
@@ -96,6 +97,7 @@ interface MakeCallFormProps {
   onClose?: () => void;
   currentMarketCap?: number;
   circulatingSupply?: string;
+  onAddComment?: (comment: Comment) => void;
 }
 
 const formatMarketCapDisplay = (value: number): string => {
@@ -124,6 +126,7 @@ export function MakeCallForm({
   onClose,
   currentMarketCap,
   circulatingSupply,
+  onAddComment,
 }: MakeCallFormProps) {
   const { toast } = useToast();
   const { isAuthenticated } = useAuthContext();
@@ -138,6 +141,8 @@ export function MakeCallForm({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(getDateFromTimeframe('1M'));
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [explanation, setExplanation] = useState<string>('');
+  const [explanationError, setExplanationError] = useState<string | null>(null);
   const isPriceInvalid = !currentTokenPrice || currentTokenPrice <= 0;
   const [isCheckingPrice, setIsCheckingPrice] = useState(false);
   const [confirmationDialog, setConfirmationDialog] = useState<ConfirmationDialogState>({
@@ -206,6 +211,16 @@ export function MakeCallForm({
     setPredictionType(value as PredictionType);
     setInputValue('');
     setFormError(null);
+    setExplanationError(null);
+  };
+
+  const validateExplanation = (): boolean => {
+    if (explanation.trim().length < 10) {
+      setExplanationError('Explanation must be at least 10 characters long.');
+      return false;
+    }
+    setExplanationError(null);
+    return true;
   };
 
   const calculatedTargetPrice = useMemo(() => {
@@ -228,7 +243,7 @@ export function MakeCallForm({
     } catch {
       return null;
     }
-  }, [predictionType, inputValue, initialReferencePrice]);
+  }, [predictionType, inputValue, initialReferencePrice, explanationError]);
 
   // Calculate predicted market cap from target price
   const predictedMarketCap = useMemo(() => {
@@ -387,29 +402,35 @@ export function MakeCallForm({
       return;
     }
 
+    if (!validateExplanation()) {
+      setIsLoading(false);
+      return;
+    }
+
     const payload: CreateTokenCallInput = {
-      tokenId,
+      tokenMintAddress: tokenId,
       targetPrice: targetPriceValue,
-      timeframeDuration, // This might need adjustment if using calendar date
+      targetDate: selectedDate,
+      explanation: explanation.trim(),
     };
 
     try {
-      await tokenCalls.create(payload);
+      const { comment } = await tokenCalls.create(payload);
       let toastMessage = '';
 
-      const displayTarget = finalCalculatedTargetPrice;
+      const displayTarget =
+        displayMode === 'marketcap' && predictionType === 'price'
+          ? parseFloat(inputValue)
+          : finalCalculatedTargetPrice && initialReferencePrice > 0
+            ? predictionType === 'price'
+              ? finalCalculatedTargetPrice
+              : (finalCalculatedTargetPrice / initialReferencePrice) * tokenMarketCap // Percent/Multiple mode, calculate target market cap
+            : 0;
 
       if (displayMode === 'marketcap') {
-        const displayMarketCap =
-          predictionType === 'price'
-            ? parseFloat(inputValue) // Direct mcap input
-            : displayTarget && initialReferencePrice > 0
-              ? (displayTarget / initialReferencePrice) * tokenMarketCap
-              : 0;
-
-        toastMessage = `Your call for ${tokenSymbol} to reach a market cap of $${formatMarketCapDisplay(displayMarketCap)} by ${format(selectedDate, 'PPP')} has been recorded.`;
+        toastMessage = `Your call for ${tokenSymbol} to reach a market cap of $${formatMarketCapDisplay(displayTarget)} by ${format(selectedDate, 'PPP')} has been recorded.`;
       } else {
-        toastMessage = `Your call for ${tokenSymbol} to reach $${formatPrice(targetPriceValue)} by ${format(selectedDate, 'PPP')} has been recorded.`;
+        toastMessage = `Your call for ${tokenSymbol} to reach $${formatPrice(displayTarget)} by ${format(selectedDate, 'PPP')} has been recorded.`;
       }
 
       toast({
@@ -424,8 +445,13 @@ export function MakeCallForm({
       setDateSelectionMethod('preset');
       setDisplayMode('marketcap');
       setFormError(null);
+      setExplanation('');
       onCallCreated?.();
       onClose?.();
+
+      if (onAddComment && comment) {
+        onAddComment({ ...comment, replies: comment.replies ?? [] });
+      }
     } catch (error) {
       let errorMsg = 'Failed to submit prediction. Please try again.';
       if (error instanceof ApiError && error.message) {
@@ -457,6 +483,8 @@ export function MakeCallForm({
     onCallCreated,
     onClose,
     toast,
+    explanation,
+    onAddComment,
   ]);
 
   const handleSubmit = useCallback(
@@ -519,7 +547,10 @@ export function MakeCallForm({
         setFormError('Please select a future date.');
         return;
       }
-      // --- End Initial Validations ---
+
+      if (!validateExplanation()) {
+        return;
+      }
 
       setIsCheckingPrice(true);
 
@@ -573,6 +604,8 @@ export function MakeCallForm({
           setIsCheckingPrice(false);
         } else {
           await proceedWithSubmission();
+
+          setIsCheckingPrice(false);
         }
       } catch (error) {
         setFormError(
@@ -596,6 +629,7 @@ export function MakeCallForm({
       isTargetPriceValid,
       displayMode,
       confirmationDialog,
+      validateExplanation,
     ],
   );
 
@@ -923,6 +957,26 @@ export function MakeCallForm({
         )}
       </div>
 
+      {/* Explanation Textarea */}
+      <div className='space-y-2'>
+        <Label htmlFor='explanation'>Explanation (Required)</Label>
+        <Textarea
+          id='explanation'
+          value={explanation}
+          onChange={(e) => {
+            setExplanation(e.target.value);
+            if (explanationError) {
+              validateExplanation();
+            }
+          }}
+          placeholder='Why do you think the price will reach this target? (min. 10 characters)'
+          required
+          minLength={10}
+          className={cn(explanationError && 'border-red-500 focus-visible:ring-red-500')}
+        />
+        {explanationError && <p className='text-sm text-red-600'>{explanationError}</p>}
+      </div>
+
       {/* Error Display */}
       {formError && (
         <div className='bg-red-900/20 p-2 rounded-md border border-red-800/50 text-sm text-red-400'>
@@ -941,7 +995,12 @@ export function MakeCallForm({
         type='submit'
         className='w-full rounded-md h-10 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2'
         disabled={
-          isLoading || isCheckingPrice || !isAuthenticated || isPriceInvalid || !inputValue.trim()
+          isLoading ||
+          isCheckingPrice ||
+          !isAuthenticated ||
+          isPriceInvalid ||
+          !inputValue.trim() ||
+          explanation.trim().length < 10
         }>
         {(isLoading || isCheckingPrice) && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
         {isCheckingPrice ? 'Checking Price...' : isLoading ? 'Submitting...' : 'Submit Prediction'}

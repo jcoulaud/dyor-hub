@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { tokenCalls } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { TokenCall } from '@dyor-hub/types';
+import { Comment, TokenCall } from '@dyor-hub/types';
 import { ChevronLeft, ChevronRight, LineChart } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -21,6 +21,7 @@ interface TokenCallsSectionProps {
   userCalls: TokenCall[];
   isLoadingUserCalls: boolean;
   onCallCreated?: () => void;
+  onAddComment?: (comment: Comment) => void;
   circulatingSupply?: string;
 }
 
@@ -32,6 +33,7 @@ export function TokenCallsSection({
   userCalls,
   isLoadingUserCalls,
   onCallCreated,
+  onAddComment,
   circulatingSupply,
 }: TokenCallsSectionProps) {
   const [tokenCallsData, setTokenCallsData] = useState<TokenCall[]>([]);
@@ -68,9 +70,7 @@ export function TokenCallsSection({
 
   const handleCallCreated = useCallback(() => {
     fetchStatsData();
-    if (onCallCreated) {
-      onCallCreated();
-    }
+    onCallCreated?.();
   }, [fetchStatsData, onCallCreated]);
 
   const handlePredictionNavigate = (index: number) => {
@@ -186,8 +186,9 @@ export function TokenCallsSection({
               tokenSymbol={tokenSymbol}
               currentTokenPrice={currentTokenPrice}
               onCallCreated={handleCallCreated}
+              onAddComment={onAddComment}
               circulatingSupply={circulatingSupply}
-              isMakingAnotherCall={true}
+              isMakingAnotherCall={userCalls.length > 0}
             />
           </div>
         </div>
@@ -201,6 +202,7 @@ export function TokenCallsSection({
           tokenSymbol={tokenSymbol}
           currentTokenPrice={currentTokenPrice}
           onCallCreated={handleCallCreated}
+          onAddComment={onAddComment}
           circulatingSupply={circulatingSupply}
         />
       );
@@ -230,7 +232,8 @@ export function TokenCallsSection({
     isPriceValid,
     tokenId,
     tokenSymbol,
-    handleCallCreated,
+    onCallCreated,
+    onAddComment,
     circulatingSupply,
     handlePredictionNavigate,
   ]);

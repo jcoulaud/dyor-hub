@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { CommentEntity } from '../entities/comment.entity';
 import { TokenCallEntity } from '../entities/token-call.entity';
 import { UserTokenCallStreakEntity } from '../entities/user-token-call-streak.entity';
 import { GamificationModule } from '../gamification/gamification.module';
@@ -14,7 +15,11 @@ import { TokenCallsService } from './token-calls.service';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-    TypeOrmModule.forFeature([TokenCallEntity, UserTokenCallStreakEntity]),
+    TypeOrmModule.forFeature([
+      TokenCallEntity,
+      CommentEntity,
+      UserTokenCallStreakEntity,
+    ]),
     forwardRef(() => AuthModule),
     forwardRef(() => TokensModule),
     forwardRef(() => GamificationModule),

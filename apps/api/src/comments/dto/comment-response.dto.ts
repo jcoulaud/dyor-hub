@@ -1,4 +1,4 @@
-import { VoteType } from '@dyor-hub/types';
+import { CommentType, TokenCallStatus, VoteType } from '@dyor-hub/types';
 import { Expose, Type } from 'class-transformer';
 
 class CommentUserDto {
@@ -21,6 +21,26 @@ class RemovedByDto {
 
   @Expose()
   isSelf: boolean;
+}
+
+class TokenCallDetailsDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  targetPrice: number;
+
+  @Expose()
+  targetDate: string;
+
+  @Expose()
+  status: TokenCallStatus;
+
+  @Expose()
+  referencePrice: number;
+
+  @Expose()
+  referenceSupply?: number | null;
 }
 
 export class CommentResponseDto {
@@ -50,6 +70,16 @@ export class CommentResponseDto {
 
   @Expose()
   isEdited: boolean;
+
+  @Expose()
+  type: CommentType;
+
+  @Expose()
+  tokenCallId: string | null;
+
+  @Expose()
+  @Type(() => TokenCallDetailsDto)
+  tokenCall: TokenCallDetailsDto | null;
 
   @Expose()
   @Type(() => RemovedByDto)

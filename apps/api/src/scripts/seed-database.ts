@@ -632,7 +632,7 @@ async function seedDatabase() {
     // Give each user 1-5 random badges
     for (const user of savedUsers) {
       const numBadges = faker.number.int({ min: 1, max: 5 });
-      const availableBadges = savedBadges.filter(badge => {
+      const availableBadges = savedBadges.filter((badge) => {
         const userBadges = userBadgeMap.get(user.id) || new Set();
         return !userBadges.has(badge.id);
       });
@@ -641,7 +641,7 @@ async function seedDatabase() {
 
       const randomBadges = faker.helpers.arrayElements(
         availableBadges,
-        Math.min(numBadges, availableBadges.length)
+        Math.min(numBadges, availableBadges.length),
       );
 
       for (const badge of randomBadges) {
@@ -650,7 +650,7 @@ async function seedDatabase() {
         userBadge.badge = badge;
         userBadge.earnedAt = faker.date.recent();
         userBadge.isDisplayed = true;
-        
+
         // Save each user badge individually to avoid duplicates
         await userBadgeRepository.save(userBadge);
 
@@ -988,7 +988,6 @@ async function seedDatabase() {
       tokenCall.callTimestamp = callTimestamp;
       tokenCall.referencePrice = referencePrice;
       tokenCall.targetPrice = targetPrice;
-      tokenCall.timeframeDuration = timeframeDuration;
       tokenCall.targetDate = targetDate;
       tokenCall.status = status;
       tokenCall.verificationTimestamp = verificationTimestamp;

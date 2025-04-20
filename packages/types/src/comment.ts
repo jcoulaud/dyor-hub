@@ -1,7 +1,22 @@
+import { TokenCallStatus } from './token-call';
 import { User } from './user';
 import { VoteType } from './vote';
 
 export const COMMENT_MAX_LENGTH = 10_000;
+
+export enum CommentType {
+  COMMENT = 'comment',
+  TOKEN_CALL_EXPLANATION = 'token_call_explanation',
+}
+
+export interface TokenCallDetails {
+  id: string;
+  targetPrice: number;
+  targetDate: string;
+  status: TokenCallStatus;
+  referencePrice: number;
+  referenceSupply?: number | null;
+}
 
 export interface Comment {
   id: string;
@@ -17,6 +32,9 @@ export interface Comment {
   userVoteType: VoteType | null;
   isRemoved: boolean;
   isEdited: boolean;
+  type: CommentType;
+  tokenCallId: string | null;
+  tokenCall: TokenCallDetails | null;
   removedBy: {
     id: string;
     isSelf: boolean;

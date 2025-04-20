@@ -73,7 +73,21 @@ export class CommentsService {
       // Clone base query for fetching data
       const rootCommentQuery = rootCommentQueryBase
         .clone()
-        .leftJoinAndSelect('comment.user', 'user'); // Need user for sorting/display
+        .leftJoinAndSelect('comment.user', 'user')
+        .leftJoin('comment.tokenCall', 'tokenCall')
+        .select([
+          'comment',
+          'user.id',
+          'user.username',
+          'user.displayName',
+          'user.avatarUrl',
+          'tokenCall.id',
+          'tokenCall.targetPrice',
+          'tokenCall.targetDate',
+          'tokenCall.status',
+          'tokenCall.referencePrice',
+          'tokenCall.referenceSupply',
+        ]);
 
       // Apply sorting for root comments
       let orderByClause: { [key: string]: 'ASC' | 'DESC' } = {};
@@ -147,7 +161,39 @@ export class CommentsService {
       if (descendantIds.length > 0) {
         const descendants = await this.commentRepository.find({
           where: { id: In(descendantIds) },
-          relations: ['user', 'removedBy'],
+          relations: ['user', 'removedBy', 'tokenCall'],
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            updatedAt: true,
+            upvotes: true,
+            downvotes: true,
+            parentId: true,
+            userId: true,
+            tokenMintAddress: true,
+            removedById: true,
+            isEdited: true,
+            type: true,
+            tokenCallId: true,
+            user: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+            removedBy: {
+              id: true,
+            },
+            tokenCall: {
+              id: true,
+              targetPrice: true,
+              targetDate: true,
+              status: true,
+              referencePrice: true,
+              referenceSupply: true,
+            },
+          },
         });
         allComments = [...rootComments, ...descendants];
       }
@@ -183,6 +229,17 @@ export class CommentsService {
           return;
         }
 
+        const tokenCallDto = comment.tokenCall
+          ? {
+              id: comment.tokenCall.id,
+              targetPrice: comment.tokenCall.targetPrice,
+              targetDate: comment.tokenCall.targetDate.toISOString(),
+              status: comment.tokenCall.status,
+              referencePrice: comment.tokenCall.referencePrice,
+              referenceSupply: comment.tokenCall.referenceSupply,
+            }
+          : null;
+
         commentMap.set(comment.id, {
           id: comment.id,
           content: comment.content,
@@ -194,6 +251,9 @@ export class CommentsService {
           userVoteType: userVotesMap.get(comment.id) || null,
           isRemoved: !!comment.removedById,
           isEdited: comment.isEdited,
+          type: comment.type,
+          tokenCallId: comment.tokenCallId,
+          tokenCall: tokenCallDto,
           removedBy:
             comment.removedById && comment.removedBy
               ? {
@@ -319,7 +379,39 @@ export class CommentsService {
     try {
       const comment = await this.commentRepository.findOne({
         where: { id },
-        relations: ['user', 'removedBy'],
+        relations: ['user', 'removedBy', 'tokenCall'],
+        select: {
+          id: true,
+          content: true,
+          createdAt: true,
+          updatedAt: true,
+          upvotes: true,
+          downvotes: true,
+          parentId: true,
+          userId: true,
+          tokenMintAddress: true,
+          removedById: true,
+          isEdited: true,
+          type: true,
+          tokenCallId: true,
+          user: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+          removedBy: {
+            id: true,
+          },
+          tokenCall: {
+            id: true,
+            targetPrice: true,
+            targetDate: true,
+            status: true,
+            referencePrice: true,
+            referenceSupply: true,
+          },
+        },
       });
 
       if (!comment) {
@@ -335,6 +427,17 @@ export class CommentsService {
           },
         });
       }
+
+      const tokenCallDto = comment.tokenCall
+        ? {
+            id: comment.tokenCall.id,
+            targetPrice: comment.tokenCall.targetPrice,
+            targetDate: comment.tokenCall.targetDate.toISOString(),
+            status: comment.tokenCall.status,
+            referencePrice: comment.tokenCall.referencePrice,
+            referenceSupply: comment.tokenCall.referenceSupply,
+          }
+        : null;
 
       return {
         id: comment.id,
@@ -354,6 +457,9 @@ export class CommentsService {
         userVoteType: userVote?.type || null,
         isRemoved: !!comment.removedById,
         isEdited: comment.isEdited,
+        type: comment.type,
+        tokenCallId: comment.tokenCallId,
+        tokenCall: tokenCallDto,
         removedBy: comment.removedById
           ? {
               id: comment.removedBy.id,
@@ -781,7 +887,39 @@ export class CommentsService {
       if (threadCommentIds.length > 0) {
         allThreadComments = await this.commentRepository.find({
           where: { id: In(threadCommentIds) },
-          relations: ['user', 'removedBy'],
+          relations: ['user', 'removedBy', 'tokenCall'],
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            updatedAt: true,
+            upvotes: true,
+            downvotes: true,
+            parentId: true,
+            userId: true,
+            tokenMintAddress: true,
+            removedById: true,
+            isEdited: true,
+            type: true,
+            tokenCallId: true,
+            user: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+            removedBy: {
+              id: true,
+            },
+            tokenCall: {
+              id: true,
+              targetPrice: true,
+              targetDate: true,
+              status: true,
+              referencePrice: true,
+              referenceSupply: true,
+            },
+          },
         });
       } else {
         throw new NotFoundException('Could not retrieve thread comments.');
@@ -815,9 +953,20 @@ export class CommentsService {
           return;
         }
 
+        const tokenCallDto = comment.tokenCall
+          ? {
+              id: comment.tokenCall.id,
+              targetPrice: comment.tokenCall.targetPrice,
+              targetDate: comment.tokenCall.targetDate.toISOString(),
+              status: comment.tokenCall.status,
+              referencePrice: comment.tokenCall.referencePrice,
+              referenceSupply: comment.tokenCall.referenceSupply,
+            }
+          : null;
+
         commentDtoMap.set(comment.id, {
           id: comment.id,
-          content: comment.content, // Handle removed content later
+          content: comment.content,
           createdAt: comment.createdAt,
           updatedAt: comment.updatedAt,
           voteCount: comment.upvotes - comment.downvotes,
@@ -826,6 +975,9 @@ export class CommentsService {
           userVoteType: userVotesMap.get(comment.id) || null,
           isRemoved: !!comment.removedById,
           isEdited: comment.isEdited,
+          type: comment.type,
+          tokenCallId: comment.tokenCallId,
+          tokenCall: tokenCallDto,
           removedBy:
             comment.removedById && comment.removedBy
               ? {

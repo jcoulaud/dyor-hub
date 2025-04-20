@@ -9,9 +9,10 @@ export enum TokenCallStatus {
 }
 
 export interface CreateTokenCallInput {
-  tokenId: string;
+  tokenMintAddress: string;
   targetPrice: number;
-  timeframeDuration: string;
+  targetDate: Date;
+  explanation: string;
 }
 
 export interface TokenCall {
@@ -22,7 +23,6 @@ export interface TokenCall {
   referencePrice: number;
   referenceSupply: number | null;
   targetPrice: number;
-  timeframeDuration: string;
   targetDate: string;
   status: TokenCallStatus;
   verificationTimestamp?: string | null;

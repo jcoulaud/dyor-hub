@@ -1,6 +1,7 @@
 'use client';
 
 import { AuthModal } from '@/components/auth/AuthModal';
+import type { CommentSectionHandle } from '@/components/comments/CommentSection';
 import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
 import { TokenCallsSection } from '@/components/token-calls/token-page/TokenCallsSection';
@@ -16,6 +17,7 @@ import { tokenCalls, tokens, watchlist } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import {
+  Comment,
   SentimentType,
   Token,
   TokenCall,
@@ -36,9 +38,9 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, usePathname, useRouter } from 'next/navigation';
-import { use, useCallback, useEffect, useState } from 'react';
+import { use, useCallback, useEffect, useRef, useState } from 'react';
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV !== 'development';
 
 interface PageProps {
   params: Promise<{ mintAddress: string }>;
@@ -75,6 +77,7 @@ export default function Page({ params, commentId }: PageProps) {
   const [pendingSentimentAction, setPendingSentimentAction] = useState<
     (() => Promise<void>) | null
   >(null);
+  const commentSectionRef = useRef<CommentSectionHandle>(null);
 
   const { toast } = useToast();
 
@@ -272,6 +275,10 @@ export default function Page({ params, commentId }: PageProps) {
       }
     }
   }, [isAuthenticated, user?.id, tokenData, mintAddress, toast]);
+
+  const handleAddComment = (comment: Comment) => {
+    commentSectionRef.current?.addComment(comment);
+  };
 
   return (
     <div className='flex-1 flex flex-col'>
@@ -689,6 +696,7 @@ export default function Page({ params, commentId }: PageProps) {
                     userCalls={userCalls}
                     isLoadingUserCalls={isLoadingUserCalls}
                     onCallCreated={handleCallCreated}
+                    onAddComment={handleAddComment}
                     circulatingSupply={tokenStatsData?.circulatingSupply}
                   />
                 ) : (
@@ -866,6 +874,7 @@ export default function Page({ params, commentId }: PageProps) {
                 <CardContent className='relative pt-0'>
                   {tokenData && (
                     <CommentSection
+                      ref={commentSectionRef}
                       tokenMintAddress={tokenData.mintAddress}
                       commentId={commentIdFromProps}
                     />
@@ -958,6 +967,7 @@ export default function Page({ params, commentId }: PageProps) {
                     userCalls={userCalls}
                     isLoadingUserCalls={isLoadingUserCalls}
                     onCallCreated={handleCallCreated}
+                    onAddComment={handleAddComment}
                     circulatingSupply={tokenStatsData?.circulatingSupply}
                   />
                 ) : (

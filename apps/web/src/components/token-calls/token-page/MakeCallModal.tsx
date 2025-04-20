@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Comment } from '@dyor-hub/types';
 import { ArrowUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { MakeCallForm } from './MakeCallForm';
@@ -18,6 +19,7 @@ export interface MakeCallModalProps {
   tokenSymbol: string;
   currentTokenPrice: number;
   onCallCreated: () => void;
+  onAddComment?: (comment: Comment) => void;
   circulatingSupply?: string;
   isMakingAnotherCall?: boolean;
 }
@@ -27,6 +29,7 @@ export function MakeCallModal({
   tokenSymbol,
   currentTokenPrice,
   onCallCreated,
+  onAddComment,
   circulatingSupply,
   isMakingAnotherCall,
 }: MakeCallModalProps) {
@@ -50,11 +53,12 @@ export function MakeCallModal({
         tokenSymbol={tokenSymbol}
         currentTokenPrice={currentTokenPrice}
         onCallCreated={handleCallCreated}
+        onAddComment={onAddComment}
         onClose={() => setOpen(false)}
         circulatingSupply={circulatingSupply}
       />
     );
-  }, [tokenId, tokenSymbol, currentTokenPrice, onCallCreated, circulatingSupply]);
+  }, [tokenId, tokenSymbol, currentTokenPrice, onCallCreated, onAddComment, circulatingSupply]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

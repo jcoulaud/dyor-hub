@@ -1,28 +1,37 @@
+import { Type } from 'class-transformer';
 import {
+  IsDate,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsPositive,
   IsString,
-  Matches,
+  MinLength,
 } from 'class-validator';
-
-const timeframeRegex = /^(\d+)(m|h|d|w|M|y)$/;
 
 export class CreateTokenCallDto {
   @IsString()
   @IsNotEmpty()
-  tokenId: string;
+  tokenMintAddress: string;
 
   @IsNumber({ maxDecimalPlaces: 8 })
   @IsPositive()
   @IsNotEmpty()
   targetPrice: number;
 
-  @IsString()
+  @Type(() => Date)
+  @IsDate()
   @IsNotEmpty()
-  @Matches(timeframeRegex, {
-    message:
-      'timeframeDuration must be in format like "15m", "1h", "3d", "2w", "6M", "1y" (m: minutes, h: hours, d: days, w: weeks, M: months, y: years)',
+  targetDate: Date;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsString()
+  @MinLength(10, {
+    message: 'Explanation must be at least 10 characters long.',
   })
-  timeframeDuration: string;
+  @IsNotEmpty()
+  explanation: string;
 }

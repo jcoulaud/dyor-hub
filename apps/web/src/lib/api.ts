@@ -1387,9 +1387,11 @@ export interface TokenCallListSort {
 }
 
 export const tokenCalls = {
-  create: async (data: CreateTokenCallInput): Promise<TokenCall> => {
+  create: async (
+    data: CreateTokenCallInput,
+  ): Promise<{ tokenCall: TokenCall; comment: Comment }> => {
     try {
-      const response = await api<TokenCall>('token-calls', {
+      const response = await api<{ tokenCall: TokenCall; comment: Comment }>('token-calls', {
         method: 'POST',
         body: data,
       });

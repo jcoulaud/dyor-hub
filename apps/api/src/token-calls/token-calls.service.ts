@@ -1,4 +1,8 @@
-import { PaginatedTokenCallsResult, TokenCallStatus } from '@dyor-hub/types';
+import {
+  CommentType,
+  PaginatedTokenCallsResult,
+  TokenCallStatus,
+} from '@dyor-hub/types';
 import {
   BadRequestException,
   Injectable,
@@ -7,10 +11,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { add, Duration } from 'date-fns';
-import { In, Not, Repository } from 'typeorm';
+import { isFuture } from 'date-fns';
+import { DataSource, In, Not, Repository } from 'typeorm';
+import { CommentResponseDto } from '../comments/dto/comment-response.dto';
+import { CommentEntity } from '../entities/comment.entity';
 import { TokenCallEntity } from '../entities/token-call.entity';
-import { TokenEntity } from '../entities/token.entity';
+import { UserEntity } from '../entities/user.entity';
 import { TokensService } from '../tokens/tokens.service';
 import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
@@ -35,63 +41,33 @@ export class TokenCallsService {
     @InjectRepository(TokenCallEntity)
     private readonly tokenCallRepository: Repository<TokenCallEntity>,
     private readonly tokensService: TokensService,
+    private readonly dataSource: DataSource,
   ) {}
-
-  /**
-   * Parses timeframe string (e.g., "3M", "1y") and returns a Duration object for date-fns.
-   * @param timeframeDuration e.g., "15m", "1h", "1d", "3w", "6M", "1y"
-   * @returns Duration object like { minutes: 15 }, { hours: 1 }, { days: 1 }, { weeks: 3 }, { months: 6 }, { years: 1 }
-   */
-  private parseTimeframe(timeframeDuration: string): Duration {
-    const match = timeframeDuration.match(/^(\d+)(m|h|d|w|M|y)$/);
-    if (!match) {
-      // Add logging for better debugging
-      this.logger.error(
-        `Invalid timeframe format received: ${timeframeDuration}`,
-      );
-      throw new Error(`Invalid timeframe format: ${timeframeDuration}`);
-    }
-    const value = parseInt(match[1], 10);
-    const unit = match[2];
-
-    switch (unit) {
-      case 'm':
-        return { minutes: value };
-      case 'h':
-        return { hours: value };
-      case 'd':
-        return { days: value };
-      case 'w':
-        return { weeks: value };
-      case 'M':
-        return { months: value };
-      case 'y':
-        return { years: value };
-      default:
-        this.logger.error(
-          `Unsupported timeframe unit encountered after regex match: ${unit}`,
-        );
-        throw new Error(`Unsupported timeframe unit: ${unit}`);
-    }
-  }
 
   async create(
     createTokenCallDto: CreateTokenCallDto,
     userId: string,
-  ): Promise<TokenCallEntity> {
-    const { tokenId, targetPrice, timeframeDuration } = createTokenCallDto;
+  ): Promise<{ tokenCall: TokenCallEntity; comment: CommentResponseDto }> {
+    const { tokenMintAddress, targetPrice, targetDate, explanation } =
+      createTokenCallDto;
+
+    if (!explanation || explanation.trim().length < 10) {
+      throw new BadRequestException(
+        'Explanation must be provided and be at least 10 characters long.',
+      );
+    }
+
+    if (!targetDate || !isFuture(targetDate)) {
+      throw new BadRequestException('Target date must be in the future.');
+    }
 
     // 1. Validate token exists
-    let tokenInfo: TokenEntity | null = null;
     try {
-      tokenInfo = await this.tokensService.getTokenData(tokenId, userId);
+      await this.tokensService.getTokenData(tokenMintAddress, userId);
     } catch (error) {
-      this.logger.warn(
-        `Token validation failed during call creation for ${tokenId}: ${error.message}`,
-      );
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(
-        `Could not validate token ${tokenId}.`,
+        `Could not validate token ${tokenMintAddress}.`,
       );
     }
 
@@ -99,7 +75,8 @@ export class TokenCallsService {
     let referencePrice: number | null = null;
     let referenceSupply: number | null = null;
     try {
-      const overviewData = await this.tokensService.fetchTokenOverview(tokenId);
+      const overviewData =
+        await this.tokensService.fetchTokenOverview(tokenMintAddress);
 
       if (
         overviewData &&
@@ -111,7 +88,7 @@ export class TokenCallsService {
           overviewData.circulatingSupply ?? overviewData.totalSupply ?? null;
         if (typeof referenceSupply !== 'number' || referenceSupply <= 0) {
           this.logger.warn(
-            `Invalid or missing reference supply for ${tokenId}, setting to null.`,
+            `Invalid or missing reference supply for ${tokenMintAddress}, setting to null.`,
           );
           referenceSupply = null;
         }
@@ -122,10 +99,10 @@ export class TokenCallsService {
       }
     } catch (error) {
       this.logger.error(
-        `Failed to fetch token overview for ${tokenId} during creation: ${error.message}`,
+        `Failed to fetch token overview for ${tokenMintAddress} during creation: ${error.message}`,
       );
       throw new InternalServerErrorException(
-        `Could not fetch accurate price and supply for ${tokenId} at the time of submission.`,
+        `Could not fetch accurate price and supply for ${tokenMintAddress} at the time of submission.`,
       );
     }
 
@@ -136,43 +113,102 @@ export class TokenCallsService {
       );
     }
 
-    // 4. Calculate Target Date
     const callTimestamp = new Date();
-    let targetDate: Date;
-    try {
-      const duration = this.parseTimeframe(timeframeDuration);
-      targetDate = add(callTimestamp, duration);
-    } catch (error) {
-      this.logger.error(
-        `Failed to parse timeframe or calculate target date: ${timeframeDuration}`,
-        error.stack,
-      );
-      throw new InternalServerErrorException('Invalid timeframe duration.');
-    }
 
-    // 5. Create and Save the TokenCallEntity
+    // 5. Create TokenCall and Explanation Comment within a Transaction
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
-      const newCall = this.tokenCallRepository.create({
+      const newCall = queryRunner.manager.create(TokenCallEntity, {
         userId,
-        tokenId,
+        tokenId: tokenMintAddress,
         callTimestamp,
         referencePrice: referencePrice,
         referenceSupply: referenceSupply,
         targetPrice,
-        timeframeDuration,
         targetDate,
         status: TokenCallStatus.PENDING,
       });
 
-      const savedCall = await this.tokenCallRepository.save(newCall);
+      const savedCall = await queryRunner.manager.save(
+        TokenCallEntity,
+        newCall,
+      );
 
-      return savedCall;
+      // Create the explanation comment
+      const explanationComment = queryRunner.manager.create(CommentEntity, {
+        userId,
+        tokenMintAddress: tokenMintAddress,
+        content: explanation,
+        type: CommentType.TOKEN_CALL_EXPLANATION,
+        tokenCallId: savedCall.id,
+        parentId: null,
+        upvotes: 0,
+        downvotes: 0,
+      });
+
+      const savedComment = await queryRunner.manager.save(
+        CommentEntity,
+        explanationComment,
+      );
+
+      const user = await queryRunner.manager.findOne(UserEntity, {
+        where: { id: userId },
+      });
+
+      await queryRunner.commitTransaction();
+
+      const commentDto = {
+        id: savedComment.id,
+        content: savedComment.content,
+        createdAt: savedComment.createdAt,
+        updatedAt: savedComment.updatedAt,
+        voteCount: 0,
+        parentId: null,
+        user: user
+          ? {
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName,
+              avatarUrl: user.avatarUrl,
+            }
+          : {
+              id: userId,
+              username: null,
+              displayName: null,
+              avatarUrl: null,
+            },
+        userVoteType: null,
+        isRemoved: false,
+        isEdited: false,
+        type: savedComment.type,
+        tokenCallId: savedCall.id,
+        tokenCall: {
+          id: savedCall.id,
+          targetPrice: savedCall.targetPrice,
+          targetDate: savedCall.targetDate.toISOString(),
+          status: savedCall.status,
+          referencePrice: savedCall.referencePrice,
+          referenceSupply: savedCall.referenceSupply,
+        },
+        removedBy: null,
+        replies: [],
+      };
+
+      return { tokenCall: savedCall, comment: commentDto };
     } catch (error) {
+      await queryRunner.rollbackTransaction();
       this.logger.error(
-        `Failed to save token call for token ${tokenId} by user ${userId}`,
+        `Failed to save token call and explanation for token ${tokenMintAddress} by user ${userId}`,
         error.stack,
       );
-      throw new InternalServerErrorException('Could not save token call.');
+      throw new InternalServerErrorException(
+        'Could not save token call and its explanation.',
+      );
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -216,7 +252,7 @@ export class TokenCallsService {
       .take(limit);
 
     const parameters: { [key: string]: any } = {};
-    let whereConditions: string[] = [];
+    const whereConditions: string[] = [];
 
     if (filters.username) {
       whereConditions.push('user.username ILIKE :username');
@@ -312,13 +348,22 @@ export class TokenCallsService {
       const [calls, total] = await queryBuilder.getManyAndCount();
 
       const items = calls.map((call) => ({
-        ...call,
-        referenceSupply: call.referenceSupply,
+        id: call.id,
+        userId: call.userId,
+        tokenId: call.tokenId,
         callTimestamp: call.callTimestamp.toISOString(),
+        referencePrice: call.referencePrice,
+        referenceSupply: call.referenceSupply,
+        targetPrice: call.targetPrice,
         targetDate: call.targetDate.toISOString(),
+        status: call.status,
         verificationTimestamp:
           call.verificationTimestamp?.toISOString() || null,
         targetHitTimestamp: call.targetHitTimestamp?.toISOString() || null,
+        peakPriceDuringPeriod: call.peakPriceDuringPeriod,
+        finalPriceAtTargetDate: call.finalPriceAtTargetDate,
+        timeToHitRatio: call.timeToHitRatio,
+        priceHistoryUrl: call.priceHistoryUrl,
         createdAt: call.createdAt.toISOString(),
         updatedAt: call.updatedAt.toISOString(),
         user: call.user
@@ -371,7 +416,6 @@ export class TokenCallsService {
           referencePrice: true,
           referenceSupply: true,
           targetPrice: true,
-          timeframeDuration: true,
           targetDate: true,
           status: true,
           verificationTimestamp: true,
