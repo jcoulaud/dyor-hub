@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TokenGatedGuard } from '../common/guards/token-gated.guard';
 import { UserActivityEntity } from '../entities';
 import { PaginatedResult } from '../users/users.service';
 import { FeedService } from './feed.service';
@@ -18,7 +19,7 @@ import { FeedService } from './feed.service';
 export class FeedController {
   constructor(private readonly feedService: FeedService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, TokenGatedGuard)
   @Get('following')
   async getFollowingFeed(
     @CurrentUser() user: { id: string },

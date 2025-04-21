@@ -1,15 +1,20 @@
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   ConflictException,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PublicKey } from '@solana/web3.js';
+import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
 import * as nacl from 'tweetnacl';
 import { Not, Repository } from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
 import { WalletEntity } from '../entities/wallet.entity';
+import { SolanaRpcService } from '../solana/solana-rpc.service';
 import { ConnectWalletDto } from './dto/connect-wallet.dto';
 import { GenerateNonceDto } from './dto/generate-nonce.dto';
 import { NonceResponseDto } from './dto/nonce-response.dto';
@@ -18,11 +23,15 @@ import { WalletResponseDto } from './dto/wallet-response.dto';
 
 @Injectable()
 export class WalletsService {
+  private readonly logger = new Logger(WalletsService.name);
+
   constructor(
     @InjectRepository(WalletEntity)
     private walletsRepository: Repository<WalletEntity>,
     @InjectRepository(UserEntity)
     private usersRepository: Repository<UserEntity>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly solanaRpcService: SolanaRpcService,
   ) {}
 
   async connectWallet(
@@ -210,5 +219,67 @@ export class WalletsService {
 
       return WalletResponseDto.fromEntity(updatedWallet);
     });
+  }
+
+  async getUserPrimaryWallet(userId: string): Promise<WalletEntity | null> {
+    return this.walletsRepository.findOne({
+      where: { userId: userId, isPrimary: true, isVerified: true },
+    });
+  }
+
+  async getSplTokenBalance(
+    walletAddress: string,
+    tokenMintAddress: string,
+  ): Promise<number> {
+    const cacheKey = `wallet:${walletAddress}:balance:${tokenMintAddress}`;
+    try {
+      const cachedBalance = await this.cacheManager.get<number>(cacheKey);
+      if (cachedBalance !== undefined && cachedBalance !== null) {
+        this.logger.debug(`Cache hit for balance: ${cacheKey}`);
+        return cachedBalance;
+      }
+      this.logger.debug(
+        `Cache miss for balance: ${cacheKey}. Fetching from RPC...`,
+      );
+
+      const connection = this.solanaRpcService.getConnection();
+      const walletPublicKey = new PublicKey(walletAddress);
+      const tokenMintPublicKey = new PublicKey(tokenMintAddress);
+
+      const tokenAccounts = await connection.getTokenAccountsByOwner(
+        walletPublicKey,
+        { mint: tokenMintPublicKey },
+      );
+
+      if (tokenAccounts.value.length === 0) {
+        this.logger.warn(
+          `No token account found for mint ${tokenMintAddress} in wallet ${walletAddress}`,
+        );
+        await this.cacheManager.set(cacheKey, 0, 180 * 1000);
+        return 0;
+      }
+
+      const associatedTokenAccount = tokenAccounts.value[0].pubkey;
+
+      const balanceResponse = await connection.getTokenAccountBalance(
+        associatedTokenAccount,
+      );
+
+      const balance = balanceResponse.value.uiAmount ?? 0;
+
+      await this.cacheManager.set(cacheKey, balance, 180 * 1000);
+      this.logger.debug(
+        `Fetched and cached balance ${balance} for ${cacheKey}`,
+      );
+
+      return balance;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get SPL token balance for ${walletAddress} / ${tokenMintAddress}: ${error.message}`,
+        error.stack,
+      );
+      await this.cacheManager.set(cacheKey, 0, 60 * 1000);
+      return 0;
+    }
   }
 }
