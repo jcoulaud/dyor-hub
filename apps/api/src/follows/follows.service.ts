@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity, UserFollows } from '../entities';
 import { PaginatedResult, UsersService } from '../users/users.service';
+import { UpdateFollowPreferencesDto } from './dto/update-follow-preferences.dto';
 
 @Injectable()
 export class FollowsService {
@@ -140,5 +141,47 @@ export class FollowsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async updateFollowPreferences(
+    followerId: string,
+    followedId: string,
+    preferences: UpdateFollowPreferencesDto,
+  ): Promise<UserFollows> {
+    const followRelationship = await this.userFollowsRepository.findOneBy({
+      followerId,
+      followedId,
+    });
+
+    if (!followRelationship) {
+      throw new NotFoundException('Follow relationship not found.');
+    }
+
+    // Merge existing preferences with new ones
+    const updatePayload: Partial<UserFollows> = {};
+    if (preferences.prediction !== undefined) {
+      updatePayload.notify_on_prediction = preferences.prediction;
+    }
+    if (preferences.comment !== undefined) {
+      updatePayload.notify_on_comment = preferences.comment;
+    }
+    if (preferences.vote !== undefined) {
+      updatePayload.notify_on_vote = preferences.vote;
+    }
+
+    // Avoid update if no preferences were actually changed
+    if (Object.keys(updatePayload).length === 0) {
+      return followRelationship;
+    }
+
+    await this.userFollowsRepository.update(
+      { followerId, followedId },
+      updatePayload,
+    );
+
+    return this.userFollowsRepository.findOneByOrFail({
+      followerId,
+      followedId,
+    });
   }
 }

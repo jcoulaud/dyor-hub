@@ -9,6 +9,9 @@ export enum NotificationType {
   UPVOTE_RECEIVED = 'upvote_received',
   SYSTEM = 'system',
   TOKEN_CALL_VERIFIED = 'token_call_verified',
+  FOLLOWED_USER_PREDICTION = 'followed_user_prediction',
+  FOLLOWED_USER_COMMENT = 'followed_user_comment',
+  FOLLOWED_USER_VOTE = 'followed_user_vote',
 }
 
 export enum NotificationEventType {
@@ -21,6 +24,9 @@ export enum NotificationEventType {
   COMMENT_UPVOTED = 'comment.upvoted',
   LEADERBOARD_POSITION_CHANGE = 'leaderboard.position_change',
   TOKEN_CALL_VERIFIED = 'token_call.verified',
+  FOLLOWED_USER_PREDICTION = 'followed_user.prediction',
+  FOLLOWED_USER_COMMENT = 'followed_user.comment',
+  FOLLOWED_USER_VOTE = 'followed_user.vote',
 }
 
 export interface NotificationPreference {

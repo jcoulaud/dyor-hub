@@ -1,5 +1,6 @@
 import {
   CommentType,
+  NotificationEventType,
   PaginatedTokenCallsResult,
   TokenCallStatus,
 } from '@dyor-hub/types';
@@ -10,6 +11,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { isFuture } from 'date-fns';
 import { DataSource, In, Not, Repository } from 'typeorm';
@@ -20,6 +22,7 @@ import {
   ActivityType,
   UserActivityEntity,
 } from '../entities/user-activity.entity';
+import { UserFollows } from '../entities/user-follows.entity';
 import { UserEntity } from '../entities/user.entity';
 import { TokensService } from '../tokens/tokens.service';
 import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
@@ -46,6 +49,7 @@ export class TokenCallsService {
     private readonly tokenCallRepository: Repository<TokenCallEntity>,
     private readonly tokensService: TokensService,
     private readonly dataSource: DataSource,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(
@@ -66,47 +70,46 @@ export class TokenCallsService {
     }
 
     // 1. Validate token exists
+    let tokenData: Awaited<ReturnType<TokensService['getTokenData']>>;
+    let overviewData: Awaited<ReturnType<TokensService['fetchTokenOverview']>>;
     try {
-      await this.tokensService.getTokenData(tokenMintAddress, userId);
+      tokenData = await this.tokensService.getTokenData(
+        tokenMintAddress,
+        userId,
+      );
+      overviewData =
+        await this.tokensService.fetchTokenOverview(tokenMintAddress);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
+      this.logger.error(
+        `Failed initial token fetch for ${tokenMintAddress}: ${error.message}`,
+      );
       throw new InternalServerErrorException(
-        `Could not validate token ${tokenMintAddress}.`,
+        `Could not fetch necessary data for token ${tokenMintAddress}.`,
       );
     }
 
-    // 2. Fetch the CURRENT price and supply
+    const tokenSymbol = tokenData?.symbol ?? 'Token';
+
     let referencePrice: number | null = null;
     let referenceSupply: number | null = null;
-    try {
-      const overviewData =
-        await this.tokensService.fetchTokenOverview(tokenMintAddress);
-
-      if (
-        overviewData &&
-        typeof overviewData.price === 'number' &&
-        overviewData.price > 0
-      ) {
-        referencePrice = overviewData.price;
-        referenceSupply =
-          overviewData.circulatingSupply ?? overviewData.totalSupply ?? null;
-        if (typeof referenceSupply !== 'number' || referenceSupply <= 0) {
-          this.logger.warn(
-            `Invalid or missing reference supply for ${tokenMintAddress}, setting to null.`,
-          );
-          referenceSupply = null;
-        }
-      } else {
-        throw new Error(
-          'Fetched overview data or price is invalid or missing.',
-        );
+    if (
+      overviewData &&
+      typeof overviewData.price === 'number' &&
+      overviewData.price > 0
+    ) {
+      referencePrice = overviewData.price;
+      referenceSupply =
+        overviewData.circulatingSupply ?? overviewData.totalSupply ?? null;
+      if (typeof referenceSupply !== 'number' || referenceSupply <= 0) {
+        referenceSupply = null;
       }
-    } catch (error) {
+    } else {
       this.logger.error(
-        `Failed to fetch token overview for ${tokenMintAddress} during creation: ${error.message}`,
+        `Invalid or missing overview data/price for ${tokenMintAddress}`,
       );
       throw new InternalServerErrorException(
-        `Could not fetch accurate price and supply for ${tokenMintAddress} at the time of submission.`,
+        `Could not establish reference price for ${tokenMintAddress}.`,
       );
     }
 
@@ -124,6 +127,10 @@ export class TokenCallsService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
+    let savedCall: TokenCallEntity | null = null;
+    let savedComment: CommentEntity | null = null;
+    let user: UserEntity | null = null;
+
     try {
       const newCall = queryRunner.manager.create(TokenCallEntity, {
         userId,
@@ -136,10 +143,7 @@ export class TokenCallsService {
         status: TokenCallStatus.PENDING,
       });
 
-      const savedCall = await queryRunner.manager.save(
-        TokenCallEntity,
-        newCall,
-      );
+      savedCall = await queryRunner.manager.save(TokenCallEntity, newCall);
 
       // Create the explanation comment
       const explanationComment = queryRunner.manager.create(CommentEntity, {
@@ -153,7 +157,7 @@ export class TokenCallsService {
         downvotes: 0,
       });
 
-      const savedComment = await queryRunner.manager.save(
+      savedComment = await queryRunner.manager.save(
         CommentEntity,
         explanationComment,
       );
@@ -175,11 +179,43 @@ export class TokenCallsService {
       );
       await queryRunner.manager.save(UserActivityEntity, predictionActivity);
 
-      const user = await queryRunner.manager.findOne(UserEntity, {
+      user = await queryRunner.manager.findOne(UserEntity, {
         where: { id: userId },
       });
 
+      // Find user followers and prepare notifications
+      const followers = await queryRunner.manager.find(UserFollows, {
+        where: {
+          followedId: savedCall.userId,
+          notify_on_prediction: true,
+        },
+        select: ['followerId'],
+      });
+
+      const notificationPayloads = followers.map((follow) => ({
+        type: NotificationEventType.FOLLOWED_USER_PREDICTION,
+        data: {
+          followerId: follow.followerId,
+          followedUserId: savedCall.userId,
+          followedUsername: user?.username ?? 'User',
+          predictionId: savedCall.id,
+          tokenSymbol: tokenSymbol,
+          tokenMintAddress: savedCall.tokenId,
+        },
+      }));
+
       await queryRunner.commitTransaction();
+
+      notificationPayloads.forEach((payload) => {
+        try {
+          this.eventEmitter.emit(payload.type, payload.data);
+        } catch (emitError) {
+          this.logger.error(
+            `Failed to emit ${payload.type} event: ${emitError.message}`,
+            emitError.stack,
+          );
+        }
+      });
 
       const commentDto = {
         id: savedComment.id,
@@ -222,7 +258,7 @@ export class TokenCallsService {
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(
-        `Failed to save token call and explanation for token ${tokenMintAddress} by user ${userId}`,
+        `Failed transaction for token call by user ${userId}: ${error.message}`,
         error.stack,
       );
       throw new InternalServerErrorException(

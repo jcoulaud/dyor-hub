@@ -26,6 +26,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { UserResponseDto } from '../auth/dto/user-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
+import { UpdateFollowPreferencesDto } from '../follows/dto/update-follow-preferences.dto';
 import { FollowsService } from '../follows/follows.service';
 import { TokenCallsService } from '../token-calls/token-calls.service';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
@@ -146,6 +147,22 @@ export class UsersController {
   ): Promise<void> {
     const followerId = user.id;
     await this.followsService.unfollowUser(followerId, followedId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/follow/preferences')
+  async updateFollowPreferences(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) followedId: string,
+    @Body() preferencesDto: UpdateFollowPreferencesDto,
+  ) {
+    const followerId = user.id;
+    await this.followsService.updateFollowPreferences(
+      followerId,
+      followedId,
+      preferencesDto,
+    );
+    return { success: true };
   }
 
   @UseGuards(JwtAuthGuard)
