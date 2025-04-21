@@ -16,6 +16,10 @@ import { DataSource, In, Not, Repository } from 'typeorm';
 import { CommentResponseDto } from '../comments/dto/comment-response.dto';
 import { CommentEntity } from '../entities/comment.entity';
 import { TokenCallEntity } from '../entities/token-call.entity';
+import {
+  ActivityType,
+  UserActivityEntity,
+} from '../entities/user-activity.entity';
 import { UserEntity } from '../entities/user.entity';
 import { TokensService } from '../tokens/tokens.service';
 import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
@@ -159,6 +163,17 @@ export class TokenCallsService {
       });
 
       savedCall.explanationCommentId = savedComment.id;
+
+      const predictionActivity = queryRunner.manager.create(
+        UserActivityEntity,
+        {
+          userId: savedCall.userId,
+          activityType: ActivityType.PREDICTION,
+          entityId: savedCall.id,
+          entityType: 'prediction',
+        },
+      );
+      await queryRunner.manager.save(UserActivityEntity, predictionActivity);
 
       const user = await queryRunner.manager.findOne(UserEntity, {
         where: { id: userId },

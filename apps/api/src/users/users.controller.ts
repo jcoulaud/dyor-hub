@@ -2,23 +2,31 @@ import { UserActivity, UserStats } from '@dyor-hub/types';
 import {
   Body,
   Controller,
+  DefaultValuePipe,
+  Delete,
   forwardRef,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
   NotFoundException,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
+  Post,
   Query,
-  Request,
   UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { UserResponseDto } from '../auth/dto/user-response.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
+import { FollowsService } from '../follows/follows.service';
 import { TokenCallsService } from '../token-calls/token-calls.service';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { UserTokenCallStatsDto } from './dto/user-token-call-stats.dto';
@@ -33,29 +41,33 @@ export class UsersController {
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => TokenCallsService))
     private readonly tokenCallsService: TokenCallsService,
+    @Inject(forwardRef(() => FollowsService))
+    private readonly followsService: FollowsService,
   ) {}
 
   @UseGuards(OptionalAuthGuard)
   @Get('me/preferences')
-  async getMyPreferences(@Request() req): Promise<Record<string, any>> {
-    if (!req.user?.id) {
+  async getMyPreferences(
+    @CurrentUser() user: { id: string },
+  ): Promise<Record<string, any>> {
+    if (!user?.id) {
       // Only send default public preferences
       return { tokenChartDisplay: 'price' };
     }
-    return this.usersService.getUserPreferences(req.user.id);
+    return this.usersService.getUserPreferences(user.id);
   }
 
   @UseGuards(OptionalAuthGuard)
   @Patch('me/preferences')
   async updateMyPreferences(
-    @Request() req,
+    @CurrentUser() user: { id: string },
     @Body() updatePreferencesDto: UpdatePreferencesDto,
   ): Promise<Record<string, any>> {
-    if (!req.user?.id) {
+    if (!user?.id) {
       return updatePreferencesDto.preferences;
     }
     return this.usersService.updateUserPreferences(
-      req.user.id,
+      user.id,
       updatePreferencesDto.preferences,
     );
   }
@@ -112,6 +124,60 @@ export class UsersController {
       type,
       sort,
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/follow')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async followUser(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) followedId: string,
+  ): Promise<void> {
+    const followerId = user.id;
+    await this.followsService.followUser(followerId, followedId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/follow')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async unfollowUser(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) followedId: string,
+  ): Promise<void> {
+    const followerId = user.id;
+    await this.followsService.unfollowUser(followerId, followedId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/following')
+  async getFollowing(
+    @Param('id', ParseUUIDPipe) userId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ): Promise<PaginatedResult<UserResponseDto>> {
+    limit = Math.min(50, Math.max(1, limit));
+    const result = await this.followsService.getFollowing(userId, page, limit);
+    const data = result.data.map((user) => UserResponseDto.fromEntity(user));
+    return {
+      data,
+      meta: result.meta,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/followers')
+  async getFollowers(
+    @Param('id', ParseUUIDPipe) userId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ): Promise<PaginatedResult<UserResponseDto>> {
+    limit = Math.min(50, Math.max(1, limit));
+    const result = await this.followsService.getFollowers(userId, page, limit);
+    const data = result.data.map((user) => UserResponseDto.fromEntity(user));
+    return {
+      data,
+      meta: result.meta,
+    };
   }
 
   @Public()
