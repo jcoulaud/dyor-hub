@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -14,9 +15,11 @@ export enum ActivityType {
   UPVOTE = 'upvote',
   DOWNVOTE = 'downvote',
   LOGIN = 'login',
+  PREDICTION = 'prediction',
 }
 
 @Entity('user_activities')
+@Index(['userId', 'createdAt'])
 export class UserActivityEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

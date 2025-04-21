@@ -13,6 +13,7 @@ export * from './token.entity';
 export * from './twitter-username-history.entity';
 export * from './user-activity.entity';
 export * from './user-badge.entity';
+export * from './user-follows.entity';
 export * from './user-reputation.entity';
 export * from './user-streak.entity';
 export * from './user-token-call-streak.entity';
