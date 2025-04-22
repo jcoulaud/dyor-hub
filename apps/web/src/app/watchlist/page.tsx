@@ -17,7 +17,7 @@ import { AlertCircle, BookmarkIcon, Copy, Lock, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type WatchlistedToken = Token & { addedAt: Date };
 
@@ -63,7 +63,7 @@ function TokenGatedMessage({ requiredAmount, currentBalance }: TokenGatedMessage
     typeof currentBalance === 'string' || typeof currentBalance === 'number'
       ? Number(currentBalance).toLocaleString()
       : null;
-  console.log('currentBalance', currentBalance);
+
   return (
     <Card className='bg-zinc-900/30 border-zinc-800/50'>
       <div className='text-center py-16 px-4'>
@@ -112,10 +112,13 @@ export default function WatchlistPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const initialTab = ['tokens', 'users', 'feed'].includes(searchParams.get('tab') ?? '')
-    ? (searchParams.get('tab') as 'tokens' | 'users' | 'feed')
-    : 'tokens';
-  const [activeTab, setActiveTab] = useState<'tokens' | 'users' | 'feed'>(initialTab);
+  const currentTab = useMemo(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['tokens', 'users', 'feed'].includes(tabParam)) {
+      return tabParam as 'tokens' | 'users' | 'feed';
+    }
+    return 'tokens';
+  }, [searchParams]);
 
   const [tokens, setTokens] = useState<WatchlistedToken[]>([]);
   const [followedUsers, setFollowedUsers] = useState<User[]>([]);
@@ -131,21 +134,6 @@ export default function WatchlistPage() {
   const [feedCurrentPage, setFeedCurrentPage] = useState(1);
   const [feedTotalPages, setFeedTotalPages] = useState(1);
   const [feedAccessDeniedBalance, setFeedAccessDeniedBalance] = useState<string | null>(null);
-
-  useEffect(() => {
-    const currentTab = ['tokens', 'users', 'feed'].includes(searchParams.get('tab') ?? '')
-      ? (searchParams.get('tab') as 'tokens' | 'users' | 'feed')
-      : 'tokens';
-    if (currentTab !== activeTab) {
-      setActiveTab(currentTab);
-      if (currentTab !== 'feed') {
-        setFeedData(null);
-        setFeedError(null);
-        setIsLoadingFeed(false);
-        setFeedAccessDeniedBalance(null);
-      }
-    }
-  }, [searchParams, activeTab]);
 
   useEffect(() => {
     const fetchWatchlistedTokens = async () => {
@@ -170,10 +158,14 @@ export default function WatchlistPage() {
       }
     };
 
-    if (isAuthenticated && activeTab === 'tokens') {
+    if (isAuthenticated && currentTab === 'tokens') {
       fetchWatchlistedTokens();
     }
-  }, [isAuthenticated, activeTab, toast]);
+    if (currentTab !== 'tokens') {
+      setTokens([]);
+      setIsLoadingTokens(true);
+    }
+  }, [isAuthenticated, currentTab, toast]);
 
   useEffect(() => {
     const fetchFollowedUsers = async (userId: string, page: number) => {
@@ -195,10 +187,16 @@ export default function WatchlistPage() {
       }
     };
 
-    if (isAuthenticated && currentUser && activeTab === 'users') {
+    if (isAuthenticated && currentUser && currentTab === 'users') {
       fetchFollowedUsers(currentUser.id, userCurrentPage);
     }
-  }, [isAuthenticated, activeTab, toast, currentUser, userCurrentPage]);
+    if (currentTab !== 'users') {
+      setFollowedUsers([]);
+      setIsLoadingUsers(true);
+      setUserCurrentPage(1);
+      setUserTotalPages(1);
+    }
+  }, [isAuthenticated, currentTab, toast, currentUser, userCurrentPage]);
 
   useEffect(() => {
     const fetchFeed = async (page: number) => {
@@ -229,10 +227,18 @@ export default function WatchlistPage() {
       }
     };
 
-    if (activeTab === 'feed') {
+    if (isAuthenticated && currentTab === 'feed') {
       fetchFeed(feedCurrentPage);
     }
-  }, [activeTab, isAuthenticated, feedCurrentPage]);
+    if (currentTab !== 'feed') {
+      setFeedData(null);
+      setFeedError(null);
+      setIsLoadingFeed(false);
+      setFeedCurrentPage(1);
+      setFeedTotalPages(1);
+      setFeedAccessDeniedBalance(null);
+    }
+  }, [currentTab, isAuthenticated, feedCurrentPage]);
 
   const handleTokenRemoved = (mintAddress: string) => {
     setTokens((prevTokens) => prevTokens.filter((token) => token.mintAddress !== mintAddress));
@@ -277,11 +283,10 @@ export default function WatchlistPage() {
   };
 
   const handleTabChange = (newTab: string) => {
-    if (['tokens', 'users', 'feed'].includes(newTab) && newTab !== activeTab) {
-      setActiveTab(newTab as 'tokens' | 'users' | 'feed');
+    if (['tokens', 'users', 'feed'].includes(newTab) && newTab !== currentTab) {
       const params = new URLSearchParams(searchParams);
       params.set('tab', newTab);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
     }
   };
 
@@ -465,7 +470,7 @@ export default function WatchlistPage() {
         <h1 className='text-3xl font-bold'>Watchlist</h1>
       </div>
 
-      <Tabs value={activeTab} className='w-full' onValueChange={handleTabChange}>
+      <Tabs value={currentTab} className='w-full' onValueChange={handleTabChange}>
         <TabsList className='grid grid-cols-3 mb-8 w-full max-w-[500px]'>
           <TabsTrigger value='tokens' className='rounded-md'>
             <BookmarkIcon className='w-4 h-4 mr-2' />
