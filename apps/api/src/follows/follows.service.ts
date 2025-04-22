@@ -184,4 +184,12 @@ export class FollowsService {
       followedId,
     });
   }
+
+  async getFollowersCount(userId: string): Promise<number> {
+    return this.userFollowsRepository.count({ where: { followedId: userId } });
+  }
+
+  async getFollowingCount(userId: string): Promise<number> {
+    return this.userFollowsRepository.count({ where: { followerId: userId } });
+  }
 }

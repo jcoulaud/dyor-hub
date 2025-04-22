@@ -85,7 +85,12 @@ export class UsersController {
       throw new NotFoundException(`User with username ${username} not found`);
     }
 
-    return UserResponseDto.fromEntity(user);
+    const [followersCount, followingCount] = await Promise.all([
+      this.followsService.getFollowersCount(user.id),
+      this.followsService.getFollowingCount(user.id),
+    ]);
+
+    return UserResponseDto.fromEntity(user, { followersCount, followingCount });
   }
 
   @Public()
@@ -165,7 +170,18 @@ export class UsersController {
     return { success: true };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Public()
+  @Post('follow-status')
+  async getFollowRelationship(
+    @Body() relationshipDto: { followerId: string; followedId: string },
+  ) {
+    const relationship = await this.followsService.getFollowRelationship(
+      relationshipDto.followerId,
+      relationshipDto.followedId,
+    );
+    return { isFollowing: !!relationship };
+  }
+
   @Get(':id/following')
   async getFollowing(
     @Param('id', ParseUUIDPipe) userId: string,
@@ -181,7 +197,6 @@ export class UsersController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get(':id/followers')
   async getFollowers(
     @Param('id', ParseUUIDPipe) userId: string,

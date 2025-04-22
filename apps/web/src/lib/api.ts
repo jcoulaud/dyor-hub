@@ -127,10 +127,21 @@ const setCache = <T>(key: string, data: T, ttl: number = CACHE_TTL): void => {
 // Helper function to determine if an endpoint is for public user data
 const isPublicUserRoute = (endpoint: string): boolean => {
   const normalizedEndpoint = endpoint.replace(/^\/+/, '');
-  // Exclude exact match for 'users' base path if needed, depends on API structure
+
+  // These endpoints should never be treated as public:
+  // 1. Follow-related endpoints require authentication
+  // 2. User's own profile endpoints require authentication
+  if (
+    normalizedEndpoint.includes('/follow') ||
+    normalizedEndpoint === 'users/follow-status' ||
+    normalizedEndpoint.startsWith('users/me/')
+  ) {
+    return false;
+  }
+
+  // Only return true for public user profile endpoints
   return (
     normalizedEndpoint.startsWith('users/') && // User profiles
-    !normalizedEndpoint.startsWith('users/me/') && // Exclude my profile
     normalizedEndpoint !== 'users' // Assuming GET /users is not public
   );
 };
@@ -947,6 +958,59 @@ export const users = {
         throw error;
       }
     },
+  },
+
+  getFollowers: async (userId: string, page: number = 1, limit: number = 20) => {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    const endpoint = `users/${userId}/followers?${params.toString()}`;
+    return api<{
+      data: User[];
+      meta: { total: number; page: number; limit: number; totalPages: number };
+    }>(endpoint);
+  },
+
+  getFollowing: async (userId: string, page: number = 1, limit: number = 20) => {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    const endpoint = `users/${userId}/following?${params.toString()}`;
+    return api<{
+      data: User[];
+      meta: { total: number; page: number; limit: number; totalPages: number };
+    }>(endpoint);
+  },
+
+  follow: async (userId: string) => {
+    try {
+      return api<void>(`users/${userId}/follow`, { method: 'POST' });
+    } catch (error) {
+      console.error('Follow request failed:', error);
+      throw error;
+    }
+  },
+
+  unfollow: async (userId: string) => {
+    try {
+      return api<void>(`users/${userId}/follow`, { method: 'DELETE' });
+    } catch (error) {
+      console.error('Unfollow request failed:', error);
+      throw error;
+    }
+  },
+
+  getFollowRelationship: async (followerId: string, followedId: string) => {
+    try {
+      const result = await api<{ isFollowing: boolean }>('users/follow-status', {
+        method: 'POST',
+        body: { followerId, followedId },
+      });
+      return result;
+    } catch (error) {
+      console.error('Error checking follow status:', error);
+      return { isFollowing: false };
+    }
   },
 };
 

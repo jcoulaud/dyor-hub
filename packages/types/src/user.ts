@@ -9,6 +9,8 @@ export interface User {
   preferences?: Partial<UserPreferences>;
   primaryWalletAddress?: string;
   createdAt: string;
+  followersCount?: number;
+  followingCount?: number;
 }
 
 export interface UserProfile extends User {
