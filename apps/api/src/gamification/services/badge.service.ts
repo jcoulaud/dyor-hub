@@ -1,4 +1,5 @@
 import {
+  ActivityType,
   BadgeRequirement,
   LeaderboardCategory,
   LeaderboardTimeframe,
@@ -10,7 +11,6 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, MoreThanOrEqual, Repository } from 'typeorm';
 import {
-  ActivityType,
   BadgeCategory,
   BadgeEntity,
   CommentEntity,

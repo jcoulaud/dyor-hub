@@ -1,4 +1,5 @@
 import {
+  ActivityType,
   CommentType,
   NotificationEventType,
   PaginatedTokenCallsResult,
@@ -18,10 +19,7 @@ import { DataSource, In, Not, Repository } from 'typeorm';
 import { CommentResponseDto } from '../comments/dto/comment-response.dto';
 import { CommentEntity } from '../entities/comment.entity';
 import { TokenCallEntity } from '../entities/token-call.entity';
-import {
-  ActivityType,
-  UserActivityEntity,
-} from '../entities/user-activity.entity';
+import { UserActivityEntity } from '../entities/user-activity.entity';
 import { UserFollows } from '../entities/user-follows.entity';
 import { UserEntity } from '../entities/user.entity';
 import { TokensService } from '../tokens/tokens.service';

@@ -1,8 +1,9 @@
+import { ActivityType } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ActivityType, CommentEntity } from '../../entities';
+import { CommentEntity } from '../../entities';
 import { ActivityTrackingService } from './activity-tracking.service';
 import { BadgeService } from './badge.service';
 import { ReputationService } from './reputation.service';

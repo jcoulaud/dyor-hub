@@ -1,5 +1,6 @@
 import {
   ActivityPointsConfig,
+  ActivityType,
   NotificationEventType,
   UserReputation,
   UserReputationTrends,
@@ -13,11 +14,7 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository } from 'typeorm';
-import {
-  ActivityType,
-  UserActivityEntity,
-  UserReputationEntity,
-} from '../../entities';
+import { UserActivityEntity, UserReputationEntity } from '../../entities';
 import {
   ACTIVITY_POINTS,
   MIN_WEEKLY_ACTIVITY_TO_PAUSE_REDUCTION,

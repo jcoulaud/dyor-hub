@@ -1,4 +1,4 @@
-import { NotificationEventType } from '@dyor-hub/types';
+import { ActivityType, NotificationEventType } from '@dyor-hub/types';
 import {
   Injectable,
   InternalServerErrorException,
@@ -7,11 +7,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, Repository } from 'typeorm';
-import {
-  ActivityType,
-  UserActivityEntity,
-  UserStreakEntity,
-} from '../../entities';
+import { UserActivityEntity, UserStreakEntity } from '../../entities';
 
 /**
  * Helper function to get the start of the day in UTC

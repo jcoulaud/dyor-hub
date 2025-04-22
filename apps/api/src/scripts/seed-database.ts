@@ -1,4 +1,5 @@
 import {
+  ActivityType,
   BadgeRequirement,
   LeaderboardCategory,
   LeaderboardTimeframe,
@@ -9,7 +10,6 @@ import { faker } from '@faker-js/faker';
 import { DataSource } from 'typeorm';
 import { dataSourceOptions } from '../datasource';
 import {
-  ActivityType,
   BadgeCategory,
   BadgeEntity,
   CommentEntity,

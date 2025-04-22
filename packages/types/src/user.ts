@@ -49,3 +49,12 @@ export interface UserMinimum {
   displayName: string;
   avatarUrl: string;
 }
+
+export enum ActivityType {
+  COMMENT = 'comment',
+  POST = 'post',
+  UPVOTE = 'upvote',
+  DOWNVOTE = 'downvote',
+  LOGIN = 'login',
+  PREDICTION = 'prediction',
+}

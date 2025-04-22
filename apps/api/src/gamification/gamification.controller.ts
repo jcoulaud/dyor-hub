@@ -1,3 +1,4 @@
+import { ActivityType } from '@dyor-hub/types';
 import {
   Body,
   Controller,
@@ -12,7 +13,7 @@ import { Between, Repository } from 'typeorm';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { ActivityType, UserActivityEntity, UserEntity } from '../entities';
+import { UserActivityEntity, UserEntity } from '../entities';
 import { UserBadgeEntity } from '../entities/user-badge.entity';
 import { ActivityTrackingService } from './services/activity-tracking.service';
 import { BadgeService } from './services/badge.service';

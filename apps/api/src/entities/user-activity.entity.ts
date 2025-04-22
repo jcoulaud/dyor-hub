@@ -1,3 +1,4 @@
+import { ActivityType } from '@dyor-hub/types';
 import {
   Column,
   CreateDateColumn,
@@ -8,15 +9,6 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { UserEntity } from './user.entity';
-
-export enum ActivityType {
-  COMMENT = 'comment',
-  POST = 'post',
-  UPVOTE = 'upvote',
-  DOWNVOTE = 'downvote',
-  LOGIN = 'login',
-  PREDICTION = 'prediction',
-}
 
 @Entity('user_activities')
 @Index(['userId', 'createdAt'])
