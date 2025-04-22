@@ -2,18 +2,15 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Eye, Loader2, ShieldCheck } from 'lucide-react';
-import dynamic from 'next/dynamic';
-
-// Import necessary components for the new setting
 import { FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { users } from '@/lib/api';
-// Import useAuthContext to get the username
 import { useAuthContext } from '@/providers/auth-provider';
 import { UserPreferences, defaultUserPreferences } from '@dyor-hub/types';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Eye, Loader2, ShieldCheck } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -31,11 +28,10 @@ const walletSettingsSchema = z.object({
 
 type WalletSettingsFormValues = z.infer<typeof walletSettingsSchema>;
 
-export default function AccountPage() {
+export default function WalletSettingsPage() {
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
   const { toast } = useToast();
-  // Get user from auth context
   const { user } = useAuthContext();
 
   const form = useForm<WalletSettingsFormValues>({
@@ -71,7 +67,6 @@ export default function AccountPage() {
 
   const saveVisibilityPreference = useCallback(
     async (isVisible: boolean) => {
-      // Prevent saving if already in the desired state or currently saving
       if (isSavingPreferences || form.getValues('showWalletAddress') === isVisible) {
         return;
       }
@@ -82,7 +77,6 @@ export default function AccountPage() {
           showWalletAddress: isVisible,
         };
 
-        // Pass the current username to invalidate public profile cache if needed
         const updatedPrefs = await users.updateUserPreferences(changedPreferences, user?.username);
         toast({
           title: 'Success',

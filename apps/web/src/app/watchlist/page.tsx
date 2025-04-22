@@ -82,6 +82,9 @@ function TokenGatedMessage({ requiredAmount, currentBalance }: TokenGatedMessage
           )}
           {` `}Please ensure your primary connected wallet meets this requirement.
         </p>
+        <Button asChild variant='outline'>
+          <Link href='/account/wallet'>Manage Wallet</Link>
+        </Button>
       </div>
     </Card>
   );
