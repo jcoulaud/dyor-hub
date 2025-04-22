@@ -14,6 +14,7 @@ import {
   NotificationsResponse,
   PaginatedHotTokensResult,
   PaginatedLatestCommentsResponse,
+  PaginatedResult,
   PaginatedTokenCallsResult,
   PaginatedTokensResponse,
   SentimentType,
@@ -1678,5 +1679,25 @@ export const dev = {
         failed: number;
       }>('admin/dev/fix-backfilled-comment-timestamps', { method: 'POST' });
     },
+  },
+};
+
+export const feed = {
+  getFollowing: async (
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedResult<UserActivity>> => {
+    try {
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+
+      const endpoint = `feed/following?${params.toString()}`;
+      const data = await api<PaginatedResult<UserActivity>>(endpoint);
+      return data;
+    } catch (error) {
+      console.error('[getFollowingFeed] Error fetching following feed:', error);
+      throw error;
+    }
   },
 };

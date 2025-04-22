@@ -62,22 +62,31 @@ export class TokenGatedGuard implements CanActivate {
         requiredTokenAddress,
       );
 
-      if (balance < minTokenHolding) {
+      const currentBalanceNum =
+        typeof balance === 'bigint' ? Number(balance) : balance;
+      const minHoldingNum =
+        typeof minTokenHolding === 'bigint'
+          ? Number(minTokenHolding)
+          : minTokenHolding;
+
+      if (currentBalanceNum < minHoldingNum) {
         this.logger.log(
-          `User ${user.id} denied token gated access. Balance: ${balance}, Required: ${minTokenHolding}`,
+          `User ${user.id} denied token gated access. Balance: ${currentBalanceNum}, Required: ${minHoldingNum}`,
         );
-        throw new ForbiddenException(
-          `Insufficient token balance. Requires ${minTokenHolding} tokens.`,
-        );
+        throw new ForbiddenException({
+          message: `Insufficient token balance. Requires ${minHoldingNum} tokens.`,
+          currentBalance: currentBalanceNum.toString(),
+          requiredBalance: minHoldingNum.toString(),
+        });
       }
 
       this.logger.log(`User ${user.id} granted token gated access.`);
       return true;
     } catch (error) {
-      if (
-        error instanceof ForbiddenException ||
-        error instanceof InternalServerErrorException
-      ) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+      if (error instanceof InternalServerErrorException) {
         throw error;
       }
       this.logger.error(

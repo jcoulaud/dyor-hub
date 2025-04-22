@@ -1,9 +1,9 @@
+import { PaginatedResult } from '@dyor-hub/types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { UserActivityEntity } from '../entities';
 import { FollowsService } from '../follows/follows.service';
-import { PaginatedResult } from '../users/users.service';
 
 @Injectable()
 export class FeedService {
