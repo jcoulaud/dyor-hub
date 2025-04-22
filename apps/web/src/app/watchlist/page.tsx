@@ -4,12 +4,14 @@ import { RequireAuth } from '@/components/auth/RequireAuth';
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UserList } from '@/components/users/UserList';
 import { useToast } from '@/hooks/use-toast';
-import { watchlist } from '@/lib/api';
+import { users, watchlist } from '@/lib/api';
 import { useAuthContext } from '@/providers/auth-provider';
-import { Token } from '@dyor-hub/types';
+import { Token, User } from '@dyor-hub/types';
 import { BookmarkIcon, Copy, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -17,10 +19,16 @@ import { useEffect, useState } from 'react';
 
 type WatchlistedToken = Token & { addedAt: Date };
 
+const USERS_PER_PAGE = 10;
+
 export default function WatchlistPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuthContext();
+  const { isAuthenticated, isLoading: authLoading, user: currentUser } = useAuthContext();
   const [tokens, setTokens] = useState<WatchlistedToken[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [followedUsers, setFollowedUsers] = useState<User[]>([]);
+  const [isLoadingTokens, setIsLoadingTokens] = useState(true);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [userCurrentPage, setUserCurrentPage] = useState(1);
+  const [userTotalPages, setUserTotalPages] = useState(1);
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('tokens');
 
@@ -28,7 +36,7 @@ export default function WatchlistPage() {
     const fetchWatchlistedTokens = async () => {
       if (activeTab !== 'tokens') return;
 
-      setIsLoading(true);
+      setIsLoadingTokens(true);
       try {
         const data = await watchlist.getWatchlistedTokens();
         setTokens(
@@ -45,21 +53,75 @@ export default function WatchlistPage() {
           variant: 'destructive',
         });
       } finally {
-        setIsLoading(false);
+        setIsLoadingTokens(false);
       }
     };
 
     if (isAuthenticated) {
       fetchWatchlistedTokens();
     }
-  }, [isAuthenticated, activeTab]);
+  }, [isAuthenticated, activeTab, toast]);
+
+  useEffect(() => {
+    const fetchFollowedUsers = async (userId: string, page: number) => {
+      if (activeTab !== 'users') return;
+
+      setIsLoadingUsers(true);
+      try {
+        const response = await users.getFollowing(userId, page, USERS_PER_PAGE);
+        setFollowedUsers(response.data);
+        setUserCurrentPage(response.meta.page);
+        setUserTotalPages(response.meta.totalPages);
+      } catch (error) {
+        console.error('Error fetching followed users:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load followed users',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    if (isAuthenticated && currentUser) {
+      fetchFollowedUsers(currentUser.id, userCurrentPage);
+    }
+  }, [isAuthenticated, activeTab, toast, currentUser, userCurrentPage]);
 
   const handleTokenRemoved = (mintAddress: string) => {
     setTokens((prevTokens) => prevTokens.filter((token) => token.mintAddress !== mintAddress));
   };
 
+  const handleToggleFollow = async (userId: string) => {
+    const previousUsers = [...followedUsers];
+    setFollowedUsers((prev) => prev.filter((u) => u.id !== userId));
+
+    try {
+      await users.unfollow(userId);
+      toast({
+        title: 'User unfollowed',
+        description: 'You are no longer following this user.',
+      });
+    } catch (error) {
+      console.error('Error unfollowing user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to unfollow user. Please try again.',
+        variant: 'destructive',
+      });
+      setFollowedUsers(previousUsers);
+    }
+  };
+
+  const handleUserPageChange = (page: number) => {
+    if (page !== userCurrentPage && page > 0 && page <= userTotalPages) {
+      setUserCurrentPage(page);
+    }
+  };
+
   const renderTokensContent = () => {
-    if (isLoading || authLoading) {
+    if (isLoadingTokens || authLoading) {
       return (
         <div className='grid gap-4'>
           {[...Array(3)].map((_, i) => (
@@ -163,18 +225,34 @@ export default function WatchlistPage() {
   };
 
   const renderUsersContent = () => {
-    return (
-      <Card className='bg-zinc-900/30 border-zinc-800/50'>
-        <div className='text-center py-16 px-4'>
-          <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800/70 mb-4'>
-            <Users className='h-6 w-6 text-blue-400' />
-          </div>
-          <h3 className='text-lg font-medium text-white mb-2'>User Watchlist Coming Soon</h3>
-          <p className='text-zinc-400 mb-6 max-w-md mx-auto'>
-            Soon you&apos;ll be able to follow your favorite users and keep track of their activity.
-          </p>
+    if (isLoadingUsers || authLoading) {
+      return (
+        <div className='space-y-4'>
+          {[...Array(USERS_PER_PAGE)].map((_, i) => (
+            <Skeleton key={i} className='h-20 w-full rounded-lg' />
+          ))}
         </div>
-      </Card>
+      );
+    }
+
+    return (
+      <div className='space-y-6'>
+        <UserList
+          users={followedUsers}
+          emptyMessage='You are not following any users yet. Explore users and click the follow button.'
+          followingIds={followedUsers.map((u) => u.id)}
+          onToggleFollow={handleToggleFollow}
+          currentUserId={currentUser?.id}
+        />
+
+        {userTotalPages > 1 && (
+          <Pagination
+            currentPage={userCurrentPage}
+            totalPages={userTotalPages}
+            onPageChange={handleUserPageChange}
+          />
+        )}
+      </div>
     );
   };
 
