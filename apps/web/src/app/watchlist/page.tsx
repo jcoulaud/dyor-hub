@@ -15,6 +15,7 @@ import { Token, User } from '@dyor-hub/types';
 import { BookmarkIcon, Copy, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 type WatchlistedToken = Token & { addedAt: Date };
@@ -23,6 +24,13 @@ const USERS_PER_PAGE = 10;
 
 export default function WatchlistPage() {
   const { isAuthenticated, isLoading: authLoading, user: currentUser } = useAuthContext();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const initialTab = searchParams.get('tab') === 'users' ? 'users' : 'tokens';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
   const [tokens, setTokens] = useState<WatchlistedToken[]>([]);
   const [followedUsers, setFollowedUsers] = useState<User[]>([]);
   const [isLoadingTokens, setIsLoadingTokens] = useState(true);
@@ -30,7 +38,13 @@ export default function WatchlistPage() {
   const [userCurrentPage, setUserCurrentPage] = useState(1);
   const [userTotalPages, setUserTotalPages] = useState(1);
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('tokens');
+
+  useEffect(() => {
+    const currentTab = searchParams.get('tab') === 'users' ? 'users' : 'tokens';
+    if (currentTab !== activeTab) {
+      setActiveTab(currentTab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchWatchlistedTokens = async () => {
@@ -117,6 +131,15 @@ export default function WatchlistPage() {
   const handleUserPageChange = (page: number) => {
     if (page !== userCurrentPage && page > 0 && page <= userTotalPages) {
       setUserCurrentPage(page);
+    }
+  };
+
+  const handleTabChange = (newTab: string) => {
+    if (newTab !== activeTab && (newTab === 'tokens' || newTab === 'users')) {
+      setActiveTab(newTab);
+      const params = new URLSearchParams(searchParams);
+      params.set('tab', newTab);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     }
   };
 
@@ -262,7 +285,7 @@ export default function WatchlistPage() {
         <h1 className='text-3xl font-bold'>Watchlist</h1>
       </div>
 
-      <Tabs defaultValue='tokens' className='w-full' onValueChange={setActiveTab}>
+      <Tabs value={activeTab} className='w-full' onValueChange={handleTabChange}>
         <TabsList className='grid grid-cols-2 mb-8 w-full max-w-[400px]'>
           <TabsTrigger value='tokens' className='rounded-md'>
             <BookmarkIcon className='w-4 h-4 mr-2' />
