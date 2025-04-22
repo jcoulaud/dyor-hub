@@ -2,6 +2,7 @@
 
 import { Pagination } from '@/components/ui/pagination';
 import { users } from '@/lib/api';
+import { ActivityType } from '@dyor-hub/types';
 import { formatDistanceStrict } from 'date-fns';
 import {
   ArrowDown,
@@ -251,7 +252,7 @@ export function Activity({
               icon={<CircleDot className='h-3.5 w-3.5' />}
               color='text-blue-400'
               label='All'
-              count={pagination.total}
+              count={totalActivities}
             />
             <TypeFilterTab
               active={typeFilter === 'comments'}
@@ -325,6 +326,10 @@ export function Activity({
           // Activities list
           visibleComments.map((comment) => {
             const details = getActivityDetails(comment);
+            let activityType: ActivityType;
+            if (comment.isUpvote) activityType = ActivityType.UPVOTE;
+            else if (comment.isDownvote) activityType = ActivityType.DOWNVOTE;
+            else activityType = ActivityType.COMMENT;
             return (
               <Link
                 href={
@@ -332,7 +337,7 @@ export function Activity({
                     ? '#'
                     : `/tokens/${comment.tokenMintAddress}/comments/${comment.id}`
                 }
-                key={comment.id}
+                key={`${activityType}-${comment.id}`}
                 className={`block p-4 bg-zinc-900/30 backdrop-blur-sm border ${details.borderColor} rounded-lg ${comment.isRemoved ? 'opacity-60 cursor-not-allowed' : 'hover:bg-zinc-900/50'} transition-all duration-200`}
                 onClick={(e) => {
                   if (comment.isRemoved) e.preventDefault();
