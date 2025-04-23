@@ -6,6 +6,7 @@ import {
   CommentEntity,
   NotificationEntity,
   NotificationPreferenceEntity,
+  TokenCallEntity,
 } from '../entities';
 import { GamificationModule } from '../gamification/gamification.module';
 import { TelegramModule } from '../telegram/telegram.module';
@@ -20,6 +21,7 @@ import { NotificationsService } from './notifications.service';
       NotificationEntity,
       NotificationPreferenceEntity,
       CommentEntity,
+      TokenCallEntity,
     ]),
     EventEmitterModule.forRoot(),
     forwardRef(() => AuthModule),

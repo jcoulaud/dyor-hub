@@ -2,10 +2,11 @@ import { NotificationEventType, NotificationType } from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
+import { format, parseISO } from 'date-fns';
+import numbro from 'numbro';
 import { Repository } from 'typeorm';
-import { CommentEntity } from '../entities';
+import { CommentEntity, TokenCallEntity } from '../entities';
 import { sanitizeHtml } from '../utils/utils';
-import { NotificationsGateway } from './notifications.gateway';
 import { NotificationsService } from './notifications.service';
 
 @Injectable()
@@ -14,9 +15,10 @@ export class NotificationEventsService {
 
   constructor(
     private readonly notificationsService: NotificationsService,
-    private readonly notificationsGateway: NotificationsGateway,
     @InjectRepository(CommentEntity)
     private readonly commentRepository: Repository<CommentEntity>,
+    @InjectRepository(TokenCallEntity)
+    private readonly tokenCallRepository: Repository<TokenCallEntity>,
   ) {}
 
   private async createAndEmitNotification(
@@ -236,10 +238,45 @@ export class NotificationEventsService {
   }) {
     const safeFollowedUsername = sanitizeHtml(payload.followedUsername);
     const safeTokenSymbol = sanitizeHtml(payload.tokenSymbol);
+    let message = `${safeFollowedUsername} made a prediction for $${safeTokenSymbol}`;
+
+    try {
+      const tokenCall = await this.tokenCallRepository.findOne({
+        where: { id: payload.predictionId },
+        select: ['targetPrice', 'referenceSupply', 'targetDate'],
+      });
+
+      if (tokenCall) {
+        const marketCap =
+          tokenCall.targetPrice * (tokenCall.referenceSupply ?? 0);
+        const formattedMarketCap = numbro(marketCap).format({
+          average: true,
+          mantissa: marketCap < 1000000 ? 0 : 2,
+          trimMantissa: true,
+        });
+        const formattedDate = format(
+          typeof tokenCall.targetDate === 'string'
+            ? parseISO(tokenCall.targetDate)
+            : tokenCall.targetDate,
+          'MMM d, yyyy',
+        );
+
+        message = `${safeFollowedUsername} made a prediction for $${safeTokenSymbol} at $${tokenCall.targetPrice.toLocaleString()} ($${formattedMarketCap} MC) for ${formattedDate}`;
+      } else {
+        this.logger.warn(
+          `TokenCall with ID ${payload.predictionId} not found for notification.`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch TokenCall details for notification: ${error.message}`,
+      );
+    }
+
     await this.createAndEmitNotification(
       payload.followerId,
       NotificationType.FOLLOWED_USER_PREDICTION,
-      `${safeFollowedUsername} made a prediction for $${safeTokenSymbol}`,
+      message,
       payload.predictionId,
       'prediction',
       {
@@ -290,10 +327,12 @@ export class NotificationEventsService {
     tokenMintAddress: string;
   }) {
     const safeVoterUsername = sanitizeHtml(payload.voterUsername);
+    const message = `${safeVoterUsername} upvoted a comment.`;
+
     await this.createAndEmitNotification(
       payload.followerId,
       NotificationType.FOLLOWED_USER_VOTE,
-      `${safeVoterUsername} upvoted a comment by a user you follow.`,
+      message,
       payload.commentId,
       'comment',
       {
