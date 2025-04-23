@@ -8,6 +8,7 @@ import { UserBadgeEntity } from '../entities/user-badge.entity';
 import { UserReputationEntity } from '../entities/user-reputation.entity';
 import { UserStreakEntity } from '../entities/user-streak.entity';
 import { UserEntity } from '../entities/user.entity';
+import { FollowsModule } from '../follows/follows.module';
 import { TokenCallsModule } from '../token-calls/token-calls.module';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
@@ -25,6 +26,7 @@ import { UsersService } from './users.service';
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => TokenCallsModule),
+    forwardRef(() => FollowsModule),
   ],
   controllers: [UsersController],
   providers: [UsersService],

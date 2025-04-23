@@ -28,6 +28,8 @@ import {
   UserStreakEntity,
   WalletEntity,
 } from './entities';
+import { FeedModule } from './feed/feed.module';
+import { FollowsModule } from './follows/follows.module';
 import { GamificationModule } from './gamification/gamification.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -80,6 +82,8 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     TelegramModule,
     TokenCallsModule,
     TokenCallsLeaderboardModule,
+    FollowsModule,
+    FeedModule,
   ],
   controllers: [AppController],
   providers: [

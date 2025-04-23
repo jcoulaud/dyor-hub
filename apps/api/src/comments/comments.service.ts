@@ -19,6 +19,7 @@ import { In, IsNull, Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
 import { TokenEntity } from '../entities/token.entity';
+import { UserFollows } from '../entities/user-follows.entity';
 import { UserEntity } from '../entities/user.entity';
 import { GamificationEvent } from '../gamification/services/activity-hooks.service';
 import { PerspectiveService } from '../services/perspective.service';
@@ -43,6 +44,8 @@ export class CommentsService {
     private readonly tokenRepository: Repository<TokenEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(UserFollows)
+    private readonly userFollowsRepository: Repository<UserFollows>,
     private readonly perspectiveService: PerspectiveService,
     private readonly telegramAdminService: TelegramAdminService,
     private readonly eventEmitter: EventEmitter2,
@@ -579,6 +582,30 @@ export class CommentsService {
         }
       }
 
+      // Follower Notification Logic
+      try {
+        const followers = await this.userFollowsRepository.find({
+          where: { followedId: savedComment.userId, notify_on_comment: true },
+          select: ['followerId'],
+        });
+
+        followers.forEach((follow) => {
+          this.eventEmitter.emit(NotificationEventType.FOLLOWED_USER_COMMENT, {
+            followerId: follow.followerId,
+            authorId: savedComment.userId,
+            authorUsername: user?.displayName ?? 'User',
+            commentId: savedComment.id,
+            commentPreview: savedComment.content.substring(0, 100),
+            tokenMintAddress: savedComment.tokenMintAddress,
+          });
+        });
+      } catch (notifyError) {
+        this.logger.error(
+          `Failed to trigger follow notifications for comment ${savedComment.id}: ${notifyError.message}`,
+          notifyError.stack,
+        );
+      }
+
       return savedComment;
     } catch (error) {
       throw error;
@@ -720,6 +747,42 @@ export class CommentsService {
           commentId: comment.id,
           voterName: voterName,
         });
+      }
+    }
+
+    // Follower Notification Logic
+    if (type === 'upvote' && comment.user.id !== userId) {
+      try {
+        const voterInfo = await this.userRepository.findOne({
+          select: ['displayName', 'username'],
+          where: { id: userId },
+        });
+
+        if (voterInfo) {
+          const followers = await this.userFollowsRepository.find({
+            where: {
+              followedId: comment.userId,
+              notify_on_vote: true,
+            },
+            select: ['followerId'],
+          });
+
+          followers.forEach((follow) => {
+            this.eventEmitter.emit(NotificationEventType.FOLLOWED_USER_VOTE, {
+              followerId: follow.followerId,
+              voterId: userId,
+              voterUsername: voterInfo.displayName ?? 'User',
+              authorId: comment.userId,
+              commentId: comment.id,
+              tokenMintAddress: comment.tokenMintAddress,
+            });
+          });
+        }
+      } catch (notifyError) {
+        this.logger.error(
+          `Failed to trigger follow notifications for vote on comment ${comment.id}: ${notifyError.message}`,
+          notifyError.stack,
+        );
       }
     }
 

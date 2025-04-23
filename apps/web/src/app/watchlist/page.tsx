@@ -1,34 +1,137 @@
 'use client';
 
+import { ActivityItem } from '@/components/activity/ActivityItem';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UserList } from '@/components/users/UserList';
 import { useToast } from '@/hooks/use-toast';
-import { watchlist } from '@/lib/api';
+import { ApiError, feed, users, watchlist } from '@/lib/api';
+import { DYORHUB_SYMBOL, MIN_TOKEN_HOLDING_FOR_FEED } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
-import { Token } from '@dyor-hub/types';
-import { BookmarkIcon, Copy, Users } from 'lucide-react';
+import { FeedActivity, Token, User } from '@dyor-hub/types';
+import { AlertCircle, BookmarkIcon, Copy, Lock, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
 type WatchlistedToken = Token & { addedAt: Date };
 
+const USERS_PER_PAGE = 10;
+
+interface FeedContentProps {
+  activities: FeedActivity[];
+}
+
+function FeedContent({ activities }: FeedContentProps) {
+  if (!activities || activities.length === 0) {
+    return (
+      <Card className='bg-zinc-900/30 border-zinc-800/50 p-6 text-center'>
+        <p className='text-zinc-400'>No activity in your feed yet.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className='space-y-4'>
+      {activities.map((activity) => (
+        <ActivityItem key={activity.id} activity={activity} showUser />
+      ))}
+    </div>
+  );
+}
+
+interface TokenGatedMessageProps {
+  requiredAmount: number;
+  currentBalance?: string | number | null;
+}
+
+function TokenGatedMessage({ requiredAmount, currentBalance }: TokenGatedMessageProps) {
+  const formattedRequired = requiredAmount.toLocaleString();
+  const formattedBalance =
+    typeof currentBalance === 'string' || typeof currentBalance === 'number'
+      ? Number(currentBalance).toLocaleString()
+      : null;
+
+  return (
+    <Card className='bg-zinc-900/30 border-zinc-800/50'>
+      <div className='text-center py-16 px-4'>
+        <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800/70 mb-4'>
+          <Lock className='h-6 w-6 text-yellow-400' />
+        </div>
+        <h3 className='text-lg font-medium text-white mb-2'>Feed Access Restricted</h3>
+        <p className='text-zinc-400 mb-6 max-w-md mx-auto'>
+          Access to this feed requires holding a minimum of{` `}
+          <span className='font-bold text-white'>{formattedRequired}</span> {DYORHUB_SYMBOL} tokens.
+          {formattedBalance !== null && (
+            <>
+              {` `}Your current balance is{` `}
+              <span className='font-bold text-white'>{formattedBalance}</span>.
+            </>
+          )}
+          {` `}Please ensure your primary connected wallet meets this requirement.
+        </p>
+        <Button asChild variant='outline'>
+          <Link href='/account/wallet'>Manage Wallet</Link>
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function FeedErrorMessage() {
+  return (
+    <Card className='bg-red-900/20 border-red-500/30'>
+      <div className='text-center py-16 px-4'>
+        <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-800/70 mb-4'>
+          <AlertCircle className='h-6 w-6 text-red-300' />
+        </div>
+        <h3 className='text-lg font-medium text-white mb-2'>Error Loading Feed</h3>
+        <p className='text-red-300 mb-6 max-w-md mx-auto'>
+          There was an issue loading the feed. Please try again later.
+        </p>
+      </div>
+    </Card>
+  );
+}
+
 export default function WatchlistPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuthContext();
+  const { isAuthenticated, isLoading: authLoading, user: currentUser } = useAuthContext();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const currentTab = useMemo(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['tokens', 'users', 'feed'].includes(tabParam)) {
+      return tabParam as 'tokens' | 'users' | 'feed';
+    }
+    return 'tokens';
+  }, [searchParams]);
+
   const [tokens, setTokens] = useState<WatchlistedToken[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [followedUsers, setFollowedUsers] = useState<User[]>([]);
+  const [isLoadingTokens, setIsLoadingTokens] = useState(true);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [userCurrentPage, setUserCurrentPage] = useState(1);
+  const [userTotalPages, setUserTotalPages] = useState(1);
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('tokens');
+
+  const [feedData, setFeedData] = useState<FeedActivity[] | null>(null);
+  const [isLoadingFeed, setIsLoadingFeed] = useState(false);
+  const [feedError, setFeedError] = useState<'forbidden' | 'generic' | null>(null);
+  const [feedCurrentPage, setFeedCurrentPage] = useState(1);
+  const [feedTotalPages, setFeedTotalPages] = useState(1);
+  const [feedAccessDeniedBalance, setFeedAccessDeniedBalance] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchWatchlistedTokens = async () => {
-      if (activeTab !== 'tokens') return;
-
-      setIsLoading(true);
+      setIsLoadingTokens(true);
       try {
         const data = await watchlist.getWatchlistedTokens();
         setTokens(
@@ -45,21 +148,144 @@ export default function WatchlistPage() {
           variant: 'destructive',
         });
       } finally {
-        setIsLoading(false);
+        setIsLoadingTokens(false);
       }
     };
 
-    if (isAuthenticated) {
+    if (isAuthenticated && currentTab === 'tokens') {
       fetchWatchlistedTokens();
     }
-  }, [isAuthenticated, activeTab]);
+    if (currentTab !== 'tokens') {
+      setTokens([]);
+      setIsLoadingTokens(true);
+    }
+  }, [isAuthenticated, currentTab, toast]);
+
+  useEffect(() => {
+    const fetchFollowedUsers = async (userId: string, page: number) => {
+      setIsLoadingUsers(true);
+      try {
+        const response = await users.getFollowing(userId, page, USERS_PER_PAGE);
+        setFollowedUsers(response.data);
+        setUserCurrentPage(response.meta.page);
+        setUserTotalPages(response.meta.totalPages);
+      } catch (error) {
+        console.error('Error fetching followed users:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load followed users',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    if (isAuthenticated && currentUser && currentTab === 'users') {
+      fetchFollowedUsers(currentUser.id, userCurrentPage);
+    }
+    if (currentTab !== 'users') {
+      setFollowedUsers([]);
+      setIsLoadingUsers(true);
+      setUserCurrentPage(1);
+      setUserTotalPages(1);
+    }
+  }, [isAuthenticated, currentTab, toast, currentUser, userCurrentPage]);
+
+  useEffect(() => {
+    const fetchFeed = async (page: number) => {
+      if (!isAuthenticated) return;
+
+      setIsLoadingFeed(true);
+      setFeedError(null);
+      setFeedAccessDeniedBalance(null);
+      try {
+        const response = await feed.getFollowing(page, 10);
+        setFeedData(response.data);
+        setFeedCurrentPage(response.meta.page);
+        setFeedTotalPages(response.meta.totalPages);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 403) {
+          setFeedError('forbidden');
+          let balanceFromError = null;
+          if (typeof error.data === 'object' && error.data && 'currentBalance' in error.data) {
+            balanceFromError = String(error.data.currentBalance);
+          }
+          setFeedAccessDeniedBalance(balanceFromError);
+        } else {
+          setFeedError('generic');
+        }
+        setFeedData(null);
+      } finally {
+        setIsLoadingFeed(false);
+      }
+    };
+
+    if (isAuthenticated && currentTab === 'feed') {
+      fetchFeed(feedCurrentPage);
+    }
+    if (currentTab !== 'feed') {
+      setFeedData(null);
+      setFeedError(null);
+      setIsLoadingFeed(false);
+      setFeedCurrentPage(1);
+      setFeedTotalPages(1);
+      setFeedAccessDeniedBalance(null);
+    }
+  }, [currentTab, isAuthenticated, feedCurrentPage]);
 
   const handleTokenRemoved = (mintAddress: string) => {
     setTokens((prevTokens) => prevTokens.filter((token) => token.mintAddress !== mintAddress));
   };
 
+  const handleToggleFollow = async (userId: string) => {
+    const isFollowing = followedUsers.some((u) => u.id === userId);
+    const previousUsers = [...followedUsers];
+
+    if (isFollowing) {
+      setFollowedUsers((prev) => prev.filter((u) => u.id !== userId));
+    }
+
+    try {
+      if (isFollowing) {
+        await users.unfollow(userId);
+        toast({
+          title: 'User unfollowed',
+          description: 'You are no longer following this user.',
+        });
+      }
+    } catch {
+      toast({
+        title: 'Error',
+        description: `Failed to ${isFollowing ? 'unfollow' : 'follow'} user. Please try again.`,
+        variant: 'destructive',
+      });
+      setFollowedUsers(previousUsers);
+    }
+  };
+
+  const handleUserPageChange = (page: number) => {
+    if (page !== userCurrentPage && page > 0 && page <= userTotalPages) {
+      setUserCurrentPage(page);
+    }
+  };
+
+  const handleFeedPageChange = (page: number) => {
+    if (page !== feedCurrentPage && page > 0 && page <= feedTotalPages) {
+      setFeedCurrentPage(page);
+    }
+  };
+
+  const handleTabChange = (newTab: string) => {
+    if (['tokens', 'users', 'feed'].includes(newTab) && newTab !== currentTab) {
+      const params = new URLSearchParams(searchParams);
+      params.set('tab', newTab);
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  };
+
   const renderTokensContent = () => {
-    if (isLoading || authLoading) {
+    if (isLoadingTokens || authLoading) {
       return (
         <div className='grid gap-4'>
           {[...Array(3)].map((_, i) => (
@@ -163,18 +389,72 @@ export default function WatchlistPage() {
   };
 
   const renderUsersContent = () => {
-    return (
-      <Card className='bg-zinc-900/30 border-zinc-800/50'>
-        <div className='text-center py-16 px-4'>
-          <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800/70 mb-4'>
-            <Users className='h-6 w-6 text-blue-400' />
-          </div>
-          <h3 className='text-lg font-medium text-white mb-2'>User Watchlist Coming Soon</h3>
-          <p className='text-zinc-400 mb-6 max-w-md mx-auto'>
-            Soon you&apos;ll be able to follow your favorite users and keep track of their activity.
-          </p>
+    if (isLoadingUsers || authLoading) {
+      return (
+        <div className='space-y-4'>
+          {[...Array(USERS_PER_PAGE)].map((_, i) => (
+            <Skeleton key={i} className='h-20 w-full rounded-lg' />
+          ))}
         </div>
-      </Card>
+      );
+    }
+
+    return (
+      <div className='space-y-6'>
+        <UserList
+          users={followedUsers}
+          emptyMessage='You are not following any users yet. Explore users and click the follow button.'
+          followingIds={followedUsers.map((u) => u.id)}
+          onToggleFollow={handleToggleFollow}
+          currentUserId={currentUser?.id}
+        />
+
+        {userTotalPages > 1 && (
+          <Pagination
+            currentPage={userCurrentPage}
+            totalPages={userTotalPages}
+            onPageChange={handleUserPageChange}
+          />
+        )}
+      </div>
+    );
+  };
+
+  const renderFeedContent = () => {
+    if (isLoadingFeed || authLoading) {
+      return (
+        <div className='space-y-4'>
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className='h-20 w-full rounded-lg' />
+          ))}
+        </div>
+      );
+    }
+
+    if (feedError === 'forbidden') {
+      return (
+        <TokenGatedMessage
+          requiredAmount={MIN_TOKEN_HOLDING_FOR_FEED}
+          currentBalance={feedAccessDeniedBalance}
+        />
+      );
+    }
+
+    if (feedError === 'generic') {
+      return <FeedErrorMessage />;
+    }
+
+    return (
+      <div className='space-y-6'>
+        <FeedContent activities={feedData || []} />
+        {feedTotalPages > 1 && (
+          <Pagination
+            currentPage={feedCurrentPage}
+            totalPages={feedTotalPages}
+            onPageChange={handleFeedPageChange}
+          />
+        )}
+      </div>
     );
   };
 
@@ -184,8 +464,8 @@ export default function WatchlistPage() {
         <h1 className='text-3xl font-bold'>Watchlist</h1>
       </div>
 
-      <Tabs defaultValue='tokens' className='w-full' onValueChange={setActiveTab}>
-        <TabsList className='grid grid-cols-2 mb-8 w-full max-w-[400px]'>
+      <Tabs value={currentTab} className='w-full' onValueChange={handleTabChange}>
+        <TabsList className='grid grid-cols-3 mb-8 w-full max-w-[500px]'>
           <TabsTrigger value='tokens' className='rounded-md'>
             <BookmarkIcon className='w-4 h-4 mr-2' />
             Tokens
@@ -193,6 +473,10 @@ export default function WatchlistPage() {
           <TabsTrigger value='users' className='rounded-md'>
             <Users className='w-4 h-4 mr-2' />
             Users
+          </TabsTrigger>
+          <TabsTrigger value='feed' className='rounded-md'>
+            <Lock className='w-4 h-4 mr-2' />
+            Feed
           </TabsTrigger>
         </TabsList>
 
@@ -202,6 +486,10 @@ export default function WatchlistPage() {
 
         <TabsContent value='users' className='mt-0'>
           {renderUsersContent()}
+        </TabsContent>
+
+        <TabsContent value='feed' className='mt-0'>
+          {renderFeedContent()}
         </TabsContent>
       </Tabs>
     </div>

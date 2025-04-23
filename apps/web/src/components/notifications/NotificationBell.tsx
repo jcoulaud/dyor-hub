@@ -307,8 +307,6 @@ export function NotificationBell() {
         return '/leaderboard';
 
       case NotificationType.REPUTATION_MILESTONE:
-        return '/account';
-
       case NotificationType.SYSTEM:
         return '#';
 

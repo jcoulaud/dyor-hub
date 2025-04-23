@@ -2,10 +2,11 @@ import { ProfileStats } from '@/components/profile/ProfileStats';
 import { UserProfileTokenCallsStats } from '@/components/profile/UserProfileTokenCallsStats';
 import { ShareButton } from '@/components/share/ShareButton';
 import { TwitterShareButton } from '@/components/share/TwitterShareButton';
+import { FollowButton } from '@/components/user/FollowButton';
 import { WalletBadge } from '@/components/wallet/WalletBadge';
 import { users } from '@/lib/api';
 import { getHighResAvatar } from '@/lib/utils';
-import type { User, UserActivity, UserStats } from '@dyor-hub/types';
+import type { User as BaseUser, UserActivity, UserStats } from '@dyor-hub/types';
 import { MessageSquare, Reply, ThumbsDown, ThumbsUp, Twitter } from 'lucide-react';
 import { Metadata } from 'next';
 import Image from 'next/image';
@@ -16,8 +17,6 @@ import { Activity } from './Activity';
 interface UserPageProps {
   params: Promise<{ username: string }>;
 }
-
-export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: UserPageProps): Promise<Metadata> {
   try {
@@ -54,6 +53,11 @@ export async function generateMetadata({ params }: UserPageProps): Promise<Metad
 }
 
 export type UserComment = UserActivity;
+
+export interface User extends BaseUser {
+  followersCount?: number;
+  followingCount?: number;
+}
 
 // Server component that fetches the data and renders the client component
 export default async function UserProfilePage({ params }: UserPageProps) {
@@ -152,6 +156,23 @@ export default async function UserProfilePage({ params }: UserPageProps) {
                             </div>
                           </h1>
                           <p className='text-zinc-400 text-sm'>@{user.username}</p>
+                          {typeof user.followersCount === 'number' &&
+                            typeof user.followingCount === 'number' && (
+                              <div className='flex items-center gap-2 mt-1'>
+                                <Link
+                                  href={`/users/${user.username}/followers`}
+                                  className='text-xs text-zinc-400 font-medium hover:underline focus:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition'>
+                                  {user.followersCount} Follower
+                                  {user.followersCount !== 1 ? 's' : ''}
+                                </Link>
+                                <span className='text-zinc-500'>·</span>
+                                <Link
+                                  href={`/users/${user.username}/following`}
+                                  className='text-xs text-zinc-400 font-medium hover:underline focus:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition'>
+                                  {user.followingCount} Following
+                                </Link>
+                              </div>
+                            )}
                         </div>
                       </div>
 
@@ -159,6 +180,11 @@ export default async function UserProfilePage({ params }: UserPageProps) {
                         {user.preferences?.showWalletAddress && user.primaryWalletAddress && (
                           <WalletBadge address={user.primaryWalletAddress} isVerified={true} />
                         )}
+
+                        <FollowButton
+                          profileUserId={user.id}
+                          profileUserDisplayName={user.displayName}
+                        />
 
                         <Link
                           href={`https://twitter.com/${user.username}`}

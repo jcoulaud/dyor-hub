@@ -224,4 +224,79 @@ export class NotificationEventsService {
       Object.keys(metadata).length > 0 ? metadata : null,
     );
   }
+
+  @OnEvent(NotificationEventType.FOLLOWED_USER_PREDICTION)
+  async handleFollowedUserPrediction(payload: {
+    followerId: string;
+    followedUserId: string;
+    followedUsername: string;
+    predictionId: string;
+    tokenSymbol: string;
+    tokenMintAddress: string;
+  }) {
+    await this.createAndEmitNotification(
+      payload.followerId,
+      NotificationType.FOLLOWED_USER_PREDICTION,
+      `${payload.followedUsername} made a prediction for $${payload.tokenSymbol}`,
+      payload.predictionId,
+      'prediction',
+      {
+        followedUserId: payload.followedUserId,
+        followedUsername: payload.followedUsername,
+        tokenMintAddress: payload.tokenMintAddress,
+        tokenSymbol: payload.tokenSymbol,
+      },
+    );
+  }
+
+  @OnEvent(NotificationEventType.FOLLOWED_USER_COMMENT)
+  async handleFollowedUserComment(payload: {
+    followerId: string;
+    authorId: string;
+    authorUsername: string;
+    commentId: string;
+    commentPreview: string;
+    tokenMintAddress: string;
+  }) {
+    const truncatedPreview =
+      payload.commentPreview.length > 100
+        ? payload.commentPreview.substring(0, 97) + '...'
+        : payload.commentPreview;
+    await this.createAndEmitNotification(
+      payload.followerId,
+      NotificationType.FOLLOWED_USER_COMMENT,
+      `${payload.authorUsername} posted a comment: "${truncatedPreview}"`,
+      payload.commentId,
+      'comment',
+      {
+        authorId: payload.authorId,
+        authorUsername: payload.authorUsername,
+        tokenMintAddress: payload.tokenMintAddress,
+      },
+    );
+  }
+
+  @OnEvent(NotificationEventType.FOLLOWED_USER_VOTE)
+  async handleFollowedUserVote(payload: {
+    followerId: string;
+    voterId: string;
+    voterUsername: string;
+    authorId: string;
+    commentId: string;
+    tokenMintAddress: string;
+  }) {
+    await this.createAndEmitNotification(
+      payload.followerId,
+      NotificationType.FOLLOWED_USER_VOTE,
+      `${payload.voterUsername} upvoted a comment by a user you follow.`,
+      payload.commentId,
+      'comment',
+      {
+        voterId: payload.voterId,
+        voterUsername: payload.voterUsername,
+        authorId: payload.authorId,
+        tokenMintAddress: payload.tokenMintAddress,
+      },
+    );
+  }
 }

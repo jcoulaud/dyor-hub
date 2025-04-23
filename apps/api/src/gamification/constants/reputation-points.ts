@@ -1,4 +1,4 @@
-import { ActivityType } from '../../entities';
+import { ActivityType } from '@dyor-hub/types';
 
 /**
  * Point values awarded for different activity types

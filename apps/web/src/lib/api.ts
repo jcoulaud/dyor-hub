@@ -8,12 +8,14 @@ import {
   Comment,
   CreateCommentDto,
   CreateTokenCallInput,
+  FeedActivity,
   LeaderboardEntry,
   LeaderboardResponse,
   NotificationPreference,
   NotificationsResponse,
   PaginatedHotTokensResult,
   PaginatedLatestCommentsResponse,
+  PaginatedResult,
   PaginatedTokenCallsResult,
   PaginatedTokensResponse,
   SentimentType,
@@ -30,6 +32,7 @@ import {
   User,
   UserActivity,
   UserBadge,
+  UserFollows,
   UserPreferences,
   UserRankings,
   UserReputation,
@@ -127,10 +130,21 @@ const setCache = <T>(key: string, data: T, ttl: number = CACHE_TTL): void => {
 // Helper function to determine if an endpoint is for public user data
 const isPublicUserRoute = (endpoint: string): boolean => {
   const normalizedEndpoint = endpoint.replace(/^\/+/, '');
-  // Exclude exact match for 'users' base path if needed, depends on API structure
+
+  // These endpoints should never be treated as public:
+  // 1. Follow-related endpoints require authentication
+  // 2. User's own profile endpoints require authentication
+  if (
+    normalizedEndpoint.includes('/follow') ||
+    normalizedEndpoint === 'users/follow-status' ||
+    normalizedEndpoint.startsWith('users/me/')
+  ) {
+    return false;
+  }
+
+  // Only return true for public user profile endpoints
   return (
     normalizedEndpoint.startsWith('users/') && // User profiles
-    !normalizedEndpoint.startsWith('users/me/') && // Exclude my profile
     normalizedEndpoint !== 'users' // Assuming GET /users is not public
   );
 };
@@ -685,6 +699,13 @@ export const tokens = {
   },
 };
 
+// Keep local DTO definition if not shared
+interface UpdateFollowPreferencesDto {
+  prediction?: boolean;
+  comment?: boolean;
+  vote?: boolean;
+}
+
 export const users = {
   getByUsername: async (username: string): Promise<User> => {
     try {
@@ -947,6 +968,112 @@ export const users = {
         throw error;
       }
     },
+  },
+
+  getFollowers: async (userId: string, page: number = 1, limit: number = 20) => {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    const endpoint = `users/${userId}/followers?${params.toString()}`;
+    return api<{
+      data: User[];
+      meta: { total: number; page: number; limit: number; totalPages: number };
+    }>(endpoint);
+  },
+
+  getFollowing: async (userId: string, page: number = 1, limit: number = 20) => {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    const endpoint = `users/${userId}/following?${params.toString()}`;
+    return api<{
+      data: User[];
+      meta: { total: number; page: number; limit: number; totalPages: number };
+    }>(endpoint);
+  },
+
+  follow: async (userId: string) => {
+    try {
+      return api<void>(`users/${userId}/follow`, { method: 'POST' });
+    } catch (error) {
+      console.error('Follow request failed:', error);
+      throw error;
+    }
+  },
+
+  unfollow: async (userId: string) => {
+    try {
+      return api<void>(`users/${userId}/follow`, { method: 'DELETE' });
+    } catch (error) {
+      console.error('Unfollow request failed:', error);
+      throw error;
+    }
+  },
+
+  getFollowRelationship: async (followerId: string, followedId: string) => {
+    try {
+      const result = await api<{ isFollowing: boolean }>('users/follow-status', {
+        method: 'POST',
+        body: { followerId, followedId },
+        cache: 'no-store',
+      });
+      return result;
+    } catch (error) {
+      console.warn('Error checking follow status (might be expected if not logged in):', error);
+      return { isFollowing: false };
+    }
+  },
+
+  getFollowRelationshipDetails: async (followedId: string): Promise<UserFollows | null> => {
+    if (!followedId) return null;
+    try {
+      const endpoint = `users/${followedId}/follow/details`;
+      const cacheKey = `api:${endpoint}:me`;
+
+      const cached = getCache<UserFollows>(cacheKey);
+      if (cached) return cached;
+
+      const data = await api<UserFollows>(endpoint, {
+        cache: 'no-store',
+      });
+      setCache(cacheKey, data, 60 * 1000);
+      return data;
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 404 || error.status === 401)) {
+        return null;
+      }
+      console.warn(
+        `Error fetching follow relationship details for followedId ${followedId}:`,
+        error,
+      );
+      throw error;
+    }
+  },
+
+  updateFollowPreferences: async (
+    followedId: string,
+    preferences: UpdateFollowPreferencesDto,
+  ): Promise<UserFollows> => {
+    try {
+      const endpoint = `users/${followedId}/follow/preferences`;
+      const updatedFollow = await api<UserFollows>(endpoint, {
+        method: 'PATCH',
+        body: preferences,
+      });
+
+      const cacheKey = `api:users/${followedId}/follow/details:me`;
+      if (apiCache.has(cacheKey)) {
+        setCache(cacheKey, updatedFollow, 60 * 1000);
+      }
+
+      return updatedFollow;
+    } catch (error) {
+      console.error(`Error updating follow preferences for followedId ${followedId}:`, error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, 'Failed to update preferences');
+    }
   },
 };
 
@@ -1614,5 +1741,25 @@ export const dev = {
         failed: number;
       }>('admin/dev/fix-backfilled-comment-timestamps', { method: 'POST' });
     },
+  },
+};
+
+export const feed = {
+  getFollowing: async (
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedResult<FeedActivity>> => {
+    try {
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+
+      const endpoint = `feed/following?${params.toString()}`;
+      const data = await api<PaginatedResult<FeedActivity>>(endpoint);
+      return data;
+    } catch (error) {
+      console.error('[getFollowingFeed] Error fetching following feed:', error);
+      throw error;
+    }
   },
 };

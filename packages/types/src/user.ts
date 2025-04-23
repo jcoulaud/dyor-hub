@@ -9,6 +9,8 @@ export interface User {
   preferences?: Partial<UserPreferences>;
   primaryWalletAddress?: string;
   createdAt: string;
+  followersCount?: number;
+  followingCount?: number;
 }
 
 export interface UserProfile extends User {
@@ -48,4 +50,22 @@ export interface UserMinimum {
   username: string;
   displayName: string;
   avatarUrl: string;
+}
+
+export enum ActivityType {
+  COMMENT = 'comment',
+  POST = 'post',
+  UPVOTE = 'upvote',
+  DOWNVOTE = 'downvote',
+  LOGIN = 'login',
+  PREDICTION = 'prediction',
+}
+
+export interface UserFollows {
+  followerId: string;
+  followedId: string;
+  notify_on_prediction: boolean;
+  notify_on_comment: boolean;
+  notify_on_vote: boolean;
+  created_at: string;
 }

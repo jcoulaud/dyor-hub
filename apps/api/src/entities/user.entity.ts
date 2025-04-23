@@ -18,6 +18,7 @@ import { TokenSentimentEntity } from './token-sentiment.entity';
 import { TokenWatchlistEntity } from './token-watchlist.entity';
 import { UserActivityEntity } from './user-activity.entity';
 import { UserBadgeEntity } from './user-badge.entity';
+import { UserFollows } from './user-follows.entity';
 import { UserReputationEntity } from './user-reputation.entity';
 import { UserStreakEntity } from './user-streak.entity';
 import { UserTokenCallStreakEntity } from './user-token-call-streak.entity';
@@ -105,6 +106,12 @@ export class UserEntity {
 
   @OneToMany(() => TokenCallEntity, (call) => call.user)
   tokenCalls: TokenCallEntity[];
+
+  @OneToMany(() => UserFollows, (follow) => follow.follower)
+  following: UserFollows[];
+
+  @OneToMany(() => UserFollows, (follow) => follow.followed)
+  followers: UserFollows[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

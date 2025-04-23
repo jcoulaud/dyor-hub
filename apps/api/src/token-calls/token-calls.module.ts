@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { CommentEntity } from '../entities/comment.entity';
 import { TokenCallEntity } from '../entities/token-call.entity';
+import { UserActivityEntity } from '../entities/user-activity.entity';
+import { UserFollows } from '../entities/user-follows.entity';
 import { UserTokenCallStreakEntity } from '../entities/user-token-call-streak.entity';
 import { GamificationModule } from '../gamification/gamification.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -19,6 +21,8 @@ import { TokenCallsService } from './token-calls.service';
       TokenCallEntity,
       CommentEntity,
       UserTokenCallStreakEntity,
+      UserActivityEntity,
+      UserFollows,
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => TokensModule),

@@ -10,6 +10,8 @@ export class UserResponseDto {
   preferences?: Partial<UserPreferences>;
   primaryWalletAddress?: string;
   createdAt?: string;
+  followersCount?: number;
+  followingCount?: number;
 
   constructor(partial: Partial<UserResponseDto>) {
     Object.assign(this, partial);
@@ -17,7 +19,11 @@ export class UserResponseDto {
 
   static fromEntity(
     user: UserEntity,
-    options?: { includeCreatedAt?: boolean },
+    options?: {
+      includeCreatedAt?: boolean;
+      followersCount?: number;
+      followingCount?: number;
+    },
   ): UserResponseDto {
     // Find the primary verified wallet address
     let primaryAddress: string | undefined = undefined;
@@ -46,6 +52,8 @@ export class UserResponseDto {
       isAdmin: user.isAdmin || false,
       preferences: { ...defaultUserPreferences, ...(user.preferences || {}) },
       primaryWalletAddress: finalAddress,
+      followersCount: options?.followersCount ?? 0,
+      followingCount: options?.followingCount ?? 0,
     });
 
     // Only include createdAt for admin endpoints
