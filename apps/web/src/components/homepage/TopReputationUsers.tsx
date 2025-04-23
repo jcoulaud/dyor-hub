@@ -8,8 +8,8 @@ import { Award, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { memo, useEffect, useMemo, useState } from 'react';
 
-const USERS_PER_PAGE = 5;
-const TOTAL_USERS_TO_FETCH = 15;
+const USERS_PER_PAGE = 6;
+const TOTAL_USERS_TO_FETCH = 18;
 
 type UserCardProps = {
   user: UserReputation;
@@ -93,7 +93,7 @@ export const TopReputationUsers = memo(() => {
   }, []);
 
   const renderSkeleton = () => (
-    <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 p-3'>
+    <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 p-3'>
       {Array.from({ length: USERS_PER_PAGE }).map((_, i) => (
         <div
           key={i}
@@ -127,7 +127,7 @@ export const TopReputationUsers = memo(() => {
     }
 
     return (
-      <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 p-3'>
+      <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 p-3'>
         {users.map((user, index) => {
           const rank =
             index + 1 + paginatedData.findIndex((page) => page.includes(user)) * USERS_PER_PAGE;

@@ -109,7 +109,7 @@ export const SearchToken = memo(() => {
         <div className='p-5 relative z-10'>
           {/* Search input section */}
           <form onSubmit={handleSubmit} className='relative'>
-            <div className='relative flex items-center bg-zinc-900/60 rounded-lg border border-zinc-800/60 focus-within:border-blue-500/70 transition-all duration-300 overflow-hidden shadow-lg backdrop-blur-sm'>
+            <div className='relative flex flex-col sm:flex-row items-center bg-zinc-900/60 rounded-lg border border-zinc-800/60 focus-within:border-blue-500/70 transition-all duration-300 overflow-hidden shadow-lg backdrop-blur-sm'>
               {/* Search input animation */}
               <input
                 type='text'
@@ -117,14 +117,14 @@ export const SearchToken = memo(() => {
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder='Enter Solana token address...'
                 className={cn(
-                  'flex-1 border-0 bg-transparent px-4 py-3 h-12 text-sm text-white placeholder:text-zinc-400 focus:ring-0 focus:outline-none',
+                  'flex-1 border-0 bg-transparent px-4 py-3 h-12 text-sm text-white placeholder:text-zinc-400 focus:ring-0 focus:outline-none w-full',
                   error && 'text-red-400 placeholder:text-red-400/50',
                 )}
               />
 
               <button
                 type='submit'
-                className='h-12 bg-gradient-to-r from-blue-600 to-emerald-500 text-white border-0 rounded-r-lg px-5 min-w-[100px] flex items-center justify-center transition-all duration-300 cursor-pointer'>
+                className='h-12 bg-gradient-to-r from-blue-600 to-emerald-500 text-white border-0 sm:rounded-r-lg rounded-b-lg w-full sm:w-auto px-5 min-w-[100px] flex items-center justify-center transition-all duration-300 cursor-pointer'>
                 {isSearching ? (
                   <Loader2 className='h-5 w-5 animate-spin' />
                 ) : (
