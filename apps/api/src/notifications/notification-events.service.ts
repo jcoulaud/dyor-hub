@@ -234,17 +234,19 @@ export class NotificationEventsService {
     tokenSymbol: string;
     tokenMintAddress: string;
   }) {
+    const safeFollowedUsername = sanitizeHtml(payload.followedUsername);
+    const safeTokenSymbol = sanitizeHtml(payload.tokenSymbol);
     await this.createAndEmitNotification(
       payload.followerId,
       NotificationType.FOLLOWED_USER_PREDICTION,
-      `${payload.followedUsername} made a prediction for $${payload.tokenSymbol}`,
+      `${safeFollowedUsername} made a prediction for $${safeTokenSymbol}`,
       payload.predictionId,
       'prediction',
       {
         followedUserId: payload.followedUserId,
-        followedUsername: payload.followedUsername,
+        followedUsername: safeFollowedUsername,
         tokenMintAddress: payload.tokenMintAddress,
-        tokenSymbol: payload.tokenSymbol,
+        tokenSymbol: safeTokenSymbol,
       },
     );
   }
@@ -258,19 +260,21 @@ export class NotificationEventsService {
     commentPreview: string;
     tokenMintAddress: string;
   }) {
+    const safeAuthorUsername = sanitizeHtml(payload.authorUsername);
+    const safeCommentPreview = sanitizeHtml(payload.commentPreview);
     const truncatedPreview =
-      payload.commentPreview.length > 100
-        ? payload.commentPreview.substring(0, 97) + '...'
-        : payload.commentPreview;
+      safeCommentPreview.length > 100
+        ? safeCommentPreview.substring(0, 97) + '...'
+        : safeCommentPreview;
     await this.createAndEmitNotification(
       payload.followerId,
       NotificationType.FOLLOWED_USER_COMMENT,
-      `${payload.authorUsername} posted a comment: "${truncatedPreview}"`,
+      `${safeAuthorUsername} posted a comment: "${truncatedPreview}"`,
       payload.commentId,
       'comment',
       {
         authorId: payload.authorId,
-        authorUsername: payload.authorUsername,
+        authorUsername: safeAuthorUsername,
         tokenMintAddress: payload.tokenMintAddress,
       },
     );
@@ -285,15 +289,16 @@ export class NotificationEventsService {
     commentId: string;
     tokenMintAddress: string;
   }) {
+    const safeVoterUsername = sanitizeHtml(payload.voterUsername);
     await this.createAndEmitNotification(
       payload.followerId,
       NotificationType.FOLLOWED_USER_VOTE,
-      `${payload.voterUsername} upvoted a comment by a user you follow.`,
+      `${safeVoterUsername} upvoted a comment by a user you follow.`,
       payload.commentId,
       'comment',
       {
         voterId: payload.voterId,
-        voterUsername: payload.voterUsername,
+        voterUsername: safeVoterUsername,
         authorId: payload.authorId,
         tokenMintAddress: payload.tokenMintAddress,
       },
