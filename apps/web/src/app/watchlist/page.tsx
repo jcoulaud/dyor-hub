@@ -1,5 +1,6 @@
 'use client';
 
+import { ActivityItem } from '@/components/activity/ActivityItem';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
 import { Button } from '@/components/ui/button';
@@ -10,9 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserList } from '@/components/users/UserList';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError, feed, users, watchlist } from '@/lib/api';
-import { MIN_TOKEN_HOLDING_FOR_FEED } from '@/lib/constants';
+import { DYORHUB_SYMBOL, MIN_TOKEN_HOLDING_FOR_FEED } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
-import { Token, User, UserActivity } from '@dyor-hub/types';
+import { FeedActivity, Token, User } from '@dyor-hub/types';
 import { AlertCircle, BookmarkIcon, Copy, Lock, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -24,7 +25,7 @@ type WatchlistedToken = Token & { addedAt: Date };
 const USERS_PER_PAGE = 10;
 
 interface FeedContentProps {
-  activities: UserActivity[];
+  activities: FeedActivity[];
 }
 
 function FeedContent({ activities }: FeedContentProps) {
@@ -37,18 +38,11 @@ function FeedContent({ activities }: FeedContentProps) {
   }
 
   return (
-    <Card className='bg-zinc-900/30 border-zinc-800/50 p-6'>
-      <h3 className='text-lg font-medium text-white mb-4'>Activity Feed</h3>
-      <div className='space-y-4'>
-        {activities.map((activity, index) => (
-          <div key={index} className='p-3 bg-zinc-800/50 rounded'>
-            <pre className='text-xs text-zinc-300 overflow-auto'>
-              {JSON.stringify(activity, null, 2)}
-            </pre>
-          </div>
-        ))}
-      </div>
-    </Card>
+    <div className='space-y-4'>
+      {activities.map((activity) => (
+        <ActivityItem key={activity.id} activity={activity} showUser />
+      ))}
+    </div>
   );
 }
 
@@ -73,7 +67,7 @@ function TokenGatedMessage({ requiredAmount, currentBalance }: TokenGatedMessage
         <h3 className='text-lg font-medium text-white mb-2'>Feed Access Restricted</h3>
         <p className='text-zinc-400 mb-6 max-w-md mx-auto'>
           Access to this feed requires holding a minimum of{` `}
-          <span className='font-bold text-white'>{formattedRequired}</span> $DYORHUB tokens.
+          <span className='font-bold text-white'>{formattedRequired}</span> {DYORHUB_SYMBOL} tokens.
           {formattedBalance !== null && (
             <>
               {` `}Your current balance is{` `}
@@ -128,7 +122,7 @@ export default function WatchlistPage() {
   const [userTotalPages, setUserTotalPages] = useState(1);
   const { toast } = useToast();
 
-  const [feedData, setFeedData] = useState<UserActivity[] | null>(null);
+  const [feedData, setFeedData] = useState<FeedActivity[] | null>(null);
   const [isLoadingFeed, setIsLoadingFeed] = useState(false);
   const [feedError, setFeedError] = useState<'forbidden' | 'generic' | null>(null);
   const [feedCurrentPage, setFeedCurrentPage] = useState(1);

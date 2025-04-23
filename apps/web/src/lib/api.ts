@@ -8,6 +8,7 @@ import {
   Comment,
   CreateCommentDto,
   CreateTokenCallInput,
+  FeedActivity,
   LeaderboardEntry,
   LeaderboardResponse,
   NotificationPreference,
@@ -1686,14 +1687,14 @@ export const feed = {
   getFollowing: async (
     page: number = 1,
     limit: number = 10,
-  ): Promise<PaginatedResult<UserActivity>> => {
+  ): Promise<PaginatedResult<FeedActivity>> => {
     try {
       const params = new URLSearchParams();
       params.append('page', page.toString());
       params.append('limit', limit.toString());
 
       const endpoint = `feed/following?${params.toString()}`;
-      const data = await api<PaginatedResult<UserActivity>>(endpoint);
+      const data = await api<PaginatedResult<FeedActivity>>(endpoint);
       return data;
     } catch (error) {
       console.error('[getFollowingFeed] Error fetching following feed:', error);

@@ -1,5 +1,5 @@
 import { ActivityType } from '@dyor-hub/types';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { CommentEntity } from '../entities/comment.entity';
@@ -15,14 +15,10 @@ import {
   PaginatedFeedResultDto,
 } from './dto/feed-activity.dto';
 
-interface EnrichedUserActivityInternal extends UserActivityEntity {
-  comment?: CommentEntity;
-  tokenCall?: TokenCallEntity;
-  user: UserEntity;
-}
-
 @Injectable()
 export class FeedService {
+  private readonly logger = new Logger(FeedService.name);
+
   constructor(
     @InjectRepository(UserActivityEntity)
     private readonly userActivityRepository: Repository<UserActivityEntity>,
@@ -33,7 +29,7 @@ export class FeedService {
     private readonly followsService: FollowsService,
   ) {}
 
-  private mapUserToDto(user: UserEntity): ActivityUserDto {
+  private mapUserToDto(user: UserEntity): ActivityUserDto | undefined {
     if (!user) return undefined;
     return {
       id: user.id,
@@ -43,8 +39,12 @@ export class FeedService {
     };
   }
 
-  private mapCommentToDto(comment: CommentEntity): ActivityCommentDto {
-    if (!comment) return undefined;
+  private mapCommentToDto(
+    comment: CommentEntity | null | undefined,
+    depth = 0,
+    maxDepth = 1,
+  ): ActivityCommentDto | null {
+    if (!comment || depth > maxDepth) return null;
     return {
       id: comment.id,
       content: comment.content,
@@ -55,11 +55,14 @@ export class FeedService {
       user: this.mapUserToDto(comment.user),
       parentId: comment.parentId,
       isReply: !!comment.parentId,
-      parent: comment.parent ? this.mapCommentToDto(comment.parent) : null,
+      tokenMintAddress: comment.tokenMintAddress,
+      parent: this.mapCommentToDto(comment.parent, depth + 1, maxDepth),
     };
   }
 
-  private mapTokenCallToDto(tokenCall: TokenCallEntity): ActivityTokenCallDto {
+  private mapTokenCallToDto(
+    tokenCall: TokenCallEntity | null | undefined,
+  ): ActivityTokenCallDto | undefined {
     if (!tokenCall) return undefined;
     return {
       id: tokenCall.id,
@@ -70,6 +73,7 @@ export class FeedService {
       referenceSupply: tokenCall.referenceSupply,
       userId: tokenCall.userId,
       user: this.mapUserToDto(tokenCall.user),
+      tokenMintAddress: tokenCall.tokenId,
     };
   }
 
@@ -80,8 +84,6 @@ export class FeedService {
   ): Promise<PaginatedFeedResultDto> {
     const offset = (page - 1) * limit;
 
-    // 1. Get the list of users the current user follows
-    // TODO: Handle pagination if the followed list is huge?
     const followingResult = await this.followsService.getFollowing(
       userId,
       1,
@@ -96,91 +98,80 @@ export class FeedService {
       };
     }
 
-    // 2. Define desired activity types
-    const desiredActivityTypes = [
+    const desiredActivityTypes: ActivityType[] = [
+      ActivityType.POST,
+      ActivityType.COMMENT,
+      ActivityType.UPVOTE,
+      ActivityType.DOWNVOTE,
+      ActivityType.PREDICTION,
+    ];
+    const commentAssociatedTypes: ActivityType[] = [
       ActivityType.POST,
       ActivityType.COMMENT,
       ActivityType.UPVOTE,
       ActivityType.DOWNVOTE,
     ];
+    const predictionAssociatedType: ActivityType = ActivityType.PREDICTION;
 
-    // 3. Get filtered activities with the user relation FOR THE CURRENT PAGE
-    const [activities, totalFromInitialQuery] =
-      await this.userActivityRepository.findAndCount({
-        where: {
-          userId: In(followedUserIds),
-          activityType: In(desiredActivityTypes),
-        },
-        order: { createdAt: 'DESC' },
-        take: limit,
-        skip: offset,
-        relations: ['user'],
-      });
-
-    // 3b. Get the ACCURATE total count of VALID activities
-    const countQueryBuilder = this.userActivityRepository
+    const queryBuilder = this.userActivityRepository
       .createQueryBuilder('activity')
+      .select('activity')
+      .innerJoinAndSelect('activity.user', 'user')
       .where('activity.userId IN (:...followedUserIds)', { followedUserIds })
       .andWhere('activity.activityType IN (:...desiredActivityTypes)', {
         desiredActivityTypes,
       })
-      // Join comments
       .leftJoin(
         'comments',
         'comment',
-        'activity.entity_id::uuid = comment.id AND activity.activityType IN (:...commentTypes)',
-        {
-          commentTypes: [
-            ActivityType.COMMENT,
-            ActivityType.UPVOTE,
-            ActivityType.DOWNVOTE,
-          ],
-        },
+        'activity.entity_id::uuid = comment.id AND activity.activityType IN (:...commentAssociatedTypes)',
+        { commentAssociatedTypes },
       )
-      // Join token calls conditionally
       .leftJoin(
         'token_calls',
         'token_call',
-        'activity.entity_id::uuid = token_call.id AND activity.activityType = :postType',
-        { postType: ActivityType.POST },
+        'activity.entity_id::uuid = token_call.id AND activity.activityType = :predictionAssociatedType',
+        { predictionAssociatedType },
       )
-      // Only count if the corresponding join was successful
-      .andWhere('(comment.id IS NOT NULL OR token_call.id IS NOT NULL)');
+      .andWhere(
+        '( (comment.id IS NOT NULL AND activity.activityType IN (:...commentAssociatedTypes)) OR ' +
+          '  (token_call.id IS NOT NULL AND activity.activityType = :predictionAssociatedType) )',
+        { commentAssociatedTypes, predictionAssociatedType },
+      )
+      .orderBy('activity.createdAt', 'DESC')
+      .skip(offset)
+      .take(limit);
 
-    const accurateTotal = await countQueryBuilder.getCount();
+    const [activities, total] = await queryBuilder.getManyAndCount();
 
     if (activities.length === 0) {
-      // Even if activities on this page are zero, the total might be non-zero
+      this.logger.log(
+        `No valid activities found for user ${userId} on page ${page}. Total valid: ${total}`,
+      );
       return {
         data: [],
         meta: {
-          total: accurateTotal,
+          total,
           page,
           limit,
-          totalPages: Math.ceil(accurateTotal / limit),
+          totalPages: Math.ceil(total / limit),
         },
       };
     }
 
-    // 4. Collect entity IDs for batch fetching
     const commentEntityIds = new Set<string>();
     const tokenCallEntityIds = new Set<string>();
 
     activities.forEach((activity) => {
       if (!activity.entityId) return;
 
-      if (
-        activity.activityType === ActivityType.COMMENT ||
-        activity.activityType === ActivityType.UPVOTE ||
-        activity.activityType === ActivityType.DOWNVOTE
-      ) {
+      if (commentAssociatedTypes.includes(activity.activityType)) {
         commentEntityIds.add(activity.entityId);
-      } else if (activity.activityType === ActivityType.POST) {
+      } else if (activity.activityType === predictionAssociatedType) {
         tokenCallEntityIds.add(activity.entityId);
       }
     });
 
-    // 5. Batch fetch related Comments and TokenCalls with their authors
     const [comments, tokenCalls] = await Promise.all([
       commentEntityIds.size > 0
         ? this.commentRepository.find({
@@ -196,79 +187,83 @@ export class FeedService {
         : Promise.resolve([]),
     ]);
 
-    // 6. Create lookup maps for efficient access
     const commentsMap = new Map(comments.map((c) => [c.id, c]));
     const tokenCallsMap = new Map(tokenCalls.map((tc) => [tc.id, tc]));
 
-    // 7. Enrich activities
-    const enrichedActivitiesInternal: EnrichedUserActivityInternal[] =
-      activities.map((activity) => {
-        const enriched: EnrichedUserActivityInternal = {
-          ...(activity as UserActivityEntity & { user: UserEntity }),
-          comment: undefined,
-          tokenCall: undefined,
-        };
-
-        if (!activity.entityId) return enriched;
-
-        if (
-          activity.activityType === ActivityType.COMMENT ||
-          activity.activityType === ActivityType.UPVOTE ||
-          activity.activityType === ActivityType.DOWNVOTE
-        ) {
-          enriched.comment = commentsMap.get(activity.entityId);
-        } else if (activity.activityType === ActivityType.POST) {
-          enriched.tokenCall = tokenCallsMap.get(activity.entityId);
+    const enrichedActivityDtos: EnrichedActivityDto[] = activities
+      .map((activity) => {
+        const activityUserDto = this.mapUserToDto(activity.user);
+        if (!activityUserDto) {
+          this.logger.warn(
+            `Activity ${activity.id} is missing user data. Skipping.`,
+          );
+          return null;
         }
-        return enriched;
-      });
 
-    // 8. Map internal representation to DTOs, filtering out orphans
-    const enrichedActivityDtos: EnrichedActivityDto[] =
-      enrichedActivitiesInternal.reduce((acc, activity) => {
-        let includeActivity = false;
-        let mappedComment: ActivityCommentDto | undefined = undefined;
+        let mappedComment: ActivityCommentDto | null = null;
         let mappedTokenCall: ActivityTokenCallDto | undefined = undefined;
 
-        // Check if the required entity exists based on type
+        if (commentAssociatedTypes.includes(activity.activityType)) {
+          const comment = commentsMap.get(activity.entityId);
+          if (comment) {
+            mappedComment = this.mapCommentToDto(comment);
+          } else {
+            this.logger.warn(
+              `Activity ${activity.id} (type ${activity.activityType}) references Comment ${activity.entityId}, but it was not found in batch fetch. Should have been filtered by main query.`,
+            );
+            return null;
+          }
+        } else if (activity.activityType === predictionAssociatedType) {
+          const tokenCall = tokenCallsMap.get(activity.entityId);
+          if (tokenCall) {
+            mappedTokenCall = this.mapTokenCallToDto(tokenCall);
+          } else {
+            this.logger.warn(
+              `Activity ${activity.id} (type ${activity.activityType}) references TokenCall ${activity.entityId}, but it was not found in batch fetch. Should have been filtered by main query.`,
+            );
+            return null;
+          }
+        }
+
+        if (!mappedComment && !mappedTokenCall) {
+          this.logger.warn(
+            `Activity ${activity.id} (type ${activity.activityType}) could not be mapped to a comment or token call DTO. Skipping.`,
+          );
+          return null;
+        }
+
+        const createdAtDate =
+          typeof activity.createdAt === 'string'
+            ? new Date(activity.createdAt)
+            : activity.createdAt;
         if (
-          (activity.activityType === ActivityType.COMMENT ||
-            activity.activityType === ActivityType.UPVOTE ||
-            activity.activityType === ActivityType.DOWNVOTE) &&
-          activity.comment
+          !(createdAtDate instanceof Date) ||
+          isNaN(createdAtDate.getTime())
         ) {
-          includeActivity = true;
-          mappedComment = this.mapCommentToDto(activity.comment);
-        } else if (
-          activity.activityType === ActivityType.POST &&
-          activity.tokenCall
-        ) {
-          includeActivity = true;
-          mappedTokenCall = this.mapTokenCallToDto(activity.tokenCall);
+          this.logger.warn(
+            `Activity ${activity.id} has invalid createdAt value: ${activity.createdAt}. Skipping.`,
+          );
+          return null;
         }
 
-        if (includeActivity) {
-          acc.push({
-            id: activity.id,
-            activityType: activity.activityType,
-            createdAt: activity.createdAt,
-            user: this.mapUserToDto(activity.user),
-            comment: mappedComment,
-            tokenCall: mappedTokenCall,
-          });
-        }
+        return {
+          id: activity.id,
+          activityType: activity.activityType,
+          createdAt: createdAtDate,
+          user: activityUserDto,
+          comment: mappedComment ?? undefined,
+          tokenCall: mappedTokenCall ?? undefined,
+        };
+      })
+      .filter(Boolean) as EnrichedActivityDto[];
 
-        return acc;
-      }, [] as EnrichedActivityDto[]);
-
-    // 9. Return paginated DTO result
     return {
       data: enrichedActivityDtos,
       meta: {
-        total: accurateTotal, // Use the accurate total from the count query
+        total,
         page,
         limit,
-        totalPages: Math.ceil(accurateTotal / limit),
+        totalPages: Math.ceil(total / limit),
       },
     };
   }

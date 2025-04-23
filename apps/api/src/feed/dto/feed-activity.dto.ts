@@ -17,6 +17,7 @@ export class ActivityCommentDto {
   user?: ActivityUserDto;
   parentId?: string | null;
   isReply: boolean;
+  tokenMintAddress?: string;
   parent?: ActivityCommentDto | null;
 }
 
@@ -29,6 +30,7 @@ export class ActivityTokenCallDto {
   referenceSupply?: number | null;
   userId: string;
   user?: ActivityUserDto;
+  tokenMintAddress?: string;
 }
 
 export class EnrichedActivityDto {

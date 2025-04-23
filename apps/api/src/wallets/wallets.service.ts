@@ -235,12 +235,8 @@ export class WalletsService {
     try {
       const cachedBalance = await this.cacheManager.get<number>(cacheKey);
       if (cachedBalance !== undefined && cachedBalance !== null) {
-        this.logger.debug(`Cache hit for balance: ${cacheKey}`);
         return cachedBalance;
       }
-      this.logger.debug(
-        `Cache miss for balance: ${cacheKey}. Fetching from RPC...`,
-      );
 
       const connection = this.solanaRpcService.getConnection();
       const walletPublicKey = new PublicKey(walletAddress);
@@ -268,9 +264,6 @@ export class WalletsService {
       const balance = balanceResponse.value.uiAmount ?? 0;
 
       await this.cacheManager.set(cacheKey, balance, 180 * 1000);
-      this.logger.debug(
-        `Fetched and cached balance ${balance} for ${cacheKey}`,
-      );
 
       return balance;
     } catch (error) {

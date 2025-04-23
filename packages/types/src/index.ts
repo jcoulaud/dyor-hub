@@ -1,3 +1,4 @@
+export * from './activity';
 export * from './admin';
 export * from './badge';
 export * from './comment';
