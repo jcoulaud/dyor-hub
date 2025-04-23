@@ -60,3 +60,12 @@ export enum ActivityType {
   LOGIN = 'login',
   PREDICTION = 'prediction',
 }
+
+export interface UserFollows {
+  followerId: string;
+  followedId: string;
+  notify_on_prediction: boolean;
+  notify_on_comment: boolean;
+  notify_on_vote: boolean;
+  created_at: string;
+}

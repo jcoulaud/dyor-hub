@@ -32,6 +32,7 @@ import {
   User,
   UserActivity,
   UserBadge,
+  UserFollows,
   UserPreferences,
   UserRankings,
   UserReputation,
@@ -698,6 +699,13 @@ export const tokens = {
   },
 };
 
+// Keep local DTO definition if not shared
+interface UpdateFollowPreferencesDto {
+  prediction?: boolean;
+  comment?: boolean;
+  vote?: boolean;
+}
+
 export const users = {
   getByUsername: async (username: string): Promise<User> => {
     try {
@@ -1007,11 +1015,64 @@ export const users = {
       const result = await api<{ isFollowing: boolean }>('users/follow-status', {
         method: 'POST',
         body: { followerId, followedId },
+        cache: 'no-store',
       });
       return result;
     } catch (error) {
-      console.error('Error checking follow status:', error);
+      console.warn('Error checking follow status (might be expected if not logged in):', error);
       return { isFollowing: false };
+    }
+  },
+
+  getFollowRelationshipDetails: async (followedId: string): Promise<UserFollows | null> => {
+    if (!followedId) return null;
+    try {
+      const endpoint = `users/${followedId}/follow/details`;
+      const cacheKey = `api:${endpoint}:me`;
+
+      const cached = getCache<UserFollows>(cacheKey);
+      if (cached) return cached;
+
+      const data = await api<UserFollows>(endpoint, {
+        cache: 'no-store',
+      });
+      setCache(cacheKey, data, 60 * 1000);
+      return data;
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 404 || error.status === 401)) {
+        return null;
+      }
+      console.warn(
+        `Error fetching follow relationship details for followedId ${followedId}:`,
+        error,
+      );
+      throw error;
+    }
+  },
+
+  updateFollowPreferences: async (
+    followedId: string,
+    preferences: UpdateFollowPreferencesDto,
+  ): Promise<UserFollows> => {
+    try {
+      const endpoint = `users/${followedId}/follow/preferences`;
+      const updatedFollow = await api<UserFollows>(endpoint, {
+        method: 'PATCH',
+        body: preferences,
+      });
+
+      const cacheKey = `api:users/${followedId}/follow/details:me`;
+      if (apiCache.has(cacheKey)) {
+        setCache(cacheKey, updatedFollow, 60 * 1000);
+      }
+
+      return updatedFollow;
+    } catch (error) {
+      console.error(`Error updating follow preferences for followedId ${followedId}:`, error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, 'Failed to update preferences');
     }
   },
 };

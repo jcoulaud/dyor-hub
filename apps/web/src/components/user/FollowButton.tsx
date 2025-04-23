@@ -7,6 +7,7 @@ import { useAuthContext } from '@/providers/auth-provider';
 import { Check, Loader2, Plus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
+import { FollowNotificationSettings } from './FollowNotificationSettings';
 
 interface FollowButtonProps {
   profileUserId: string;
@@ -111,44 +112,48 @@ export function FollowButton({
   }
 
   return (
-    <button
-      type='button'
-      onClick={handleFollowAction}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      disabled={isPending}
-      style={{ height: '30px' }}
-      className={cn(
-        'relative inline-flex items-center justify-center font-medium transition-colors duration-150 ease-in-out',
-        'px-3 py-0 rounded-full text-[13px] leading-none',
-        'box-border cursor-pointer',
-        'disabled:opacity-50 disabled:cursor-not-allowed',
-        isFollowing
-          ? isHovered
-            ? 'bg-red-600/15 border border-red-600/40 text-white hover:bg-red-600/25'
-            : 'bg-zinc-800/70 border border-zinc-700/80 text-zinc-300 hover:border-zinc-600'
-          : 'bg-zinc-200 border border-zinc-200 text-zinc-900 hover:bg-zinc-300',
-        className,
-      )}>
-      {isPending ? (
-        <>
-          <Loader2 className='w-3.5 h-3.5 mr-1.5 animate-spin' />
-        </>
-      ) : isFollowing ? (
-        <>
-          {isHovered ? (
-            <X className='w-3.5 h-3.5 mr-1.5' />
-          ) : (
-            <Check className='w-3.5 h-3.5 mr-1.5' />
-          )}
-          <span>{isHovered ? 'Unfollow' : 'Following'}</span>
-        </>
-      ) : (
-        <>
-          <Plus className='w-3.5 h-3.5 mr-1.5' />
-          <span>Follow</span>
-        </>
-      )}
-    </button>
+    <div className='flex items-center gap-2'>
+      {isFollowing && <FollowNotificationSettings followedId={profileUserId} />}
+
+      <button
+        type='button'
+        onClick={handleFollowAction}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        disabled={isPending}
+        style={{ height: '30px' }}
+        className={cn(
+          'relative inline-flex items-center justify-center font-medium transition-colors duration-150 ease-in-out',
+          'px-3 py-0 rounded-full text-[13px] leading-none',
+          'box-border cursor-pointer',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+          isFollowing
+            ? isHovered
+              ? 'bg-red-600/15 border border-red-600/40 text-white hover:bg-red-600/25'
+              : 'bg-zinc-800/70 border border-zinc-700/80 text-zinc-300 hover:border-zinc-600'
+            : 'bg-zinc-200 border border-zinc-200 text-zinc-900 hover:bg-zinc-300',
+          className,
+        )}>
+        {isPending ? (
+          <>
+            <Loader2 className='w-3.5 h-3.5 mr-1.5 animate-spin' />
+          </>
+        ) : isFollowing ? (
+          <>
+            {isHovered ? (
+              <X className='w-3.5 h-3.5 mr-1.5' />
+            ) : (
+              <Check className='w-3.5 h-3.5 mr-1.5' />
+            )}
+            <span>{isHovered ? 'Unfollow' : 'Following'}</span>
+          </>
+        ) : (
+          <>
+            <Plus className='w-3.5 h-3.5 mr-1.5' />
+            <span>Follow</span>
+          </>
+        )}
+      </button>
+    </div>
   );
 }

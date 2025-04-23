@@ -35,11 +35,9 @@ export default function FollowersPage() {
       try {
         const userData = await users.getByUsername(username);
         setUser(userData);
-
         const followersData = await users.getFollowers(userData.id, pageNum, limit);
         setFollowers(followersData.data);
         setMeta(followersData.meta);
-
         if (isAuthenticated && currentUser?.id) {
           try {
             const currentUserFollowing = await users.getFollowing(currentUser.id, 1, 100);
@@ -60,7 +58,7 @@ export default function FollowersPage() {
     };
 
     fetchData();
-  }, [username, pageNum, toast, isAuthenticated, currentUser]);
+  }, [username, pageNum, isAuthenticated, currentUser]);
 
   const handlePageChange = (page: number) => {
     router.push(`/users/${username}/followers?page=${page}`);
@@ -80,15 +78,19 @@ export default function FollowersPage() {
       const isCurrentlyFollowing = followingIds.includes(userId);
 
       if (isCurrentlyFollowing) {
-        await users.unfollow(userId);
         setFollowingIds((prev) => prev.filter((id) => id !== userId));
+      } else {
+        setFollowingIds((prev) => [...prev, userId]);
+      }
+
+      if (isCurrentlyFollowing) {
+        await users.unfollow(userId);
         toast({
           title: 'Unfollowed',
           description: 'User has been removed from your following list',
         });
       } else {
         await users.follow(userId);
-        setFollowingIds((prev) => [...prev, userId]);
         toast({
           title: 'Following',
           description: 'User has been added to your following list',

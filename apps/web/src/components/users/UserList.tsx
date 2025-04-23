@@ -3,6 +3,7 @@ import { User } from '@dyor-hub/types';
 import { UserMinus, UserPlus } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { FollowNotificationSettings } from '../user/FollowNotificationSettings';
 
 interface UserCardProps {
   user: User;
@@ -49,7 +50,9 @@ export function UserCard({ user, isFollowing, onToggleFollow, currentUserId }: U
         </Link>
       </div>
 
-      <div className='flex-shrink-0 self-center'>
+      <div className='flex-shrink-0 self-center flex items-center gap-2'>
+        {isFollowing && !isCurrentUser && <FollowNotificationSettings followedId={user.id} />}
+
         {!isCurrentUser && (
           <button
             onClick={() => onToggleFollow(user.id)}

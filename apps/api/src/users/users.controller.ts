@@ -26,6 +26,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { UserResponseDto } from '../auth/dto/user-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
+import { UserFollows } from '../entities';
 import { UpdateFollowPreferencesDto } from '../follows/dto/update-follow-preferences.dto';
 import { FollowsService } from '../follows/follows.service';
 import { TokenCallsService } from '../token-calls/token-calls.service';
@@ -152,6 +153,27 @@ export class UsersController {
   ): Promise<void> {
     const followerId = user.id;
     await this.followsService.unfollowUser(followerId, followedId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/follow/details')
+  async getFollowDetails(
+    @CurrentUser() currentUser: { id: string },
+    @Param('id', ParseUUIDPipe) followedId: string,
+  ): Promise<UserFollows> {
+    const followerId = currentUser.id;
+    const relationship = await this.followsService.getFollowRelationship(
+      followerId,
+      followedId,
+    );
+
+    if (!relationship) {
+      throw new NotFoundException(
+        `Follow relationship not found for follower ${followerId} and followed ${followedId}`,
+      );
+    }
+
+    return relationship;
   }
 
   @UseGuards(JwtAuthGuard)

@@ -35,11 +35,9 @@ export default function FollowingPage() {
       try {
         const userData = await users.getByUsername(username);
         setUser(userData);
-
         const followingData = await users.getFollowing(userData.id, pageNum, limit);
         setFollowing(followingData.data);
         setMeta(followingData.meta);
-
         if (isAuthenticated && currentUser?.id) {
           try {
             const currentUserFollowing = await users.getFollowing(currentUser.id, 1, 100);
@@ -48,7 +46,7 @@ export default function FollowingPage() {
             console.error('Error fetching current user following:', error);
           }
         }
-      } catch (error) {
+      } catch {
         toast({
           title: 'Error',
           description: 'Failed to load following data',
@@ -60,7 +58,7 @@ export default function FollowingPage() {
     };
 
     fetchData();
-  }, [username, pageNum, toast, isAuthenticated, currentUser]);
+  }, [username, pageNum, isAuthenticated, currentUser]);
 
   const handlePageChange = (page: number) => {
     router.push(`/users/${username}/following?page=${page}`);
@@ -80,15 +78,19 @@ export default function FollowingPage() {
       const isCurrentlyFollowing = followingIds.includes(userId);
 
       if (isCurrentlyFollowing) {
-        await users.unfollow(userId);
         setFollowingIds((prev) => prev.filter((id) => id !== userId));
+      } else {
+        setFollowingIds((prev) => [...prev, userId]);
+      }
+
+      if (isCurrentlyFollowing) {
+        await users.unfollow(userId);
         toast({
           title: 'Unfollowed',
           description: 'User has been removed from your following list',
         });
       } else {
         await users.follow(userId);
-        setFollowingIds((prev) => [...prev, userId]);
         toast({
           title: 'Following',
           description: 'User has been added to your following list',
