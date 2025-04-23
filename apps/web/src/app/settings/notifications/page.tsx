@@ -66,6 +66,12 @@ const notificationTypes = [
     description: 'Get notified when someone upvotes your comment',
   },
   {
+    id: 'followed_user_activity',
+    label: 'Followed User Activity',
+    description:
+      'Notifications for predictions, comments, or votes from users you follow. Individual profile notifications settings override this.',
+  },
+  {
     id: NotificationType.SYSTEM,
     label: 'System Notifications',
     description: 'Important system-wide notifications',
@@ -480,14 +486,35 @@ export default function NotificationSettingsPage() {
                     <div className='flex items-center gap-4'>
                       <FormField
                         control={form.control}
-                        name={`${type.id}.inApp`}
+                        name={
+                          type.id === 'followed_user_activity'
+                            ? `${NotificationType.FOLLOWED_USER_PREDICTION}.inApp`
+                            : `${type.id}.inApp`
+                        }
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
                               <div className='flex items-center justify-center w-16'>
                                 <Switch
                                   checked={type.id === NotificationType.SYSTEM ? true : field.value}
-                                  onCheckedChange={field.onChange}
+                                  onCheckedChange={(checked) => {
+                                    if (type.id === 'followed_user_activity') {
+                                      form.setValue(
+                                        `${NotificationType.FOLLOWED_USER_PREDICTION}.inApp`,
+                                        checked,
+                                      );
+                                      form.setValue(
+                                        `${NotificationType.FOLLOWED_USER_COMMENT}.inApp`,
+                                        checked,
+                                      );
+                                      form.setValue(
+                                        `${NotificationType.FOLLOWED_USER_VOTE}.inApp`,
+                                        checked,
+                                      );
+                                    } else {
+                                      field.onChange(checked);
+                                    }
+                                  }}
                                   disabled={type.id === NotificationType.SYSTEM}
                                   className={
                                     type.id === NotificationType.SYSTEM
@@ -503,7 +530,11 @@ export default function NotificationSettingsPage() {
 
                       <FormField
                         control={form.control}
-                        name={`${type.id}.telegram`}
+                        name={
+                          type.id === 'followed_user_activity'
+                            ? `${NotificationType.FOLLOWED_USER_PREDICTION}.telegram`
+                            : `${type.id}.telegram`
+                        }
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
@@ -516,7 +547,22 @@ export default function NotificationSettingsPage() {
                                         ? true
                                         : field.value
                                   }
-                                  onCheckedChange={field.onChange}
+                                  onCheckedChange={(checked) => {
+                                    if (type.id === 'followed_user_activity') {
+                                      const relatedTypes = [
+                                        NotificationType.FOLLOWED_USER_PREDICTION,
+                                        NotificationType.FOLLOWED_USER_COMMENT,
+                                        NotificationType.FOLLOWED_USER_VOTE,
+                                      ];
+                                      relatedTypes.forEach((relatedType) => {
+                                        form.setValue(`${relatedType}.telegram`, checked, {
+                                          shouldDirty: true,
+                                        });
+                                      });
+                                    } else {
+                                      field.onChange(checked);
+                                    }
+                                  }}
                                   disabled={
                                     !telegramStatus?.isConnected ||
                                     type.id === NotificationType.SYSTEM

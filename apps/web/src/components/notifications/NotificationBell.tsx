@@ -262,6 +262,8 @@ export function NotificationBell() {
 
   const getNotificationLink = (notification: NotificationItem): string => {
     switch (notification.type) {
+      case NotificationType.FOLLOWED_USER_COMMENT:
+      case NotificationType.FOLLOWED_USER_VOTE:
       case NotificationType.COMMENT_REPLY:
       case NotificationType.UPVOTE_RECEIVED:
         const mintAddress = notification.relatedMetadata?.tokenMintAddress;
@@ -310,6 +312,7 @@ export function NotificationBell() {
       case NotificationType.SYSTEM:
         return '#';
 
+      case NotificationType.FOLLOWED_USER_PREDICTION:
       case NotificationType.TOKEN_CALL_VERIFIED:
         return notification.relatedEntityId
           ? `/token-calls/${notification.relatedEntityId}`
