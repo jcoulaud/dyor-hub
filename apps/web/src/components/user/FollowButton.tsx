@@ -73,15 +73,22 @@ export function FollowButton({
       return;
     }
 
+    if (!user?.id) {
+      return;
+    }
+
     const newState = !isFollowing;
-    setIsFollowing(newState);
+    setIsFollowing(false);
 
     startTransition(async () => {
       try {
         if (newState) {
           await users.follow(profileUserId);
+          const result = await users.getFollowRelationship(user.id, profileUserId);
+          setIsFollowing(!!result?.isFollowing);
         } else {
           await users.unfollow(profileUserId);
+          setIsFollowing(false);
         }
 
         const description = newState
