@@ -243,25 +243,42 @@ export class NotificationEventsService {
     try {
       const tokenCall = await this.tokenCallRepository.findOne({
         where: { id: payload.predictionId },
-        select: ['targetPrice', 'referenceSupply', 'targetDate'],
+        select: [
+          'targetPrice',
+          'referencePrice',
+          'referenceSupply',
+          'targetDate',
+        ],
       });
 
       if (tokenCall) {
-        const marketCap =
-          tokenCall.targetPrice * (tokenCall.referenceSupply ?? 0);
+        const { targetPrice, referencePrice, referenceSupply, targetDate } =
+          tokenCall;
+
+        let percentageIncreaseStr = '';
+        if (referencePrice && referencePrice > 0) {
+          const percentageIncrease =
+            ((targetPrice - referencePrice) / referencePrice) * 100;
+          percentageIncreaseStr = `${percentageIncrease >= 0 ? '+' : ''}${percentageIncrease.toFixed(1)}%`;
+        } else {
+          percentageIncreaseStr = 'N/A';
+        }
+
+        const marketCap = targetPrice * (referenceSupply ?? 0);
         const formattedMarketCap = numbro(marketCap).format({
           average: true,
           mantissa: marketCap < 1000000 ? 0 : 2,
           trimMantissa: true,
         });
+
         const formattedDate = format(
-          typeof tokenCall.targetDate === 'string'
-            ? parseISO(tokenCall.targetDate)
-            : tokenCall.targetDate,
+          typeof targetDate === 'string' ? parseISO(targetDate) : targetDate,
           'MMM d, yyyy',
         );
 
-        message = `${safeFollowedUsername} made a prediction for $${safeTokenSymbol} at $${tokenCall.targetPrice.toLocaleString()} ($${formattedMarketCap} MC) for ${formattedDate}`;
+        const formattedPrice = targetPrice.toLocaleString();
+
+        message = `${safeFollowedUsername} made a prediction for $${safeTokenSymbol} of ${percentageIncreaseStr} at $${formattedMarketCap} MC ($${formattedPrice} price) for ${formattedDate}`;
       } else {
         this.logger.warn(
           `TokenCall with ID ${payload.predictionId} not found for notification.`,
@@ -278,7 +295,7 @@ export class NotificationEventsService {
       NotificationType.FOLLOWED_USER_PREDICTION,
       message,
       payload.predictionId,
-      'prediction',
+      'token_call',
       {
         followedUserId: payload.followedUserId,
         followedUsername: safeFollowedUsername,
