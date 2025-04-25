@@ -59,6 +59,7 @@ export enum ActivityType {
   DOWNVOTE = 'downvote',
   LOGIN = 'login',
   PREDICTION = 'prediction',
+  REFERRAL_SUCCESS = 'referral_success',
 }
 
 export interface UserFollows {

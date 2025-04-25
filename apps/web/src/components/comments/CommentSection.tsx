@@ -103,7 +103,6 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
     const [previousSort, setPreviousSort] = useState<SortOption | null>(null);
     const [newComment, setNewComment] = useState('');
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingSpecificComment, setIsLoadingSpecificComment] = useState(false);
@@ -344,7 +343,6 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
         return;
       }
 
-      setPendingAction(() => action);
       setShowAuthModal(true);
     };
 
@@ -491,7 +489,6 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
     const handleAuthModalClose = () => {
       handleUserInteraction();
       setShowAuthModal(false);
-      setPendingAction(null);
     };
 
     const handleRemoveComment = useCallback(
@@ -767,7 +764,6 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
                       placeholder='Edit your comment...'
                       content={comment.content}
                       onAuthRequired={() => {
-                        setPendingAction(null);
                         setShowAuthModal(true);
                       }}
                     />
@@ -869,7 +865,6 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
                       onCancel={handleCancelReply}
                       submitLabel='Reply'
                       onAuthRequired={() => {
-                        setPendingAction(null);
                         setShowAuthModal(true);
                       }}
                     />
@@ -947,11 +942,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
             )}
           </div>
 
-          <AuthModal
-            isOpen={showAuthModal}
-            onClose={handleAuthModalClose}
-            onAuthSuccess={pendingAction ?? undefined}
-          />
+          <AuthModal isOpen={showAuthModal} onClose={handleAuthModalClose} />
         </div>
       );
     }
@@ -966,7 +957,6 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
             placeholder='Add a comment'
             className='w-full'
             onAuthRequired={() => {
-              setPendingAction(null);
               setShowAuthModal(true);
             }}
           />
@@ -1069,11 +1059,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
         {/* Error Message */}
         {error && <div className='text-center py-8 text-red-500'>{error}</div>}
 
-        <AuthModal
-          isOpen={showAuthModal}
-          onClose={handleAuthModalClose}
-          onAuthSuccess={pendingAction ?? undefined}
-        />
+        <AuthModal isOpen={showAuthModal} onClose={handleAuthModalClose} />
 
         {/* Comment Deletion Confirmation Dialog */}
         <AlertDialog

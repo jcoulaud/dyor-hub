@@ -33,6 +33,7 @@ import { FollowsModule } from './follows/follows.module';
 import { GamificationModule } from './gamification/gamification.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ReferralModule } from './referral/referral.module';
 import { SessionModule } from './session/session.module';
 import { SolanaModule } from './solana/solana.module';
 import { TelegramModule } from './telegram/telegram.module';
@@ -84,6 +85,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     TokenCallsLeaderboardModule,
     FollowsModule,
     FeedModule,
+    ReferralModule,
   ],
   controllers: [AppController],
   providers: [

@@ -64,6 +64,12 @@ export class AuthController {
       params.push(`use_popup=${req.query.use_popup}`);
     }
 
+    if (req.query?.referralCode) {
+      params.push(
+        `referralCode=${encodeURIComponent(req.query.referralCode as string)}`,
+      );
+    }
+
     const url = params.length > 0 ? `${baseUrl}?${params.join('&')}` : baseUrl;
     return { url };
   }

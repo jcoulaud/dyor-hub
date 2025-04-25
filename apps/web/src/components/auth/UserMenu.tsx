@@ -12,6 +12,7 @@ import {
 import { auth } from '@/lib/api';
 import { getHighResAvatar } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
+import { useModal } from '@/providers/modal-provider';
 import {
   Bookmark,
   LogOut,
@@ -23,10 +24,10 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
-import { TwitterLoginButton } from './TwitterLoginButton';
 
 export function UserMenu() {
   const { isAuthenticated, user, clearAuth } = useAuthContext();
+  const { openAuthModal } = useModal();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = useCallback(async () => {
@@ -41,8 +42,16 @@ export function UserMenu() {
     }
   }, [clearAuth]);
 
+  const handleOpenLoginModal = () => {
+    openAuthModal();
+  };
+
   if (!isAuthenticated || !user) {
-    return <TwitterLoginButton />;
+    return (
+      <Button variant='outline' onClick={handleOpenLoginModal} className='h-10 px-4 py-2'>
+        Sign In
+      </Button>
+    );
   }
 
   // Get high-res avatar URL

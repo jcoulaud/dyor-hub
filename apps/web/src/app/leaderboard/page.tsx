@@ -3,10 +3,14 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Pagination } from '@/components/ui/pagination';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { leaderboards, tokenCallsLeaderboard } from '@/lib/api';
+import { leaderboards, referrals, tokenCallsLeaderboard } from '@/lib/api';
 import { cn, formatLargeNumber, getHighResAvatar } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
-import { LeaderboardCategory, LeaderboardTimeframe } from '@dyor-hub/types';
+import {
+  LeaderboardCategory,
+  LeaderboardTimeframe,
+  ReferralLeaderboardEntry,
+} from '@dyor-hub/types';
 import { motion } from 'framer-motion';
 import {
   CheckCircle,
@@ -17,6 +21,7 @@ import {
   ThumbsUp,
   TrendingUp,
   Trophy,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -37,6 +42,8 @@ interface CombinedLeaderboardEntry {
   averageTimeToHitRatio?: number | null;
   averageMultiplier?: number | null;
   averageMarketCapAtCallTime?: number | null;
+  // Referral specific
+  referralCount?: number;
 }
 
 interface CurrentUserPosition {
@@ -49,15 +56,16 @@ interface CurrentUserPosition {
   averageMultiplier?: number | null;
   averageMarketCapAtCallTime?: number | null;
   foundInCurrentPage: boolean;
+  referralCount?: number;
 }
 
-// Define UI categories including tokenCalls
-type UiCategory = LeaderboardCategory | 'tokenCalls' | 'reputation';
+type UiCategory = LeaderboardCategory | 'tokenCalls' | 'reputation' | 'referrals';
 
 // Corrected Mapping (Assuming snake_case for enum keys)
-const categoryMapping: Record<UiCategory, LeaderboardCategory | 'tokenCalls'> = {
+const categoryMapping: Record<UiCategory, LeaderboardCategory | 'tokenCalls' | 'referrals'> = {
   reputation: LeaderboardCategory.REPUTATION,
   tokenCalls: 'tokenCalls',
+  referrals: 'referrals',
   posts: LeaderboardCategory.POSTS,
   comments: LeaderboardCategory.COMMENTS,
   upvotes_given: LeaderboardCategory.UPVOTES_GIVEN,
@@ -68,6 +76,7 @@ const categoryMapping: Record<UiCategory, LeaderboardCategory | 'tokenCalls'> = 
 const tabOrder: UiCategory[] = [
   'tokenCalls',
   'reputation',
+  'referrals',
   LeaderboardCategory.POSTS,
   LeaderboardCategory.COMMENTS,
   LeaderboardCategory.UPVOTES_GIVEN,
@@ -87,6 +96,8 @@ const getCategoryIcon = (category: UiCategory) => {
       return Heart;
     case 'tokenCalls':
       return CheckCircle;
+    case 'referrals':
+      return Users;
     default:
       return Trophy;
   }
@@ -106,6 +117,8 @@ const formatCategoryName = (category: UiCategory) => {
       return 'Upvotes Received';
     case 'tokenCalls':
       return 'Token Calls';
+    case 'referrals':
+      return 'Top Referrers';
     default:
       return 'Leaderboard';
   }
@@ -116,19 +129,22 @@ const LeaderboardPage = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Get the initial category from URL search params or default to 'reputation'
+  // Get the initial category from URL search params or default to 'tokenCalls'
   const [activeCategory, setActiveCategory] = useState<UiCategory>(() => {
     const categoryParam = searchParams.get('category');
     if (categoryParam && Object.keys(categoryMapping).includes(categoryParam as UiCategory)) {
       return categoryParam as UiCategory;
     }
-    return 'reputation';
+    return 'tokenCalls';
   });
 
   const [entries, setEntries] = useState<CombinedLeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUserPosition, setCurrentUserPosition] = useState<CurrentUserPosition | null>(null);
+  const [referralEntries, setReferralEntries] = useState<ReferralLeaderboardEntry[]>([]);
+  const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
+  const [referralError, setReferralError] = useState<string | null>(null);
 
   const [page, setPage] = useState(() => {
     const pageParam = searchParams.get('page');
@@ -241,9 +257,35 @@ const LeaderboardPage = () => {
     }
   }, [activeCategory, page, pageSize, isAuthenticated, user]);
 
+  const fetchReferralLeaderboard = useCallback(async () => {
+    if (activeCategory !== 'referrals') return;
+
+    setIsLoadingReferrals(true);
+    setReferralError(null);
+
+    try {
+      const data = await referrals.getLeaderboard(page, pageSize);
+      setReferralEntries(data.data);
+      setTotalPages(data.meta.totalPages);
+      if (page > data.meta.totalPages) {
+        setPage(data.meta.totalPages > 0 ? data.meta.totalPages : 1);
+      }
+    } catch {
+      setReferralError('Failed to load referral leaderboard data.');
+      setReferralEntries([]);
+      setTotalPages(1);
+    } finally {
+      setIsLoadingReferrals(false);
+    }
+  }, [activeCategory, page, pageSize]);
+
   useEffect(() => {
-    fetchLeaderboard();
-  }, [fetchLeaderboard]);
+    if (activeCategory === 'referrals') {
+      fetchReferralLeaderboard();
+    } else {
+      fetchLeaderboard();
+    }
+  }, [activeCategory, page, pageSize, fetchLeaderboard, fetchReferralLeaderboard]); // <-- Add pageSize dependency
 
   // Update state when URL parameters change
   useEffect(() => {
@@ -320,7 +362,9 @@ const LeaderboardPage = () => {
           <p className='text-zinc-400 max-w-2xl'>
             {activeCategory === 'tokenCalls'
               ? 'See who leads in token call accuracy and activity.'
-              : 'Discover the top contributors in our community. Climb the ranks by engaging.'}
+              : activeCategory === 'referrals'
+                ? 'Check out the top referrers bringing new users to the platform.'
+                : 'Discover the top contributors in our community. Climb the ranks by engaging.'}
           </p>
         </div>
 
@@ -352,36 +396,41 @@ const LeaderboardPage = () => {
         </div>
 
         {/* Error State */}
-        {error && (
+        {(error || referralError) && (
           <div className='rounded-lg overflow-hidden'>
             <div className='p-6 bg-red-500/20 border border-red-600/30 rounded-lg'>
-              <p className='text-red-400 text-center'>{error}</p>
+              <p className='text-red-400 text-center'>{error || referralError}</p>
             </div>
           </div>
         )}
         {/* Loading State */}
-        {isLoading && (
+        {(isLoading || isLoadingReferrals) && (
           <div className='flex flex-col items-center justify-center min-h-[400px]'>
             <Loader2 className='h-12 w-12 text-primary animate-spin mb-4' />
             <p className='text-zinc-400'>Loading leaderboard...</p>
           </div>
         )}
         {/* Empty State */}
-        {!isLoading && !error && entries.length === 0 && (
-          <div className='flex flex-col items-center justify-center py-16 text-center'>
-            {(() => {
-              const Icon = getCategoryIcon(activeCategory);
-              return <Icon className='h-24 w-24 text-white/10 mb-6' />;
-            })()}
-            <h3 className='text-xl font-semibold mb-2'>No data available</h3>
-            <p className='text-zinc-400 max-w-md'>
-              There are no rankings available for this category yet.
-            </p>
-          </div>
-        )}
+        {!isLoading &&
+          !isLoadingReferrals &&
+          !error &&
+          !referralError &&
+          ((activeCategory !== 'referrals' && entries.length === 0) ||
+            (activeCategory === 'referrals' && referralEntries.length === 0)) && (
+            <div className='flex flex-col items-center justify-center py-16 text-center'>
+              {(() => {
+                const Icon = getCategoryIcon(activeCategory);
+                return <Icon className='h-24 w-24 text-white/10 mb-6' />;
+              })()}
+              <h3 className='text-xl font-semibold mb-2'>No data available</h3>
+              <p className='text-zinc-400 max-w-md'>
+                There are no rankings available for this category yet.
+              </p>
+            </div>
+          )}
 
         {/* Leaderboard Content */}
-        {!isLoading && !error && entries.length > 0 && (
+        {!isLoading && !error && activeCategory !== 'referrals' && entries.length > 0 && (
           <div className='rounded-lg overflow-hidden shadow-lg border border-zinc-800/60 bg-black/20 backdrop-blur-sm'>
             {/* Podium */}
             {showPodium && (
@@ -963,8 +1012,123 @@ const LeaderboardPage = () => {
           </div>
         )}
 
+        {/* Referral Leaderboard Table */}
+        {!isLoadingReferrals &&
+          !referralError &&
+          activeCategory === 'referrals' &&
+          referralEntries.length > 0 && (
+            <div className='rounded-lg overflow-hidden shadow-lg border border-zinc-800/60 bg-black/20 backdrop-blur-sm'>
+              {/* Table Header for Referrals */}
+              <div className='flex items-center px-4 sm:px-6 py-2 sm:py-3 border-b border-zinc-800/70 bg-zinc-900/30 text-sm font-medium text-zinc-400'>
+                <div className='w-10 sm:w-16 text-left'>Rank</div>
+                <div className='flex-1 px-1 sm:px-2 text-left'>User</div>
+                <div className='w-20 sm:w-24 text-right'>Referrals</div>
+              </div>
+
+              {/* Table Body for Referrals */}
+              <div className='divide-y divide-zinc-800/30'>
+                {referralEntries.map((entry, index) => {
+                  // Calculate rank based on current page and index
+                  const rank = (page - 1) * pageSize + index + 1;
+                  const isCurrentUser = isAuthenticated && user && entry.userId === user.id;
+                  const getTrophyColor = () => {
+                    if (rank === 1) return 'text-amber-400';
+                    if (rank === 2) return 'text-gray-300';
+                    if (rank === 3) return 'text-amber-700';
+                    return 'text-zinc-600';
+                  };
+
+                  return (
+                    <motion.div
+                      key={entry.userId}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className={cn(
+                        'flex items-center px-4 sm:px-6 py-3 sm:py-4 hover:bg-zinc-900/20 transition-colors',
+                        rank <= 3 && 'bg-zinc-900/30', // Highlight top 3
+                        isCurrentUser && 'bg-amber-500/5 border-l-2 border-l-amber-500',
+                      )}>
+                      {/* Rank */}
+                      <div className='w-10 sm:w-16 text-left'>
+                        {rank <= 3 ? (
+                          <Trophy className={cn('h-4 w-4 sm:h-5 sm:w-5', getTrophyColor())} />
+                        ) : (
+                          <div
+                            className={cn(
+                              'font-semibold text-sm sm:text-base',
+                              isCurrentUser ? 'text-amber-500' : 'text-zinc-500',
+                            )}>
+                            {rank}
+                          </div>
+                        )}
+                      </div>
+                      {/* User */}
+                      <div className='flex-1 flex items-center gap-2 sm:gap-3 px-1 sm:px-2'>
+                        <Link href={`/users/${entry.username}`}>
+                          <Avatar
+                            className={cn(
+                              'h-8 w-8 sm:h-10 sm:w-10 border flex-shrink-0 hover:opacity-80 transition-opacity',
+                              isCurrentUser ? 'border-amber-500/40' : 'border-zinc-800',
+                            )}>
+                            <AvatarImage
+                              src={getHighResAvatar(entry.avatarUrl)}
+                              alt={entry.username}
+                            />
+                            <AvatarFallback
+                              className={cn(
+                                'text-xs sm:text-sm',
+                                isCurrentUser
+                                  ? 'bg-gradient-to-br from-amber-500/20 to-amber-700/20 text-amber-500'
+                                  : 'bg-gradient-to-br from-zinc-700 to-zinc-900',
+                              )}>
+                              {entry.username.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Link>
+                        <div className='min-w-0 flex-1 text-left'>
+                          <p
+                            className={cn(
+                              'font-medium text-[13px] sm:text-sm truncate text-left',
+                              isCurrentUser ? 'text-amber-500' : 'text-white',
+                            )}>
+                            {isCurrentUser ? (
+                              'You'
+                            ) : (
+                              <Link href={`/users/${entry.username}`} className='hover:underline'>
+                                {entry.displayName}
+                              </Link>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      {/* Referral Count */}
+                      <div className='w-20 sm:w-24 text-right'>
+                        <div
+                          className={cn(
+                            'font-mono font-semibold text-xs sm:text-sm',
+                            isCurrentUser
+                              ? 'text-amber-500'
+                              : rank === 1
+                                ? 'text-amber-400'
+                                : rank === 2
+                                  ? 'text-gray-300'
+                                  : rank === 3
+                                    ? 'text-amber-700'
+                                    : 'text-zinc-400',
+                          )}>
+                          {entry.referralCount.toLocaleString()}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
         {/* Pagination */}
-        {totalPages > 1 && !isLoading && !error && (
+        {totalPages > 1 && !(isLoading || isLoadingReferrals) && !(error || referralError) && (
           <div className='flex justify-center mt-8'>
             <Pagination
               currentPage={page}

@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -13,6 +14,7 @@ import { CommentEntity } from './comment.entity';
 import { LeaderboardEntity } from './leaderboard.entity';
 import { NotificationPreferenceEntity } from './notification-preference.entity';
 import { NotificationEntity } from './notification.entity';
+import { Referral } from './referral.entity';
 import { TokenCallEntity } from './token-call.entity';
 import { TokenSentimentEntity } from './token-sentiment.entity';
 import { TokenWatchlistEntity } from './token-watchlist.entity';
@@ -49,6 +51,16 @@ export class UserEntity {
 
   @Column({ name: 'is_admin', type: 'boolean', default: false })
   isAdmin: boolean;
+
+  @Index({ unique: true, where: '"referral_code" IS NOT NULL' })
+  @Column({
+    name: 'referral_code',
+    type: 'varchar',
+    length: 5,
+    nullable: true,
+    unique: false,
+  })
+  referralCode: string | null;
 
   @Column({
     name: 'preferences',
@@ -112,6 +124,12 @@ export class UserEntity {
 
   @OneToMany(() => UserFollows, (follow) => follow.followed)
   followers: UserFollows[];
+
+  @OneToMany(() => Referral, (referral) => referral.referrer)
+  referralsMade: Referral[];
+
+  @OneToOne(() => Referral, (referral) => referral.referredUser)
+  referredBy: Referral;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -16,6 +16,7 @@ import {
   UserStreakEntity,
   UserTokenCallStreakEntity,
 } from '../entities';
+import { Referral } from '../entities/referral.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LeaderboardController } from './controllers/leaderboard.controller';
 import { ReputationController } from './controllers/reputation.controller';
@@ -43,6 +44,7 @@ import { StreakSchedulerService } from './services/streak-scheduler.service';
       CommentVoteEntity,
       UserTokenCallStreakEntity,
       TokenCallEntity,
+      Referral,
     ]),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),

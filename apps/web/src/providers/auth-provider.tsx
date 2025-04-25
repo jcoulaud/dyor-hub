@@ -97,6 +97,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             // If authenticated, perform a daily check-in
             if (response.authenticated && response.user) {
               gamification.streaks.checkIn();
+              localStorage.removeItem('pendingReferralCode');
             }
           } catch (error) {
             console.error('Failed to fetch profile:', error);

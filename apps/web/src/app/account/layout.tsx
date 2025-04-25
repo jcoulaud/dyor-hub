@@ -2,7 +2,7 @@
 
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { Separator } from '@/components/ui/separator';
-import { BadgeCheck, Flame, User, WalletCards } from 'lucide-react';
+import { BadgeCheck, Flame, User, Users, WalletCards } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -56,6 +56,17 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                 }`}>
                 <Flame className='h-4 w-4' />
                 <span>Streak</span>
+              </Link>
+
+              <Link
+                href='/account/referrals'
+                className={`flex items-center gap-2 p-3 rounded-md ${
+                  pathname === '/account/referrals'
+                    ? 'bg-primary/10 text-primary font-medium hover:bg-primary/15 transition-colors'
+                    : 'hover:bg-accent text-foreground hover:text-foreground/80 transition-colors'
+                }`}>
+                <Users className='h-4 w-4' />
+                <span>Referrals</span>
               </Link>
             </nav>
           </aside>
