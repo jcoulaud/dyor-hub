@@ -23,6 +23,7 @@ import {
   UserTokenCallStreakEntity,
   WalletEntity,
 } from './entities';
+import { Referral } from './entities/referral.entity';
 
 config(); // Load .env file
 
@@ -59,6 +60,7 @@ export const dataSourceOptions: DataSourceOptions = {
     TokenCallEntity,
     UserTokenCallStreakEntity,
     UserFollows,
+    Referral,
   ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',
