@@ -9,57 +9,40 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/api';
-import { useAuthContext } from '@/providers/auth-provider';
 import { Twitter } from 'lucide-react';
-import { useCallback } from 'react';
+import { useEffect, useState } from 'react';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAuthSuccess?: () => Promise<void>;
 }
 
-export function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const { toast } = useToast();
-  const { checkAuth } = useAuthContext();
+  const [displayedReferralCode, setDisplayedReferralCode] = useState<string | null>(null);
 
-  const handleAuthSuccess = useCallback(async () => {
+  useEffect(() => {
+    if (isOpen) {
+      const codeFromStorage = localStorage.getItem('pendingReferralCode');
+      setDisplayedReferralCode(codeFromStorage);
+    }
+  }, [isOpen]);
+
+  const handleTwitterLogin = async () => {
     try {
-      await checkAuth(true);
-
-      if (onAuthSuccess) {
-        await onAuthSuccess();
-      }
-
-      toast({
-        title: 'Success',
-        description: 'Successfully signed in with Twitter',
+      const loginUrl = await auth.getTwitterLoginUrl({
+        usePopup: false,
+        referralCode: displayedReferralCode,
       });
-      onClose();
-    } catch {
+      window.location.href = loginUrl;
+    } catch (error) {
+      console.error('Failed to get Twitter login URL', error);
       toast({
         title: 'Error',
-        description: 'Failed to complete authentication',
+        description: 'Could not initiate Twitter login. Please try again.',
         variant: 'destructive',
       });
     }
-  }, [checkAuth, onAuthSuccess, onClose, toast]);
-
-  const handleTwitterLogin = () => {
-    auth.twitterLogin();
-
-    // Set up a simple interval to check auth status
-    const checkAuthTimer = setInterval(async () => {
-      try {
-        await handleAuthSuccess();
-        clearInterval(checkAuthTimer);
-      } catch {
-        // Silently fail - will retry on next interval
-      }
-    }, 3000);
-
-    // Clear the timer after 30 seconds (failsafe)
-    setTimeout(() => clearInterval(checkAuthTimer), 30000);
   };
 
   return (
@@ -67,7 +50,13 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Authentication Required</DialogTitle>
-          <DialogDescription>Please sign in with Twitter to continue</DialogDescription>
+          {displayedReferralCode ? (
+            <DialogDescription>
+              Joining with referral code: <strong>{displayedReferralCode}</strong>. Sign in below.
+            </DialogDescription>
+          ) : (
+            <DialogDescription>Please sign in with Twitter to continue</DialogDescription>
+          )}
         </DialogHeader>
         <div className='flex flex-col items-center space-y-4 py-4'>
           <button

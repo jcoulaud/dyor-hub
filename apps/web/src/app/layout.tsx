@@ -1,7 +1,9 @@
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/layout/Header';
 import { Toaster } from '@/components/ui/toast';
+import { ReferralHandler } from '@/components/util/ReferralHandler';
 import { AuthProvider } from '@/providers/auth-provider';
+import { ModalProvider } from '@/providers/modal-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { SolanaWalletProvider } from '@/providers/wallet-provider';
 import type { Metadata } from 'next';
@@ -61,15 +63,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PlausibleProvider domain='dyorhub.xyz'>
           <ThemeProvider>
             <AuthProvider>
-              <SolanaWalletProvider>
-                <Toaster>
-                  <div className='flex flex-col min-h-screen w-full'>
-                    <Header />
-                    <main className='flex-1 flex flex-col w-full relative'>{children}</main>
-                    <Footer />
-                  </div>
-                </Toaster>
-              </SolanaWalletProvider>
+              <ModalProvider>
+                <SolanaWalletProvider>
+                  <ReferralHandler />
+                  <Toaster>
+                    <div className='flex flex-col min-h-screen w-full'>
+                      <Header />
+                      <main className='flex-1 flex flex-col w-full relative'>{children}</main>
+                      <Footer />
+                    </div>
+                  </Toaster>
+                </SolanaWalletProvider>
+              </ModalProvider>
             </AuthProvider>
           </ThemeProvider>
         </PlausibleProvider>

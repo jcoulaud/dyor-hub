@@ -3,6 +3,7 @@ export * from './admin';
 export * from './badge';
 export * from './comment';
 export * from './notification';
+export * from './referral';
 export * from './reputation';
 export * from './streak';
 export * from './token';

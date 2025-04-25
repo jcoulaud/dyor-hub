@@ -159,23 +159,23 @@ export class ReferralService {
   async applyManualReferral(
     userId: string,
     referralCode: string,
-  ): Promise<void> {
+  ): Promise<{ referrerUsername: string }> {
     this.logger.log(
       `Processing manual referral application: userId=${userId}, code=${referralCode}`,
     );
 
     // 1. Check if user has already been referred
-    const alreadyReferred = await this.hasBeenReferred(userId);
-    if (alreadyReferred) {
+    const alreadyReferred = await this.getReferralStatus(userId);
+    if (alreadyReferred.hasBeenReferred) {
       this.logger.warn(
         `User ${userId} attempted to apply code ${referralCode} but has already been referred.`,
       );
       throw new ForbiddenException('User has already been referred.');
     }
 
-    // 2. Find the potential referrer by their code
     const referrer = await this.userRepository.findOne({
       where: { referralCode },
+      select: ['id', 'username'], // Select username
     });
 
     if (!referrer) {
@@ -195,13 +195,26 @@ export class ReferralService {
 
     // 4. Create the referral link (Same logic as processReferral essentially)
     await this.processReferral(referralCode, userId);
+
+    return { referrerUsername: referrer.username };
   }
 
-  async hasBeenReferred(userId: string): Promise<boolean> {
-    const count = await this.referralRepository.count({
+  async getReferralStatus(
+    userId: string,
+  ): Promise<{ hasBeenReferred: boolean; referrerUsername?: string }> {
+    const referral = await this.referralRepository.findOne({
       where: { referredUserId: userId },
+      relations: ['referrer'],
     });
-    return count > 0;
+
+    if (referral && referral.referrer) {
+      return {
+        hasBeenReferred: true,
+        referrerUsername: referral.referrer.username,
+      };
+    }
+
+    return { hasBeenReferred: false };
   }
 
   async getReferralsMadeByUser(userId: string): Promise<Referral[]> {

@@ -18,6 +18,7 @@ import {
   PaginatedResult,
   PaginatedTokenCallsResult,
   PaginatedTokensResponse,
+  Referral,
   SentimentType,
   StreakMilestone,
   StreakMilestonesResponse,
@@ -361,6 +362,12 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
   }
 };
 
+interface TwitterLoginUrlOptions {
+  usePopup?: boolean;
+  referralCode?: string | null;
+  returnTo?: string;
+}
+
 // Typed API methods
 export const comments = {
   list: async (
@@ -466,21 +473,31 @@ export const auth = {
   getProfile: () => api<AuthResponse>('auth/profile'),
   logout: () => api('auth/logout', { method: 'GET' }),
 
-  getTwitterLoginUrl: async (usePopup = false): Promise<string> => {
+  getTwitterLoginUrl: async (options?: TwitterLoginUrlOptions): Promise<string> => {
+    const params = new URLSearchParams();
+
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
-    const response = await api<{ url: string }>(
-      `auth/twitter-login-url?return_to=${encodeURIComponent(currentUrl)}&use_popup=${usePopup}`,
-    );
+    const returnTo = options?.returnTo || currentUrl;
+    if (returnTo) {
+      params.set('return_to', returnTo);
+    }
+
+    if (options?.usePopup !== undefined) {
+      params.set('use_popup', String(options.usePopup));
+    }
+    if (options?.referralCode) {
+      params.set('referralCode', options.referralCode);
+    }
+
+    const response = await api<{ url: string }>(`auth/twitter-login-url?${params.toString()}`);
     return response.url;
   },
 
   twitterLogin: async (): Promise<void> => {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
-    const response = await api<{ url: string }>(
-      `auth/twitter-login-url?return_to=${encodeURIComponent(currentUrl)}`,
-    );
+    const loginUrl = await auth.getTwitterLoginUrl({ returnTo: currentUrl });
     if (typeof window !== 'undefined') {
-      window.location.href = response.url;
+      window.location.href = loginUrl;
     }
   },
 };
@@ -1465,6 +1482,27 @@ export const badges = {
     getRecentBadgeActivity: async (limit = 10) => {
       return api<BadgeActivity[]>(`admin/badges/activity/recent?limit=${limit}`);
     },
+  },
+};
+
+export const referrals = {
+  getMyCode: async (): Promise<{ referralCode: string }> => {
+    return api<{ referralCode: string }>('referrals/me/code');
+  },
+
+  getMyStatus: async (): Promise<{ hasBeenReferred: boolean; referrerUsername?: string }> => {
+    return api<{ hasBeenReferred: boolean; referrerUsername?: string }>('referrals/me/status');
+  },
+
+  getMyHistory: async (): Promise<Referral[]> => {
+    return api<Referral[]>('referrals/me/history');
+  },
+
+  applyCode: async (referralCode: string): Promise<{ referrerUsername: string }> => {
+    return api<{ referrerUsername: string }>('referrals/me/apply', {
+      method: 'POST',
+      body: { referralCode },
+    });
   },
 };
 

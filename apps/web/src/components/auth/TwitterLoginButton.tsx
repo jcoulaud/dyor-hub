@@ -39,6 +39,7 @@ const AuthParamsHandler = () => {
           title: 'Success',
           description: 'Authentication successful!',
         });
+        localStorage.removeItem('pendingReferralCode');
       }
 
       // Clean up URL parameters
@@ -59,15 +60,14 @@ export const TwitterLoginButton = () => {
   const handleLogin = async () => {
     try {
       setIsLoading(true);
+      const currentReferralCode = localStorage.getItem('pendingReferralCode');
 
-      // Get the Twitter login URL - explicitly set usePopup to false
-      const loginUrl = await auth.getTwitterLoginUrl(false);
+      const loginUrl = await auth.getTwitterLoginUrl({
+        usePopup: false,
+        referralCode: currentReferralCode,
+      });
 
-      // Force same-window navigation by using window.location.replace
-      // This is more explicit than window.location.href and helps with Arc browser
       window.location.replace(loginUrl);
-
-      // Note: We don't need to reset isLoading since we're navigating away
     } catch (err) {
       console.error('Twitter login error:', err);
       toast({

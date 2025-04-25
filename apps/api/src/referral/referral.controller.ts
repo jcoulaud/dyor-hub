@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Referral } from '../entities/referral.entity';
 import { UserEntity } from '../entities/user.entity';
 import { ApplyReferralCodeDto } from './dto/apply-referral-code.dto';
 import { ReferralService } from './referral.service';
@@ -30,22 +31,25 @@ export class ReferralController {
 
   @Post('/me/apply')
   @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   async applyReferralCode(
     @CurrentUser() user: UserEntity,
     @Body() body: ApplyReferralCodeDto,
-  ) {
+  ): Promise<{ referrerUsername: string }> {
     const userId = user.id;
     const { referralCode } = body;
 
-    // Check if user has already been referred
-    const alreadyReferred = await this.referralService.hasBeenReferred(userId);
-    if (alreadyReferred) {
+    const status = await this.referralService.getReferralStatus(userId);
+    if (status.hasBeenReferred) {
       throw new ForbiddenException('User has already been referred.');
     }
 
     try {
-      await this.referralService.applyManualReferral(userId, referralCode);
+      const result = await this.referralService.applyManualReferral(
+        userId,
+        referralCode,
+      );
+      return result;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw new BadRequestException('Invalid referral code.');
@@ -55,5 +59,21 @@ export class ReferralController {
       }
       throw error;
     }
+  }
+
+  @Get('/me/status')
+  @UseGuards(JwtAuthGuard)
+  async getMyReferralStatus(
+    @CurrentUser() user: UserEntity,
+  ): Promise<{ hasBeenReferred: boolean; referrerUsername?: string }> {
+    return this.referralService.getReferralStatus(user.id);
+  }
+
+  @Get('/me/history')
+  @UseGuards(JwtAuthGuard)
+  async getMyReferralHistory(
+    @CurrentUser() user: UserEntity,
+  ): Promise<Referral[]> {
+    return this.referralService.getReferralsMadeByUser(user.id);
   }
 }
