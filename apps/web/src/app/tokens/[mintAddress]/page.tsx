@@ -74,9 +74,6 @@ export default function Page({ params, commentId }: PageProps) {
     null,
   );
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [pendingSentimentAction, setPendingSentimentAction] = useState<
-    (() => Promise<void>) | null
-  >(null);
   const commentSectionRef = useRef<CommentSectionHandle>(null);
 
   const { toast } = useToast();
@@ -110,15 +107,11 @@ export default function Page({ params, commentId }: PageProps) {
 
   const handleAuthModalClose = () => {
     setShowAuthModal(false);
-    setPendingSentimentAction(null);
   };
 
   const handleSentimentVote = useCallback(
     async (sentimentType: SentimentType) => {
       if (!isAuthenticated) {
-        setPendingSentimentAction(() => async () => {
-          handleSentimentVote(sentimentType);
-        });
         setShowAuthModal(true);
         return;
       }
@@ -1131,11 +1124,7 @@ export default function Page({ params, commentId }: PageProps) {
       </div>
 
       {/* Add AuthModal at the end of the component */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={handleAuthModalClose}
-        onAuthSuccess={pendingSentimentAction ?? undefined}
-      />
+      <AuthModal isOpen={showAuthModal} onClose={handleAuthModalClose} />
     </div>
   );
 }

@@ -43,15 +43,7 @@ export function RequireAuth({ children }: RequireAuthProps) {
 
   // Show auth modal if not authenticated
   if (!isAuthenticated) {
-    return (
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={handleAuthModalClose}
-        onAuthSuccess={async () => {
-          // Just close the modal, page will refresh
-        }}
-      />
-    );
+    return <AuthModal isOpen={isAuthModalOpen} onClose={handleAuthModalClose} />;
   }
 
   // Show children if authenticated

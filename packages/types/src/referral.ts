@@ -8,3 +8,11 @@ export interface Referral {
   referrer?: UserMinimum;
   referredUser?: UserMinimum;
 }
+
+export interface ReferralLeaderboardEntry {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+  referralCount: number;
+}

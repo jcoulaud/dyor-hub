@@ -143,7 +143,6 @@ const LeaderboardPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentUserPosition, setCurrentUserPosition] = useState<CurrentUserPosition | null>(null);
   const [referralEntries, setReferralEntries] = useState<ReferralLeaderboardEntry[]>([]);
-  const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
   const [referralError, setReferralError] = useState<string | null>(null);
 
   const [page, setPage] = useState(() => {
@@ -260,32 +259,52 @@ const LeaderboardPage = () => {
   const fetchReferralLeaderboard = useCallback(async () => {
     if (activeCategory !== 'referrals') return;
 
-    setIsLoadingReferrals(true);
     setReferralError(null);
 
     try {
       const data = await referrals.getLeaderboard(page, pageSize);
       setReferralEntries(data.data);
       setTotalPages(data.meta.totalPages);
-      if (page > data.meta.totalPages) {
-        setPage(data.meta.totalPages > 0 ? data.meta.totalPages : 1);
+
+      if (page > data.meta.totalPages && data.meta.totalPages > 0) {
+        setPage(data.meta.totalPages);
+      } else if (page <= 0 && data.meta.totalPages >= 1) {
+        setPage(1);
       }
     } catch {
       setReferralError('Failed to load referral leaderboard data.');
       setReferralEntries([]);
       setTotalPages(1);
-    } finally {
-      setIsLoadingReferrals(false);
     }
   }, [activeCategory, page, pageSize]);
 
   useEffect(() => {
-    if (activeCategory === 'referrals') {
-      fetchReferralLeaderboard();
-    } else {
-      fetchLeaderboard();
-    }
-  }, [activeCategory, page, pageSize, fetchLeaderboard, fetchReferralLeaderboard]); // <-- Add pageSize dependency
+    let isMounted = true;
+    const fetchData = async () => {
+      if (isMounted) setIsLoading(true);
+      if (isMounted) setError(null);
+      if (isMounted) setReferralError(null);
+
+      try {
+        if (activeCategory === 'referrals') {
+          await fetchReferralLeaderboard();
+        } else {
+          await fetchLeaderboard();
+        }
+      } catch (err) {
+        console.error('Main fetch useEffect error:', err);
+        if (isMounted) setError('Failed to load leaderboard data.');
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeCategory, page, pageSize, fetchLeaderboard, fetchReferralLeaderboard]);
 
   // Update state when URL parameters change
   useEffect(() => {
@@ -404,7 +423,7 @@ const LeaderboardPage = () => {
           </div>
         )}
         {/* Loading State */}
-        {(isLoading || isLoadingReferrals) && (
+        {isLoading && (
           <div className='flex flex-col items-center justify-center min-h-[400px]'>
             <Loader2 className='h-12 w-12 text-primary animate-spin mb-4' />
             <p className='text-zinc-400'>Loading leaderboard...</p>
@@ -412,7 +431,6 @@ const LeaderboardPage = () => {
         )}
         {/* Empty State */}
         {!isLoading &&
-          !isLoadingReferrals &&
           !error &&
           !referralError &&
           ((activeCategory !== 'referrals' && entries.length === 0) ||
@@ -1013,7 +1031,7 @@ const LeaderboardPage = () => {
         )}
 
         {/* Referral Leaderboard Table */}
-        {!isLoadingReferrals &&
+        {!isLoading &&
           !referralError &&
           activeCategory === 'referrals' &&
           referralEntries.length > 0 && (
@@ -1128,7 +1146,7 @@ const LeaderboardPage = () => {
           )}
 
         {/* Pagination */}
-        {totalPages > 1 && !(isLoading || isLoadingReferrals) && !(error || referralError) && (
+        {totalPages > 1 && !isLoading && !(error || referralError) && (
           <div className='flex justify-center mt-8'>
             <Pagination
               currentPage={page}
