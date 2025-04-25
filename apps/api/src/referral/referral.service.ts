@@ -1,3 +1,4 @@
+import { PaginatedResult, ReferralLeaderboardEntry } from '@dyor-hub/types';
 import {
   ForbiddenException,
   Injectable,
@@ -223,5 +224,63 @@ export class ReferralService {
       relations: ['referredUser'],
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async getReferralLeaderboard(
+    page = 1,
+    limit = 20,
+  ): Promise<PaginatedResult<ReferralLeaderboardEntry>> {
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(100, Math.max(1, limit));
+    const skip = (validPage - 1) * validLimit;
+
+    try {
+      const results = await this.referralRepository
+        .createQueryBuilder('referral')
+        .select('referral.referrerId', 'userId')
+        .addSelect('COUNT(referral.id)', 'referralCount')
+        .addSelect('user.username', 'username')
+        .addSelect('user.displayName', 'displayName')
+        .addSelect('user.avatarUrl', 'avatarUrl')
+        .innerJoin(UserEntity, 'user', 'user.id = referral.referrerId')
+        .groupBy('referral.referrerId')
+        .addGroupBy('user.id')
+        .orderBy('"referralCount"', 'DESC')
+        .offset(skip)
+        .limit(validLimit)
+        .getRawMany();
+
+      const totalCountResult = await this.referralRepository
+        .createQueryBuilder('referral')
+        .select('COUNT(DISTINCT referral.referrerId)', 'total')
+        .getRawOne();
+
+      const total = parseInt(totalCountResult?.total || '0', 10);
+      const totalPages = Math.ceil(total / validLimit);
+
+      const data: ReferralLeaderboardEntry[] = results.map((r) => ({
+        userId: r.userId,
+        username: r.username,
+        displayName: r.displayName,
+        avatarUrl: r.avatarUrl,
+        referralCount: parseInt(r.referralCount, 10),
+      }));
+
+      return {
+        data,
+        meta: {
+          total,
+          page: validPage,
+          limit: validLimit,
+          totalPages,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to get referral leaderboard: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 }

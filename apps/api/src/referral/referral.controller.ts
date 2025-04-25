@@ -1,16 +1,21 @@
+import { PaginatedResult, ReferralLeaderboardEntry } from '@dyor-hub/types';
 import {
   BadRequestException,
   Body,
   Controller,
+  DefaultValuePipe,
   ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
   NotFoundException,
+  ParseIntPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Referral } from '../entities/referral.entity';
 import { UserEntity } from '../entities/user.entity';
@@ -75,5 +80,16 @@ export class ReferralController {
     @CurrentUser() user: UserEntity,
   ): Promise<Referral[]> {
     return this.referralService.getReferralsMadeByUser(user.id);
+  }
+
+  @Public()
+  @Get('/leaderboard')
+  async getReferralLeaderboard(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  ): Promise<PaginatedResult<ReferralLeaderboardEntry>> {
+    const validLimit = Math.min(100, Math.max(1, limit));
+    const validPage = Math.max(1, page);
+    return this.referralService.getReferralLeaderboard(validPage, validLimit);
   }
 }

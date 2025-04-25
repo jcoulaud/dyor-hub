@@ -19,6 +19,7 @@ import {
   PaginatedTokenCallsResult,
   PaginatedTokensResponse,
   Referral,
+  ReferralLeaderboardEntry,
   SentimentType,
   StreakMilestone,
   StreakMilestonesResponse,
@@ -1503,6 +1504,18 @@ export const referrals = {
       method: 'POST',
       body: { referralCode },
     });
+  },
+
+  getLeaderboard: async (
+    page = 1,
+    limit = 20,
+  ): Promise<PaginatedResult<ReferralLeaderboardEntry>> => {
+    const params = new URLSearchParams();
+    params.set('page', page.toString());
+    params.set('limit', limit.toString());
+    return api<PaginatedResult<ReferralLeaderboardEntry>>(
+      `referrals/leaderboard?${params.toString()}`,
+    );
   },
 };
 
