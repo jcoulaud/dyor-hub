@@ -31,13 +31,13 @@ export class UserFollows {
   @JoinColumn({ name: 'followedId' })
   followed: UserEntity;
 
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false })
   notify_on_prediction: boolean;
 
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false })
   notify_on_comment: boolean;
 
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false })
   notify_on_vote: boolean;
 
   @CreateDateColumn()

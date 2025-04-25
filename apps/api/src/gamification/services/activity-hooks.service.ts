@@ -12,6 +12,7 @@ export enum GamificationEvent {
   COMMENT_CREATED = 'comment.created',
   COMMENT_VOTED = 'comment.voted',
   USER_LOGGED_IN = 'user.logged_in',
+  REFERRAL_SUCCESSFUL = 'referral.successful',
 }
 
 export interface CommentCreatedEvent {
@@ -29,6 +30,12 @@ export interface CommentVotedEvent {
 
 export interface UserLoggedInEvent {
   userId: string;
+}
+
+export interface ReferralSuccessfulEvent {
+  referrerId: string;
+  referredUserId: string;
+  referralId: string;
 }
 
 @Injectable()
@@ -171,6 +178,37 @@ export class ActivityHooksService {
     } catch (error) {
       this.logger.error(
         `Failed to track login activity: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  @OnEvent(GamificationEvent.REFERRAL_SUCCESSFUL)
+  async handleReferralSuccessful(payload: ReferralSuccessfulEvent) {
+    this.logger.log(
+      `Handling successful referral: Referrer ${payload.referrerId} referred ${payload.referredUserId}`,
+    );
+    try {
+      await this.reputationService.awardPointsForActivity(
+        payload.referrerId,
+        ActivityType.REFERRAL_SUCCESS,
+      );
+
+      await this.activityTrackingService.trackActivity(
+        payload.referrerId,
+        ActivityType.REFERRAL_SUCCESS,
+        payload.referralId,
+        'referrals',
+      );
+
+      await this.badgeService.checkReferralCountBadges(payload.referrerId);
+
+      this.logger.log(
+        `Gamification processed for referral ${payload.referralId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to process gamification for referral ${payload.referralId}: ${error.message}`,
         error.stack,
       );
     }

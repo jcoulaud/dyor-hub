@@ -9,6 +9,7 @@ export const ACTIVITY_POINTS = {
   [ActivityType.UPVOTE]: 2, // Upvoting others' content
   [ActivityType.DOWNVOTE]: 1, // Downvoting counts but less
   [ActivityType.LOGIN]: 1, // Daily logins
+  [ActivityType.REFERRAL_SUCCESS]: 25, // Points for successful referral
 };
 
 /**

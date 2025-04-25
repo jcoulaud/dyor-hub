@@ -20,6 +20,7 @@ import {
   UserStreakEntity,
   UserTokenCallStreakEntity,
 } from '../../entities';
+import { Referral as ReferralEntity } from '../../entities/referral.entity';
 import { LeaderboardService } from './leaderboard.service';
 
 @Injectable()
@@ -48,6 +49,8 @@ export class BadgeService {
     private readonly tokenCallRepository: Repository<TokenCallEntity>,
     @InjectRepository(UserTokenCallStreakEntity)
     private readonly userTokenCallStreakRepository: Repository<UserTokenCallStreakEntity>,
+    @InjectRepository(ReferralEntity)
+    private readonly referralRepository: Repository<ReferralEntity>,
     private readonly leaderboardService: LeaderboardService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -324,6 +327,30 @@ export class BadgeService {
     }
   }
 
+  async checkReferralCountBadges(userId: string): Promise<UserBadgeEntity[]> {
+    const requirementsToCheck = [BadgeRequirement.REFERRALS_COUNT];
+    if (!requirementsToCheck || requirementsToCheck.length === 0) {
+      return [];
+    }
+
+    try {
+      const badgesToCheck = await this.badgeRepository.find({
+        where: {
+          isActive: true,
+          requirement: In(requirementsToCheck),
+        },
+      });
+
+      return this.processBadgeEligibility(userId, badgesToCheck);
+    } catch (error) {
+      this.logger.error(
+        `Failed to check referral count badges for user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      return [];
+    }
+  }
+
   /**
    * Processes eligibility for a list of badges for a given user.
    * Optional context can be passed for specific checks.
@@ -516,6 +543,8 @@ export class BadgeService {
           return this.checkVerifiedCallCount(userId, badge.thresholdValue);
         case BadgeRequirement.TOKEN_CALL_ACCURACY_RATE:
           return this.checkAccuracyRate(userId, badge.thresholdValue);
+        case BadgeRequirement.REFERRALS_COUNT:
+          return this.checkReferralCount(userId, badge.thresholdValue);
         default:
           this.logger.warn(
             `Unhandled badge requirement: ${badge.requirement} for badge ${badge.name}`,
@@ -1214,6 +1243,26 @@ export class BadgeService {
     } catch (error) {
       this.logger.error(
         `Error checking token call accuracy rate for user ${userId}: ${error.message}`,
+      );
+      return false;
+    }
+  }
+
+  private async checkReferralCount(
+    userId: string,
+    threshold: number,
+  ): Promise<boolean> {
+    try {
+      // Count referrals WHERE the referrerId is the userId
+      const count = await this.referralRepository.count({
+        where: {
+          referrerId: userId, // Corrected from userId
+        },
+      });
+      return count >= threshold;
+    } catch (error) {
+      this.logger.error(
+        `Error checking referral count for user ${userId}: ${error.message}`,
       );
       return false;
     }

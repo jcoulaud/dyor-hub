@@ -71,6 +71,9 @@ export enum BadgeRequirement {
   TOKEN_CALL_MOONSHOT_X = 'TOKEN_CALL_MOONSHOT_X', // Threshold: Multiplier (e.g., 10 for 10x)
   TOKEN_CALL_EARLY_BIRD_RATIO = 'TOKEN_CALL_EARLY_BIRD_RATIO', // Threshold: Max ratio (e.g., 0.1)
   TOKEN_CALL_SUCCESS_STREAK = 'TOKEN_CALL_SUCCESS_STREAK', // Threshold: N consecutive success
+
+  // Referrals
+  REFERRALS_COUNT = 'REFERRALS_COUNT', // Threshold: N successful referrals
 }
 
 export interface CreateBadgeRequest {

@@ -7,6 +7,7 @@ import { ReferralService } from './referral.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Referral, UserEntity])],
+  providers: [ReferralService],
   controllers: [ReferralController],
   exports: [ReferralService],
 })
