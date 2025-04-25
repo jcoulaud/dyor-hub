@@ -4,7 +4,7 @@ export interface TwitterProfile {
   id: string;
   username: string;
   displayName: string;
-  photos?: Array<{ value: string }>;
+  photos: { value: string }[];
   _json?: {
     id_str: string;
     name: string;
@@ -20,7 +20,7 @@ export interface TwitterProfile {
     created_at?: string;
     email?: string;
   };
-  emails?: Array<{ value: string }>;
+  emails: { value: string }[];
   provider: string;
   _raw?: string;
 }
@@ -62,4 +62,9 @@ export interface CookieConfig {
   maxAge: number;
   path: string;
   domain?: string;
+}
+
+export interface ValidateTwitterUserResult {
+  user: UserEntity;
+  isNew: boolean;
 }

@@ -11,7 +11,7 @@ import {
   TwitterTokenUpdateException,
   UserNotFoundException,
 } from './exceptions/auth.exceptions';
-import { JwtPayload } from './interfaces/auth.types';
+import { JwtPayload, ValidateTwitterUserResult } from './interfaces/auth.types';
 
 @Injectable()
 export class AuthService {
@@ -23,7 +23,7 @@ export class AuthService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async validateTwitterUser(profile: any): Promise<UserEntity> {
+  async validateTwitterUser(profile: any): Promise<ValidateTwitterUserResult> {
     const { id: twitterId, username, displayName, photos } = profile;
 
     const defaultAvatarUrl =
@@ -35,19 +35,32 @@ export class AuthService {
       where: { twitterId },
     });
 
+    let isNew = false;
+
     if (!user) {
+      isNew = true;
       user = this.userRepository.create({
         twitterId,
         username,
         displayName: safeDisplayName,
         avatarUrl: profileImageUrl,
       });
-      return await this.userRepository.save(user);
+      await this.userRepository.save(user);
     } else {
-      user.displayName = safeDisplayName;
-      user.avatarUrl = profileImageUrl;
-      return await this.userRepository.save(user);
+      let needsSave = false;
+      if (user.displayName !== safeDisplayName) {
+        user.displayName = safeDisplayName;
+        needsSave = true;
+      }
+      if (user.avatarUrl !== profileImageUrl) {
+        user.avatarUrl = profileImageUrl;
+        needsSave = true;
+      }
+      if (needsSave) {
+        await this.userRepository.save(user);
+      }
     }
+    return { user, isNew };
   }
 
   async updateTwitterTokens(

@@ -5,6 +5,7 @@ import { Request } from 'express';
 import { Strategy } from 'passport-custom';
 import { createClient } from 'redis';
 import { TwitterApi } from 'twitter-api-v2';
+import { ReferralService } from '../referral/referral.service';
 import { AuthService } from './auth.service';
 import { TwitterProfile } from './interfaces/auth.types';
 
@@ -15,6 +16,14 @@ declare module 'express-session' {
     codeVerifier?: string;
     state?: string;
   }
+}
+
+interface TwitterAuthStateData {
+  codeVerifier: string;
+  returnTo?: string;
+  usePopup?: boolean;
+  referralCode?: string;
+  createdAt: string;
 }
 
 @Injectable()
@@ -32,6 +41,7 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
   constructor(
     private readonly configService: ConfigService,
     private readonly authService: AuthService,
+    private readonly referralService: ReferralService,
   ) {
     super();
 
@@ -117,6 +127,7 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
       const codeVerifier = stateData.codeVerifier;
       const returnTo = stateData.returnTo;
       const usePopup = stateData.usePopup;
+      const referralCodeFromState = stateData.referralCode;
 
       if (returnTo && req.session) {
         req.session.returnTo = returnTo;
@@ -154,8 +165,27 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
           },
         };
 
-        const user = await this.authService.validateTwitterUser(twitterProfile);
+        const validationResult =
+          await this.authService.validateTwitterUser(twitterProfile);
+        const user = validationResult.user;
+        const isNewUser = validationResult.isNew;
+
         await this.authService.updateTwitterTokens(user.id, accessToken);
+
+        if (isNewUser && referralCodeFromState) {
+          this.logger.log(
+            `Processing referral for new user ${user.id} with code ${referralCodeFromState}`,
+          );
+          this.referralService
+            .processReferral(referralCodeFromState, user.id)
+            .catch((err) => {
+              this.logger.error(
+                `Background referral processing failed for user ${user.id}: ${err.message}`,
+                err.stack,
+              );
+            });
+        }
+
         await this.deleteAuthStateData(state);
 
         return { ...user, usePopup };
@@ -176,10 +206,14 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
           scope: ['tweet.read', 'users.read'],
         });
 
-      const stateData = {
+      // Extract referral code from query parameters if present
+      const referralCode = req.query.referralCode as string | undefined;
+
+      const stateData: TwitterAuthStateData = {
         codeVerifier,
-        returnTo: req.query.return_to || req.session?.returnTo,
+        returnTo: (req.query.return_to as string) || req.session?.returnTo,
         usePopup: req.query.use_popup === 'true',
+        referralCode,
         createdAt: new Date().toISOString(),
       };
 
@@ -191,7 +225,10 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
     }
   }
 
-  private async storeAuthStateData(state: string, data: any): Promise<void> {
+  private async storeAuthStateData(
+    state: string,
+    data: TwitterAuthStateData,
+  ): Promise<void> {
     const key = `${this.redisPrefix}${state}`;
     try {
       await this.redisClient.set(key, JSON.stringify(data), {
@@ -203,14 +240,16 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
     }
   }
 
-  private async getAuthStateData(state: string): Promise<any> {
+  private async getAuthStateData(
+    state: string,
+  ): Promise<TwitterAuthStateData | null> {
     const key = `${this.redisPrefix}${state}`;
     try {
       const data = await this.redisClient.get(key);
       if (!data) {
         return null;
       }
-      return JSON.parse(data);
+      return JSON.parse(data) as TwitterAuthStateData;
     } catch (error) {
       this.logger.error(`Failed to retrieve auth state data: ${error.message}`);
       return null;
