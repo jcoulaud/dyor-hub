@@ -761,7 +761,7 @@ export class CommentsService {
         if (voterInfo) {
           const followers = await this.userFollowsRepository.find({
             where: {
-              followedId: comment.userId,
+              followedId: userId,
               notify_on_vote: true,
             },
             select: ['followerId'],
