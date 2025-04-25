@@ -1,9 +1,10 @@
-import { ActivityType } from '@dyor-hub/types';
-import { Injectable, Logger } from '@nestjs/common';
+import { ActivityType, NotificationType } from '@dyor-hub/types';
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CommentEntity } from '../../entities';
+import { NotificationsService } from '../../notifications/notifications.service';
 import { ActivityTrackingService } from './activity-tracking.service';
 import { BadgeService } from './badge.service';
 import { ReputationService } from './reputation.service';
@@ -46,6 +47,8 @@ export class ActivityHooksService {
     private readonly activityTrackingService: ActivityTrackingService,
     private readonly badgeService: BadgeService,
     private readonly reputationService: ReputationService,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationsService: NotificationsService,
     @InjectRepository(CommentEntity)
     private readonly commentRepository: Repository<CommentEntity>,
   ) {}
@@ -202,6 +205,15 @@ export class ActivityHooksService {
       );
 
       await this.badgeService.checkReferralCountBadges(payload.referrerId);
+
+      await this.notificationsService.createNotification(
+        payload.referrerId,
+        NotificationType.REFERRAL_SUCCESS,
+        'Your referral was successful! You earned reputation points.',
+        payload.referralId,
+        'referrals',
+        { referredUserId: payload.referredUserId },
+      );
 
       this.logger.log(
         `Gamification processed for referral ${payload.referralId}`,

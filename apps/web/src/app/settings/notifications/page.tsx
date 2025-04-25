@@ -66,6 +66,11 @@ const notificationTypes = [
     description: 'Get notified when someone upvotes your comment',
   },
   {
+    id: NotificationType.REFERRAL_SUCCESS,
+    label: 'Referral Success',
+    description: 'Get notified when someone uses your referral code',
+  },
+  {
     id: 'followed_user_activity',
     label: 'Followed User Activity',
     description:

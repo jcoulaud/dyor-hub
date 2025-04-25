@@ -473,6 +473,14 @@ export class NotificationsService {
         const callStatus = notification.relatedMetadata?.status;
         emoji = callStatus === 'success' ? '✅' : '❌';
         break;
+      case NotificationType.REFERRAL_SUCCESS:
+        emoji = '🤝';
+        break;
+      case NotificationType.FOLLOWED_USER_PREDICTION:
+      case NotificationType.FOLLOWED_USER_COMMENT:
+      case NotificationType.FOLLOWED_USER_VOTE:
+        emoji = '👥';
+        break;
     }
 
     return `${emoji} <b>${this.getNotificationTypeTitle(type)}</b>\n\n${message}`;
@@ -480,6 +488,8 @@ export class NotificationsService {
 
   private getNotificationTypeTitle(type: NotificationType): string {
     switch (type) {
+      case NotificationType.TOKEN_CALL_VERIFIED:
+        return 'Token Call Result';
       case NotificationType.STREAK_AT_RISK:
         return 'Streak at Risk';
       case NotificationType.STREAK_ACHIEVED:
@@ -498,8 +508,14 @@ export class NotificationsService {
         return 'Upvote Received';
       case NotificationType.SYSTEM:
         return 'System Notification';
-      case NotificationType.TOKEN_CALL_VERIFIED:
-        return 'Token Call Ended';
+      case NotificationType.FOLLOWED_USER_PREDICTION:
+        return 'User You Follow';
+      case NotificationType.FOLLOWED_USER_COMMENT:
+        return 'User You Follow';
+      case NotificationType.FOLLOWED_USER_VOTE:
+        return 'User You Follow';
+      case NotificationType.REFERRAL_SUCCESS:
+        return 'Referral Success';
       default:
         return 'Notification';
     }
@@ -522,6 +538,8 @@ export class NotificationsService {
         return `${baseUrl}/account/badges`;
       case 'token_call':
         return `${baseUrl}/token-calls/${entityId}`;
+      case 'referrals':
+        return `${baseUrl}/account/referrals?tab=history`;
       default:
         return null;
     }

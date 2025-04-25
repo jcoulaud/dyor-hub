@@ -12,6 +12,7 @@ export enum NotificationType {
   FOLLOWED_USER_PREDICTION = 'followed_user_prediction',
   FOLLOWED_USER_COMMENT = 'followed_user_comment',
   FOLLOWED_USER_VOTE = 'followed_user_vote',
+  REFERRAL_SUCCESS = 'referral_success',
 }
 
 export enum NotificationEventType {
@@ -27,6 +28,7 @@ export enum NotificationEventType {
   FOLLOWED_USER_PREDICTION = 'followed_user.prediction',
   FOLLOWED_USER_COMMENT = 'followed_user.comment',
   FOLLOWED_USER_VOTE = 'followed_user.vote',
+  REFERRAL_SUCCESS = 'referral.success',
 }
 
 export interface NotificationPreference {

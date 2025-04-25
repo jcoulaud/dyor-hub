@@ -51,6 +51,24 @@ export default function ReferralsPage() {
   const referralLink = myReferralCode ? getReferralLink(myReferralCode) : '';
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam && ['my-code', 'referred-by', 'history'].includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', activeTab);
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     const fetchData = async () => {
       if (myReferralCode !== null || hasBeenReferred !== null) {
         return;
