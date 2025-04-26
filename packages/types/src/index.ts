@@ -12,6 +12,7 @@ export * from './user';
 export * from './user-preferences';
 export * from './vote';
 export * from './wallet';
+export * from './watchlist';
 
 export interface PaginatedResult<T> {
   data: T[];
