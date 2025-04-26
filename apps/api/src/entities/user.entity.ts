@@ -25,6 +25,7 @@ import { UserReputationEntity } from './user-reputation.entity';
 import { UserStreakEntity } from './user-streak.entity';
 import { UserTokenCallStreakEntity } from './user-token-call-streak.entity';
 import { WalletEntity } from './wallet.entity';
+import { WatchlistFolderEntity } from './watchlist-folder.entity';
 
 @Entity('users')
 export class UserEntity {
@@ -84,6 +85,12 @@ export class UserEntity {
     eager: false,
   })
   watchlistedTokens: TokenWatchlistEntity[];
+
+  @OneToMany(() => WatchlistFolderEntity, (folder) => folder.user, {
+    cascade: true,
+    eager: false,
+  })
+  watchlistFolders: WatchlistFolderEntity[];
 
   // Gamification relationships
   @OneToMany(() => UserActivityEntity, (activity) => activity.user)
