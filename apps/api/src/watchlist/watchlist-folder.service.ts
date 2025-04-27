@@ -1,9 +1,4 @@
-import {
-  ForbiddenException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -68,11 +63,8 @@ export class WatchlistFolderService {
       const currentBalance =
         typeof balance === 'bigint' ? Number(balance) : Number(balance);
 
-      if (currentBalance < MIN_TOKEN_HOLDING_FOR_FOLDERS) {
-        return false;
-      }
-
-      return true;
+      // Explicitly return a boolean value based on the comparison
+      return currentBalance >= MIN_TOKEN_HOLDING_FOR_FOLDERS;
     } catch (error) {
       this.logger.error(
         `Error checking token balance for user ${userId}:`,
@@ -82,18 +74,35 @@ export class WatchlistFolderService {
     }
   }
 
+  async getUserTokenBalance(userId: string): Promise<number> {
+    try {
+      const primaryWallet =
+        await this.walletsService.getUserPrimaryWallet(userId);
+
+      if (!primaryWallet?.address) {
+        return 0;
+      }
+
+      const balance = await this.walletsService.getSplTokenBalance(
+        primaryWallet.address,
+        DYORHUB_CONTRACT_ADDRESS,
+      );
+
+      return typeof balance === 'bigint' ? Number(balance) : Number(balance);
+    } catch (error) {
+      this.logger.error(
+        `Error getting token balance for user ${userId}:`,
+        error,
+      );
+      return 0;
+    }
+  }
+
   async createFolder(
     userId: string,
     name: string,
     folderType: 'token' | 'user',
   ): Promise<WatchlistFolderEntity> {
-    const hasAccess = await this.checkFolderAccess(userId);
-    if (!hasAccess) {
-      throw new ForbiddenException(
-        'Insufficient token balance to create folders',
-      );
-    }
-
     // Get highest position
     const highestPositionFolder = await this.folderRepository.findOne({
       where: { userId, folderType },

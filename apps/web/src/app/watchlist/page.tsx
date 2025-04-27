@@ -22,7 +22,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserList } from '@/components/users/UserList';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError, feed, users, watchlist } from '@/lib/api';
-import { DYORHUB_SYMBOL, MIN_TOKEN_HOLDING_FOR_FEED } from '@/lib/constants';
+import {
+  DYORHUB_SYMBOL,
+  MIN_TOKEN_HOLDING_FOR_FEED,
+  MIN_TOKEN_HOLDING_FOR_FOLDERS,
+} from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
 import {
   closestCenter,
@@ -110,9 +114,14 @@ function FeedContent({ activities }: FeedContentProps) {
 interface TokenGatedMessageProps {
   requiredAmount: number;
   currentBalance?: string | number | null;
+  featureName?: string;
 }
 
-function TokenGatedMessage({ requiredAmount, currentBalance }: TokenGatedMessageProps) {
+function TokenGatedMessage({
+  requiredAmount,
+  currentBalance,
+  featureName = 'Feed',
+}: TokenGatedMessageProps) {
   const formattedRequired = requiredAmount.toLocaleString();
   const formattedBalance =
     typeof currentBalance === 'string' || typeof currentBalance === 'number'
@@ -125,9 +134,9 @@ function TokenGatedMessage({ requiredAmount, currentBalance }: TokenGatedMessage
         <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800/70 mb-4'>
           <Lock className='h-6 w-6 text-yellow-400' />
         </div>
-        <h3 className='text-lg font-medium text-white mb-2'>Feed Access Restricted</h3>
+        <h3 className='text-lg font-medium text-white mb-2'>{featureName} Access Restricted</h3>
         <p className='text-zinc-400 mb-6 max-w-md mx-auto'>
-          Access to this feed requires holding a minimum of{` `}
+          Access to this {featureName.toLowerCase()} requires holding a minimum of{` `}
           <span className='font-bold text-white'>{formattedRequired}</span> {DYORHUB_SYMBOL} tokens.
           {formattedBalance !== null && (
             <>
@@ -190,6 +199,64 @@ interface SortableFolderCardProps {
   onRequestDelete: (folder: FolderItem) => void;
 }
 
+interface TokenGatedDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  requiredAmount: number;
+  currentBalance?: string | number | null;
+  featureName: string;
+}
+
+function TokenGatedDialog({
+  open,
+  onOpenChange,
+  requiredAmount,
+  currentBalance,
+  featureName,
+}: TokenGatedDialogProps) {
+  const formattedRequired = requiredAmount.toLocaleString();
+  const formattedBalance =
+    typeof currentBalance === 'string' || typeof currentBalance === 'number'
+      ? Number(currentBalance).toLocaleString()
+      : null;
+
+  const router = useRouter();
+
+  const handleManageWallet = () => {
+    router.push('/account/wallet');
+    onOpenChange(false);
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{featureName} Access Restricted</AlertDialogTitle>
+          <AlertDialogDescription>
+            <p className='text-left'>
+              Access to {featureName.toLowerCase()} requires holding a minimum of{' '}
+              <span className='font-bold text-white'>{formattedRequired}</span> {DYORHUB_SYMBOL}{' '}
+              tokens.
+              {formattedBalance !== null && (
+                <>
+                  {' '}
+                  Your current balance is{' '}
+                  <span className='font-bold text-white'>{formattedBalance}</span>.
+                </>
+              )}{' '}
+              Please ensure your primary connected wallet meets this requirement.
+            </p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleManageWallet}>Manage Wallet</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export default function WatchlistPage() {
   const { isAuthenticated, isLoading: authLoading, user: currentUser } = useAuthContext();
   const router = useRouter();
@@ -236,6 +303,10 @@ export default function WatchlistPage() {
   const [newFolderName, setNewFolderName] = useState('');
   const [isDeleteFolderDialogOpen, setIsDeleteFolderDialogOpen] = useState(false);
   const [folderToDelete, setFolderToDelete] = useState<FolderItem | null>(null);
+  const [isTokenGatedDialogOpen, setIsTokenGatedDialogOpen] = useState(false);
+  const [folderCreationDeniedBalance, setFolderCreationDeniedBalance] = useState<string | null>(
+    null,
+  );
 
   // --- dnd-kit sensors ---
   const sensors = useSensors(
@@ -1138,8 +1209,34 @@ export default function WatchlistPage() {
   };
 
   const handleCreateFolder = async () => {
-    setNewFolderName('');
-    setIsCreateFolderDialogOpen(true);
+    if (!currentUser?.id) return;
+
+    try {
+      // Check if the user has enough tokens to create folders
+      const accessCheck = await watchlist.folders.checkFolderAccess();
+
+      const hasEnoughTokens = accessCheck.currentBalance >= accessCheck.requiredBalance;
+
+      if (hasEnoughTokens) {
+        setNewFolderName('');
+        setIsCreateFolderDialogOpen(true);
+      } else {
+        setFolderCreationDeniedBalance(String(accessCheck.currentBalance));
+        setIsTokenGatedDialogOpen(true);
+
+        toast({
+          title: 'Feature Restricted',
+          description: `Creating folders requires holding at least ${accessCheck.requiredBalance.toLocaleString()} $DYORHUB tokens.`,
+          variant: 'destructive',
+        });
+      }
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Could not check access. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleFolderNameUpdate = async (folderId: string, newName: string) => {
@@ -1215,6 +1312,7 @@ export default function WatchlistPage() {
         <TokenGatedMessage
           requiredAmount={MIN_TOKEN_HOLDING_FOR_FEED}
           currentBalance={feedAccessDeniedBalance}
+          featureName='Feed'
         />
       );
     }
@@ -1311,21 +1409,12 @@ export default function WatchlistPage() {
                   setIsCreateFolderDialogOpen(false);
                   setNewFolderName('');
                 } catch (error) {
-                  const apiError = error as ApiError;
-                  if (apiError.status === 403) {
-                    toast({
-                      title: 'Feature Locked',
-                      description: apiError.message,
-                      variant: 'destructive',
-                    });
-                  } else {
-                    console.error('Error creating folder:', error);
-                    toast({
-                      title: 'Error',
-                      description: 'Could not create folder',
-                      variant: 'destructive',
-                    });
-                  }
+                  console.error('Error creating folder:', error);
+                  toast({
+                    title: 'Error',
+                    description: 'Could not create folder',
+                    variant: 'destructive',
+                  });
                 }
               }}>
               Create
@@ -1359,6 +1448,14 @@ export default function WatchlistPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <TokenGatedDialog
+        open={isTokenGatedDialogOpen}
+        onOpenChange={setIsTokenGatedDialogOpen}
+        requiredAmount={MIN_TOKEN_HOLDING_FOR_FOLDERS}
+        currentBalance={folderCreationDeniedBalance}
+        featureName='Folder Creation'
+      />
     </div>
   );
 

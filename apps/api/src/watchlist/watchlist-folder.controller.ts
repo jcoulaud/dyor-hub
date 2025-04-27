@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { MIN_TOKEN_HOLDING_FOR_FOLDERS } from '../common/constants';
+import { TokenGatedGuard } from '../common/guards/token-gated.guard';
 import { TokenEntity } from '../entities/token.entity';
 import { UserEntity } from '../entities/user.entity';
 import { WatchlistFolderEntity } from '../entities/watchlist-folder.entity';
@@ -20,6 +22,20 @@ import { WatchlistFolderService } from './watchlist-folder.service';
 @UseGuards(JwtAuthGuard)
 export class WatchlistFolderController {
   constructor(private readonly folderService: WatchlistFolderService) {}
+
+  @Get('access-check')
+  async checkFolderAccess(
+    @CurrentUser() user: any,
+  ): Promise<{ currentBalance: number; requiredBalance: number }> {
+    const currentBalance = await this.folderService.getUserTokenBalance(
+      user.id,
+    );
+
+    return {
+      currentBalance,
+      requiredBalance: MIN_TOKEN_HOLDING_FOR_FOLDERS,
+    };
+  }
 
   @Get('tokens')
   async getTokenFolders(
@@ -50,6 +66,7 @@ export class WatchlistFolderController {
   }
 
   @Post()
+  @UseGuards(TokenGatedGuard)
   async createFolder(
     @CurrentUser() user: any,
     @Body() body: { name: string; folderType: 'token' | 'user' },

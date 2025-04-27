@@ -1191,6 +1191,17 @@ export const watchlist = {
       }
     },
 
+    checkFolderAccess: async (): Promise<{ currentBalance: number; requiredBalance: number }> => {
+      try {
+        const endpoint = 'watchlist/folders/access-check';
+        const data = await api<{ currentBalance: number; requiredBalance: number }>(endpoint);
+        return data;
+      } catch (error) {
+        console.error('[checkFolderAccess] Error checking folder access:', error);
+        throw error;
+      }
+    },
+
     getUserFolders: async (): Promise<WatchlistFolder[]> => {
       try {
         const endpoint = 'watchlist/folders/users';
