@@ -230,7 +230,19 @@ const publicApi = async <T>(endpoint: string, options: ApiOptions = {}): Promise
       return null as T;
     }
 
-    return await response.json();
+    const responseClone = response.clone();
+    const responseText = await responseClone.text();
+
+    if (responseText === '') {
+      return null as T;
+    }
+
+    try {
+      return await response.json();
+    } catch (jsonError) {
+      console.error(`API JSON Parse Error for endpoint ${endpoint}:`, jsonError);
+      throw new ApiError(500, 'Invalid JSON response from server');
+    }
   } catch (error) {
     clearTimeout(timeoutId);
 
@@ -345,7 +357,19 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
       return null as T;
     }
 
-    return await response.json();
+    const responseClone = response.clone();
+    const responseText = await responseClone.text();
+
+    if (responseText === '') {
+      return null as T;
+    }
+
+    try {
+      return await response.json();
+    } catch (jsonError) {
+      console.error(`API JSON Parse Error for endpoint ${endpoint}:`, jsonError);
+      throw new ApiError(500, 'Invalid JSON response from server');
+    }
   } catch (error) {
     clearTimeout(timeoutId);
 
