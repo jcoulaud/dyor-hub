@@ -13,6 +13,7 @@ import {
   TokenEntity,
   TokenSentimentEntity,
   TokenWatchlistEntity,
+  TokenWatchlistFolderItemEntity,
   TwitterUsernameHistoryEntity,
   UserActivityEntity,
   UserBadgeEntity,
@@ -21,7 +22,9 @@ import {
   UserReputationEntity,
   UserStreakEntity,
   UserTokenCallStreakEntity,
+  UserWatchlistFolderItemEntity,
   WalletEntity,
+  WatchlistFolderEntity,
 } from './entities';
 import { Referral } from './entities/referral.entity';
 
@@ -46,6 +49,10 @@ export const dataSourceOptions: DataSourceOptions = {
     TwitterUsernameHistoryEntity,
     WalletEntity,
     TokenWatchlistEntity,
+    // Watchlist folder entities
+    WatchlistFolderEntity,
+    TokenWatchlistFolderItemEntity,
+    UserWatchlistFolderItemEntity,
     // Gamification entities
     UserActivityEntity,
     UserStreakEntity,

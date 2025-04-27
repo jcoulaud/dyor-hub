@@ -42,6 +42,7 @@ import {
   UserStreak,
   VoteType,
   WalletResponse,
+  WatchlistFolder,
 } from '@dyor-hub/types';
 
 interface PublicWalletInfo {
@@ -229,7 +230,19 @@ const publicApi = async <T>(endpoint: string, options: ApiOptions = {}): Promise
       return null as T;
     }
 
-    return await response.json();
+    const responseClone = response.clone();
+    const responseText = await responseClone.text();
+
+    if (responseText === '') {
+      return null as T;
+    }
+
+    try {
+      return await response.json();
+    } catch (jsonError) {
+      console.error(`API JSON Parse Error for endpoint ${endpoint}:`, jsonError);
+      throw new ApiError(500, 'Invalid JSON response from server');
+    }
   } catch (error) {
     clearTimeout(timeoutId);
 
@@ -344,7 +357,19 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
       return null as T;
     }
 
-    return await response.json();
+    const responseClone = response.clone();
+    const responseText = await responseClone.text();
+
+    if (responseText === '') {
+      return null as T;
+    }
+
+    try {
+      return await response.json();
+    } catch (jsonError) {
+      console.error(`API JSON Parse Error for endpoint ${endpoint}:`, jsonError);
+      throw new ApiError(500, 'Invalid JSON response from server');
+    }
   } catch (error) {
     clearTimeout(timeoutId);
 
@@ -1147,6 +1172,204 @@ export const watchlist = {
       console.error(`Error checking token watchlist status for ${mintAddress}:`, error);
       throw error;
     }
+  },
+
+  folders: {
+    // API methods for token folders
+    getTokenFolders: async (): Promise<WatchlistFolder[]> => {
+      try {
+        const endpoint = 'watchlist/folders/tokens';
+        const data = await api<WatchlistFolder[]>(endpoint);
+        return data;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 403) {
+          // Token gated feature
+          return [];
+        }
+        console.error('[getTokenFolders] Error fetching token folders:', error);
+        throw error;
+      }
+    },
+
+    checkFolderAccess: async (): Promise<{ currentBalance: number; requiredBalance: number }> => {
+      try {
+        const endpoint = 'watchlist/folders/access-check';
+        const data = await api<{ currentBalance: number; requiredBalance: number }>(endpoint);
+        return data;
+      } catch (error) {
+        console.error('[checkFolderAccess] Error checking folder access:', error);
+        throw error;
+      }
+    },
+
+    getUserFolders: async (): Promise<WatchlistFolder[]> => {
+      try {
+        const endpoint = 'watchlist/folders/users';
+        const data = await api<WatchlistFolder[]>(endpoint);
+        return data;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 403) {
+          // Token gated feature
+          return [];
+        }
+        console.error('[getUserFolders] Error fetching user folders:', error);
+        throw error;
+      }
+    },
+
+    createFolder: async (name: string, folderType: 'token' | 'user'): Promise<WatchlistFolder> => {
+      try {
+        const endpoint = 'watchlist/folders';
+        const data = await api<WatchlistFolder>(endpoint, {
+          method: 'POST',
+          body: { name, folderType },
+        });
+        return data;
+      } catch (error) {
+        console.error('[createFolder] Error creating folder:', error);
+        throw error;
+      }
+    },
+
+    updateFolder: async (
+      folderId: string,
+      data: { name?: string; position?: number },
+    ): Promise<WatchlistFolder> => {
+      try {
+        const endpoint = `watchlist/folders/${folderId}`;
+        const updatedFolder = await api<WatchlistFolder>(endpoint, {
+          method: 'PUT',
+          body: data,
+        });
+        return updatedFolder;
+      } catch (error) {
+        console.error('[updateFolder] Error updating folder:', error);
+        throw error;
+      }
+    },
+
+    deleteFolder: async (folderId: string): Promise<void> => {
+      try {
+        const endpoint = `watchlist/folders/${folderId}`;
+        await api<void>(endpoint, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        console.error('[deleteFolder] Error deleting folder:', error);
+        throw error;
+      }
+    },
+
+    getFolderTokens: async (folderId: string): Promise<(Token & { position: number })[]> => {
+      try {
+        const endpoint = `watchlist/folders/tokens/${folderId}/items`;
+        const data = await api<(Token & { position: number })[]>(endpoint);
+        return data;
+      } catch (error) {
+        console.error('[getFolderTokens] Error fetching folder tokens:', error);
+        throw error;
+      }
+    },
+
+    addTokenToFolder: async (
+      folderId: string,
+      tokenMintAddress: string,
+    ): Promise<{ success: boolean }> => {
+      try {
+        const endpoint = `watchlist/folders/tokens/${folderId}/items`;
+        const data = await api<{ success: boolean }>(endpoint, {
+          method: 'POST',
+          body: { tokenMintAddress },
+        });
+        return data;
+      } catch (error) {
+        console.error('[addTokenToFolder] Error adding token to folder:', error);
+        throw error;
+      }
+    },
+
+    removeTokenFromFolder: async (folderId: string, tokenMintAddress: string): Promise<void> => {
+      try {
+        const endpoint = `watchlist/folders/tokens/${folderId}/items/${tokenMintAddress}`;
+        await api<void>(endpoint, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        console.error('[removeTokenFromFolder] Error removing token from folder:', error);
+        throw error;
+      }
+    },
+
+    updateTokenPosition: async (
+      folderId: string,
+      tokenMintAddress: string,
+      position: number,
+    ): Promise<void> => {
+      try {
+        const endpoint = `watchlist/folders/tokens/${folderId}/items/${tokenMintAddress}/position`;
+        await api<void>(endpoint, {
+          method: 'PUT',
+          body: { position },
+        });
+      } catch (error) {
+        console.error('[updateTokenPosition] Error updating token position:', error);
+        throw error;
+      }
+    },
+
+    getFolderUsers: async (folderId: string): Promise<(User & { position: number })[]> => {
+      try {
+        const endpoint = `watchlist/folders/users/${folderId}/items`;
+        const data = await api<(User & { position: number })[]>(endpoint);
+        return data;
+      } catch (error) {
+        console.error('[getFolderUsers] Error fetching folder users:', error);
+        throw error;
+      }
+    },
+
+    addUserToFolder: async (folderId: string, userId: string): Promise<{ success: boolean }> => {
+      try {
+        const endpoint = `watchlist/folders/users/${folderId}/items`;
+        const data = await api<{ success: boolean }>(endpoint, {
+          method: 'POST',
+          body: { userId },
+        });
+        return data;
+      } catch (error) {
+        console.error('[addUserToFolder] Error adding user to folder:', error);
+        throw error;
+      }
+    },
+
+    removeUserFromFolder: async (folderId: string, userId: string): Promise<void> => {
+      try {
+        const endpoint = `watchlist/folders/users/${folderId}/items/${userId}`;
+        await api<void>(endpoint, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        console.error('[removeUserFromFolder] Error removing user from folder:', error);
+        throw error;
+      }
+    },
+
+    updateUserPosition: async (
+      folderId: string,
+      userId: string,
+      position: number,
+    ): Promise<void> => {
+      try {
+        const endpoint = `watchlist/folders/users/${folderId}/items/${userId}/position`;
+        await api<void>(endpoint, {
+          method: 'PUT',
+          body: { position },
+        });
+      } catch (error) {
+        console.error('[updateUserPosition] Error updating user position:', error);
+        throw error;
+      }
+    },
   },
 };
 
