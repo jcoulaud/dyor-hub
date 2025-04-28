@@ -2,8 +2,11 @@ import {
   HotTokenResult,
   PaginatedHotTokensResult,
   PaginatedTokensResponse,
+  ProcessedBundleData,
+  SingleBundleData,
   TokenHolder,
   TokenStats,
+  TrenchBundleApiResponse,
 } from '@dyor-hub/types';
 import {
   Injectable,
@@ -775,6 +778,111 @@ export class TokensService {
           error.message,
         );
         return null;
+      } finally {
+        this.pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
+  }
+
+  async getTokenBundles(mintAddress: string): Promise<ProcessedBundleData> {
+    if (!mintAddress) {
+      throw new Error('Mint address is required for fetching bundles.');
+    }
+
+    const cacheKey = `token_bundles_${mintAddress}`;
+
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
+    }
+
+    const requestPromise = (async () => {
+      try {
+        const TRENCH_API_URL = `https://trench.bot/api/bundle/bundle_advanced/${encodeURIComponent(mintAddress)}`;
+        const controller = new AbortController();
+        let timeoutId: NodeJS.Timeout | null = setTimeout(
+          () => controller.abort(),
+          15000,
+        );
+
+        try {
+          const response = await fetch(TRENCH_API_URL, {
+            method: 'GET',
+            signal: controller.signal,
+            headers: {},
+          });
+
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+
+          if (!response.ok) {
+            let message = `Trench API error (${response.status})`;
+            let errorData: unknown = null;
+            try {
+              errorData = await response.json();
+              if (
+                errorData &&
+                typeof errorData === 'object' &&
+                'error' in errorData &&
+                typeof errorData.error === 'string'
+              ) {
+                message = errorData.error;
+              }
+            } catch {
+              // Ignore if response is not JSON
+            }
+
+            this.logger.error(`${message} for ${mintAddress}`);
+            throw new Error(message);
+          }
+
+          const rawData = (await response.json()) as TrenchBundleApiResponse;
+
+          const processedBundles: SingleBundleData[] = Object.entries(
+            rawData.bundles || {},
+          ).map(([id, bundleData]) => ({
+            ...bundleData,
+            id,
+          }));
+
+          const responseData: ProcessedBundleData = {
+            bonded: rawData.bonded,
+            creator_analysis: rawData.creator_analysis,
+            distributed_amount: rawData.distributed_amount,
+            distributed_percentage: rawData.distributed_percentage,
+            distributed_wallets: rawData.distributed_wallets,
+            ticker: rawData.ticker,
+            total_bundles: rawData.total_bundles,
+            total_holding_amount: rawData.total_holding_amount,
+            total_holding_percentage: rawData.total_holding_percentage,
+            total_percentage_bundled: rawData.total_percentage_bundled,
+            total_sol_spent: rawData.total_sol_spent,
+            total_tokens_bundled: rawData.total_tokens_bundled,
+            bundles: processedBundles,
+          };
+
+          return responseData;
+        } catch (error) {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            throw new Error('Request to Trench API timed out.');
+          }
+
+          throw error;
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error fetching Trench bundle data for ${mintAddress}:`,
+          error,
+        );
+        throw error;
       } finally {
         this.pendingRequests.delete(cacheKey);
       }

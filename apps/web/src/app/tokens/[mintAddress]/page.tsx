@@ -5,6 +5,7 @@ import type { CommentSectionHandle } from '@/components/comments/CommentSection'
 import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
 import { TokenCallsSection } from '@/components/token-calls/token-page/TokenCallsSection';
+import { TokenBundlesSection } from '@/components/tokens/bundles/TokenBundlesSection';
 import { TokenExternalLinks } from '@/components/tokens/TokenExternalLinks';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
@@ -670,6 +671,10 @@ export default function Page({ params, commentId }: PageProps) {
                   )}
                 </CardContent>
               </Card>
+
+              <div className='mt-4 sm:mt-6 xl:mt-8'>
+                {tokenData && <TokenBundlesSection mintAddress={mintAddress} />}
+              </div>
             </div>
           </div>
 
@@ -877,7 +882,7 @@ export default function Page({ params, commentId }: PageProps) {
             </div>
           </div>
 
-          {/* Right column - Desktop search & Token Calls & Existing Sentiment Card */}
+          {/* Right column - Desktop search & Token Calls & Existing Sentiment Card & Bundles */}
           <div className='hidden xl:block col-span-1 xxs:col-span-2 xs:col-span-2 sm:col-span-2 xl:col-span-3 space-y-4 sm:space-y-6 xl:space-y-8 order-2 xxs:order-none xs:order-none sm:order-none'>
             {/* Desktop Search Card */}
             <div className='relative group'>
