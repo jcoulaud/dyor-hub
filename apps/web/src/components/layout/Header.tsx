@@ -7,9 +7,9 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { DISCORD_URL } from '@/lib/constants';
+import { CONTRACT_ADDRESS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
-import { BarChart2, Home, Link as LinkIcon, Menu, MessageSquare, Trophy, X } from 'lucide-react';
+import { BarChart2, DollarSign, Home, Link as LinkIcon, Menu, Trophy, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -44,22 +44,21 @@ export function Header() {
                 Leaderboard
               </Link>
               <Link
-                href='/token-calls'
-                className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-green-600/90 to-emerald-700/90 hover:from-green-500/90 hover:to-emerald-600/90 border border-white/10 shadow-md hover:shadow-emerald-900/20 hover:scale-[1.02]'>
-                Token Calls
-              </Link>
-              <Link
                 href='/links'
                 className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-purple-600/90 to-indigo-800/90 hover:from-purple-500/90 hover:to-indigo-700/90 border border-white/10 shadow-md hover:shadow-indigo-900/20 hover:scale-[1.02]'>
                 Official Links
               </Link>
+              <Link
+                href='/token-calls'
+                className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-green-600/90 to-emerald-700/90 hover:from-green-500/90 hover:to-emerald-600/90 border border-white/10 shadow-md hover:shadow-emerald-900/20 hover:scale-[1.02]'>
+                Token Calls
+              </Link>
               <a
-                href={DISCORD_URL}
+                href={`https://dexscreener.com/solana/${CONTRACT_ADDRESS}`}
                 target='_blank'
                 rel='noopener noreferrer'
-                className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-indigo-600/90 to-purple-700/90 hover:from-indigo-500/90 hover:to-purple-600/90 border border-white/10 shadow-md hover:shadow-purple-900/20 hover:scale-[1.02]'>
-                <MessageSquare className='h-4 w-4 inline-block mr-1.5' />
-                Discord
+                className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-green-600 hover:bg-green-500 border border-white/10 shadow-md hover:shadow-green-500/30 hover:scale-[1.02]'>
+                Buy Token
               </a>
             </nav>
           </div>
@@ -94,27 +93,27 @@ export function Header() {
                     <span>Leaderboard</span>
                   </Link>
                   <Link
-                    href='/token-calls'
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
-                    <BarChart2 className='h-4 w-4' />
-                    <span>Token Calls</span>
-                  </Link>
-                  <Link
                     href='/links'
                     onClick={() => setIsMobileMenuOpen(false)}
                     className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
                     <LinkIcon className='h-4 w-4' />
                     <span>Official Links</span>
                   </Link>
+                  <Link
+                    href='/token-calls'
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
+                    <BarChart2 className='h-4 w-4' />
+                    <span>Token Calls</span>
+                  </Link>
                   <a
-                    href={DISCORD_URL}
+                    href={`https://dexscreener.com/solana/${CONTRACT_ADDRESS}`}
                     target='_blank'
                     rel='noopener noreferrer'
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
-                    <MessageSquare className='h-4 w-4' />
-                    <span>Discord</span>
+                    className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg bg-green-600 hover:bg-green-500 transition-colors'>
+                    <DollarSign className='h-4 w-4' />
+                    <span>Buy Token</span>
                   </a>
                 </DropdownMenuContent>
               </DropdownMenu>
