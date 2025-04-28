@@ -33,6 +33,7 @@ import {
   Copy,
   ExternalLink,
   HelpCircle,
+  Info,
   ListFilter,
   Table as TableIcon,
   Users,
@@ -197,8 +198,9 @@ export const BundleTable = ({ bundles, isLoading, className }: BundleTableProps)
                 <TableHead className='px-3 py-2 text-zinc-400 whitespace-nowrap'>
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger className='cursor-help underline decoration-dotted decoration-zinc-500'>
+                      <TooltipTrigger className='flex items-center gap-1'>
                         Breakdown
+                        <Info className='h-3 w-3 text-zinc-500' />
                       </TooltipTrigger>
                       <TooltipContent className='max-w-xs'>
                         <p className='text-xs mb-1'>
@@ -220,7 +222,10 @@ export const BundleTable = ({ bundles, isLoading, className }: BundleTableProps)
                 <TableHead className='px-3 py-2 text-zinc-400 whitespace-nowrap text-right'>
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger className='cursor-help'>% Supply</TooltipTrigger>
+                      <TooltipTrigger className='flex items-center gap-1 ml-auto'>
+                        % Supply
+                        <Info className='h-3 w-3 text-zinc-500' />
+                      </TooltipTrigger>
                       <TooltipContent>
                         <p className='text-xs'>
                           Percentage of token supply initially purchased by this bundle group
@@ -237,8 +242,9 @@ export const BundleTable = ({ bundles, isLoading, className }: BundleTableProps)
                 <TableHead className='px-3 py-2 text-zinc-400 whitespace-nowrap text-right'>
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger className='cursor-help flex items-center justify-end'>
+                      <TooltipTrigger className='flex items-center justify-end gap-1'>
                         <Users className='w-3 h-3 mr-1' /> Wallets
+                        <Info className='h-3 w-3 text-zinc-500' />
                       </TooltipTrigger>
                       <TooltipContent>
                         <p className='text-xs'>
@@ -280,7 +286,7 @@ export const BundleTable = ({ bundles, isLoading, className }: BundleTableProps)
                         {walletAddresses.length > 0 ? (
                           <Popover>
                             <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
-                              <span className='cursor-help'>
+                              <span>
                                 <CategoryBadge category={bundle.bundle_analysis.primary_category} />
                               </span>
                             </PopoverTrigger>
@@ -336,9 +342,7 @@ export const BundleTable = ({ bundles, isLoading, className }: BundleTableProps)
                           {walletAddresses.length > 0 ? (
                             <Popover>
                               <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <span className='cursor-help underline decoration-dotted decoration-zinc-500'>
-                                  {bundle.unique_wallets}
-                                </span>
+                                <span>{bundle.unique_wallets}</span>
                               </PopoverTrigger>
                               <PopoverContent
                                 side='top'
