@@ -18,6 +18,7 @@ import {
   PaginatedResult,
   PaginatedTokenCallsResult,
   PaginatedTokensResponse,
+  ProcessedBundleData,
   Referral,
   ReferralLeaderboardEntry,
   SentimentType,
@@ -738,6 +739,21 @@ export const tokens = {
     } catch (error) {
       console.error(`Error fetching hot tokens:`, error);
       return { items: [], meta: { total: 0, page: 1, limit: limit, totalPages: 0 } };
+    }
+  },
+
+  getBundles: async (mintAddress: string): Promise<ProcessedBundleData> => {
+    if (!mintAddress) {
+      throw new Error('Mint address is required for fetching bundles.');
+    }
+
+    try {
+      const endpoint = `tokens/${encodeURIComponent(mintAddress)}/bundles`;
+      const data = await api<ProcessedBundleData>(endpoint);
+      return data;
+    } catch (error) {
+      console.error(`Error fetching bundle data for ${mintAddress}:`, error);
+      throw error;
     }
   },
 };

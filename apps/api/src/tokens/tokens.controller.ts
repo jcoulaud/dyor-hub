@@ -1,6 +1,7 @@
 import {
   PaginatedHotTokensResult,
   PaginatedTokensResponse,
+  ProcessedBundleData,
   TokenStats,
   TwitterUsernameHistoryEntity,
 } from '@dyor-hub/types';
@@ -67,6 +68,14 @@ export class TokensController {
     @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
   ): Promise<TokenStats> {
     return this.tokensService.getTokenStats(mintAddress);
+  }
+
+  @Public()
+  @Get(':mintAddress/bundles')
+  async getTokenBundles(
+    @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
+  ): Promise<ProcessedBundleData> {
+    return this.tokensService.getTokenBundles(mintAddress);
   }
 
   @Public()

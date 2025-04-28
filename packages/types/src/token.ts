@@ -106,3 +106,84 @@ export interface PaginatedHotTokensResult {
     totalPages: number;
   };
 }
+
+// Trench Bundle API Types
+
+export interface TrenchBundleWalletInfo {
+  sol: number;
+  sol_percentage: number;
+  token_percentage: number;
+  tokens: number;
+}
+
+export interface TrenchBundleAnalysis {
+  category_breakdown: Record<string, number>;
+  is_likely_bundle: boolean;
+  primary_category: string;
+}
+
+export interface TrenchBundle {
+  bundle_analysis: TrenchBundleAnalysis;
+  holding_amount: number;
+  holding_percentage: number;
+  token_percentage: number;
+  total_sol: number;
+  total_tokens: number;
+  unique_wallets: number;
+  wallet_categories: Record<string, string>;
+  wallet_info: Record<string, TrenchBundleWalletInfo>;
+}
+
+export interface TrenchCreatorCoinHistory {
+  created_at: number;
+  is_rug: boolean;
+  market_cap: number;
+  mint: string;
+  symbol: string;
+}
+
+export interface TrenchCreatorHistory {
+  average_market_cap: number;
+  high_risk: boolean;
+  previous_coins: TrenchCreatorCoinHistory[];
+  recent_rugs: number;
+  rug_count: number;
+  rug_percentage: number;
+  total_coins_created: number;
+}
+
+export interface TrenchCreatorAnalysis {
+  address: string;
+  current_holdings: number;
+  history: TrenchCreatorHistory;
+  holding_percentage: number;
+  risk_level: string;
+  warning_flags: (string | null)[];
+}
+
+// Raw API response structure from Trench
+export interface TrenchBundleApiResponse {
+  bonded: boolean;
+  bundles: Record<string, TrenchBundle>; // Bundle ID -> Bundle details
+  creator_analysis: TrenchCreatorAnalysis;
+  distributed_amount: number;
+  distributed_percentage: number;
+  distributed_wallets: number;
+  ticker: string;
+  total_bundles: number;
+  total_holding_amount: number;
+  total_holding_percentage: number;
+  total_percentage_bundled: number;
+  total_sol_spent: number;
+  total_tokens_bundled: number;
+}
+
+// Single bundle structure after processing (includes ID)
+export interface SingleBundleData extends TrenchBundle {
+  id: string;
+}
+
+// Overall structure after processing (bundles is an array)
+export interface ProcessedBundleData extends Omit<TrenchBundleApiResponse, 'bundles'> {
+  bundles: SingleBundleData[];
+}
