@@ -113,15 +113,19 @@ export class NotificationEventsService {
     commentText: string;
   }) {
     let tokenMintAddress: string | null = null;
+    let tokenSymbol: string | null = null;
+
     try {
       const comment = await this.commentRepository.findOne({
         where: { id: payload.commentId },
-        select: ['tokenMintAddress'],
+        relations: ['token'],
       });
+
       tokenMintAddress = comment?.tokenMintAddress;
+      tokenSymbol = comment?.token?.symbol || null;
     } catch (e) {
       this.logger.error(
-        `Failed to get token address for comment ${payload.commentId} on reply event`,
+        `Failed to get token data for comment ${payload.commentId} on reply event: ${e.message}`,
       );
     }
 
@@ -130,13 +134,15 @@ export class NotificationEventsService {
       plainCommentText.substring(0, 100) +
       (plainCommentText.length > 100 ? '...' : '');
 
+    const tokenInfo = tokenSymbol ? ` about $${tokenSymbol}` : '';
+
     await this.createAndEmitNotification(
       payload.userId,
       NotificationType.COMMENT_REPLY,
-      `${payload.replyAuthor} replied to your comment: "${truncatedText}"`,
+      `${payload.replyAuthor} replied to your comment${tokenInfo}: "${truncatedText}"`,
       payload.commentId,
       'comment',
-      tokenMintAddress ? { tokenMintAddress } : null,
+      tokenMintAddress ? { tokenMintAddress, tokenSymbol } : null,
     );
   }
 
@@ -147,25 +153,31 @@ export class NotificationEventsService {
     voterName: string;
   }) {
     let tokenMintAddress: string | null = null;
+    let tokenSymbol: string | null = null;
+
     try {
       const comment = await this.commentRepository.findOne({
         where: { id: payload.commentId },
-        select: ['tokenMintAddress'],
+        relations: ['token'],
       });
+
       tokenMintAddress = comment?.tokenMintAddress;
+      tokenSymbol = comment?.token?.symbol || null;
     } catch (e) {
       this.logger.error(
-        `Failed to get token address for comment ${payload.commentId} on upvote event`,
+        `Failed to get token data for comment ${payload.commentId} on upvote event: ${e.message}`,
       );
     }
+
+    const tokenInfo = tokenSymbol ? ` about $${tokenSymbol}` : '';
 
     await this.createAndEmitNotification(
       payload.userId,
       NotificationType.UPVOTE_RECEIVED,
-      `${payload.voterName} upvoted your comment`,
+      `${payload.voterName} upvoted your comment${tokenInfo}`,
       payload.commentId,
       'comment',
-      tokenMintAddress ? { tokenMintAddress } : null,
+      tokenMintAddress ? { tokenMintAddress, tokenSymbol } : null,
     );
   }
 
@@ -320,16 +332,34 @@ export class NotificationEventsService {
       safeCommentPreview.length > 100
         ? safeCommentPreview.substring(0, 97) + '...'
         : safeCommentPreview;
+
+    let tokenSymbol: string | null = null;
+    try {
+      const comment = await this.commentRepository.findOne({
+        where: { id: payload.commentId },
+        relations: ['token'],
+      });
+
+      tokenSymbol = comment?.token?.symbol || null;
+    } catch (e) {
+      this.logger.error(
+        `Failed to get token data for comment ${payload.commentId} on followed user comment event: ${e.message}`,
+      );
+    }
+
+    const tokenInfo = tokenSymbol ? ` about $${tokenSymbol}` : '';
+
     await this.createAndEmitNotification(
       payload.followerId,
       NotificationType.FOLLOWED_USER_COMMENT,
-      `${safeAuthorUsername} posted a comment: "${truncatedPreview}"`,
+      `${safeAuthorUsername} posted a comment${tokenInfo}: "${truncatedPreview}"`,
       payload.commentId,
       'comment',
       {
         authorId: payload.authorId,
         authorUsername: safeAuthorUsername,
         tokenMintAddress: payload.tokenMintAddress,
+        tokenSymbol: tokenSymbol,
       },
     );
   }
@@ -344,12 +374,27 @@ export class NotificationEventsService {
     tokenMintAddress: string;
   }) {
     const safeVoterUsername = sanitizeHtml(payload.voterUsername);
-    const message = `${safeVoterUsername} upvoted a comment.`;
+
+    let tokenSymbol: string | null = null;
+    try {
+      const comment = await this.commentRepository.findOne({
+        where: { id: payload.commentId },
+        relations: ['token'],
+      });
+
+      tokenSymbol = comment?.token?.symbol || null;
+    } catch (e) {
+      this.logger.error(
+        `Failed to get token data for comment ${payload.commentId} on followed user vote event: ${e.message}`,
+      );
+    }
+
+    const tokenInfo = tokenSymbol ? ` about $${tokenSymbol}` : '';
 
     await this.createAndEmitNotification(
       payload.followerId,
       NotificationType.FOLLOWED_USER_VOTE,
-      message,
+      `${safeVoterUsername} upvoted a comment${tokenInfo}.`,
       payload.commentId,
       'comment',
       {
@@ -357,6 +402,7 @@ export class NotificationEventsService {
         voterUsername: safeVoterUsername,
         authorId: payload.authorId,
         tokenMintAddress: payload.tokenMintAddress,
+        tokenSymbol: tokenSymbol,
       },
     );
   }
