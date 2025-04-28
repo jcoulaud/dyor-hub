@@ -22,7 +22,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import type { SingleBundleData } from '@dyor-hub/types';
 import {
-  AlertTriangle,
   CheckCircle2,
   ChevronRight,
   CircleDollarSign,
@@ -108,15 +107,6 @@ export const BundleTableDialog = ({ bundles, isLoading }: BundleTableProps) => {
 };
 
 export const BundleTable = ({ bundles, isLoading, className }: BundleTableProps) => {
-  const hasHighRiskPattern = bundles.some(
-    (bundle) => bundle.unique_wallets >= 5 && bundle.token_percentage > 10,
-  );
-
-  const totalHoldingPercentage =
-    bundles.length > 0 && bundles[0].holding_percentage !== undefined
-      ? bundles[0].holding_percentage
-      : 0;
-
   if (isLoading) {
     return (
       <div className='rounded-xl border border-zinc-800 overflow-hidden'>
@@ -158,22 +148,6 @@ export const BundleTable = ({ bundles, isLoading, className }: BundleTableProps)
 
   return (
     <div className={cn('space-y-4', className)}>
-      {(hasHighRiskPattern || totalHoldingPercentage > 10) && (
-        <div className='bg-amber-950/30 p-3 rounded-xl border border-amber-500/30 flex items-start'>
-          <AlertTriangle className='h-4 w-4 text-amber-400 mt-0.5 mr-2 flex-shrink-0' />
-          <div className='text-xs text-amber-200'>
-            <strong className='text-amber-400'>Bundle Pattern Analysis:</strong> According to
-            Trench, patterns of 3+ wallets buying in the same slot with substantial token holdings
-            (10%+) are unlikely to occur by chance and may indicate coordinated control.
-            {totalHoldingPercentage === 0 && (
-              <span className='block mt-1 text-green-400'>
-                <strong>Currently Held: 0%</strong> - All bundled tokens have been sold.
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className='w-full rounded-xl border border-zinc-800 overflow-x-auto bg-zinc-900/30 backdrop-blur-sm'>
         <div className='flex items-center justify-between px-4 py-2 bg-zinc-800/30 border-b border-zinc-700'>
           <div className='text-sm font-medium text-white flex items-center'>
