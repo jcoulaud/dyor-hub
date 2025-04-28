@@ -49,6 +49,7 @@ export enum BadgeCategory {
   VOTING = 'voting',
   RECEPTION = 'reception',
   QUALITY = 'quality',
+  TIPPING = 'tipping',
 }
 
 export enum BadgeRequirement {
