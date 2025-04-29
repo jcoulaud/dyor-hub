@@ -476,6 +476,9 @@ export class NotificationsService {
       case NotificationType.REFERRAL_SUCCESS:
         emoji = '🤝';
         break;
+      case NotificationType.TIP_RECEIVED:
+        emoji = '💰';
+        break;
       case NotificationType.FOLLOWED_USER_PREDICTION:
       case NotificationType.FOLLOWED_USER_COMMENT:
       case NotificationType.FOLLOWED_USER_VOTE:
@@ -516,6 +519,8 @@ export class NotificationsService {
         return 'User You Follow';
       case NotificationType.REFERRAL_SUCCESS:
         return 'Referral Success';
+      case NotificationType.TIP_RECEIVED:
+        return 'Tip Received';
       default:
         return 'Notification';
     }
@@ -532,6 +537,11 @@ export class NotificationsService {
       case 'comment':
         if (metadata && metadata.tokenMintAddress) {
           return `${baseUrl}/tokens/${metadata.tokenMintAddress}/comments/${entityId}`;
+        } else if (metadata && metadata.contentType === 'comment') {
+          this.logger.warn(
+            `Missing tokenMintAddress for comment notification link: ${entityId}`,
+          );
+          return null;
         }
         break;
       case 'badge':
@@ -540,6 +550,11 @@ export class NotificationsService {
         return `${baseUrl}/token-calls/${entityId}`;
       case 'referrals':
         return `${baseUrl}/account/referrals?tab=history`;
+      case 'user':
+        if (metadata && metadata.senderId) {
+          return null;
+        }
+        break;
       default:
         return null;
     }

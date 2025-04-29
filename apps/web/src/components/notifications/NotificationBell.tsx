@@ -308,6 +308,23 @@ export function NotificationBell() {
           ? `/token-calls/${notification.relatedEntityId}`
           : '/token-calls';
 
+      case NotificationType.TIP_RECEIVED:
+        const tipMetadata = notification.relatedMetadata;
+        if (
+          tipMetadata?.contentType === 'comment' &&
+          tipMetadata.tokenMintAddress &&
+          notification.relatedEntityId
+        ) {
+          return `/tokens/${tipMetadata.tokenMintAddress}/comments/${notification.relatedEntityId}`;
+        } else if (tipMetadata?.contentType === 'call' && notification.relatedEntityId) {
+          return `/token-calls/${notification.relatedEntityId}`;
+        } else if (tipMetadata?.contentType === 'profile' && tipMetadata.senderUsername) {
+          return `/users/${tipMetadata.senderUsername}`;
+        } else if (tipMetadata?.contentType === 'profile') {
+          return '/';
+        }
+        return '/';
+
       default:
         return '/';
     }

@@ -47,7 +47,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className='max-w-md'>
         <DialogHeader>
           <DialogTitle>Authentication Required</DialogTitle>
           {displayedReferralCode ? (

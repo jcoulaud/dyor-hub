@@ -170,7 +170,7 @@ export const TipModal = ({
       return;
     }
     if (amountLamports > userBalanceLamports) {
-      setError('Insufficient $DYORHUB balance.');
+      setError(`Insufficient ${DYORHUB_SYMBOL} balance.`);
       return;
     }
 
@@ -350,7 +350,7 @@ export const TipModal = ({
         );
       case 'success':
         return (
-          <div className='flex flex-col items-center justify-center py-12 text-center'>
+          <div className='flex flex-col items-center justify-center py-10 text-center'>
             <div className='relative w-16 h-16 mb-5'>
               <div className='absolute inset-0 bg-green-500/20 rounded-full'></div>
               <div className='absolute inset-1 bg-black rounded-full flex items-center justify-center border border-green-500/50'>
@@ -362,7 +362,7 @@ export const TipModal = ({
               <div className='flex items-center justify-between mb-2'>
                 <span className='text-zinc-400 text-sm'>Amount:</span>
                 <span className='text-white font-medium text-sm'>
-                  {parseFloat(amount).toLocaleString()} {DYORHUB_SYMBOL}
+                  {(parseFloat(amount) || 0).toLocaleString()} {DYORHUB_SYMBOL}
                 </span>
               </div>
               <div className='flex items-center justify-between'>
@@ -550,8 +550,7 @@ export const TipModal = ({
                       </span>
                     ) : typeof userBalance === 'number' ? (
                       <span>
-                        Balance:{' '}
-                        {userBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        Balance: {userBalance.toLocaleString()} {DYORHUB_SYMBOL}
                       </span>
                     ) : (
                       <span className='text-amber-500'>Could not load balance</span>

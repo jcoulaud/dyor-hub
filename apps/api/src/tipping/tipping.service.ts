@@ -1,3 +1,4 @@
+import { NotificationEventType } from '@dyor-hub/types';
 import {
   BadRequestException,
   Injectable,
@@ -5,6 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   TOKEN_PROGRAM_ID,
@@ -41,6 +43,7 @@ export class TippingService {
     @InjectRepository(BadgeEntity)
     private readonly badgeRepository: Repository<BadgeEntity>,
     private readonly solanaRpcService: SolanaRpcService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -144,6 +147,28 @@ export class TippingService {
 
     try {
       const savedTip = await this.tipRepository.save(newTip);
+
+      // Emit event for received tip notification
+      try {
+        const senderInfo = await this.userRepository.findOne({
+          where: { id: senderUserId },
+          select: ['displayName'],
+        });
+        this.eventEmitter.emit(NotificationEventType.TIP_RECEIVED, {
+          recipientUserId: savedTip.recipientId,
+          senderUserId: savedTip.senderId,
+          senderDisplayName: senderInfo?.displayName || 'Someone',
+          amount: savedTip.amount, // Amount in base units
+          contentType: savedTip.contentType,
+          contentId: savedTip.contentId,
+          tipId: savedTip.id,
+        });
+      } catch (eventError) {
+        this.logger.error(
+          `Failed to emit tip received event for tip ${savedTip.id}: ${eventError.message}`,
+          eventError.stack,
+        );
+      }
 
       // 5. Award Tipper Badge
       this.awardTipperBadge(senderUserId);
