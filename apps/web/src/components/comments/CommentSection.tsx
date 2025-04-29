@@ -26,6 +26,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { AuthModal } from '../auth/AuthModal';
+import { TipButton } from '../tipping/TipButton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -731,7 +732,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
                       </span>
                     </div>
 
-                    <div className='flex items-center gap-2'>
+                    <div className='flex items-center gap-2 shrink-0'>
                       <Link href={`/token-calls/${comment.tokenCall.id}`} passHref legacyBehavior>
                         <a
                           target='_blank'
@@ -828,6 +829,20 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
                         <TwitterShareButton comment={comment} tokenMintAddress={tokenMintAddress} />
                         <CopyLinkButton comment={comment} tokenMintAddress={tokenMintAddress} />
                       </>
+                    )}
+                    {/* Tip Button */}
+                    {!comment.isRemoved && !isCommentOwner && isAuthenticated && (
+                      <TipButton
+                        recipientUserId={comment.user.id}
+                        recipientUsername={comment.user.displayName || comment.user.username}
+                        contentType={
+                          comment.type === LocalCommentType.TOKEN_CALL_EXPLANATION
+                            ? 'call'
+                            : 'comment'
+                        }
+                        contentId={comment.id}
+                        variant='footer'
+                      />
                     )}
                     {/* Admin/Delete Options */}
                     {isAdmin && !isCommentOwner && !comment.isRemoved && (

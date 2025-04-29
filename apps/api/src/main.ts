@@ -111,6 +111,7 @@ async function bootstrap() {
       'Accept',
       'Origin',
       'X-Requested-With',
+      'solana-client',
     ],
     exposedHeaders: ['Set-Cookie'],
   });

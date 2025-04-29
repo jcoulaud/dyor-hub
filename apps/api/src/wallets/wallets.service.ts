@@ -1,14 +1,10 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   ConflictException,
-  Inject,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PublicKey } from '@solana/web3.js';
-import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
 import * as nacl from 'tweetnacl';
 import { Not, Repository } from 'typeorm';
@@ -23,14 +19,11 @@ import { WalletResponseDto } from './dto/wallet-response.dto';
 
 @Injectable()
 export class WalletsService {
-  private readonly logger = new Logger(WalletsService.name);
-
   constructor(
     @InjectRepository(WalletEntity)
     private walletsRepository: Repository<WalletEntity>,
     @InjectRepository(UserEntity)
     private usersRepository: Repository<UserEntity>,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly solanaRpcService: SolanaRpcService,
   ) {}
 
@@ -231,13 +224,7 @@ export class WalletsService {
     walletAddress: string,
     tokenMintAddress: string,
   ): Promise<number> {
-    const cacheKey = `wallet:${walletAddress}:balance:${tokenMintAddress}`;
     try {
-      const cachedBalance = await this.cacheManager.get<number>(cacheKey);
-      if (cachedBalance !== undefined && cachedBalance !== null) {
-        return cachedBalance;
-      }
-
       const connection = this.solanaRpcService.getConnection();
       const walletPublicKey = new PublicKey(walletAddress);
       const tokenMintPublicKey = new PublicKey(tokenMintAddress);
@@ -248,10 +235,6 @@ export class WalletsService {
       );
 
       if (tokenAccounts.value.length === 0) {
-        this.logger.warn(
-          `No token account found for mint ${tokenMintAddress} in wallet ${walletAddress}`,
-        );
-        await this.cacheManager.set(cacheKey, 0, 180 * 1000);
         return 0;
       }
 
@@ -263,15 +246,8 @@ export class WalletsService {
 
       const balance = balanceResponse.value.uiAmount ?? 0;
 
-      await this.cacheManager.set(cacheKey, balance, 180 * 1000);
-
       return balance;
     } catch (error) {
-      this.logger.error(
-        `Failed to get SPL token balance for ${walletAddress} / ${tokenMintAddress}: ${error.message}`,
-        error.stack,
-      );
-      await this.cacheManager.set(cacheKey, 0, 60 * 1000);
       return 0;
     }
   }

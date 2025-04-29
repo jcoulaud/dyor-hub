@@ -6,8 +6,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { Connection, ParsedTransactionWithMeta } from '@solana/web3.js';
+import {
+  TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddressSync,
+} from '@solana/spl-token';
+import {
+  Connection,
+  ParsedTransactionWithMeta,
+  PublicKey,
+} from '@solana/web3.js';
 import { Repository } from 'typeorm';
 import { DYORHUB_CONTRACT_ADDRESS } from '../common/constants';
 import { BadgeEntity } from '../entities/badge.entity';
@@ -17,7 +24,6 @@ import { UserEntity } from '../entities/user.entity';
 import { WalletEntity } from '../entities/wallet.entity';
 import { SolanaRpcService } from '../solana/solana-rpc.service';
 import { GetTippingEligibilityResponseDto } from './dto/get-tipping-eligibility-response.dto';
-import { GetTippingStatsResponseDto } from './dto/get-tipping-stats-response.dto';
 import { RecordTipRequestDto } from './dto/record-tip-request.dto';
 
 @Injectable()
@@ -43,8 +49,6 @@ export class TippingService {
   async getTippingEligibility(
     userId: string,
   ): Promise<GetTippingEligibilityResponseDto> {
-    // Implementation pending...
-    this.logger.log(`Checking tipping eligibility for user: ${userId}`);
     const primaryWallet = await this.walletRepository.findOne({
       where: { user: { id: userId }, isPrimary: true, isVerified: true },
     });
@@ -64,23 +68,32 @@ export class TippingService {
     senderUserId: string,
     dto: RecordTipRequestDto,
   ): Promise<Tip> {
-    this.logger.log(
-      `Attempting to record tip from ${senderUserId} for tx: ${dto.transactionSignature}`,
-    );
-
     // 1. Fetch Sender and Recipient primary wallets
     const [senderWallet, recipientWallet] = await Promise.all([
       this.findPrimaryVerifiedWallet(senderUserId, 'Sender'),
       this.findPrimaryVerifiedWallet(dto.recipientUserId, 'Recipient'),
     ]);
 
+    // Calculate expected ATAs
+    const dyorhubMintPk = new PublicKey(DYORHUB_CONTRACT_ADDRESS);
+    const senderWalletPk = new PublicKey(senderWallet.address);
+    const recipientWalletPk = new PublicKey(recipientWallet.address);
+    const expectedSenderAta = getAssociatedTokenAddressSync(
+      dyorhubMintPk,
+      senderWalletPk,
+    );
+    const expectedRecipientAta = getAssociatedTokenAddressSync(
+      dyorhubMintPk,
+      recipientWalletPk,
+    );
+
     // 2. Verify Transaction on Solana
     const connection = this.solanaRpcService.getConnection();
     const txDetails = await this.verifyTransaction(
       connection,
       dto.transactionSignature,
-      senderWallet.address,
-      recipientWallet.address,
+      expectedSenderAta.toBase58(),
+      expectedRecipientAta.toBase58(),
       dto.amount,
     );
 
@@ -131,15 +144,9 @@ export class TippingService {
 
     try {
       const savedTip = await this.tipRepository.save(newTip);
-      this.logger.log(`Successfully recorded tip ID: ${savedTip.id}`);
 
       // 5. Award Tipper Badge
-      this.awardTipperBadge(senderUserId).catch((err) => {
-        this.logger.error(
-          `Failed to award tipper badge to user ${senderUserId}`,
-          err,
-        );
-      });
+      this.awardTipperBadge(senderUserId);
 
       return savedTip;
     } catch (error) {
@@ -155,32 +162,6 @@ export class TippingService {
         throw new InternalServerErrorException('Failed to record tip.');
       }
     }
-  }
-
-  /**
-   * Calculates tipping statistics for a user.
-   */
-  async getUserTippingStats(
-    userId: string,
-  ): Promise<GetTippingStatsResponseDto> {
-    this.logger.log(`Fetching tipping stats for user: ${userId}`);
-
-    const stats = await this.tipRepository
-      .createQueryBuilder('tip')
-      .select([
-        'SUM(CASE WHEN tip.senderId = :userId THEN tip.amount ELSE 0 END) AS totalTipped',
-        'SUM(CASE WHEN tip.recipientId = :userId THEN tip.amount ELSE 0 END) AS totalReceived',
-      ])
-      .setParameter('userId', userId)
-      .getRawOne();
-
-    const totalTipped = Number(stats?.totalTipped) || 0;
-    const totalReceived = Number(stats?.totalReceived) || 0;
-
-    return {
-      totalTipped,
-      totalReceived,
-    };
   }
 
   // --- Helper Methods ---
@@ -206,11 +187,10 @@ export class TippingService {
   private async verifyTransaction(
     connection: Connection,
     signature: string,
-    expectedSender: string,
-    expectedRecipient: string,
+    expectedSenderAta: string,
+    expectedRecipientAta: string,
     expectedAmountLamports: number,
   ): Promise<ParsedTransactionWithMeta | null> {
-    this.logger.log(`Verifying transaction: ${signature}`);
     try {
       const tx = await connection.getParsedTransaction(signature, {
         maxSupportedTransactionVersion: 0,
@@ -218,12 +198,10 @@ export class TippingService {
       });
 
       if (!tx) {
-        this.logger.warn(`Transaction not found: ${signature}`);
         return null;
       }
 
       if (tx.meta?.err) {
-        this.logger.warn(`Transaction has error: ${signature}`, tx.meta.err);
         return tx;
       }
 
@@ -238,25 +216,16 @@ export class TippingService {
             instruction.parsed.type === 'transferChecked'
           ) {
             const parsedInfo = instruction.parsed.info;
-            this.logger.debug(
-              `Parsed transferChecked instruction info for ${signature}:`,
-              parsedInfo,
-            );
-
-            // Validate sender, recipient, amount, mint, and decimals
             if (
-              parsedInfo.source === expectedSender &&
-              parsedInfo.destination === expectedRecipient &&
+              parsedInfo.source === expectedSenderAta &&
+              parsedInfo.destination === expectedRecipientAta &&
               parsedInfo.tokenAmount.uiAmount *
                 Math.pow(10, parsedInfo.tokenAmount.decimals) ===
-                expectedAmountLamports && // Check amount in base units
+                expectedAmountLamports &&
               parsedInfo.mint === DYORHUB_CONTRACT_ADDRESS &&
               parsedInfo.tokenAmount.decimals === 6 // Explicitly check decimals match token
             ) {
               transferInstructionFound = true;
-              this.logger.log(
-                `Valid transfer instruction found for ${signature}`,
-              );
               break;
             }
             // Also check for 'transfer' type
@@ -265,15 +234,9 @@ export class TippingService {
             instruction.parsed.type === 'transfer'
           ) {
             const parsedInfo = instruction.parsed.info;
-            this.logger.debug(
-              `Parsed transfer instruction info for ${signature}:`,
-              parsedInfo,
-            );
-
-            // Validate sender, recipient, amount
             if (
-              parsedInfo.source === expectedSender &&
-              parsedInfo.destination === expectedRecipient &&
+              parsedInfo.source === expectedSenderAta &&
+              parsedInfo.destination === expectedRecipientAta &&
               Number(parsedInfo.amount) === expectedAmountLamports
             ) {
               this.logger.warn(
@@ -287,27 +250,13 @@ export class TippingService {
       }
 
       if (!transferInstructionFound) {
-        this.logger.error(
-          `No valid matching transfer instruction found for tx: ${signature}`,
-          {
-            expectedSender,
-            expectedRecipient,
-            expectedAmountLamports,
-            dyorhubMint: DYORHUB_CONTRACT_ADDRESS,
-          },
-        );
         throw new BadRequestException(
           `Transaction ${signature} does not contain the expected DYORHUB token transfer.`,
         );
       }
 
-      this.logger.log(`Transaction verification successful: ${signature}`);
       return tx;
     } catch (error) {
-      this.logger.error(
-        `Error verifying transaction ${signature}: ${error.message}`,
-        error.stack,
-      );
       throw new InternalServerErrorException(
         'Failed to verify transaction on Solana.',
       );
@@ -316,14 +265,12 @@ export class TippingService {
 
   private async awardTipperBadge(userId: string): Promise<void> {
     try {
-      this.logger.debug(`Checking if user ${userId} needs Tipper badge.`);
       // 1. Find the 'Tipper' badge definition using the name directly
       const tipperBadge = await this.badgeRepository.findOneBy({
         name: 'Tipper',
         isActive: true,
       });
       if (!tipperBadge) {
-        this.logger.error(`Active badge definition not found for: Tipper`);
         return;
       }
 
@@ -334,7 +281,6 @@ export class TippingService {
       });
 
       if (existingUserBadge) {
-        this.logger.debug(`User ${userId} already has the Tipper badge.`);
         return;
       }
 
@@ -342,9 +288,9 @@ export class TippingService {
       const newUserBadge = this.userBadgeRepository.create({
         userId: userId,
         badgeId: tipperBadge.id,
+        earnedAt: new Date(),
       });
       await this.userBadgeRepository.save(newUserBadge);
-      this.logger.log(`Awarded Tipper badge to user ${userId}.`);
 
       // TODO: Trigger a notification for the user
     } catch (error) {

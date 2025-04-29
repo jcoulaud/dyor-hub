@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE_URL, isApiSubdomain } from '@/lib/api';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { CoinbaseWalletAdapter } from '@solana/wallet-adapter-coinbase';
 import { LedgerWalletAdapter } from '@solana/wallet-adapter-ledger';
@@ -24,10 +25,14 @@ interface WalletProviderProps {
 function WalletProviderInner({ children }: WalletProviderProps) {
   const network = WalletAdapterNetwork.Mainnet;
 
-  const endpoint = useMemo(() => {
-    return process.env.NEXT_PUBLIC_API_URL
-      ? `${process.env.NEXT_PUBLIC_API_URL}/solana-rpc`
-      : clusterApiUrl(network);
+  const httpEndpoint = useMemo(() => {
+    let endpoint = clusterApiUrl(network); // Default fallback
+    if (API_BASE_URL) {
+      endpoint = isApiSubdomain
+        ? `${API_BASE_URL}/solana-rpc` // Prod proxy path
+        : `${API_BASE_URL}/api/solana-rpc`; // Dev proxy path
+    }
+    return endpoint;
   }, [network]);
 
   const wallets = useMemo(
@@ -41,7 +46,7 @@ function WalletProviderInner({ children }: WalletProviderProps) {
     [network],
   );
   return (
-    <ConnectionProvider endpoint={endpoint}>
+    <ConnectionProvider endpoint={httpEndpoint}>
       <WalletProvider
         wallets={wallets}
         autoConnect={true}

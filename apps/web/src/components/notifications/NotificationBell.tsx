@@ -129,16 +129,6 @@ export function NotificationBell() {
       },
     );
 
-    socket.on('connect', () => {
-      console.log(
-        'WebSocket connected (using cookie credentials). Fetching initial notifications...',
-      );
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('Disconnected from Notifications WebSocket:', reason);
-    });
-
     socket.on('connect_error', (error) => {
       console.error('WebSocket Connection Error:', error);
     });
