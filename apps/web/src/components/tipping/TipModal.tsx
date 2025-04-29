@@ -12,12 +12,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { tipping, tokens, users } from '@/lib/api';
+import { tipping, tokens, users, wallets } from '@/lib/api';
 import { CONTRACT_ADDRESS, DYORHUB_DECIMALS, DYORHUB_SYMBOL } from '@/lib/constants';
 import { formatPrice } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { GetTippingEligibilityResponseDto } from '@dyor-hub/types';
-import { RecordTipRequestDto, TipContentType } from '@dyor-hub/types';
+import { RecordTipRequestDto, TipContentType, WalletResponse } from '@dyor-hub/types';
 import {
   createAssociatedTokenAccountInstruction,
   createTransferCheckedInstruction,
@@ -37,6 +37,7 @@ interface TipModalProps {
   recipientUsername?: string;
   contentType: string;
   contentId?: string;
+  senderPublicKey: string | null;
 }
 
 type TipModalStep = 'input' | 'sending' | 'confirming' | 'success' | 'error';
@@ -49,6 +50,7 @@ export const TipModal = ({
   recipientUsername,
   contentType,
   contentId,
+  senderPublicKey,
 }: TipModalProps) => {
   const { connection } = useConnection();
   const { publicKey, sendTransaction, wallet } = useWallet();
@@ -61,7 +63,10 @@ export const TipModal = ({
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [dyorhubPrice, setDyorhubPrice] = useState<number | null>(null);
   const [isPriceLoading, setIsPriceLoading] = useState(false);
-  const [initialCheckDone, setInitialCheckDone] = useState(false);
+  const [isLoadingWallets, setIsLoadingWallets] = useState(false);
+  const [senderWalletStatus, setSenderWalletStatus] = useState<
+    'ok' | 'no_wallet' | 'no_primary' | 'not_verified' | 'loading'
+  >('loading');
 
   const recipientPublicKey = useMemo(() => {
     try {
@@ -76,7 +81,10 @@ export const TipModal = ({
   const dyorhubMintPublicKey = useMemo(() => new PublicKey(CONTRACT_ADDRESS), []);
 
   useEffect(() => {
-    setInitialCheckDone(false);
+    setSenderWalletStatus('loading');
+    setError(null);
+    setStep('input');
+
     if (!isOpen) {
       setTimeout(() => {
         setStep('input');
@@ -90,6 +98,9 @@ export const TipModal = ({
     }
 
     if (eligibilityResult === null) {
+      console.warn('[TipModal] Opened without eligibilityResult prop.');
+      setError('Checking eligibility...');
+      setStep('error');
       return;
     }
 
@@ -98,43 +109,71 @@ export const TipModal = ({
         'This user cannot receive tips. Their wallet might not be public or verified. Consider letting them know!',
       );
       setStep('error');
-      setInitialCheckDone(true);
       return;
     }
 
-    setInitialCheckDone(true);
-    const fetchData = async () => {
+    setIsLoadingWallets(true);
+    wallets
+      .list()
+      .then((fetchedWallets: WalletResponse[]) => {
+        let currentStatus: 'ok' | 'no_wallet' | 'no_primary' | 'not_verified' = 'no_wallet';
+        if (senderPublicKey && fetchedWallets.length > 0) {
+          const connectedWallet = fetchedWallets.find(
+            (w: WalletResponse) => w.address === senderPublicKey,
+          );
+          if (connectedWallet) {
+            if (connectedWallet.isPrimary && connectedWallet.isVerified) {
+              currentStatus = 'ok';
+            } else if (connectedWallet.isPrimary) {
+              currentStatus = 'not_verified';
+            } else {
+              currentStatus = fetchedWallets.some((w: WalletResponse) => w.isPrimary)
+                ? 'no_primary'
+                : 'no_wallet';
+            }
+          }
+        }
+        setSenderWalletStatus(currentStatus);
+        if (currentStatus !== 'ok') {
+          let reasonText = 'Connect wallet to tip.';
+          if (currentStatus === 'no_wallet')
+            reasonText = 'Connect a wallet linked to your account and set it as primary.';
+          else if (currentStatus === 'no_primary')
+            reasonText = 'Connect & set your primary wallet.';
+          else if (currentStatus === 'not_verified')
+            reasonText = 'Verify your primary wallet first.';
+          setError(reasonText);
+        } else {
+          fetchBalanceAndPrice();
+        }
+      })
+      .catch(() => {
+        setSenderWalletStatus('no_wallet');
+        setError('Could not check your wallet status.');
+        setStep('error');
+      })
+      .finally(() => setIsLoadingWallets(false));
+
+    const fetchBalanceAndPrice = async () => {
       if (!user || !publicKey || !connection) {
         setUserBalance(null);
         setDyorhubPrice(null);
         return;
       }
-
       setIsBalanceLoading(true);
       users
         .getMyDyorhubBalance()
-        .then((data) => {
-          setUserBalance(data.balance);
-        })
-        .catch(() => {
-          setUserBalance(null);
-        })
+        .then((data) => setUserBalance(data.balance))
+        .catch(() => setUserBalance(null))
         .finally(() => setIsBalanceLoading(false));
-
       setIsPriceLoading(true);
       tokens
         .getCurrentTokenPrice(CONTRACT_ADDRESS)
-        .then((data) => {
-          setDyorhubPrice(data?.price ?? null);
-        })
-        .catch(() => {
-          setDyorhubPrice(null);
-        })
+        .then((data) => setDyorhubPrice(data?.price ?? null))
+        .catch(() => setDyorhubPrice(null))
         .finally(() => setIsPriceLoading(false));
     };
-
-    fetchData();
-  }, [isOpen, user, publicKey, connection, eligibilityResult]);
+  }, [isOpen, user, publicKey, connection, eligibilityResult, recipientUserId]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -144,8 +183,7 @@ export const TipModal = ({
   };
 
   const handleSendTip = async () => {
-    const recipientAddressFromProps = eligibilityResult?.recipientAddress;
-    if (!publicKey || !recipientPublicKey || !wallet || !recipientAddressFromProps) {
+    if (!publicKey || !recipientPublicKey || !wallet || !eligibilityResult?.recipientAddress) {
       setError('Wallet not connected or recipient address is missing.');
       return;
     }
@@ -309,7 +347,8 @@ export const TipModal = ({
   }, [isOpen]);
 
   const renderContent = () => {
-    if (!initialCheckDone && step !== 'error') {
+    const isLoadingChecks = isLoadingWallets;
+    if (isLoadingChecks && step !== 'error') {
       return (
         <div className='flex flex-col items-center justify-center py-12 text-center'>
           <div className='relative w-16 h-16 mb-5'>
@@ -318,8 +357,8 @@ export const TipModal = ({
               <Loader2 className='h-8 w-8 text-amber-500 animate-spin' />
             </div>
           </div>
-          <p className='font-medium text-lg text-zinc-100'>Checking Eligibility</p>
-          <p className='text-zinc-400 text-sm mt-1'>Verifying user wallet information...</p>
+          <p className='font-medium text-lg text-zinc-100'>Checking Status</p>
+          <p className='text-zinc-400 text-sm mt-1'>Verifying wallet status...</p>
         </div>
       );
     }
@@ -383,7 +422,6 @@ export const TipModal = ({
           </div>
         );
       case 'error':
-        // Check if this is a "cannot receive tips" error
         const isCannotReceiveTipsError =
           error?.includes('cannot receive tips') ||
           error?.includes('wallet might not be public or verified');
@@ -418,44 +456,174 @@ export const TipModal = ({
           );
         }
 
-        // For other errors, show the regular error state
-        return (
-          <div className='flex flex-col items-center justify-center py-10 text-center'>
-            <div className='relative w-16 h-16 mb-5'>
-              <div className='absolute inset-0 bg-red-500/20 rounded-full'></div>
-              <div className='absolute inset-1 bg-black rounded-full flex items-center justify-center border border-red-500/50'>
-                <XCircle className='h-8 w-8 text-red-500' />
-              </div>
-            </div>
-            <p className='font-medium text-lg text-zinc-100'>Tip Failed</p>
-            <div className='mt-4 bg-black border border-red-500/30 rounded-lg p-4 max-w-sm'>
-              <div className='flex items-start gap-2'>
-                <AlertCircle className='h-5 w-5 text-red-400 flex-shrink-0 mt-0.5' />
-                <p className='text-sm text-red-300 text-left break-all'>
-                  {error || 'An unknown error occurred.'}
-                </p>
-              </div>
-            </div>
-            <div className='flex gap-3 mt-6'>
-              <Button
-                onClick={() => {
-                  setStep('input');
-                  setError(null);
-                }}
-                variant='outline'
-                size='sm'
-                className='border-zinc-700 bg-black hover:bg-zinc-900 hover:text-white'>
-                Try Again
-              </Button>
+        if (!eligibilityResult?.isEligible && error?.includes('eligible')) {
+          return (
+            <div className='flex flex-col items-center justify-center py-10 text-center'>
+              <XCircle className='h-12 w-12 text-red-500 mb-4' />
+              <p className='font-medium text-lg text-zinc-100'>Cannot Tip User</p>
+              <p className='text-sm text-red-400 mt-1 break-all'>{error}</p>
               <Button
                 onClick={() => onOpenChange(false)}
                 variant='secondary'
                 size='sm'
-                className='bg-black hover:bg-zinc-900 text-white border border-zinc-700'>
+                className='mt-6'>
                 Close
               </Button>
             </div>
-          </div>
+          );
+        }
+
+        if (senderWalletStatus !== 'ok' && error?.includes('wallet')) {
+          return (
+            <div className='flex flex-col items-center gap-4 py-6'>
+              <div className='flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/20 text-amber-500'>
+                <AlertCircle className='w-6 h-6' />
+              </div>
+              <div className='text-center'>
+                <h3 className='font-semibold mb-2'>Wallet Setup Required</h3>
+                <p className='text-sm text-gray-300 mb-4'>
+                  {error || 'You need to set up your wallet to send tips.'}
+                </p>
+              </div>
+              <div className='flex space-x-3 mt-2'>
+                <Button
+                  onClick={() => onOpenChange(false)}
+                  variant='outline'
+                  size='sm'
+                  className='border-zinc-800 bg-black hover:bg-zinc-900 text-zinc-300'>
+                  Close
+                </Button>
+                <Button
+                  onClick={() => (window.location.href = '/account/wallet')}
+                  variant='secondary'
+                  size='sm'
+                  className='bg-amber-500 hover:bg-amber-600 text-black font-medium'>
+                  Wallet Settings
+                </Button>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <>
+            <DialogHeader className='pb-4 border-b border-zinc-800'>
+              <div className='flex items-center'>
+                <div className='w-8 h-8 rounded-full bg-black flex items-center justify-center mr-2 border border-amber-500/50'>
+                  <Coins className='h-4 w-4 text-amber-500' />
+                </div>
+                <div>
+                  <DialogTitle className='text-zinc-100'>
+                    Tip{' '}
+                    {recipientUsername ||
+                      eligibilityResult?.recipientAddress?.substring(0, 6) + '...'}
+                  </DialogTitle>
+                  <DialogDescription className='text-zinc-400 mt-0.5'>
+                    Send tokens to show appreciation
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className='py-6 px-1'>
+              <div className='mb-6'>
+                <Label htmlFor='amount' className='text-zinc-300 mb-2 block'>
+                  Amount to Send
+                </Label>
+                <div className='relative'>
+                  <Input
+                    id='amount'
+                    type='text'
+                    inputMode='decimal'
+                    value={amount}
+                    onChange={handleAmountChange}
+                    placeholder='0.00'
+                    className='bg-black border-zinc-800 focus-visible:ring-amber-500 text-lg pl-4 pr-24 py-4 h-auto'
+                    disabled={isSending}
+                  />
+                  <div className='absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1 pointer-events-none'>
+                    <span className='font-medium text-amber-500'>{DYORHUB_SYMBOL}</span>
+                  </div>
+                </div>
+
+                <div className='mt-2 flex items-center justify-between text-sm'>
+                  <div className='text-zinc-500'>
+                    {isPriceLoading ? (
+                      <span className='flex items-center gap-1'>
+                        <Loader2 className='h-3 w-3 animate-spin' /> Loading price...
+                      </span>
+                    ) : usdValue !== null ? (
+                      <span className='text-zinc-400'>≈ {formatPrice(usdValue)} USD</span>
+                    ) : numericAmountValue > 0 ? (
+                      <span className='text-amber-500'>Could not load price</span>
+                    ) : (
+                      ''
+                    )}
+                  </div>
+
+                  <div className='text-zinc-400'>
+                    {isBalanceLoading ? (
+                      <span className='flex items-center gap-1'>
+                        <Loader2 className='h-3 w-3 animate-spin' /> Loading balance...
+                      </span>
+                    ) : typeof userBalance === 'number' ? (
+                      <span>
+                        Balance: {userBalance.toLocaleString()} {DYORHUB_SYMBOL}
+                      </span>
+                    ) : (
+                      <span className='text-amber-500'>Could not load balance</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className='mb-4'>
+                <Label className='text-zinc-500 text-xs block mb-2'>Quick Amounts</Label>
+                <div className='grid grid-cols-4 gap-2'>
+                  {[10000, 20000, 50000, 100000].map((quickAmount) => (
+                    <Button
+                      key={quickAmount}
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      className={`border border-zinc-800 hover:bg-zinc-900 hover:border-amber-700 ${
+                        parseFloat(amount) === quickAmount
+                          ? 'bg-black border-amber-700 text-amber-500'
+                          : 'bg-black text-zinc-300'
+                      }`}
+                      onClick={() => setAmount(quickAmount.toString())}>
+                      {quickAmount.toLocaleString()}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {error && (
+                <div className='bg-black border border-red-500/30 rounded-md p-3 mb-4'>
+                  <div className='flex items-start gap-2'>
+                    <AlertCircle className='h-5 w-5 text-red-400 flex-shrink-0 mt-0.5' />
+                    <p className='text-sm text-red-300'>{error}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter className='border-t border-zinc-800 pt-4 gap-3'>
+              <DialogClose asChild>
+                <Button
+                  type='button'
+                  variant='outline'
+                  className='flex-1 border-zinc-800 bg-black hover:bg-zinc-900 text-zinc-300'>
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button
+                type='submit'
+                onClick={handleSendTip}
+                disabled={isSending || !amount || !publicKey}
+                className='flex-1 bg-black hover:bg-zinc-900 text-amber-500 border border-amber-700'>
+                <Send className='mr-2 h-4 w-4' /> Send Tip
+              </Button>
+            </DialogFooter>
+          </>
         );
       case 'input':
       default:
@@ -485,6 +653,39 @@ export const TipModal = ({
                 className='mt-6 bg-black hover:bg-zinc-900 text-white border border-zinc-700 px-6'>
                 Close
               </Button>
+            </div>
+          );
+        }
+
+        // Check wallet status in input state and show warning
+        if (senderWalletStatus !== 'ok') {
+          return (
+            <div className='flex flex-col items-center gap-4 py-6'>
+              <div className='flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/20 text-amber-500'>
+                <AlertCircle className='w-6 h-6' />
+              </div>
+              <div className='text-center'>
+                <h3 className='font-semibold mb-2'>Wallet Setup Required</h3>
+                <p className='text-sm text-gray-300 mb-4'>
+                  {error || 'You need to set up your wallet to send tips.'}
+                </p>
+              </div>
+              <div className='flex space-x-3 mt-2'>
+                <Button
+                  onClick={() => onOpenChange(false)}
+                  variant='outline'
+                  size='sm'
+                  className='border-zinc-800 bg-black hover:bg-zinc-900 text-zinc-300'>
+                  Close
+                </Button>
+                <Button
+                  onClick={() => (window.location.href = '/account/wallet')}
+                  variant='secondary'
+                  size='sm'
+                  className='bg-amber-500 hover:bg-amber-600 text-black font-medium'>
+                  Wallet Settings
+                </Button>
+              </div>
             </div>
           );
         }
@@ -559,7 +760,6 @@ export const TipModal = ({
                 </div>
               </div>
 
-              {/* Quick amount buttons */}
               <div className='mb-4'>
                 <Label className='text-zinc-500 text-xs block mb-2'>Quick Amounts</Label>
                 <div className='grid grid-cols-4 gap-2'>
