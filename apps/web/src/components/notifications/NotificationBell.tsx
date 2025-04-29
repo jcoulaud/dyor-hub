@@ -129,16 +129,6 @@ export function NotificationBell() {
       },
     );
 
-    socket.on('connect', () => {
-      console.log(
-        'WebSocket connected (using cookie credentials). Fetching initial notifications...',
-      );
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('Disconnected from Notifications WebSocket:', reason);
-    });
-
     socket.on('connect_error', (error) => {
       console.error('WebSocket Connection Error:', error);
     });
@@ -317,6 +307,23 @@ export function NotificationBell() {
         return notification.relatedEntityId
           ? `/token-calls/${notification.relatedEntityId}`
           : '/token-calls';
+
+      case NotificationType.TIP_RECEIVED:
+        const tipMetadata = notification.relatedMetadata;
+        if (
+          tipMetadata?.contentType === 'comment' &&
+          tipMetadata.tokenMintAddress &&
+          notification.relatedEntityId
+        ) {
+          return `/tokens/${tipMetadata.tokenMintAddress}/comments/${notification.relatedEntityId}`;
+        } else if (tipMetadata?.contentType === 'call' && notification.relatedEntityId) {
+          return `/token-calls/${notification.relatedEntityId}`;
+        } else if (tipMetadata?.contentType === 'profile' && tipMetadata.senderUsername) {
+          return `/users/${tipMetadata.senderUsername}`;
+        } else if (tipMetadata?.contentType === 'profile') {
+          return '/';
+        }
+        return '/';
 
       default:
         return '/';

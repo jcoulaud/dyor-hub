@@ -6,6 +6,7 @@ export * from './notification';
 export * from './referral';
 export * from './reputation';
 export * from './streak';
+export * from './tip';
 export * from './token';
 export * from './token-call';
 export * from './user';

@@ -38,6 +38,7 @@
     "@nestjs/terminus": "^11.0.0",
     "@nestjs/typeorm": "^10.0.2",
     "@nestjs/websockets": "^11.0.13",
+    "@solana/spl-token": "^0.4.13",
     "@solana/web3.js": "^1.98.0",
     "@types/cookie": "^1.0.0",
     "@types/cookie-parser": "^1.4.8",

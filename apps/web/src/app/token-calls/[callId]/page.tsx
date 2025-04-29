@@ -27,6 +27,7 @@ import {
   YAxis,
 } from 'recharts';
 
+import { TipButton } from '@/components/tipping/TipButton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -73,7 +74,7 @@ const STATUS_CONFIG: Record<TokenCallStatus, StatusConfig> = {
 export default function TokenCallDetailPage() {
   const params = useParams();
   const callId = params?.callId as string;
-  const { user: currentUser, isAuthenticated } = useAuthContext();
+  const { user: loggedInUser, isAuthenticated } = useAuthContext();
   const { toast } = useToast();
 
   const [tokenCall, setTokenCall] = useState<TokenCall | null>(null);
@@ -175,7 +176,7 @@ export default function TokenCallDetailPage() {
     const tokenAddress = tokenCall.token?.mintAddress || '';
 
     // Check if this is the current user's prediction
-    const isOwnPrediction = isAuthenticated && currentUser?.id === tokenCall.user?.id;
+    const isOwnPrediction = isAuthenticated && loggedInUser?.id === tokenCall.user?.id;
 
     // Check if target date is in the past
     const isTargetDatePassed = tokenCall.targetDate
@@ -255,6 +256,17 @@ export default function TokenCallDetailPage() {
               <UserProfile user={user} />
             </div>
             <div className='flex items-center gap-2'>
+              {loggedInUser && user && loggedInUser.id !== user.id && (
+                <TipButton
+                  recipientUserId={user.id}
+                  recipientUsername={user.displayName}
+                  contentType='call'
+                  contentId={callId}
+                  size='sm'
+                  variant='default'
+                  className='h-8 gap-1.5 px-3 cursor-pointer bg-zinc-800/70 hover:bg-zinc-800 border border-zinc-700/40 rounded-md'
+                />
+              )}
               <Button
                 variant='ghost'
                 size='sm'
@@ -780,7 +792,11 @@ export default function TokenCallDetailPage() {
   );
 }
 
-function UserProfile({ user }: { user?: TokenCall['user'] }) {
+interface UserProfileProps {
+  user?: TokenCall['user'];
+}
+
+function UserProfile({ user }: UserProfileProps) {
   if (!user) return <div className='h-12'>Unknown User</div>;
 
   return (

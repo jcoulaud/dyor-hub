@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { format, parseISO } from 'date-fns';
 import numbro from 'numbro';
 import { Repository } from 'typeorm';
+import { DYORHUB_SYMBOL } from '../common/constants';
 import { CommentEntity, TokenCallEntity } from '../entities';
 import { sanitizeHtml } from '../utils/utils';
 import { NotificationsService } from './notifications.service';
@@ -405,5 +406,84 @@ export class NotificationEventsService {
         tokenSymbol: tokenSymbol,
       },
     );
+  }
+
+  @OnEvent(NotificationEventType.TIP_RECEIVED)
+  async handleTipReceived(payload: {
+    recipientUserId: string;
+    senderUserId: string;
+    senderDisplayName: string;
+    amount: number;
+    contentType?: 'comment' | 'profile' | 'call' | null;
+    contentId?: string | null;
+    tipId: string;
+  }) {
+    try {
+      const displayAmount = payload.amount / Math.pow(10, 6);
+      const formattedAmount = numbro(displayAmount).format({
+        thousandSeparated: true,
+        mantissa: 2,
+      });
+
+      const senderName = sanitizeHtml(payload.senderDisplayName);
+      let message = `${senderName} sent you ${formattedAmount} ${DYORHUB_SYMBOL}!`;
+      let entityType: string | undefined = undefined;
+      let entityId: string | undefined = undefined;
+      const metadata: Record<string, any> = {
+        senderId: payload.senderUserId,
+        senderDisplayName: senderName,
+        amount: payload.amount,
+        tipId: payload.tipId,
+      };
+
+      if (payload.contentType && payload.contentId) {
+        entityType = payload.contentType;
+        entityId = payload.contentId;
+        metadata.contentType = payload.contentType;
+        metadata.contentId = payload.contentId;
+        if (payload.contentType === 'comment') {
+          message = `${senderName} tipped ${formattedAmount} ${DYORHUB_SYMBOL} on your comment!`;
+          const comment = await this.commentRepository.findOne({
+            where: { id: payload.contentId },
+            relations: ['token'],
+          });
+          if (comment?.tokenMintAddress) {
+            metadata.tokenMintAddress = comment.tokenMintAddress;
+          } else {
+            this.logger.warn(
+              `Could not find tokenMintAddress for comment ${payload.contentId} when handling tip notification.`,
+            );
+          }
+          if (comment?.token?.symbol)
+            metadata.tokenSymbol = comment.token.symbol;
+        } else if (payload.contentType === 'call') {
+          message = `${senderName} tipped ${formattedAmount} ${DYORHUB_SYMBOL} on your prediction!`;
+          const call = await this.tokenCallRepository.findOne({
+            where: { id: payload.contentId },
+            relations: ['token'],
+          });
+          if (call?.tokenId) metadata.tokenMintAddress = call.tokenId;
+          if (call?.token?.symbol) metadata.tokenSymbol = call.token.symbol;
+        } else if (payload.contentType === 'profile') {
+          message = `${senderName} sent you a ${formattedAmount} ${DYORHUB_SYMBOL} tip directly!`;
+          entityType = 'user';
+          entityId = payload.senderUserId;
+        }
+      }
+
+      await this.createAndEmitNotification(
+        payload.recipientUserId,
+        NotificationType.TIP_RECEIVED,
+        message,
+        entityId,
+        entityType,
+        metadata,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error handling tip received event: ${error.message}`,
+        error.stack,
+      );
+    }
   }
 }

@@ -3,12 +3,14 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentUser } from '../auth/current-user.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { DYORHUB_CONTRACT_ADDRESS } from '../common/constants';
 import { UserEntity } from '../entities/user.entity';
 import { ConnectWalletDto } from './dto/connect-wallet.dto';
 import { GenerateNonceDto } from './dto/generate-nonce.dto';
@@ -45,6 +47,27 @@ export class WalletsPublicController {
 @UseGuards(JwtAuthGuard)
 export class WalletsController {
   constructor(private readonly walletsService: WalletsService) {}
+
+  @Get('me/dyorhub-balance')
+  async getMyDyorhubBalance(
+    @CurrentUser() user: UserEntity,
+  ): Promise<{ balance: number }> {
+    const primaryWallet = await this.walletsService.getUserPrimaryWallet(
+      user.id,
+    );
+    if (!primaryWallet) {
+      throw new NotFoundException(
+        'Primary verified wallet not found for user.',
+      );
+    }
+    const balance = await this.walletsService.getSplTokenBalance(
+      primaryWallet.address,
+      DYORHUB_CONTRACT_ADDRESS,
+    );
+    const numericBalance =
+      typeof balance === 'bigint' ? Number(balance) : Number(balance);
+    return { balance: numericBalance };
+  }
 
   @Post('connect')
   async connectWallet(

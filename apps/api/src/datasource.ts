@@ -27,6 +27,7 @@ import {
   WatchlistFolderEntity,
 } from './entities';
 import { Referral } from './entities/referral.entity';
+import { Tip } from './entities/tip.entity';
 
 config(); // Load .env file
 
@@ -68,6 +69,7 @@ export const dataSourceOptions: DataSourceOptions = {
     UserTokenCallStreakEntity,
     UserFollows,
     Referral,
+    Tip,
   ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',

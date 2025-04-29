@@ -32,6 +32,7 @@
     "@radix-ui/react-toast": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.2.0",
     "@sentry/nextjs": "^9.10.1",
+    "@solana/spl-token": "^0.4.13",
     "@solana/wallet-adapter-base": "^0.9.24",
     "@solana/wallet-adapter-coinbase": "^0.1.21",
     "@solana/wallet-adapter-ledger": "^0.9.27",

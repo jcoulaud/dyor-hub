@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { notifications } from '@/lib/api';
+import { DYORHUB_SYMBOL } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { NotificationType } from '@dyor-hub/types';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -71,13 +72,18 @@ const notificationTypes = [
     description: 'Get notified when someone uses your referral code',
   },
   {
-    id: 'followed_user_activity',
+    type: NotificationType.FOLLOWED_USER_PREDICTION,
     label: 'Followed User Activity',
     description:
       'Notifications for predictions, comments, or votes from users you follow. Individual profile notifications settings override this.',
   },
   {
-    id: NotificationType.SYSTEM,
+    type: NotificationType.TIP_RECEIVED,
+    label: 'Tips Received',
+    description: `Get notified when another user sends you a ${DYORHUB_SYMBOL} tip.`,
+  },
+  {
+    type: NotificationType.SYSTEM,
     label: 'System Notifications',
     description: 'Important system-wide notifications',
   },
@@ -115,13 +121,19 @@ export default function NotificationSettingsPage() {
 
   const form = useForm<NotificationPreferencesFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: notificationTypes.reduce(
-      (acc, type) => ({
-        ...acc,
-        [type.id]: { inApp: true, email: false, telegram: false },
-      }),
-      {} as NotificationPreferencesFormValues,
-    ),
+    defaultValues: notificationTypes
+      .filter(
+        (nt) =>
+          typeof nt.type === 'string' &&
+          Object.values(NotificationType).includes(nt.type as NotificationType),
+      )
+      .reduce(
+        (acc, type) => ({
+          ...acc,
+          [type.type as NotificationType]: { inApp: true, email: false, telegram: false },
+        }),
+        {} as NotificationPreferencesFormValues,
+      ),
   });
 
   const fetchPreferences = useCallback(async () => {
@@ -481,7 +493,7 @@ export default function NotificationSettingsPage() {
                     <div className='flex-1 pr-0 sm:pr-4 w-full sm:w-auto'>
                       <div className='font-medium text-white'>{type.label}</div>
                       <div className='text-xs text-zinc-400 mt-0.5'>{type.description}</div>
-                      {type.id === NotificationType.SYSTEM && (
+                      {type.type === NotificationType.SYSTEM && (
                         <div className='text-[10px] mt-1 text-amber-400 flex items-center'>
                           <Info className='h-3 w-3 mr-1' />
                           System notifications cannot be disabled
@@ -492,18 +504,24 @@ export default function NotificationSettingsPage() {
                       <FormField
                         control={form.control}
                         name={
-                          type.id === 'followed_user_activity'
+                          type.type === NotificationType.FOLLOWED_USER_PREDICTION &&
+                          type.label === 'Followed User Activity'
                             ? `${NotificationType.FOLLOWED_USER_PREDICTION}.inApp`
-                            : `${type.id}.inApp`
+                            : `${type.type}.inApp`
                         }
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
                               <div className='flex items-center justify-center w-16'>
                                 <Switch
-                                  checked={type.id === NotificationType.SYSTEM ? true : field.value}
+                                  checked={
+                                    type.type === NotificationType.SYSTEM ? true : field.value
+                                  }
                                   onCheckedChange={(checked) => {
-                                    if (type.id === 'followed_user_activity') {
+                                    if (
+                                      type.type === NotificationType.FOLLOWED_USER_PREDICTION &&
+                                      type.label === 'Followed User Activity'
+                                    ) {
                                       form.setValue(
                                         `${NotificationType.FOLLOWED_USER_PREDICTION}.inApp`,
                                         checked,
@@ -520,9 +538,9 @@ export default function NotificationSettingsPage() {
                                       field.onChange(checked);
                                     }
                                   }}
-                                  disabled={type.id === NotificationType.SYSTEM}
+                                  disabled={type.type === NotificationType.SYSTEM}
                                   className={
-                                    type.id === NotificationType.SYSTEM
+                                    type.type === NotificationType.SYSTEM
                                       ? 'disabled:opacity-50'
                                       : 'data-[state=checked]:bg-sky-600'
                                   }
@@ -536,9 +554,10 @@ export default function NotificationSettingsPage() {
                       <FormField
                         control={form.control}
                         name={
-                          type.id === 'followed_user_activity'
+                          type.type === NotificationType.FOLLOWED_USER_PREDICTION &&
+                          type.label === 'Followed User Activity'
                             ? `${NotificationType.FOLLOWED_USER_PREDICTION}.telegram`
-                            : `${type.id}.telegram`
+                            : `${type.type}.telegram`
                         }
                         render={({ field }) => (
                           <FormItem>
@@ -548,12 +567,15 @@ export default function NotificationSettingsPage() {
                                   checked={
                                     !telegramStatus?.isConnected
                                       ? false
-                                      : type.id === NotificationType.SYSTEM
+                                      : type.type === NotificationType.SYSTEM
                                         ? true
                                         : field.value
                                   }
                                   onCheckedChange={(checked) => {
-                                    if (type.id === 'followed_user_activity') {
+                                    if (
+                                      type.type === NotificationType.FOLLOWED_USER_PREDICTION &&
+                                      type.label === 'Followed User Activity'
+                                    ) {
                                       const relatedTypes = [
                                         NotificationType.FOLLOWED_USER_PREDICTION,
                                         NotificationType.FOLLOWED_USER_COMMENT,
@@ -570,7 +592,7 @@ export default function NotificationSettingsPage() {
                                   }}
                                   disabled={
                                     !telegramStatus?.isConnected ||
-                                    type.id === NotificationType.SYSTEM
+                                    type.type === NotificationType.SYSTEM
                                   }
                                   className={
                                     !telegramStatus?.isConnected ||

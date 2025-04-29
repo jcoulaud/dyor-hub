@@ -9,6 +9,7 @@ import {
   CreateCommentDto,
   CreateTokenCallInput,
   FeedActivity,
+  GetTippingEligibilityResponseDto,
   LeaderboardEntry,
   LeaderboardResponse,
   NotificationPreference,
@@ -19,12 +20,14 @@ import {
   PaginatedTokenCallsResult,
   PaginatedTokensResponse,
   ProcessedBundleData,
+  RecordTipRequestDto,
   Referral,
   ReferralLeaderboardEntry,
   SentimentType,
   StreakMilestone,
   StreakMilestonesResponse,
   StreakOverview,
+  TipRecordResponse,
   Token,
   TokenCall,
   TokenCallStatus,
@@ -61,7 +64,7 @@ interface PriceHistoryResponse {
 }
 
 // Use configured API URL for cross-domain requests
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3001';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3001';
 
 // Define additional cache TTLs
 // (Removed unused TTL constants)
@@ -69,7 +72,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3001'
 type TokenWithWatchlistStatus = Token & { isWatchlisted?: boolean };
 // type TokenListItem = Token; // Removed unused type alias
 
-const isApiSubdomain = (() => {
+export const isApiSubdomain = (() => {
   try {
     const url = new URL(API_BASE_URL);
     return url.hostname.startsWith('api.');
@@ -1134,6 +1137,18 @@ export const users = {
       throw new ApiError(500, 'Failed to update preferences');
     }
   },
+
+  getMyDyorhubBalance: async (): Promise<{ balance: number }> => {
+    try {
+      const endpoint = 'wallets/me/dyorhub-balance';
+      const data = await api<{ balance: number }>(endpoint);
+      return data;
+    } catch (error) {
+      console.error('[getMyDyorhubBalance] Error fetching balance:', error);
+
+      return { balance: 0 };
+    }
+  },
 };
 
 export const watchlist = {
@@ -2050,6 +2065,24 @@ export const feed = {
     } catch (error) {
       console.error('[getFollowingFeed] Error fetching following feed:', error);
       throw error;
+    }
+  },
+};
+
+export const tipping = {
+  getEligibility: async (userId: string): Promise<GetTippingEligibilityResponseDto> => {
+    const endpoint = `tipping/eligibility/${userId}`;
+    return api<GetTippingEligibilityResponseDto>(endpoint);
+  },
+
+  recordTip: async (data: RecordTipRequestDto): Promise<{ success: boolean; tipId?: string }> => {
+    const endpoint = 'tipping/record';
+    try {
+      const response = await api<TipRecordResponse>(endpoint, { method: 'POST', body: data });
+      return { success: !!response?.id, tipId: response?.id };
+    } catch (error) {
+      console.error('Error recording tip:', error);
+      return { success: false };
     }
   },
 };
