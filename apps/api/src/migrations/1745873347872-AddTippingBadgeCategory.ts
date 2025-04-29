@@ -5,11 +5,11 @@ export class AddTippingBadgeCategory1745873347872
 {
   name = 'AddTippingBadgeCategory1745873347872';
 
-  // Define enum values for clarity and reuse (using lowercase)
+  // Define enum values including 'ranking'
   private oldBadgeCategories =
-    "('streak', 'content', 'engagement', 'voting', 'reception', 'quality')";
+    "('streak', 'content', 'engagement', 'voting', 'reception', 'quality', 'ranking')";
   private newBadgeCategories =
-    "('streak', 'content', 'engagement', 'voting', 'reception', 'quality', 'tipping')";
+    "('streak', 'content', 'engagement', 'voting', 'reception', 'quality', 'ranking', 'tipping')";
   private tipContentTypes = "('comment', 'profile', 'call')";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -122,7 +122,7 @@ export class AddTippingBadgeCategory1745873347872
     );
 
     // ---- Step 1: Revert badges_category_enum ----
-    // 1d. Create old enum version (without tipping)
+    // 1d. Create old enum version (including ranking, without tipping)
     await queryRunner.query(
       `CREATE TYPE "public"."badges_category_enum_old" AS ENUM${this.oldBadgeCategories}`,
     );
