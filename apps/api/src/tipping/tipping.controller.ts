@@ -1,3 +1,4 @@
+import { PaginatedResult, Tip } from '@dyor-hub/types';
 import {
   Body,
   Controller,
@@ -7,14 +8,16 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Tip } from '../entities/tip.entity';
+import { Tip as TipEntity } from '../entities/tip.entity';
 import { UserEntity } from '../entities/user.entity';
 import { GetTippingEligibilityResponseDto } from './dto/get-tipping-eligibility-response.dto';
 import { RecordTipRequestDto } from './dto/record-tip-request.dto';
+import { TipPaginationQueryDto } from './dto/tip-pagination-query.dto';
 import { TippingService } from './tipping.service';
 
 @Controller('tipping')
@@ -34,8 +37,18 @@ export class TippingController {
   async recordTip(
     @CurrentUser() user: UserEntity,
     @Body() recordTipDto: RecordTipRequestDto,
-  ): Promise<Tip> {
+  ): Promise<TipEntity> {
     const senderUserId = user.id;
     return this.tippingService.recordTip(senderUserId, recordTipDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async getUserTips(
+    @CurrentUser() user: UserEntity,
+    @Query() query: TipPaginationQueryDto,
+  ): Promise<PaginatedResult<Tip>> {
+    const userId = user.id;
+    return this.tippingService.findUserTips(userId, query);
   }
 }

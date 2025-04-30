@@ -840,8 +840,13 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
                             ? 'call'
                             : 'comment'
                         }
-                        contentId={comment.id}
-                        variant='footer'
+                        contentId={
+                          comment.type === LocalCommentType.TOKEN_CALL_EXPLANATION &&
+                          comment.tokenCallId
+                            ? comment.tokenCallId
+                            : comment.id
+                        }
+                        variant={'footer'}
                       />
                     )}
                     {/* Admin/Delete Options */}

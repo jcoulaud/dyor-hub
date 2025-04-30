@@ -1,4 +1,4 @@
-import { NotificationEventType } from '@dyor-hub/types';
+import { NotificationEventType, PaginatedResult, Tip } from '@dyor-hub/types';
 import {
   BadRequestException,
   Injectable,
@@ -17,23 +17,26 @@ import {
   ParsedTransactionWithMeta,
   PublicKey,
 } from '@solana/web3.js';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { DYORHUB_CONTRACT_ADDRESS } from '../common/constants';
 import { BadgeEntity } from '../entities/badge.entity';
-import { Tip } from '../entities/tip.entity';
+import { CommentEntity } from '../entities/comment.entity';
+import { Tip as TipEntity } from '../entities/tip.entity';
 import { UserBadgeEntity } from '../entities/user-badge.entity';
 import { UserEntity } from '../entities/user.entity';
 import { WalletEntity } from '../entities/wallet.entity';
 import { SolanaRpcService } from '../solana/solana-rpc.service';
 import { GetTippingEligibilityResponseDto } from './dto/get-tipping-eligibility-response.dto';
 import { RecordTipRequestDto } from './dto/record-tip-request.dto';
+import { TipPaginationQueryDto } from './dto/tip-pagination-query.dto';
 
 @Injectable()
 export class TippingService {
   private readonly logger = new Logger(TippingService.name);
 
   constructor(
-    @InjectRepository(Tip) private readonly tipRepository: Repository<Tip>,
+    @InjectRepository(TipEntity)
+    private readonly tipRepository: Repository<TipEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(WalletEntity)
@@ -42,6 +45,8 @@ export class TippingService {
     private readonly userBadgeRepository: Repository<UserBadgeEntity>,
     @InjectRepository(BadgeEntity)
     private readonly badgeRepository: Repository<BadgeEntity>,
+    @InjectRepository(CommentEntity)
+    private readonly commentRepository: Repository<CommentEntity>,
     private readonly solanaRpcService: SolanaRpcService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -70,7 +75,7 @@ export class TippingService {
   async recordTip(
     senderUserId: string,
     dto: RecordTipRequestDto,
-  ): Promise<Tip> {
+  ): Promise<TipEntity> {
     // 1. Fetch Sender and Recipient primary wallets
     const [senderWallet, recipientWallet] = await Promise.all([
       this.findPrimaryVerifiedWallet(senderUserId, 'Sender'),
@@ -186,6 +191,96 @@ export class TippingService {
         this.logger.error(`Failed to save tip: ${error.message}`, error.stack);
         throw new InternalServerErrorException('Failed to record tip.');
       }
+    }
+  }
+
+  async findUserTips(
+    userId: string,
+    query: TipPaginationQueryDto,
+  ): Promise<PaginatedResult<Tip>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    try {
+      // 1. Get the tips with sender and recipient info
+      const [tipEntities, total] = await this.tipRepository.findAndCount({
+        where: [{ senderId: userId }, { recipientId: userId }],
+        order: { createdAt: 'DESC' },
+        take: limit,
+        skip: skip,
+        relations: {
+          sender: true,
+          recipient: true,
+        },
+      });
+
+      // 2. Get all comment IDs that we need to fetch token info for
+      const commentContentIds = tipEntities
+        .filter((tip) => tip.contentType === 'comment' && tip.contentId)
+        .map((tip) => tip.contentId!);
+
+      // 3. If there are comment tips, fetch the related token IDs
+      const commentTokenMap: Record<string, string> = {};
+
+      if (commentContentIds.length > 0) {
+        const commentEntities = await this.commentRepository.find({
+          where: { id: In(commentContentIds) },
+          select: ['id', 'tokenMintAddress'],
+        });
+
+        // Create a map of comment ID to token mint address
+        commentEntities.forEach((comment) => {
+          commentTokenMap[comment.id] = comment.tokenMintAddress;
+        });
+      }
+
+      // 4. Map to the API response type
+      const data: Tip[] = tipEntities.map((entity) => {
+        const isGiven = entity.senderId === userId;
+
+        let tokenId: string | undefined = undefined;
+        if (entity.contentType === 'comment' && entity.contentId) {
+          tokenId = commentTokenMap[entity.contentId];
+        }
+
+        return {
+          id: entity.id,
+          userId: userId,
+          type: isGiven ? 'Given' : 'Received',
+          senderDisplayName:
+            entity.sender?.displayName || entity.senderWalletAddress,
+          senderUsername: entity.sender?.username,
+          recipientDisplayName:
+            entity.recipient?.displayName || entity.recipientWalletAddress,
+          recipientUsername: entity.recipient?.username,
+          amount: entity.amount,
+          timestamp: entity.createdAt,
+          transactionHash: entity.transactionSignature,
+          context: entity.contentId
+            ? `${entity.contentType}/${entity.contentId}`
+            : undefined,
+          tokenId: tokenId,
+        };
+      });
+
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch tips for user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException('Failed to fetch tip history.');
     }
   }
 
