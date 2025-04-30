@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { BadgeEntity } from '../entities/badge.entity';
+import { CommentEntity } from '../entities/comment.entity';
 import { Tip } from '../entities/tip.entity';
 import { UserBadgeEntity } from '../entities/user-badge.entity';
 import { UserEntity } from '../entities/user.entity';
@@ -18,6 +19,7 @@ import { TippingService } from './tipping.service';
       WalletEntity,
       UserBadgeEntity,
       BadgeEntity,
+      CommentEntity,
     ]),
     AuthModule,
     SolanaModule,

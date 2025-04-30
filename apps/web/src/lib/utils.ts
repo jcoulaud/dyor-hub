@@ -148,16 +148,19 @@ const formatLargeNumber = (num: string | number | undefined | null): string => {
 export { formatLargeNumber };
 
 export const formatPrice = (price: number | string | undefined | null): string => {
-  if (price === null || price === undefined) return '0.00'; // Handle null/undefined
+  if (price === null || price === undefined) return '0'; // Handle null/undefined
   const num = typeof price === 'string' ? Number(price) : price;
   if (isNaN(num)) {
-    return '0.00';
+    return '0';
   }
 
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
+  // Format the number with up to 6 decimal places
+  const formatted = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
     maximumFractionDigits: 6,
   }).format(num);
+
+  return formatted;
 };
 
 /**

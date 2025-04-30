@@ -17,6 +17,7 @@ import {
   PaginatedHotTokensResult,
   PaginatedLatestCommentsResponse,
   PaginatedResult,
+  PaginatedTipsResponse,
   PaginatedTokenCallsResult,
   PaginatedTokensResponse,
   ProcessedBundleData,
@@ -27,6 +28,7 @@ import {
   StreakMilestone,
   StreakMilestonesResponse,
   StreakOverview,
+  TipPaginationQuery,
   TipRecordResponse,
   Token,
   TokenCall,
@@ -2070,6 +2072,17 @@ export const feed = {
 };
 
 export const tipping = {
+  getUserTipHistory: async (params: TipPaginationQuery): Promise<PaginatedTipsResponse> => {
+    try {
+      const response = await api<PaginatedTipsResponse>(
+        `tipping?page=${params.page}&limit=${params.limit}`,
+      );
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   getEligibility: async (userId: string): Promise<GetTippingEligibilityResponseDto> => {
     const endpoint = `tipping/eligibility/${userId}`;
     return api<GetTippingEligibilityResponseDto>(endpoint);
