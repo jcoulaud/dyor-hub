@@ -389,15 +389,15 @@ export const TipModal = ({
         );
       case 'success':
         return (
-          <div className='flex flex-col items-center justify-center py-10 text-center'>
-            <div className='relative w-16 h-16 mb-5'>
+          <div className='flex flex-col items-center justify-center py-8 sm:py-10 text-center'>
+            <div className='relative w-16 h-16 mb-4 sm:mb-5'>
               <div className='absolute inset-0 bg-green-500/20 rounded-full'></div>
               <div className='absolute inset-1 bg-black rounded-full flex items-center justify-center border border-green-500/50'>
                 <CheckCircle className='h-8 w-8 text-green-500' />
               </div>
             </div>
             <p className='font-medium text-lg text-zinc-100'>Tip Sent Successfully!</p>
-            <div className='mt-4 bg-black border border-zinc-800 rounded-lg p-4 w-[240px]'>
+            <div className='mt-4 bg-black border border-zinc-800 rounded-lg p-3 sm:p-4 w-[90%] sm:w-[240px] max-w-[280px]'>
               <div className='flex items-center justify-between mb-2'>
                 <span className='text-zinc-400 text-sm'>Amount:</span>
                 <span className='text-white font-medium text-sm'>
@@ -416,7 +416,7 @@ export const TipModal = ({
               onClick={() => onOpenChange(false)}
               variant='secondary'
               size='sm'
-              className='mt-6 bg-black hover:bg-zinc-900 text-white border border-green-500/50 px-6'>
+              className='mt-5 sm:mt-6 bg-black hover:bg-zinc-900 text-white border border-green-500/50 px-6'>
               Close
             </Button>
           </div>
@@ -428,15 +428,15 @@ export const TipModal = ({
 
         if (isCannotReceiveTipsError) {
           return (
-            <div className='flex flex-col items-center justify-center py-10 text-center'>
-              <div className='relative w-16 h-16 mb-5'>
+            <div className='flex flex-col items-center justify-center py-8 sm:py-10 text-center'>
+              <div className='relative w-16 h-16 mb-4 sm:mb-5'>
                 <div className='absolute inset-0 bg-amber-500/20 rounded-full'></div>
                 <div className='absolute inset-1 bg-black rounded-full flex items-center justify-center border border-amber-500/50'>
                   <AlertCircle className='h-8 w-8 text-amber-500' />
                 </div>
               </div>
               <p className='font-medium text-lg text-zinc-100'>Cannot Tip User</p>
-              <div className='mt-4 bg-black border border-amber-500/30 rounded-lg p-4 max-w-sm'>
+              <div className='mt-4 bg-black border border-amber-500/30 rounded-lg p-3 sm:p-4 max-w-[90%] sm:max-w-sm'>
                 <div className='flex items-start gap-2'>
                   <AlertCircle className='h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5' />
                   <p className='text-sm text-amber-400 text-left'>
@@ -449,7 +449,7 @@ export const TipModal = ({
                 onClick={() => onOpenChange(false)}
                 variant='secondary'
                 size='sm'
-                className='mt-6 bg-black hover:bg-zinc-900 text-white border border-zinc-700 px-6'>
+                className='mt-5 sm:mt-6 bg-black hover:bg-zinc-900 text-white border border-zinc-700 px-6'>
                 Close
               </Button>
             </div>
@@ -507,25 +507,25 @@ export const TipModal = ({
 
         return (
           <>
-            <DialogHeader className='pb-4 border-b border-zinc-800'>
+            <DialogHeader className='pb-2 sm:pb-4 border-b border-zinc-800 px-3 sm:px-0 pt-3 sm:pt-0'>
               <div className='flex items-center'>
-                <div className='w-8 h-8 rounded-full bg-black flex items-center justify-center mr-2 border border-amber-500/50'>
+                <div className='w-8 h-8 rounded-full bg-black flex items-center justify-center mr-3 sm:mr-2 border border-amber-500/50 flex-shrink-0'>
                   <Coins className='h-4 w-4 text-amber-500' />
                 </div>
-                <div>
-                  <DialogTitle className='text-zinc-100'>
+                <div className='text-left'>
+                  <DialogTitle className='text-zinc-100 text-left'>
                     Tip{' '}
                     {recipientUsername ||
                       eligibilityResult?.recipientAddress?.substring(0, 6) + '...'}
                   </DialogTitle>
-                  <DialogDescription className='text-zinc-400 mt-0.5'>
+                  <DialogDescription className='text-zinc-400 mt-0.5 text-left'>
                     Send tokens to show appreciation
                   </DialogDescription>
                 </div>
               </div>
             </DialogHeader>
-            <div className='py-6 px-1'>
-              <div className='mb-6'>
+            <div className='py-3 sm:py-6 px-3 sm:px-1'>
+              <div className='mb-5 sm:mb-6'>
                 <Label htmlFor='amount' className='text-zinc-300 mb-2 block'>
                   Amount to Send
                 </Label>
@@ -537,7 +537,7 @@ export const TipModal = ({
                     value={amount}
                     onChange={handleAmountChange}
                     placeholder='0.00'
-                    className='bg-black border-zinc-800 focus-visible:ring-amber-500 text-lg pl-4 pr-24 py-4 h-auto'
+                    className='bg-black border-zinc-800 focus-visible:ring-amber-500 text-lg pl-4 pr-[90px] py-3 h-auto'
                     disabled={isSending}
                   />
                   <div className='absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1 pointer-events-none'>
@@ -545,8 +545,8 @@ export const TipModal = ({
                   </div>
                 </div>
 
-                <div className='mt-2 flex items-center justify-between text-sm'>
-                  <div className='text-zinc-500'>
+                <div className='mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm'>
+                  <div className='text-zinc-500 mb-1.5 sm:mb-0'>
                     {isPriceLoading ? (
                       <span className='flex items-center gap-1'>
                         <Loader2 className='h-3 w-3 animate-spin' /> Loading price...
@@ -578,14 +578,14 @@ export const TipModal = ({
 
               <div className='mb-4'>
                 <Label className='text-zinc-500 text-xs block mb-2'>Quick Amounts</Label>
-                <div className='grid grid-cols-4 gap-2'>
+                <div className='grid grid-cols-2 sm:grid-cols-4 gap-2'>
                   {[10000, 20000, 50000, 100000].map((quickAmount) => (
                     <Button
                       key={quickAmount}
                       type='button'
                       variant='outline'
                       size='sm'
-                      className={`border border-zinc-800 hover:bg-zinc-900 hover:border-amber-700 ${
+                      className={`border border-zinc-800 hover:bg-zinc-900 hover:border-amber-700 py-1.5 sm:py-0 px-2 sm:px-0 h-auto sm:h-9 ${
                         parseFloat(amount) === quickAmount
                           ? 'bg-black border-amber-700 text-amber-500'
                           : 'bg-black text-zinc-300'
@@ -606,12 +606,12 @@ export const TipModal = ({
                 </div>
               )}
             </div>
-            <DialogFooter className='border-t border-zinc-800 pt-4 gap-3'>
+            <DialogFooter className='border-t border-zinc-800 pt-3 sm:pt-4 px-3 sm:px-0 gap-2 sm:gap-3 flex-col sm:flex-row pb-3 sm:pb-0'>
               <DialogClose asChild>
                 <Button
                   type='button'
                   variant='outline'
-                  className='flex-1 border-zinc-800 bg-black hover:bg-zinc-900 text-zinc-300'>
+                  className='w-full sm:w-auto sm:flex-1 border-zinc-800 bg-black hover:bg-zinc-900 text-zinc-300 py-2 sm:py-0 h-auto sm:h-10'>
                   Cancel
                 </Button>
               </DialogClose>
@@ -619,7 +619,7 @@ export const TipModal = ({
                 type='submit'
                 onClick={handleSendTip}
                 disabled={isSending || !amount || !publicKey}
-                className='flex-1 bg-black hover:bg-zinc-900 text-amber-500 border border-amber-700'>
+                className='w-full sm:w-auto sm:flex-1 bg-black hover:bg-zinc-900 text-amber-500 border border-amber-700 py-2 sm:py-0 h-auto sm:h-10'>
                 <Send className='mr-2 h-4 w-4' /> Send Tip
               </Button>
             </DialogFooter>
@@ -691,25 +691,25 @@ export const TipModal = ({
         }
         return (
           <>
-            <DialogHeader className='pb-4 border-b border-zinc-800'>
+            <DialogHeader className='pb-2 sm:pb-4 border-b border-zinc-800 px-3 sm:px-0 pt-3 sm:pt-0'>
               <div className='flex items-center'>
-                <div className='w-8 h-8 rounded-full bg-black flex items-center justify-center mr-2 border border-amber-500/50'>
+                <div className='w-8 h-8 rounded-full bg-black flex items-center justify-center mr-3 sm:mr-2 border border-amber-500/50 flex-shrink-0'>
                   <Coins className='h-4 w-4 text-amber-500' />
                 </div>
-                <div>
-                  <DialogTitle className='text-zinc-100'>
+                <div className='text-left'>
+                  <DialogTitle className='text-zinc-100 text-left'>
                     Tip{' '}
                     {recipientUsername ||
                       eligibilityResult?.recipientAddress?.substring(0, 6) + '...'}
                   </DialogTitle>
-                  <DialogDescription className='text-zinc-400 mt-0.5'>
+                  <DialogDescription className='text-zinc-400 mt-0.5 text-left'>
                     Send tokens to show appreciation
                   </DialogDescription>
                 </div>
               </div>
             </DialogHeader>
-            <div className='py-6 px-1'>
-              <div className='mb-6'>
+            <div className='py-3 sm:py-6 px-3 sm:px-1'>
+              <div className='mb-5 sm:mb-6'>
                 <Label htmlFor='amount' className='text-zinc-300 mb-2 block'>
                   Amount to Send
                 </Label>
@@ -721,7 +721,7 @@ export const TipModal = ({
                     value={amount}
                     onChange={handleAmountChange}
                     placeholder='0.00'
-                    className='bg-black border-zinc-800 focus-visible:ring-amber-500 text-lg pl-4 pr-24 py-4 h-auto'
+                    className='bg-black border-zinc-800 focus-visible:ring-amber-500 text-lg pl-4 pr-[90px] py-3 h-auto'
                     disabled={isSending}
                   />
                   <div className='absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1 pointer-events-none'>
@@ -729,8 +729,8 @@ export const TipModal = ({
                   </div>
                 </div>
 
-                <div className='mt-2 flex items-center justify-between text-sm'>
-                  <div className='text-zinc-500'>
+                <div className='mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm'>
+                  <div className='text-zinc-500 mb-1.5 sm:mb-0'>
                     {isPriceLoading ? (
                       <span className='flex items-center gap-1'>
                         <Loader2 className='h-3 w-3 animate-spin' /> Loading price...
@@ -762,14 +762,14 @@ export const TipModal = ({
 
               <div className='mb-4'>
                 <Label className='text-zinc-500 text-xs block mb-2'>Quick Amounts</Label>
-                <div className='grid grid-cols-4 gap-2'>
+                <div className='grid grid-cols-2 sm:grid-cols-4 gap-2'>
                   {[10000, 20000, 50000, 100000].map((quickAmount) => (
                     <Button
                       key={quickAmount}
                       type='button'
                       variant='outline'
                       size='sm'
-                      className={`border border-zinc-800 hover:bg-zinc-900 hover:border-amber-700 ${
+                      className={`border border-zinc-800 hover:bg-zinc-900 hover:border-amber-700 py-1.5 sm:py-0 px-2 sm:px-0 h-auto sm:h-9 ${
                         parseFloat(amount) === quickAmount
                           ? 'bg-black border-amber-700 text-amber-500'
                           : 'bg-black text-zinc-300'
@@ -790,12 +790,12 @@ export const TipModal = ({
                 </div>
               )}
             </div>
-            <DialogFooter className='border-t border-zinc-800 pt-4 gap-3'>
+            <DialogFooter className='border-t border-zinc-800 pt-3 sm:pt-4 px-3 sm:px-0 gap-2 sm:gap-3 flex-col sm:flex-row pb-3 sm:pb-0'>
               <DialogClose asChild>
                 <Button
                   type='button'
                   variant='outline'
-                  className='flex-1 border-zinc-800 bg-black hover:bg-zinc-900 text-zinc-300'>
+                  className='w-full sm:w-auto sm:flex-1 border-zinc-800 bg-black hover:bg-zinc-900 text-zinc-300 py-2 sm:py-0 h-auto sm:h-10'>
                   Cancel
                 </Button>
               </DialogClose>
@@ -803,7 +803,7 @@ export const TipModal = ({
                 type='submit'
                 onClick={handleSendTip}
                 disabled={isSending || !amount || !publicKey}
-                className='flex-1 bg-black hover:bg-zinc-900 text-amber-500 border border-amber-700'>
+                className='w-full sm:w-auto sm:flex-1 bg-black hover:bg-zinc-900 text-amber-500 border border-amber-700 py-2 sm:py-0 h-auto sm:h-10'>
                 <Send className='mr-2 h-4 w-4' /> Send Tip
               </Button>
             </DialogFooter>
@@ -814,7 +814,7 @@ export const TipModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[425px] bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden'>
+      <DialogContent className='sm:max-w-[425px] bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden max-w-[95vw]'>
         {renderContent()}
       </DialogContent>
     </Dialog>
