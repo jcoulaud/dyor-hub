@@ -15,7 +15,7 @@ import { useAuthContext } from '@/providers/auth-provider';
 import { NotificationItem, NotificationType } from '@dyor-hub/types';
 import { formatDistanceStrict } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, Check, Loader2, X } from 'lucide-react';
+import { Bell, Check, Loader2, Settings, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
@@ -367,7 +367,16 @@ export function NotificationBell() {
         align='end'
         className='w-80 md:w-96 bg-zinc-900 border-zinc-700 shadow-xl max-h-[70vh] overflow-hidden flex flex-col'>
         <div className='flex items-center justify-between px-4 py-3 border-b border-zinc-700'>
-          <h3 className='text-sm font-semibold text-white'>Notifications</h3>
+          <div className='flex items-center gap-2'>
+            <h3 className='text-sm font-semibold text-white'>Notifications</h3>
+            <Link
+              href='/settings/notifications'
+              aria-label='Notification settings'
+              className='text-zinc-400 hover:text-sky-400 transition-colors'
+              onClick={() => setIsOpen(false)}>
+              <Settings className='h-3.5 w-3.5' />
+            </Link>
+          </div>
           {notificationData.notifications.length > 0 && (
             <Button
               variant='link'
