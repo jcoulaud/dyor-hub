@@ -422,7 +422,7 @@ export class NotificationEventsService {
       const displayAmount = payload.amount / Math.pow(10, 6);
       const formattedAmount = numbro(displayAmount).format({
         thousandSeparated: true,
-        mantissa: 2,
+        mantissa: displayAmount % 1 === 0 ? 0 : 2,
       });
 
       const senderName = sanitizeHtml(payload.senderDisplayName);
