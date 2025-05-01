@@ -42,6 +42,7 @@ import { TippingModule } from './tipping/tipping.module';
 import { TokenCallsLeaderboardModule } from './token-calls-leaderboard/tokenCallsLeaderboard.module';
 import { TokenCallsModule } from './token-calls/token-calls.module';
 import { TokensModule } from './tokens/tokens.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { WatchlistModule } from './watchlist/watchlist.module';
@@ -90,6 +91,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     FeedModule,
     ReferralModule,
     TippingModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [

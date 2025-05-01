@@ -23,7 +23,8 @@
     "typeorm": "typeorm-ts-node-commonjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.787.0",
+    "@aws-sdk/client-s3": "^3.800.0",
+    "@aws-sdk/s3-request-presigner": "^3.800.0",
     "@dyor-hub/types": "workspace:*",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^10.0.0",
@@ -44,6 +45,7 @@
     "@types/cookie-parser": "^1.4.8",
     "@types/express-session": "^1.18.1",
     "@types/passport-jwt": "^4.0.1",
+    "@types/uuid": "^10.0.0",
     "cache-manager": "^6.4.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
@@ -69,7 +71,8 @@
     "telegraf": "^4.16.3",
     "tweetnacl": "^1.0.3",
     "twitter-api-v2": "^1.20.2",
-    "typeorm": "^0.3.20"
+    "typeorm": "^0.3.20",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@faker-js/faker": "^9.6.0",
