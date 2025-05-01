@@ -12,18 +12,61 @@
 }
 
 /* Single-line mode styles */
-.ProseMirror:not(.min-h-[100px]) {
+.ProseMirror:not([class*='min-h-']) {
   display: flex;
   align-items: center;
 }
 
-.ProseMirror:not(.min-h-[100px]) p,
-.ProseMirror:not(.min-h-[100px]) p.is-editor-empty:first-child::before {
+.ProseMirror:not([class*='min-h-']) p,
+.ProseMirror:not([class*='min-h-']) p.is-editor-empty:first-child::before {
   line-height: 40px;
 }
 
 /* Expanded mode styles */
-.ProseMirror.min-h-[100px] p,
-.ProseMirror.min-h-[100px] p.is-editor-empty:first-child::before {
+.ProseMirror[class*='min-h-'] p,
+.ProseMirror[class*='min-h-'] p.is-editor-empty:first-child::before {
   line-height: 1.5;
+}
+
+/* Image upload overlay styles */
+.ProseMirror img[data-upload-id] {
+  position: relative;
+  filter: grayscale(0.5);
+  opacity: 0.8;
+  transition: all 0.3s ease;
+}
+
+/* Custom attribute to add an overlay */
+.ProseMirror img[data-upload-id]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+/* Loading animation inside the image */
+.image-upload-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Transition for uploaded images */
+.uploaded-image {
+  transition: all 0.3s ease;
 }

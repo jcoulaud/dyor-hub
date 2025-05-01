@@ -64,10 +64,63 @@ const CustomImage = Image.extend({
           return { 'data-s3-key': attributes['data-s3-key'] };
         },
       },
+      'data-uploading': {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-uploading'),
+        renderHTML: (attributes) => {
+          if (!attributes['data-uploading']) {
+            return {};
+          }
+          return { 'data-uploading': attributes['data-uploading'] };
+        },
+      },
+    };
+  },
+
+  // Add a custom render function to display loading spinner
+  addNodeView() {
+    return ({ node, HTMLAttributes }) => {
+      const dom = document.createElement('div');
+      dom.classList.add('image-container');
+      dom.style.position = 'relative';
+      dom.style.display = 'inline-block';
+
+      const img = document.createElement('img');
+      Object.entries(HTMLAttributes).forEach(([key, value]) => {
+        img.setAttribute(key, value);
+      });
+
+      dom.appendChild(img);
+
+      // Add loading overlay if image is uploading
+      if (node.attrs['data-upload-id']) {
+        const overlay = document.createElement('div');
+        overlay.classList.add('image-upload-overlay');
+
+        const spinner = document.createElement('div');
+        spinner.className =
+          'animate-spin rounded-full border-t-2 border-b-2 border-primary h-8 w-8';
+
+        overlay.appendChild(spinner);
+        dom.appendChild(overlay);
+      }
+
+      return {
+        dom,
+        update: (updatedNode) => {
+          // Check if the upload has completed
+          if (updatedNode.attrs['data-upload-id'] !== node.attrs['data-upload-id']) {
+            const overlay = dom.querySelector('.image-upload-overlay');
+            if (overlay) {
+              overlay.remove();
+            }
+          }
+          return true;
+        },
+      };
     };
   },
 });
-// --- End Image Extension Configuration ---
 
 const MenuBar = ({ editor }: { editor: Editor | null }) => {
   const [isEmojiPopoverOpen, setIsEmojiPopoverOpen] = useState(false);
@@ -144,6 +197,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
               alt: 'Uploading...',
               title: file.name,
               'data-upload-id': placeholderId,
+              'data-uploading': 'true',
             });
 
             const insertPos = state.selection.$from.pos;
@@ -172,7 +226,6 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
           contentLength: file.size,
         };
         presignedResponse = await uploads.getPresignedImageUrl(requestData);
-        toast({ title: 'Uploading image...' });
       } catch (error: unknown) {
         console.error('Failed to get presigned URL:', error);
         const errorMsg = error instanceof Error ? error.message : 'Could not prepare upload.';
@@ -181,6 +234,9 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
           title: 'Upload Failed',
           description: errorMsg,
         });
+
+        // Remove placeholder if getting presigned URL fails
+        removeUploadPlaceholder(editor, placeholderId);
         return;
       }
 
@@ -217,6 +273,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
               title: file.name,
               'data-s3-key': presignedResponse.objectKey,
               'data-upload-id': null,
+              'data-uploading': null,
             });
             editor.view.dispatch(tr);
             nodeFound = true;
@@ -228,34 +285,37 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
         if (!nodeFound) {
           console.warn(`Could not find placeholder node with ID ${placeholderId} to update.`);
         }
-
-        toast({ title: 'Image uploaded successfully!' });
       } catch (error: unknown) {
         const errorMsg = error instanceof Error ? error.message : 'Could not upload file.';
         toast({ variant: 'destructive', title: 'Upload Failed', description: errorMsg });
 
-        // Remove placeholder if S3 upload fails - find node by ID first
-        let nodeToRemoveFound = false;
-        editor.state.doc.descendants((node, pos) => {
-          if (nodeToRemoveFound) return false;
-          if (node.type.name === 'image' && node.attrs['data-upload-id'] === placeholderId) {
-            const { tr } = editor.state;
-            tr.delete(pos, pos + node.nodeSize);
-            editor.view.dispatch(tr);
-            nodeToRemoveFound = true;
-            return false;
-          }
-          return true;
-        });
-        if (!nodeToRemoveFound) {
-          console.warn(
-            `Could not find placeholder node with ID ${placeholderId} to remove after error.`,
-          );
-        }
+        // Remove placeholder if S3 upload fails
+        removeUploadPlaceholder(editor, placeholderId);
       }
     },
     [editor, toast],
   );
+
+  // Helper function to remove upload placeholder
+  const removeUploadPlaceholder = (editor: Editor, placeholderId: string) => {
+    let nodeToRemoveFound = false;
+    editor.state.doc.descendants((node, pos) => {
+      if (nodeToRemoveFound) return false;
+      if (node.type.name === 'image' && node.attrs['data-upload-id'] === placeholderId) {
+        const { tr } = editor.state;
+        tr.delete(pos, pos + node.nodeSize);
+        editor.view.dispatch(tr);
+        nodeToRemoveFound = true;
+        return false;
+      }
+      return true;
+    });
+    if (!nodeToRemoveFound) {
+      console.warn(
+        `Could not find placeholder node with ID ${placeholderId} to remove after error.`,
+      );
+    }
+  };
 
   if (!editor) {
     return null;
