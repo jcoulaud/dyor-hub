@@ -72,14 +72,13 @@ export const LatestCommentsFeed: React.FC = () => {
     }
 
     return (
-      <div className='p-2 space-y-2'>
+      <div className='p-2 space-y-2 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-800/30'>
         {commentsToRender.map((comment) => {
           const userAvatarSrc = comment.user?.avatarUrl && getHighResAvatar(comment.user.avatarUrl);
 
-          const displayContent =
-            comment.content.length > 80
-              ? `${comment.content.substring(0, 80)}...`
-              : comment.content;
+          const textContent = comment.content.replace(/<[^>]*>?/gm, ' ').trim();
+          const truncatedText =
+            textContent.length > 80 ? `${textContent.substring(0, 80)}...` : textContent;
 
           return (
             <Link
@@ -107,10 +106,21 @@ export const LatestCommentsFeed: React.FC = () => {
                   <p className='text-xs text-zinc-400 mt-0.5'>
                     on <span className='font-medium text-zinc-300'>${comment.token.symbol}</span>
                   </p>
-                  <p
-                    className='text-xs text-zinc-300 mt-1 line-clamp-2'
-                    dangerouslySetInnerHTML={{ __html: displayContent }}
-                  />
+
+                  {/* Text content - truncated */}
+                  <p className='text-xs text-zinc-300 mt-1 line-clamp-2'>{truncatedText}</p>
+
+                  {/* Images/GIFs - if any */}
+                  {comment.content.includes('<img') && (
+                    <div className='mt-1'>
+                      <div
+                        className='prose prose-sm dark:prose-invert max-w-none prose-img:my-1 prose-img:max-h-8 prose-img:max-w-[60px] prose-img:inline-block prose-img:rounded-sm prose-img:border prose-img:border-zinc-700/50 prose-img:bg-zinc-800/50'
+                        dangerouslySetInnerHTML={{
+                          __html: comment.content.replace(/<(?!img)[^>]*>?/gm, ''),
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </Link>
@@ -154,7 +164,8 @@ export const LatestCommentsFeed: React.FC = () => {
     <SectionCarousel
       title='Latest Comments'
       icon={<MessageSquare className='h-5 w-5 text-blue-400' />}
-      gradient='from-zinc-900/90 via-zinc-800/80 to-zinc-900/90'>
+      gradient='from-zinc-900/90 via-zinc-800/80 to-zinc-900/90'
+      className='h-auto min-h-[400px]'>
       {renderContent()}
     </SectionCarousel>
   );

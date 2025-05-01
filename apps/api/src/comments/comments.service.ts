@@ -24,7 +24,6 @@ import { UserEntity } from '../entities/user.entity';
 import { GamificationEvent } from '../gamification/services/activity-hooks.service';
 import { PerspectiveService } from '../services/perspective.service';
 import { TelegramAdminService } from '../telegram/admin/telegram-admin.service';
-import { sanitizeHtml } from '../utils/utils';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { VoteResponseDto } from './dto/vote-response.dto';
@@ -865,7 +864,7 @@ export class CommentsService {
 
     const data: LatestComment[] = comments.map((comment) => ({
       id: comment.id,
-      content: sanitizeHtml(comment.content),
+      content: comment.content,
       createdAt: comment.createdAt.toISOString(),
       token: {
         tokenMintAddress: comment.tokenMintAddress,
