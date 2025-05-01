@@ -64,18 +64,15 @@ export class CommentsService {
     }
 
     const $ = cheerio.load(htmlContent);
-    const imageConfirmations: Promise<void>[] = [];
+    const imageProcessingPromises: Promise<void>[] = [];
     const tempKeysToConfirm = new Map<string, Promise<string>>();
+    let processingError: Error | null = null;
 
     $('img[data-s3-key]').each((index, element) => {
       const img = $(element);
       const tempKey = img.attr('data-s3-key');
 
-      // Check if it's a temporary key we need to process
       if (tempKey && tempKey.startsWith(TEMP_PREFIX)) {
-        this.logger.debug(`Found temporary image key: ${tempKey}`);
-
-        // Deduplicate confirmation calls for the same key
         if (!tempKeysToConfirm.has(tempKey)) {
           tempKeysToConfirm.set(
             tempKey,
@@ -83,26 +80,29 @@ export class CommentsService {
           );
         }
 
-        imageConfirmations.push(
+        imageProcessingPromises.push(
           (async () => {
             try {
-              const permanentUrl = await tempKeysToConfirm.get(tempKey)!; // Wait for the confirmation
-              img.attr('src', permanentUrl); // Update the src attribute
-              img.removeAttr('data-s3-key'); // Remove the temporary key attribute
-              img.removeAttr('data-upload-id'); // Remove the upload ID attribute
+              const permanentUrl = await tempKeysToConfirm.get(tempKey)!;
+              img.attr('src', permanentUrl);
+              img.removeAttr('data-s3-key');
+              img.removeAttr('data-upload-id');
             } catch (error) {
-              this.logger.error(
-                `Failed to confirm/update image for key ${tempKey}:`,
-                error,
-              );
-              img.attr('alt', '[Image upload failed to confirm]'); // Update alt text
+              if (!processingError || error instanceof ForbiddenException) {
+                processingError = error;
+              }
+              img.attr('alt', '[Image upload failed to confirm]');
             }
           })(),
         );
       }
     });
 
-    await Promise.all(imageConfirmations);
+    await Promise.allSettled(imageProcessingPromises);
+
+    if (processingError) {
+      throw processingError;
+    }
 
     return $('body').html() || '';
   }

@@ -7,6 +7,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PresignedUrlResponse } from '@dyor-hub/types';
 import {
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -14,6 +15,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  ModerationResult,
+  ModerationService,
+} from '../moderation/moderation.service';
 
 const TEMP_PREFIX = 'images/temp-uploads/';
 const CONFIRMED_PREFIX = 'images/confirmed-uploads/';
@@ -26,7 +31,10 @@ export class UploadsService {
   private readonly region: string;
   private readonly presignedUrlExpiry = 300; // seconds (5 minutes)
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly moderationService: ModerationService,
+  ) {
     this.region = this.configService.getOrThrow<string>('S3_REGION');
     this.bucketName = this.configService.getOrThrow<string>(
       'S3_TOKEN_HISTORY_BUCKET',
@@ -71,7 +79,6 @@ export class UploadsService {
         expiresIn: this.presignedUrlExpiry,
       });
 
-      this.logger.log(`Generated presigned URL for key: ${objectKey}`);
       return { presignedUrl, objectKey };
     } catch (error) {
       this.logger.error(
@@ -97,10 +104,6 @@ export class UploadsService {
     const relativeKey = tempObjectKey.substring(TEMP_PREFIX.length);
     const confirmedObjectKey = `${CONFIRMED_PREFIX}${relativeKey}`;
 
-    this.logger.log(
-      `Confirming upload: Moving ${tempObjectKey} to ${confirmedObjectKey}`,
-    );
-
     try {
       const copyCommand = new CopyObjectCommand({
         Bucket: this.bucketName,
@@ -108,18 +111,55 @@ export class UploadsService {
         Key: confirmedObjectKey,
       });
       await this.s3Client.send(copyCommand);
-      this.logger.log(`Successfully copied to ${confirmedObjectKey}`);
 
-      // Delete the original object from the temporary location
-      const deleteCommand = new DeleteObjectCommand({
-        Bucket: this.bucketName,
-        Key: tempObjectKey,
-      });
-      await this.s3Client.send(deleteCommand);
-      this.logger.log(`Successfully deleted original ${tempObjectKey}`);
+      let moderationPassed = false;
+      try {
+        const moderationResult = await this.moderationService.analyzeImage(
+          this.bucketName,
+          confirmedObjectKey,
+        );
+
+        if (moderationResult === ModerationResult.UNSAFE) {
+          const deleteUnsafeCommand = new DeleteObjectCommand({
+            Bucket: this.bucketName,
+            Key: confirmedObjectKey,
+          });
+          await this.s3Client.send(deleteUnsafeCommand);
+
+          throw new ForbiddenException('Inappropriate image content detected.');
+        } else if (moderationResult === ModerationResult.ERROR) {
+          moderationPassed = true;
+        } else {
+          moderationPassed = true;
+        }
+      } catch (moderationError) {
+        if (moderationError instanceof ForbiddenException) {
+          throw moderationError;
+        }
+        this.logger.error(
+          `Moderation check failed unexpectedly for ${confirmedObjectKey}: ${moderationError.message}`,
+          moderationError.stack,
+        );
+        moderationPassed = true;
+      }
+
+      if (moderationPassed) {
+        const deleteCommand = new DeleteObjectCommand({
+          Bucket: this.bucketName,
+          Key: tempObjectKey,
+        });
+        await this.s3Client.send(deleteCommand);
+      } else {
+        this.logger.warn(
+          `Moderation failed, temporary file ${tempObjectKey} may not have been deleted if error wasn't thrown.`,
+        );
+      }
 
       return this.getObjectUrl(confirmedObjectKey);
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       this.logger.error(
         `Failed to confirm upload for key ${tempObjectKey}: ${error.message}`,
         error.stack,

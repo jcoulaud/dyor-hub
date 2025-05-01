@@ -23,6 +23,7 @@
     "typeorm": "typeorm-ts-node-commonjs"
   },
   "dependencies": {
+    "@aws-sdk/client-rekognition": "^3.799.0",
     "@aws-sdk/client-s3": "^3.800.0",
     "@aws-sdk/s3-request-presigner": "^3.800.0",
     "@dyor-hub/types": "workspace:*",

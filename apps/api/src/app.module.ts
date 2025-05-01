@@ -33,6 +33,7 @@ import { FollowsModule } from './follows/follows.module';
 import { GamificationModule } from './gamification/gamification.module';
 import { GiphyModule } from './giphy/giphy.module';
 import { HealthModule } from './health/health.module';
+import { ModerationModule } from './moderation/moderation.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReferralModule } from './referral/referral.module';
 import { SessionModule } from './session/session.module';
@@ -92,6 +93,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     ReferralModule,
     TippingModule,
     UploadsModule,
+    ModerationModule,
   ],
   controllers: [AppController],
   providers: [

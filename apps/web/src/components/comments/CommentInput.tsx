@@ -1,5 +1,7 @@
 'use client';
 
+import { useToast } from '@/hooks/use-toast';
+import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import { COMMENT_MAX_LENGTH } from '@dyor-hub/types';
@@ -36,6 +38,7 @@ export function CommentInput({
   const [isExpanded, setIsExpanded] = useState(variant === 'reply');
   const formRef = useRef<HTMLFormElement>(null);
   const mountedRef = useRef(true);
+  const { toast } = useToast();
 
   const defaultPlaceholder = variant === 'main' ? 'Add a comment' : 'Write a reply...';
   const actualPlaceholder = placeholder ?? defaultPlaceholder;
@@ -60,12 +63,21 @@ export function CommentInput({
       }
     } catch (error) {
       console.error('Failed to submit comment:', error);
+      const description =
+        error instanceof ApiError
+          ? error.message
+          : 'An unexpected error occurred. Please try again.';
+      toast({
+        variant: 'destructive',
+        title: 'Submission Failed',
+        description: description,
+      });
     } finally {
       if (mountedRef.current) {
         setIsSubmitting(false);
       }
     }
-  }, [content, isAuthenticated, isSubmitting, onAuthRequired, onSubmit, variant]);
+  }, [content, isAuthenticated, isSubmitting, onAuthRequired, onSubmit, variant, toast]);
 
   const handleCancel = useCallback(() => {
     if (mountedRef.current) {

@@ -8,7 +8,7 @@ import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import { type Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Code, ImageUp, Italic, List, Quote, Smile } from 'lucide-react';
+import { Bold, Code, Image as ImageIcon, Italic, List, Quote, Smile } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TbGif } from 'react-icons/tb';
 import { v4 as uuidv4 } from 'uuid';
@@ -310,6 +310,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
         style={{ display: 'none' }}
       />
       <div className='flex flex-wrap gap-1 p-1 border-b'>
+        {/* Format Buttons */}
         {formatActions.map(({ icon: Icon, action, isActive, label, shortcut }) => (
           <Button
             key={label}
@@ -331,21 +332,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
           </Button>
         ))}
 
-        {/* Image Upload Button */}
-        <Button
-          variant='ghost'
-          size='sm'
-          onClick={(e) => {
-            e.preventDefault();
-            fileInputRef.current?.click();
-          }}
-          className={cn('h-8 w-8 p-0 relative group')}
-          aria-label='Upload Image'
-          title='Upload Image'>
-          <ImageUp className='h-4 w-4' />
-          <span className='sr-only'>Upload Image</span>
-        </Button>
-
+        {/* Emoji Popover */}
         <Popover open={isEmojiPopoverOpen} onOpenChange={setIsEmojiPopoverOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -371,6 +358,23 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
             </div>
           </PopoverContent>
         </Popover>
+
+        {/* Image Upload Button */}
+        <Button
+          variant='ghost'
+          size='sm'
+          onClick={(e) => {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }}
+          className={cn('h-8 w-8 p-0 relative group')}
+          aria-label='Upload Image'
+          title='Upload Image'>
+          <ImageIcon className='h-4 w-4' />
+          <span className='sr-only'>Upload Image</span>
+        </Button>
+
+        {/* GIF Popover */}
         <Popover open={isGifPopoverOpen} onOpenChange={setIsGifPopoverOpen}>
           <PopoverTrigger asChild>
             <Button
