@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as cheerio from 'cheerio';
 import { In, IsNull, Repository } from 'typeorm';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
@@ -24,9 +25,12 @@ import { UserEntity } from '../entities/user.entity';
 import { GamificationEvent } from '../gamification/services/activity-hooks.service';
 import { PerspectiveService } from '../services/perspective.service';
 import { TelegramAdminService } from '../telegram/admin/telegram-admin.service';
+import { UploadsService } from '../uploads/uploads.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { VoteResponseDto } from './dto/vote-response.dto';
+
+const TEMP_PREFIX = 'images/temp-uploads/';
 
 @Injectable()
 export class CommentsService {
@@ -48,7 +52,60 @@ export class CommentsService {
     private readonly perspectiveService: PerspectiveService,
     private readonly telegramAdminService: TelegramAdminService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly uploadsService: UploadsService,
   ) {}
+
+  // --- Helper Function to Process HTML for Images ---
+  private async processCommentContentForImages(
+    htmlContent: string,
+  ): Promise<string> {
+    if (!htmlContent || !htmlContent.includes('data-s3-key')) {
+      return htmlContent;
+    }
+
+    const $ = cheerio.load(htmlContent);
+    const imageProcessingPromises: Promise<void>[] = [];
+    const tempKeysToConfirm = new Map<string, Promise<string>>();
+    let processingError: Error | null = null;
+
+    $('img[data-s3-key]').each((index, element) => {
+      const img = $(element);
+      const tempKey = img.attr('data-s3-key');
+
+      if (tempKey && tempKey.startsWith(TEMP_PREFIX)) {
+        if (!tempKeysToConfirm.has(tempKey)) {
+          tempKeysToConfirm.set(
+            tempKey,
+            this.uploadsService.confirmUpload(tempKey),
+          );
+        }
+
+        imageProcessingPromises.push(
+          (async () => {
+            try {
+              const permanentUrl = await tempKeysToConfirm.get(tempKey)!;
+              img.attr('src', permanentUrl);
+              img.removeAttr('data-s3-key');
+              img.removeAttr('data-upload-id');
+            } catch (error) {
+              if (!processingError || error instanceof ForbiddenException) {
+                processingError = error;
+              }
+              img.attr('alt', '[Image upload failed to confirm]');
+            }
+          })(),
+        );
+      }
+    });
+
+    await Promise.allSettled(imageProcessingPromises);
+
+    if (processingError) {
+      throw processingError;
+    }
+
+    return $('body').html() || '';
+  }
 
   async findByTokenMintAddress(
     tokenMintAddress: string,
@@ -519,7 +576,12 @@ export class CommentsService {
         throw new UnauthorizedException('User not found');
       }
 
-      // Check for toxicity using Perspective API
+      // Process content for images *before* toxicity check and saving
+      const processedContent = await this.processCommentContentForImages(
+        createCommentDto.content,
+      );
+
+      // Toxicity check on processed content?
       try {
         const analysis = await this.perspectiveService.analyzeText(
           createCommentDto.content,
@@ -542,7 +604,8 @@ export class CommentsService {
       }
 
       const comment = new CommentEntity();
-      comment.content = createCommentDto.content;
+      // Use the *processed* content with confirmed image URLs
+      comment.content = processedContent;
       comment.user = user;
       comment.userId = userId;
       comment.tokenMintAddress = targetTokenMintAddress; // Use the determined address
@@ -607,6 +670,12 @@ export class CommentsService {
 
       return savedComment;
     } catch (error) {
+      // Log specific errors if needed
+      this.logger.error(
+        `Failed to create comment: ${error.message}`,
+        error.stack,
+      );
+      // Re-throw or handle as appropriate
       throw error;
     }
   }
@@ -637,7 +706,12 @@ export class CommentsService {
       );
     }
 
-    comment.content = dto.content;
+    // Process content for images *before* saving
+    const processedContent = await this.processCommentContentForImages(
+      dto.content,
+    );
+
+    comment.content = processedContent;
     comment.updatedAt = currentTime;
     comment.isEdited = true;
     return this.commentRepository.save(comment);

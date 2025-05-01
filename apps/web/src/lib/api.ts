@@ -21,6 +21,8 @@ import {
   PaginatedTipsResponse,
   PaginatedTokenCallsResult,
   PaginatedTokensResponse,
+  PresignedUrlRequest,
+  PresignedUrlResponse,
   ProcessedBundleData,
   RecordTipRequestDto,
   Referral,
@@ -2114,5 +2116,15 @@ export const tipping = {
       console.error('Error recording tip:', error);
       return { success: false };
     }
+  },
+};
+
+export const uploads = {
+  getPresignedImageUrl: async (data: PresignedUrlRequest): Promise<PresignedUrlResponse> => {
+    const endpoint = 'uploads/image-presigned-url';
+    return api<PresignedUrlResponse>(endpoint, {
+      method: 'POST',
+      body: data,
+    });
   },
 };

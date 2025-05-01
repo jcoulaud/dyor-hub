@@ -33,6 +33,7 @@ import { FollowsModule } from './follows/follows.module';
 import { GamificationModule } from './gamification/gamification.module';
 import { GiphyModule } from './giphy/giphy.module';
 import { HealthModule } from './health/health.module';
+import { ModerationModule } from './moderation/moderation.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReferralModule } from './referral/referral.module';
 import { SessionModule } from './session/session.module';
@@ -42,6 +43,7 @@ import { TippingModule } from './tipping/tipping.module';
 import { TokenCallsLeaderboardModule } from './token-calls-leaderboard/tokenCallsLeaderboard.module';
 import { TokenCallsModule } from './token-calls/token-calls.module';
 import { TokensModule } from './tokens/tokens.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { WatchlistModule } from './watchlist/watchlist.module';
@@ -90,6 +92,8 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     FeedModule,
     ReferralModule,
     TippingModule,
+    UploadsModule,
+    ModerationModule,
   ],
   controllers: [AppController],
   providers: [

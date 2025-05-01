@@ -10,6 +10,7 @@ export * from './streak';
 export * from './tip';
 export * from './token';
 export * from './token-call';
+export * from './uploads';
 export * from './user';
 export * from './user-preferences';
 export * from './vote';
