@@ -177,7 +177,11 @@ export function GifPicker({ onSelect, onClose, className }: GifPickerProps) {
         {/* Initial State */}
         {!isLoading && !error && results.length === 0 && !debouncedQuery.trim() && (
           <div className='flex flex-col items-center justify-center w-full h-full text-gray-400'>
-            <p className='text-xs'>Type something to find GIFs</p>
+            <img
+              src='/powered-by-giphy.png'
+              alt='Powered by GIPHY'
+              className='max-w-[120px] mb-3'
+            />
           </div>
         )}
 
