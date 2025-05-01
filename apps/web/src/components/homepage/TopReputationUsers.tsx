@@ -23,13 +23,13 @@ const UserCard = memo(({ user, rank }: UserCardProps) => {
   return (
     <Link
       href={`/users/${user.username}`}
-      className='flex flex-col items-center p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/30
+      className='flex flex-col items-center p-3 pb-5 rounded-lg bg-zinc-800/30 border border-zinc-700/30
         hover:border-amber-500/30 hover:bg-zinc-800/50 backdrop-blur-sm
-        transition-all duration-300 group'>
-      <div className='relative mb-2'>
+        transition-all duration-300 group min-h-[160px]'>
+      <div className='relative mb-3'>
         {/* User avatar */}
         <Avatar
-          className={`h-12 w-12 border transition-all duration-300 ${
+          className={`h-14 w-14 border transition-all duration-300 ${
             isTopThree
               ? rank === 1
                 ? 'border-yellow-500 group-hover:border-yellow-400'
@@ -49,12 +49,12 @@ const UserCard = memo(({ user, rank }: UserCardProps) => {
       <p className='text-xs font-medium text-white truncate w-full text-center group-hover:text-amber-300 transition-colors duration-200'>
         {user.displayName || user.username}
       </p>
-      <p className='text-xs text-zinc-400 truncate w-full text-center mb-1'>@{user.username}</p>
+      <p className='text-xs text-zinc-400 truncate w-full text-center mb-3'>@{user.username}</p>
 
       {/* Points */}
-      <div className='flex items-center gap-1 text-center mt-auto'>
-        <Award className='h-3 w-3 text-amber-400' />
-        <span className='text-xs font-medium text-zinc-300'>
+      <div className='flex items-center gap-1.5 text-center mt-auto'>
+        <Award className='h-4 w-4 text-amber-400' />
+        <span className='text-sm font-medium text-zinc-300'>
           {formatLargeNumber(user.totalPoints || 0)}
         </span>
       </div>
@@ -127,7 +127,7 @@ export const TopReputationUsers = memo(() => {
     }
 
     return (
-      <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 p-3'>
+      <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 p-4 py-5'>
         {users.map((user, index) => {
           const rank =
             index + 1 + paginatedData.findIndex((page) => page.includes(user)) * USERS_PER_PAGE;
