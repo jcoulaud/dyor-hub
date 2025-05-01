@@ -10,6 +10,7 @@ import {
   CreateTokenCallInput,
   FeedActivity,
   GetTippingEligibilityResponseDto,
+  GiphySearchResponse,
   LeaderboardEntry,
   LeaderboardResponse,
   NotificationPreference,
@@ -1403,6 +1404,22 @@ export const watchlist = {
         throw error;
       }
     },
+  },
+};
+
+export const giphy = {
+  search: async (
+    query: string,
+    offset: number = 0,
+    limit: number = 24,
+  ): Promise<GiphySearchResponse> => {
+    const params = new URLSearchParams({
+      query: query,
+      offset: offset.toString(),
+      limit: limit.toString(),
+    });
+    const endpoint = `giphy/search?${params.toString()}`;
+    return api<GiphySearchResponse>(endpoint, { method: 'GET' });
   },
 };
 
