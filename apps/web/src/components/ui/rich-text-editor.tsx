@@ -1,13 +1,17 @@
+import { useToast } from '@/hooks/use-toast';
+import { uploads } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { PresignedUrlRequest, PresignedUrlResponse } from '@dyor-hub/types';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import { type Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Code, Italic, List, Quote, Smile } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Bold, Code, ImageUp, Italic, List, Quote, Smile } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TbGif } from 'react-icons/tb';
+import { v4 as uuidv4 } from 'uuid';
 import { GifPicker } from '../gif-picker/GifPicker';
 import { Button } from './button';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
@@ -31,11 +35,47 @@ interface EmojiMartData {
   native: string;
 }
 
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+// Configure Image Extension to Allow Custom Attributes
+const CustomImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      'data-upload-id': {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-upload-id'),
+        renderHTML: (attributes) => {
+          if (!attributes['data-upload-id']) {
+            return {};
+          }
+          return { 'data-upload-id': attributes['data-upload-id'] };
+        },
+      },
+      'data-s3-key': {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-s3-key'),
+        renderHTML: (attributes) => {
+          if (!attributes['data-s3-key']) {
+            return {};
+          }
+          return { 'data-s3-key': attributes['data-s3-key'] };
+        },
+      },
+    };
+  },
+});
+// --- End Image Extension Configuration ---
+
 const MenuBar = ({ editor }: { editor: Editor | null }) => {
   const [isEmojiPopoverOpen, setIsEmojiPopoverOpen] = useState(false);
   const [isGifPopoverOpen, setIsGifPopoverOpen] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const gifPickerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const handleEmojiSelect = (emojiData: EmojiMartData) => {
     if (editor) {
@@ -54,6 +94,168 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
         .run();
     }
   };
+
+  const handleImageUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (!editor) return;
+      const file = event.target.files?.[0];
+      event.target.value = '';
+
+      if (!file) return;
+
+      // 1. Client-side Validation
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast({
+          variant: 'destructive',
+          title: 'Upload Failed',
+          description: `Invalid file type. Allowed: ${ALLOWED_TYPES.join(', ')}`,
+        });
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        toast({
+          variant: 'destructive',
+          title: 'Upload Failed',
+          description: `File too large. Max size: ${MAX_FILE_SIZE_MB}MB`,
+        });
+        return;
+      }
+
+      // Store placeholder ID
+      const placeholderId = `upload-${uuidv4()}`;
+
+      // 2. Insert Placeholder using a transaction
+      try {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        await new Promise<void>((resolve, reject) => {
+          reader.onload = (e) => {
+            const placeholderSrc = e.target?.result as string;
+            if (!placeholderSrc) {
+              reject(new Error('Could not read file for placeholder'));
+              return;
+            }
+
+            // Use a transaction to insert the image node with custom attributes
+            const { state } = editor;
+            const { tr } = state;
+            const node = state.schema.nodes.image.create({
+              src: placeholderSrc,
+              alt: 'Uploading...',
+              title: file.name,
+              'data-upload-id': placeholderId,
+            });
+
+            const insertPos = state.selection.$from.pos;
+            tr.insert(insertPos, node);
+            editor.view.dispatch(tr);
+            resolve();
+          };
+          reader.onerror = (e) => reject(e);
+        });
+      } catch (readError: unknown) {
+        console.error('Error creating placeholder:', readError);
+        toast({
+          variant: 'destructive',
+          title: 'Upload Failed',
+          description: readError instanceof Error ? readError.message : 'Could not read file.',
+        });
+        return;
+      }
+
+      // 3. Get Presigned URL
+      let presignedResponse: PresignedUrlResponse;
+      try {
+        const requestData: PresignedUrlRequest = {
+          filename: file.name,
+          contentType: file.type,
+          contentLength: file.size,
+        };
+        presignedResponse = await uploads.getPresignedImageUrl(requestData);
+        toast({ title: 'Uploading image...' });
+      } catch (error: unknown) {
+        console.error('Failed to get presigned URL:', error);
+        const errorMsg = error instanceof Error ? error.message : 'Could not prepare upload.';
+        toast({
+          variant: 'destructive',
+          title: 'Upload Failed',
+          description: errorMsg,
+        });
+        return;
+      }
+
+      // 4. Upload to S3
+      try {
+        const uploadResponse = await fetch(presignedResponse.presignedUrl, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': file.type,
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(
+            `S3 Upload Failed: ${uploadResponse.status} ${uploadResponse.statusText}`,
+          );
+        }
+
+        // 5. Finalize in Tiptap - Find node by ID and update via Transaction
+        const finalImageUrl = `https://${process.env.NEXT_PUBLIC_S3_UPLOAD_BUCKET}.s3.${process.env.NEXT_PUBLIC_AWS_REGION}.amazonaws.com/${presignedResponse.objectKey}`;
+        let nodeFound = false;
+
+        // Use doc.descendants to find the node reliably by its unique ID
+        editor.state.doc.descendants((node, pos) => {
+          if (nodeFound) return false;
+
+          if (node.type.name === 'image' && node.attrs['data-upload-id'] === placeholderId) {
+            const { tr } = editor.state;
+            tr.setNodeMarkup(pos, undefined, {
+              // Use the found position (pos)
+              src: finalImageUrl,
+              alt: file.name,
+              title: file.name,
+              'data-s3-key': presignedResponse.objectKey,
+              'data-upload-id': null,
+            });
+            editor.view.dispatch(tr);
+            nodeFound = true;
+            return false;
+          }
+          return true;
+        });
+
+        if (!nodeFound) {
+          console.warn(`Could not find placeholder node with ID ${placeholderId} to update.`);
+        }
+
+        toast({ title: 'Image uploaded successfully!' });
+      } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : 'Could not upload file.';
+        toast({ variant: 'destructive', title: 'Upload Failed', description: errorMsg });
+
+        // Remove placeholder if S3 upload fails - find node by ID first
+        let nodeToRemoveFound = false;
+        editor.state.doc.descendants((node, pos) => {
+          if (nodeToRemoveFound) return false;
+          if (node.type.name === 'image' && node.attrs['data-upload-id'] === placeholderId) {
+            const { tr } = editor.state;
+            tr.delete(pos, pos + node.nodeSize);
+            editor.view.dispatch(tr);
+            nodeToRemoveFound = true;
+            return false;
+          }
+          return true;
+        });
+        if (!nodeToRemoveFound) {
+          console.warn(
+            `Could not find placeholder node with ID ${placeholderId} to remove after error.`,
+          );
+        }
+      }
+    },
+    [editor, toast],
+  );
 
   if (!editor) {
     return null;
@@ -99,6 +301,14 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 
   return (
     <>
+      {/* Hidden file input */}
+      <input
+        type='file'
+        ref={fileInputRef}
+        onChange={handleImageUpload}
+        accept={ALLOWED_TYPES.join(',')}
+        style={{ display: 'none' }}
+      />
       <div className='flex flex-wrap gap-1 p-1 border-b'>
         {formatActions.map(({ icon: Icon, action, isActive, label, shortcut }) => (
           <Button
@@ -120,6 +330,22 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
             </div>
           </Button>
         ))}
+
+        {/* Image Upload Button */}
+        <Button
+          variant='ghost'
+          size='sm'
+          onClick={(e) => {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }}
+          className={cn('h-8 w-8 p-0 relative group')}
+          aria-label='Upload Image'
+          title='Upload Image'>
+          <ImageUp className='h-4 w-4' />
+          <span className='sr-only'>Upload Image</span>
+        </Button>
+
         <Popover open={isEmojiPopoverOpen} onOpenChange={setIsEmojiPopoverOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -214,11 +440,12 @@ export function RichTextEditor({
         showOnlyWhenEditable: false,
         emptyEditorClass: 'is-editor-empty',
       }),
-      Image.configure({
+      CustomImage.configure({
         inline: false,
-        allowBase64: false,
+        allowBase64: true,
         HTMLAttributes: {
           style: 'max-width: 100%; height: auto;',
+          class: 'uploaded-image',
         },
       }),
     ],

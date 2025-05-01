@@ -10,6 +10,7 @@ import { GamificationModule } from '../gamification/gamification.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PerspectiveModule } from '../services/perspective.module';
 import { TelegramModule } from '../telegram/telegram.module';
+import { UploadsModule } from '../uploads/uploads.module';
 import { CommentsController } from './comments.controller';
 import { CommentsService } from './comments.service';
 
@@ -27,6 +28,7 @@ import { CommentsService } from './comments.service';
     GamificationModule,
     NotificationsModule,
     TelegramModule,
+    UploadsModule,
   ],
   controllers: [CommentsController],
   providers: [CommentsService],
