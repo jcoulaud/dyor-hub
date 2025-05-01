@@ -31,6 +31,7 @@ export async function generateMetadata({
       preserveLineBreaks: true,
       lineBreakChar: ' ',
       maxLength: 160,
+      replaceImagesWithText: true,
     });
 
     return {

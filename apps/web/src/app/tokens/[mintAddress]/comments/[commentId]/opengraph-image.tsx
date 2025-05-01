@@ -66,6 +66,7 @@ export default async function Image({
       commentContent = sanitizeHtml(commentData.content, {
         preserveLineBreaks: true,
         maxLength: 220,
+        replaceImagesWithText: true,
       });
       username = commentData.user.displayName || commentData.user.username || 'Anonymous';
       avatarUrl = commentData.user.avatarUrl || '';

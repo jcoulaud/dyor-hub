@@ -49,6 +49,7 @@ export function getHighResAvatar(url: string | null | undefined): string | undef
  * @param options.preserveLineBreaks Whether to preserve line breaks from <br> and <p> tags (default: false).
  * @param options.lineBreakChar Character to use for line breaks (default: '\n').
  * @param options.maxLength Optional maximum length for the returned string.
+ * @param options.replaceImagesWithText Whether to replace images with text (default: false).
  * @returns The string with HTML tags removed and entities decoded.
  */
 export function sanitizeHtml(
@@ -57,13 +58,31 @@ export function sanitizeHtml(
     preserveLineBreaks?: boolean;
     lineBreakChar?: string;
     maxLength?: number;
+    replaceImagesWithText?: boolean;
   },
 ): string {
   if (!html) return '';
 
-  const { preserveLineBreaks = false, lineBreakChar = '\n', maxLength } = options || {};
+  const {
+    preserveLineBreaks = false,
+    lineBreakChar = '\n',
+    maxLength,
+    replaceImagesWithText = false,
+  } = options || {};
 
   let text = html;
+
+  // Replace images with placeholder text if requested
+  if (replaceImagesWithText) {
+    // Replace GIFs
+    text = text.replace(
+      /<img[^>]*(?:giphy\.com\/[^>]*\.gif|\.gif)[^>]*>/gi,
+      ' [Click to see the GIF] ',
+    );
+
+    // Replace all other images
+    text = text.replace(/<img[^>]*>/gi, ' [Click to see the image] ');
+  }
 
   // Replace <br> and paragraph tags with line breaks if requested
   if (preserveLineBreaks) {
