@@ -2,6 +2,7 @@ export * from './activity';
 export * from './admin';
 export * from './badge';
 export * from './comment';
+export * from './giphy';
 export * from './notification';
 export * from './referral';
 export * from './reputation';

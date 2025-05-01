@@ -31,6 +31,7 @@ import {
 import { FeedModule } from './feed/feed.module';
 import { FollowsModule } from './follows/follows.module';
 import { GamificationModule } from './gamification/gamification.module';
+import { GiphyModule } from './giphy/giphy.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReferralModule } from './referral/referral.module';
@@ -82,6 +83,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     GamificationModule,
     NotificationsModule,
     TelegramModule,
+    GiphyModule,
     TokenCallsModule,
     TokenCallsLeaderboardModule,
     FollowsModule,

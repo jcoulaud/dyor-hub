@@ -1,11 +1,14 @@
 import { cn } from '@/lib/utils';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
+import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import { type Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Bold, Code, Italic, List, Quote, Smile } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { TbGif } from 'react-icons/tb';
+import { GifPicker } from '../gif-picker/GifPicker';
 import { Button } from './button';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 
@@ -30,12 +33,25 @@ interface EmojiMartData {
 
 const MenuBar = ({ editor }: { editor: Editor | null }) => {
   const [isEmojiPopoverOpen, setIsEmojiPopoverOpen] = useState(false);
+  const [isGifPopoverOpen, setIsGifPopoverOpen] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const gifPickerRef = useRef<HTMLDivElement>(null);
 
   const handleEmojiSelect = (emojiData: EmojiMartData) => {
     if (editor) {
       setIsEmojiPopoverOpen(false);
-      editor.chain().insertContent(emojiData.native).run();
+      editor.chain().focus().insertContent(emojiData.native).run();
+    }
+  };
+
+  const handleGifSelect = (url: string, alt: string) => {
+    if (editor) {
+      setIsGifPopoverOpen(false);
+      editor
+        .chain()
+        .focus()
+        .setImage({ src: url, alt: alt || 'GIF' })
+        .run();
     }
   };
 
@@ -129,6 +145,32 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
             </div>
           </PopoverContent>
         </Popover>
+        <Popover open={isGifPopoverOpen} onOpenChange={setIsGifPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant='ghost'
+              size='sm'
+              className={cn('h-8 w-8 p-0 relative group')}
+              aria-label='Insert GIF'
+              title='Insert GIF'>
+              <TbGif className='h-5 w-5' />
+              <span className='sr-only'>Insert GIF</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            className='w-auto p-0 border-none shadow-none bg-transparent'
+            align='start'
+            sideOffset={5}
+            onInteractOutside={(event: Event) => {
+              if (gifPickerRef.current?.contains(event.target as Node)) {
+                event.preventDefault();
+              }
+            }}>
+            <div ref={gifPickerRef}>
+              <GifPicker onSelect={handleGifSelect} onClose={() => setIsGifPopoverOpen(false)} />
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </>
   );
@@ -171,6 +213,13 @@ export function RichTextEditor({
         placeholder,
         showOnlyWhenEditable: false,
         emptyEditorClass: 'is-editor-empty',
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: false,
+        HTMLAttributes: {
+          style: 'max-width: 100%; height: auto;',
+        },
       }),
     ],
     content,
