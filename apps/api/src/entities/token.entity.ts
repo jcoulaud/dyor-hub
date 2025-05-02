@@ -2,6 +2,9 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryColumn,
   UpdateDateColumn,
@@ -11,6 +14,7 @@ import { TokenCallEntity } from './token-call.entity';
 import { TokenSentimentEntity } from './token-sentiment.entity';
 import { TokenWatchlistEntity } from './token-watchlist.entity';
 import { TwitterUsernameHistoryEntity } from './twitter-username-history.entity';
+import { UserEntity } from './user.entity';
 
 @Entity('tokens')
 export class TokenEntity {
@@ -46,6 +50,20 @@ export class TokenEntity {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @Column({ type: 'varchar', nullable: true })
+  creatorAddress?: string | null;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  verifiedCreatorUserId?: string | null;
+
+  @ManyToOne(() => UserEntity, (user) => user.createdTokens, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'verifiedCreatorUserId' })
+  verifiedCreatorUser?: UserEntity | null;
 
   // Relationships
   @OneToMany(() => CommentEntity, (comment) => comment.token)

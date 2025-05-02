@@ -18,6 +18,7 @@ import { Referral } from './referral.entity';
 import { TokenCallEntity } from './token-call.entity';
 import { TokenSentimentEntity } from './token-sentiment.entity';
 import { TokenWatchlistEntity } from './token-watchlist.entity';
+import { TokenEntity } from './token.entity';
 import { UserActivityEntity } from './user-activity.entity';
 import { UserBadgeEntity } from './user-badge.entity';
 import { UserFollows } from './user-follows.entity';
@@ -137,6 +138,9 @@ export class UserEntity {
 
   @OneToOne(() => Referral, (referral) => referral.referredUser)
   referredBy: Referral;
+
+  @OneToMany(() => TokenEntity, (token) => token.verifiedCreatorUser)
+  createdTokens: TokenEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

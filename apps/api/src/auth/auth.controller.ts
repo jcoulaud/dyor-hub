@@ -1,15 +1,23 @@
-import { Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
 import { Session } from 'express-session';
+import { UsersService } from '../users/users.service';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { AuthConfigService } from './config/auth.config';
+import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { TwitterAuthenticationException } from './exceptions/auth.exceptions';
 
 interface AuthenticatedRequest extends Request {
-  user?: any;
   cookies?: { [key: string]: string };
   query?: { [key: string]: string };
   session?: Session & {
@@ -17,6 +25,7 @@ interface AuthenticatedRequest extends Request {
     returnTo?: string;
     [key: string]: any;
   };
+  user?: any;
 }
 
 @Controller('auth')
@@ -24,14 +33,45 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly authConfigService: AuthConfigService,
+    private readonly usersService: UsersService,
   ) {}
 
   @Get('profile')
   @UseGuards(AuthGuard)
-  getProfile(@Req() req: AuthenticatedRequest) {
+  async getProfile(@CurrentUser() currentUser: { id: string }) {
+    if (!currentUser || !currentUser.id) {
+      throw new UnauthorizedException('User not found in request');
+    }
+
+    const fullUser = await this.usersService.findById(currentUser.id);
+
+    if (!fullUser) {
+      throw new UnauthorizedException(
+        'User associated with token not found in database',
+      );
+    }
+
+    const userResponse = {
+      id: fullUser.id,
+      twitterId: fullUser.twitterId,
+      username: fullUser.username,
+      displayName: fullUser.displayName,
+      avatarUrl: fullUser.avatarUrl,
+      twitterAccessToken: fullUser.twitterAccessToken,
+      twitterRefreshToken: fullUser.twitterRefreshToken,
+      isAdmin: fullUser.isAdmin,
+      referralCode: fullUser.referralCode,
+      preferences: fullUser.preferences,
+      createdTokens:
+        fullUser.createdTokens?.map((token) => ({
+          mintAddress: token.mintAddress,
+          symbol: token.symbol,
+        })) || [],
+    };
+
     return {
-      authenticated: !!req.user,
-      user: req.user,
+      authenticated: true,
+      user: userResponse,
     };
   }
 

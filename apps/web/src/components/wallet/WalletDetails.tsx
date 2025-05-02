@@ -112,7 +112,7 @@ export function WalletDetails() {
 
             if (backendErrorMessage.includes(alreadyConnectedMsg)) {
               const conflictMsg =
-                'This wallet is linked to another account. The other account must remove it first.';
+                'This wallet is verified by another account. The other account must remove it first.';
               setAssociationConflictError(conflictMsg);
               toast({
                 title: 'Association Conflict',

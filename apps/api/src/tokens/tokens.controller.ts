@@ -9,14 +9,21 @@ import {
   Controller,
   DefaultValuePipe,
   Get,
+  HttpCode,
+  HttpException,
+  HttpStatus,
   NotFoundException,
   Param,
   ParseIntPipe,
+  Post,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { subDays } from 'date-fns';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
 import { TokenEntity } from '../entities/token.entity';
 import { UserEntity } from '../entities/user.entity';
@@ -113,6 +120,27 @@ export class TokensController {
         `Could not fetch current price for token ${mintAddress}`,
       );
     }
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':mintAddress/verify-creator')
+  @HttpCode(HttpStatus.OK)
+  async verifyCreator(
+    @Param('mintAddress') mintAddress: string,
+    @Req() req: any,
+  ) {
+    if (!req.user || !req.user.id) {
+      throw new HttpException(
+        'User information not found on request',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    const userId = req.user.id;
+    const result = await this.tokensService.verifyTokenCreator(
+      mintAddress,
+      userId,
+    );
     return result;
   }
 }

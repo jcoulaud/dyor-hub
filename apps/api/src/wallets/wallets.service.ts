@@ -38,10 +38,16 @@ export class WalletsService {
     });
 
     if (wallet) {
-      if (wallet.userId !== userId) {
+      if (wallet.userId !== userId && wallet.isVerified) {
         throw new ConflictException(
           'Wallet address already connected to another account',
         );
+      } else if (wallet.userId !== userId) {
+        // If the wallet belongs to another user but is not verified,
+        // we can reassign it to the current user
+        wallet.userId = userId;
+        wallet.user = await this.usersRepository.findOneBy({ id: userId });
+        await this.walletsRepository.save(wallet);
       }
       return WalletResponseDto.fromEntity(wallet);
     }

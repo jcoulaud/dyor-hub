@@ -1,15 +1,20 @@
+import { User } from './user';
+
 export interface Token {
+  id?: string;
   mintAddress: string;
   name: string;
   symbol: string;
-  description?: string;
-  imageUrl?: string;
-  websiteUrl?: string;
-  telegramUrl?: string;
-  twitterHandle?: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  websiteUrl?: string | null;
+  telegramUrl?: string | null;
+  twitterHandle?: string | null;
   viewsCount: number;
   createdAt: Date;
-  lastRefreshedAt?: Date;
+  updatedAt: Date;
+  verifiedCreatorUserId?: string | null;
+  verifiedCreatorUser?: Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl'> | null;
 }
 
 export enum SentimentType {

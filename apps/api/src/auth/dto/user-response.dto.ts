@@ -12,6 +12,7 @@ export class UserResponseDto {
   createdAt?: string;
   followersCount?: number;
   followingCount?: number;
+  createdTokens?: { mintAddress: string; symbol: string }[];
 
   constructor(partial: Partial<UserResponseDto>) {
     Object.assign(this, partial);
@@ -54,6 +55,11 @@ export class UserResponseDto {
       primaryWalletAddress: finalAddress,
       followersCount: options?.followersCount ?? 0,
       followingCount: options?.followingCount ?? 0,
+      createdTokens:
+        user.createdTokens?.map((token) => ({
+          mintAddress: token.mintAddress,
+          symbol: token.symbol,
+        })) || [],
     });
 
     // Only include createdAt for admin endpoints

@@ -19,6 +19,7 @@ import {
   MoreHorizontal,
   Pencil,
   Rocket,
+  Shield,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -54,6 +55,8 @@ import { TwitterShareButton } from './TwitterShareButton';
 interface CommentSectionProps {
   tokenMintAddress: string;
   commentId?: string;
+  verifiedCreatorUserId?: string | null;
+  tokenSymbol?: string;
 }
 
 export interface CommentSectionHandle {
@@ -98,7 +101,7 @@ const getStatusText = (status: TokenCallStatus) => {
 };
 
 export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionProps>(
-  ({ tokenMintAddress, commentId }, ref) => {
+  ({ tokenMintAddress, commentId, verifiedCreatorUserId, tokenSymbol }, ref) => {
     const [commentsList, setComments] = useState<CommentType[]>([]);
     const [sortBy, setSortBy] = useState<SortOption>('best');
     const [previousSort, setPreviousSort] = useState<SortOption | null>(null);
@@ -548,7 +551,17 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
       },
     }));
 
-    const Comment = ({ comment, depth = 0 }: { comment: CommentType; depth?: number }) => {
+    const Comment = ({
+      comment,
+      depth = 0,
+      verifiedCreatorUserId,
+      tokenSymbol,
+    }: {
+      comment: CommentType;
+      depth?: number;
+      verifiedCreatorUserId?: string | null;
+      tokenSymbol?: string;
+    }) => {
       const [isEditing, setIsEditing] = useState(false);
       const [isReplying, setIsReplying] = useState(false);
       const commentElementRef = createCommentRefCallback(comment.id);
@@ -687,6 +700,12 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
                         comment.isRemoved && 'opacity-40',
                       )}>
                       {comment.user.displayName}
+                    </span>
+                  )}
+                  {verifiedCreatorUserId === comment.user.id && !comment.isRemoved && (
+                    <span className='ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100/10 text-green-400 border border-green-500/20'>
+                      <Shield className='h-2.5 w-2.5 mr-0.5' />
+                      {tokenSymbol ? `$${tokenSymbol.toUpperCase()} team` : 'Creator'}
                     </span>
                   )}
                   <span
@@ -897,7 +916,13 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
           {comment.replies && comment.replies.length > 0 && (
             <div className='space-y-2 sm:space-y-3'>
               {comment.replies.map((reply) => (
-                <Comment key={reply.id} comment={reply} depth={Math.min(depth + 1, 5)} />
+                <Comment
+                  key={reply.id}
+                  comment={reply}
+                  depth={Math.min(depth + 1, 5)}
+                  verifiedCreatorUserId={verifiedCreatorUserId}
+                  tokenSymbol={tokenSymbol}
+                />
               ))}
             </div>
           )}
@@ -955,7 +980,12 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
           <div className='space-y-4 w-full'>
             {threadComments.length > 0 ? (
               threadComments.map((rootComment) => (
-                <Comment key={rootComment.id} comment={rootComment} />
+                <Comment
+                  key={rootComment.id}
+                  comment={rootComment}
+                  verifiedCreatorUserId={verifiedCreatorUserId}
+                  tokenSymbol={tokenSymbol}
+                />
               ))
             ) : (
               <p className='text-center text-muted-foreground'>Could not load comment thread.</p>
@@ -1028,7 +1058,13 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
             {commentsList.length > 0 ? (
               <div className='space-y-3 w-full'>
                 {commentsList.map((comment) => (
-                  <Comment key={comment.id} comment={comment} depth={0} />
+                  <Comment
+                    key={comment.id}
+                    comment={comment}
+                    depth={0}
+                    verifiedCreatorUserId={verifiedCreatorUserId}
+                    tokenSymbol={tokenSymbol}
+                  />
                 ))}
               </div>
             ) : isLoading ? (
