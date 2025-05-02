@@ -54,12 +54,15 @@ export default async function Image({
   let avatarUrl = '';
   let tokenSymbol = '';
   let tokenImageUrl = '';
+  let isTokenCreator = false;
 
   try {
     const [commentResult, tokenResult] = await Promise.allSettled([
       comments.get(commentId),
       tokens.getByMintAddress(mintAddress),
     ]);
+
+    let userId: string | undefined;
 
     if (commentResult.status === 'fulfilled' && commentResult.value) {
       const commentData = commentResult.value;
@@ -70,21 +73,28 @@ export default async function Image({
       });
       username = commentData.user.displayName || commentData.user.username || 'Anonymous';
       avatarUrl = commentData.user.avatarUrl || '';
+      userId = commentData.user.id;
     }
 
     if (tokenResult.status === 'fulfilled' && tokenResult.value) {
       const tokenData = tokenResult.value;
       tokenSymbol = tokenData.symbol || tokenData.name || '';
       tokenImageUrl = tokenData.imageUrl || '';
+
+      // Check if the commenter is the verified creator of the token
+      if (userId && tokenData.verifiedCreatorUserId === userId) {
+        isTokenCreator = true;
+      }
     }
   } catch {
     // Continue with default values set above
   }
 
-  const [avatarSrc, tokenImageSrc, logoSrc] = await Promise.all([
+  const [avatarSrc, tokenImageSrc, logoSrc, shieldIconSrc] = await Promise.all([
     avatarUrl ? fetchImageAsDataUrl(avatarUrl) : Promise.resolve(null),
     tokenImageUrl ? fetchImageAsDataUrl(tokenImageUrl) : Promise.resolve(null),
     fetchImageAsDataUrl('/logo-white.png'),
+    fetchImageAsDataUrl('/shield-icon.png').catch(() => Promise.resolve(null)), // Try to load shield icon
   ]);
 
   return new ImageResponse(
@@ -140,7 +150,6 @@ export default async function Image({
               fontSize: 30,
               fontWeight: 'bold',
               display: 'flex',
-              marginLeft: logoSrc ? 20 : 0,
             }}>
             <span>New comment on DYOR hub!</span>
           </div>
@@ -199,12 +208,56 @@ export default async function Image({
               )}
               <div
                 style={{
-                  fontSize: 32,
-                  fontWeight: 'bold',
-                  color: '#ffffff',
                   display: 'flex',
+                  alignItems: 'center',
+                  gap: 20,
                 }}>
-                <span>{username}</span>
+                <div
+                  style={{
+                    fontSize: 32,
+                    fontWeight: 'bold',
+                    color: '#ffffff',
+                    display: 'flex',
+                  }}>
+                  <span>{username}</span>
+                </div>
+
+                {/* Team Badge */}
+                {isTokenCreator && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                      borderRadius: 8,
+                      padding: '4px 12px',
+                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                    }}>
+                    {shieldIconSrc ? (
+                      <img src={shieldIconSrc} width={16} height={16} alt='' />
+                    ) : (
+                      <div
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: '50%',
+                          backgroundColor: '#22c55e', // Green color
+                          display: 'flex',
+                        }}
+                      />
+                    )}
+                    <span
+                      style={{
+                        color: '#22c55e',
+                        fontWeight: 'bold',
+                        fontSize: 16,
+                      }}>
+                      {tokenSymbol ? `$${tokenSymbol} team` : 'Team'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -245,38 +298,14 @@ export default async function Image({
               marginBottom: 24,
               flex: 1,
               display: 'flex',
-              whiteSpace: 'pre-line',
             }}>
-            <span>&ldquo;{commentContent}&rdquo;</span>
+            <span style={{ whiteSpace: 'pre-line' }}>&ldquo;{commentContent}&rdquo;</span>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: 24,
-            paddingTop: 24,
-            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-          }}>
-          <div style={{ color: '#a3a3a3', fontSize: 22, display: 'flex' }}>
-            <span>dyorhub.xyz</span>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              borderRadius: 9999,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              paddingLeft: 16,
-              paddingRight: 16,
-              paddingTop: 8,
-              paddingBottom: 8,
-            }}>
-            <div style={{ color: '#ffffff', fontSize: 20, fontWeight: 'bold', display: 'flex' }}>
-              <span>Join the discussion</span>
+          {/* Footer */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', alignItems: 'center', color: '#6b7280' }}>
+              <span>← Join the conversation on DYOR hub</span>
             </div>
           </div>
         </div>
@@ -284,6 +313,7 @@ export default async function Image({
     ),
     {
       ...size,
+      emoji: 'twemoji',
     },
   );
 }
