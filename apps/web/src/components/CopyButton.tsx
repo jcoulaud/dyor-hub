@@ -1,6 +1,7 @@
 'use client';
 
 import { Check } from 'lucide-react';
+import { useId } from 'react';
 
 interface CopyButtonProps {
   textToCopy: string;
@@ -13,9 +14,12 @@ const truncateText = (text: string) => {
 };
 
 export function CopyButton({ textToCopy, shouldTruncate = true }: CopyButtonProps) {
+  const uniqueId = useId();
+  const buttonId = `copy-button-${uniqueId}`;
+
   const handleCopy = () => {
     navigator.clipboard.writeText(textToCopy);
-    const button = document.getElementById('copy-button');
+    const button = document.getElementById(buttonId);
     if (button) {
       button.classList.add('copied');
       setTimeout(() => button.classList.remove('copied'), 2000);
@@ -25,7 +29,7 @@ export function CopyButton({ textToCopy, shouldTruncate = true }: CopyButtonProp
   return (
     <button
       onClick={handleCopy}
-      id='copy-button'
+      id={buttonId}
       className='group relative inline-flex items-center gap-2 rounded border border-zinc-800 bg-zinc-900/50 px-2 py-1 text-zinc-300 hover:bg-zinc-800/50 cursor-pointer text-sm'>
       <code className='font-mono'>
         {shouldTruncate ? (
