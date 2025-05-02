@@ -9,7 +9,7 @@ import { WalletBadge } from '@/components/wallet/WalletBadge';
 import { getHighResAvatar } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { User, UserStats } from '@dyor-hub/types';
-import { MessageSquare, Reply, ThumbsDown, ThumbsUp, Twitter } from 'lucide-react';
+import { MessageSquare, Reply, Shield, ThumbsDown, ThumbsUp, Twitter } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -19,6 +19,7 @@ interface UserProfileHeaderClientProps {
     followingCount?: number;
     primaryWalletAddress?: string;
     preferences?: { showWalletAddress?: boolean };
+    createdTokens?: { mintAddress: string; symbol: string }[];
   };
   userStats: UserStats;
 }
@@ -29,11 +30,6 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
 
   const shouldRenderTipButton =
     isAuthenticated && loggedInUser && profileUser && loggedInUser.id !== profileUser.id;
-  console.log('[UserProfileHeaderClient] Should render TipButton:', shouldRenderTipButton, {
-    isAuthenticated,
-    loggedInUserId: loggedInUser?.id,
-    profileUserId: profileUser?.id,
-  });
 
   return (
     <div className='mb-6 backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-xl'>
@@ -77,6 +73,23 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
                         displayName={profileUser.displayName}
                         userId={profileUser.id}
                       />
+                      {profileUser.createdTokens && profileUser.createdTokens.length > 0 && (
+                        <div className='flex items-center gap-1.5 ml-1.5'>
+                          {profileUser.createdTokens?.map((token) => {
+                            if (!token) return null;
+                            return (
+                              <Link
+                                href={`/tokens/${token.mintAddress}`}
+                                key={token.mintAddress}
+                                className='inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100/10 text-green-400 border border-green-500/20 hover:bg-green-100/20 transition-colors'
+                                title={`Verified creator of $${token.symbol.toUpperCase()}`}>
+                                <Shield className='h-2.5 w-2.5 mr-0.5' />$
+                                {token.symbol.toUpperCase()} team
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </h1>
                   <p className='text-zinc-400 text-sm'>@{profileUser.username}</p>
@@ -103,14 +116,12 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
                 {profileUser.preferences?.showWalletAddress && profileUser.primaryWalletAddress && (
                   <WalletBadge address={profileUser.primaryWalletAddress} isVerified={true} />
                 )}
-                {/* Conditional Follow Button */}
                 {isAuthenticated && loggedInUser?.id !== profileUser.id && (
                   <FollowButton
                     profileUserId={profileUser.id}
                     profileUserDisplayName={profileUser.displayName}
                   />
                 )}
-                {/* Conditional Tip Button */}
                 {shouldRenderTipButton && (
                   <TipButton
                     recipientUserId={profileUser.id}
@@ -131,11 +142,11 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
                 </Link>
               </div>
             </div>
-            {/* ProfileStats */}
             <ProfileStats userId={profileUser.id} />
           </div>
         </div>
       </div>
+
       {/* User Stats Grid */}
       <div className='border-t border-white/5 bg-gradient-to-r from-zinc-900/30 via-zinc-900/20 to-zinc-900/30'>
         <div className='grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-white/5'>

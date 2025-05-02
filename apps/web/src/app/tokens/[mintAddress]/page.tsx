@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { clearTokenCache, tokenCalls, tokens, watchlist } from '@/lib/api';
+import { tokenCalls, tokens, watchlist } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import {
@@ -169,8 +169,6 @@ export default function Page({ params, commentId }: PageProps) {
           title: 'Verification Success',
           description: result.message,
         });
-
-        clearTokenCache(tokenData.mintAddress);
 
         const updatedTokenData = await tokens.getByMintAddress(tokenData.mintAddress);
         let tokenWithStatus = updatedTokenData;

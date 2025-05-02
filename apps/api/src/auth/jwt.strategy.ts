@@ -48,7 +48,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(
     req: Request,
     payload: JwtPayload,
-  ): Promise<UserEntity | null> {
+  ): Promise<{ id: string } | null> {
     if (req && (req as any).isPublicRoute) {
       return null;
     }
@@ -61,6 +61,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
       const user = await this.userRepository.findOne({
         where: { id: payload.sub },
+        select: { id: true },
       });
 
       if (!user) {
@@ -68,7 +69,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         return null;
       }
 
-      return user;
+      return { id: user.id };
     } catch (error) {
       this.logger.error('JWT Strategy - Validation failed:', error);
       return null;

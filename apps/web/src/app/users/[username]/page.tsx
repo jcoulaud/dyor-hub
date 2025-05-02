@@ -49,6 +49,7 @@ export type UserComment = UserActivity;
 export interface User extends BaseUser {
   followersCount?: number;
   followingCount?: number;
+  createdTokens?: BaseUser['createdTokens'];
 }
 
 // Server component that fetches the data and renders the client component

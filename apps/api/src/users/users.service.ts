@@ -53,11 +53,16 @@ export class UsersService {
           'user.avatarUrl',
           'user.isAdmin',
           'user.preferences',
+          'user.createdAt',
+          'user.updatedAt',
+          'user.referralCode',
           'wallets.address',
           'wallets.isPrimary',
           'wallets.isVerified',
         ])
         .leftJoin('user.wallets', 'wallets')
+        .leftJoinAndSelect('user.createdTokens', 'createdTokens')
+        .addSelect(['createdTokens.mintAddress', 'createdTokens.symbol'])
         .where('LOWER(user.username) = LOWER(:username)', { username })
         .getOne();
 
@@ -317,6 +322,9 @@ export class UsersService {
     try {
       const user = await this.userRepository.findOne({
         where: { id },
+        relations: {
+          createdTokens: true,
+        },
       });
       return user;
     } catch (error) {
