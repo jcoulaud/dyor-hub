@@ -5,6 +5,7 @@ import type { CommentSectionHandle } from '@/components/comments/CommentSection'
 import { CommentSection } from '@/components/comments/CommentSection';
 import { SolscanButton } from '@/components/SolscanButton';
 import { TokenCallsSection } from '@/components/token-calls/token-page/TokenCallsSection';
+import { EmbedButtonDialog } from '@/components/token/EmbedButtonDialog';
 import { TokenBundlesSection } from '@/components/tokens/bundles/TokenBundlesSection';
 import { TokenExternalLinks } from '@/components/tokens/TokenExternalLinks';
 import { TokenImage } from '@/components/tokens/TokenImage';
@@ -29,6 +30,7 @@ import {
 } from '@dyor-hub/types';
 import {
   BarChart3,
+  Code,
   Copy,
   ExternalLink,
   Globe,
@@ -76,6 +78,7 @@ export default function Page({ params, commentId }: PageProps) {
     null,
   );
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showEmbedDialog, setShowEmbedDialog] = useState(false);
   const commentSectionRef = useRef<CommentSectionHandle>(null);
   const [isVerifyingCreator, setIsVerifyingCreator] = useState(false);
 
@@ -424,7 +427,7 @@ export default function Page({ params, commentId }: PageProps) {
                         symbol={tokenData.symbol}
                         className='w-16 h-16 rounded-full'
                       />
-                      <div className='sm:hidden mt-2'>
+                      <div className='sm:hidden flex items-center gap-2 mt-2'>
                         <WatchlistButton
                           mintAddress={tokenData.mintAddress}
                           initialWatchlistStatus={tokenData.isWatchlisted}
@@ -454,7 +457,7 @@ export default function Page({ params, commentId }: PageProps) {
                               <span className='text-lg text-zinc-400 font-medium'>
                                 {tokenData.symbol}
                               </span>
-                              <div className='ml-3'>
+                              <div className='ml-3 flex items-center gap-2'>
                                 <WatchlistButton
                                   mintAddress={tokenData.mintAddress}
                                   initialWatchlistStatus={tokenData.isWatchlisted}
@@ -470,6 +473,12 @@ export default function Page({ params, commentId }: PageProps) {
                             </div>
                           </div>
                           <div className='hidden sm:flex items-center gap-2 flex-shrink-0'>
+                            <button
+                              onClick={() => setShowEmbedDialog(true)}
+                              className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
+                              title='Embed Button'>
+                              <Code className='w-4 h-4 text-blue-400' />
+                            </button>
                             <SolscanButton
                               address={tokenData.mintAddress}
                               type='token'
@@ -1252,8 +1261,15 @@ export default function Page({ params, commentId }: PageProps) {
         </div>
       </div>
 
-      {/* Add AuthModal at the end of the component */}
       <AuthModal isOpen={showAuthModal} onClose={handleAuthModalClose} />
+
+      {tokenData && (
+        <EmbedButtonDialog
+          tokenId={tokenData.mintAddress}
+          isOpen={showEmbedDialog}
+          onOpenChange={setShowEmbedDialog}
+        />
+      )}
     </div>
   );
 }
