@@ -764,6 +764,30 @@ export const tokens = {
       throw error;
     }
   },
+
+  verifyTokenCreator: async (
+    mintAddress: string,
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      const endpoint = `tokens/${mintAddress}/verify-creator`;
+      const data = await api<{ success: boolean; message: string }>(endpoint, {
+        method: 'POST',
+      });
+      return data;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw new ApiError(
+          error.status,
+          error.message || 'Failed to verify token creator status.',
+          error.data,
+        );
+      } else if (error instanceof Error) {
+        throw new ApiError(500, error.message || 'Failed to verify token creator status.');
+      } else {
+        throw new ApiError(500, 'An unknown error occurred during verification.');
+      }
+    }
+  },
 };
 
 // Keep local DTO definition if not shared
