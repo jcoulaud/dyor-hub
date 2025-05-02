@@ -432,6 +432,9 @@ export class TokensService {
     try {
       let token = await this.tokenRepository.findOne({
         where: { mintAddress },
+        relations: {
+          verifiedCreatorUser: true,
+        },
       });
 
       if (!token) {
@@ -473,9 +476,16 @@ export class TokensService {
       } else {
         // Existing token: Track view count and check for updated socials from DexScreener
         token.viewsCount = (token.viewsCount || 0) + 1;
-        await this.tokenRepository.save(token);
 
-        // Check DexScreener for updated social links
+        if (!token.verifiedCreatorUser && token.verifiedCreatorUserId) {
+          const reloadedToken = await this.tokenRepository.findOne({
+            where: { mintAddress },
+            relations: { verifiedCreatorUser: true },
+          });
+          if (reloadedToken) token = reloadedToken;
+        }
+
+        await this.tokenRepository.save(token);
         token = await this.updateTokenSocialLinksFromDexScreener(token);
       }
 
@@ -1021,7 +1031,7 @@ export class TokensService {
   ): Promise<string | null> {
     const BIRDEYE_API_KEY = this.configService.get<string>('BIRDEYE_API_KEY');
     if (!BIRDEYE_API_KEY) {
-      this.logger.error('Birdeye API key is missing in config.');
+      this.logger.error('Creator fetch API key is missing in config.');
       throw new ServiceUnavailableException(
         'Server configuration error preventing verification.',
       );
@@ -1037,7 +1047,7 @@ export class TokensService {
 
       if (!response || !response.data) {
         this.logger.error(
-          `Birdeye API unexpected response structure for ${tokenAddress}:`,
+          `Creator fetch API unexpected response structure for ${tokenAddress}:`,
           response,
         );
         return null;
@@ -1045,7 +1055,7 @@ export class TokensService {
 
       if (response.status !== 200 || !response.data.success) {
         this.logger.error(
-          `Birdeye API error for ${tokenAddress}: Status ${response.status}`,
+          `Creator fetch API error for ${tokenAddress}: Status ${response.status}`,
           response.data,
         );
         return null;
@@ -1053,13 +1063,13 @@ export class TokensService {
 
       const creatorAddress = response.data.data?.creatorAddress || null;
       this.logger.log(
-        `Birdeye check for ${tokenAddress}: creatorAddress = ${creatorAddress}`,
+        `Creator fetch for ${tokenAddress}: creatorAddress = ${creatorAddress}`,
       );
       return creatorAddress;
     } catch (error) {
       const axiosError = error as AxiosError;
       this.logger.error(
-        `Error fetching from Birdeye for ${tokenAddress}: Status ${axiosError.response?.status}`,
+        `Error fetching creator from external API for ${tokenAddress}: Status ${axiosError.response?.status}`,
         axiosError.response?.data || axiosError.message,
       );
       return null;
@@ -1126,19 +1136,13 @@ export class TokensService {
 
     let creatorAddress = token.creatorAddress;
 
-    // 3. Fetch from Birdeye if not stored
+    // 3. Fetch from external API if not stored
     if (!creatorAddress) {
-      this.logger.log(
-        `Creator address for ${tokenMintAddress} not in DB, fetching from Birdeye...`,
-      );
       creatorAddress = await this.fetchTokenCreator(tokenMintAddress);
 
       if (creatorAddress) {
         token.creatorAddress = creatorAddress;
         await this.tokenRepository.save(token);
-        this.logger.log(
-          `Stored creator address ${creatorAddress} for token ${tokenMintAddress}`,
-        );
       } else {
         this.logger.error(
           `Could not retrieve creator address for token ${tokenMintAddress} from Birdeye.`,
@@ -1200,7 +1204,7 @@ export class TokensService {
       return {
         success: false,
         message:
-          'None of your verified wallets match the token creator address.',
+          'None of your verified wallets match the token creator address. Please go to /account/wallet to connect and verify the deployer wallet.',
       };
     }
   }

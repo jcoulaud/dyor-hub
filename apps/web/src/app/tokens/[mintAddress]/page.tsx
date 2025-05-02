@@ -10,11 +10,12 @@ import { TokenExternalLinks } from '@/components/tokens/TokenExternalLinks';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { tokenCalls, tokens, watchlist } from '@/lib/api';
+import { clearTokenCache, tokenCalls, tokens, watchlist } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import {
@@ -76,6 +77,7 @@ export default function Page({ params, commentId }: PageProps) {
   );
   const [showAuthModal, setShowAuthModal] = useState(false);
   const commentSectionRef = useRef<CommentSectionHandle>(null);
+  const [isVerifyingCreator, setIsVerifyingCreator] = useState(false);
 
   const { toast } = useToast();
 
@@ -149,6 +151,57 @@ export default function Page({ params, commentId }: PageProps) {
     },
     [isAuthenticated, mintAddress, sentimentData, toast],
   );
+
+  const handleVerifyCreator = useCallback(async () => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (!tokenData) return;
+
+    setIsVerifyingCreator(true);
+
+    try {
+      const result = await tokens.verifyTokenCreator(tokenData.mintAddress);
+
+      if (result.success) {
+        toast({
+          title: 'Verification Success',
+          description: result.message,
+        });
+
+        clearTokenCache(tokenData.mintAddress);
+
+        const updatedTokenData = await tokens.getByMintAddress(tokenData.mintAddress);
+        let tokenWithStatus = updatedTokenData;
+        if (isAuthenticated && updatedTokenData) {
+          try {
+            const isWatchlisted = await watchlist.isTokenWatchlisted(updatedTokenData.mintAddress);
+            tokenWithStatus = { ...updatedTokenData, isWatchlisted };
+          } catch {
+            /* ignore */
+          }
+        }
+        setTokenData(tokenWithStatus);
+      } else {
+        toast({
+          title: 'Verification Info',
+          description: result.message || 'Verification could not be completed.',
+          variant: 'default',
+        });
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Verification failed. Please try again.';
+      toast({
+        title: 'Verification Error',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsVerifyingCreator(false);
+    }
+  }, [isAuthenticated, tokenData, toast]);
 
   useEffect(() => {
     let isMounted = true;
@@ -350,7 +403,7 @@ export default function Page({ params, commentId }: PageProps) {
         <div className='relative group mb-6'>
           <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-300'></div>
           <Card className='relative w-full border-0 bg-black/60 backdrop-blur-md shadow-xl rounded-xl overflow-hidden'>
-            <CardContent className='p-4'>
+            <CardContent className='p-4 relative'>
               {isLoading || !isHeaderLoaded ? (
                 <div className='flex items-start gap-4'>
                   <Skeleton className='w-16 h-16 rounded-full' />
@@ -364,84 +417,141 @@ export default function Page({ params, commentId }: PageProps) {
                   </div>
                 </div>
               ) : tokenData ? (
-                <div className='flex items-start gap-4'>
-                  <div className='flex flex-col items-center'>
-                    <TokenImage
-                      imageUrl={tokenData.imageUrl}
-                      name={tokenData.name}
-                      symbol={tokenData.symbol}
-                      className='w-16 h-16 rounded-full'
-                    />
-                    <div className='sm:hidden mt-2'>
-                      <WatchlistButton
-                        mintAddress={tokenData.mintAddress}
-                        initialWatchlistStatus={tokenData.isWatchlisted}
-                        onStatusChange={(isWatchlisted) => {
-                          setTokenData((prev: TokenWithWatchlistStatus | null) =>
-                            prev ? { ...prev, isWatchlisted } : null,
-                          );
-                        }}
-                        size='sm'
-                        tokenSymbol={tokenData.symbol}
+                <>
+                  <div className='flex items-start gap-4'>
+                    <div className='flex flex-col items-center'>
+                      <TokenImage
+                        imageUrl={tokenData.imageUrl}
+                        name={tokenData.name}
+                        symbol={tokenData.symbol}
+                        className='w-16 h-16 rounded-full'
                       />
+                      <div className='sm:hidden mt-2'>
+                        <WatchlistButton
+                          mintAddress={tokenData.mintAddress}
+                          initialWatchlistStatus={tokenData.isWatchlisted}
+                          onStatusChange={(isWatchlisted) => {
+                            setTokenData((prev: TokenWithWatchlistStatus | null) =>
+                              prev ? { ...prev, isWatchlisted } : null,
+                            );
+                          }}
+                          size='sm'
+                          tokenSymbol={tokenData.symbol}
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <div className='flex-1 min-w-0'>
-                    <div className='flex flex-col gap-2'>
-                      <div className='flex justify-between items-center flex-wrap'>
-                        <div className='flex flex-col sm:flex-row sm:items-center sm:gap-2'>
-                          <h1 className='text-2xl font-bold text-white'>{tokenData.name}</h1>
-                          <div className='flex items-center sm:hidden'>
-                            <span className='text-lg text-zinc-400 font-medium'>$</span>
-                            <span className='text-lg text-zinc-400 font-medium'>
-                              {tokenData.symbol}
-                            </span>
-                          </div>
-                          <div className='hidden sm:flex sm:items-center'>
-                            <span className='text-lg text-zinc-400 font-medium'>$</span>
-                            <span className='text-lg text-zinc-400 font-medium'>
-                              {tokenData.symbol}
-                            </span>
-                            <div className='ml-3'>
-                              <WatchlistButton
-                                mintAddress={tokenData.mintAddress}
-                                initialWatchlistStatus={tokenData.isWatchlisted}
-                                onStatusChange={(isWatchlisted) => {
-                                  setTokenData((prev: TokenWithWatchlistStatus | null) =>
-                                    prev ? { ...prev, isWatchlisted } : null,
-                                  );
-                                }}
-                                size='sm'
-                                tokenSymbol={tokenData.symbol}
-                              />
+                    <div className='flex-1 min-w-0'>
+                      <div className='flex flex-col gap-2'>
+                        <div className='flex justify-between items-center flex-wrap'>
+                          <div className='flex flex-col sm:flex-row sm:items-center sm:gap-2'>
+                            <h1 className='text-2xl font-bold text-white'>{tokenData.name}</h1>
+                            <div className='flex items-center sm:hidden'>
+                              <span className='text-lg text-zinc-400 font-medium'>$</span>
+                              <span className='text-lg text-zinc-400 font-medium'>
+                                {tokenData.symbol}
+                              </span>
+                            </div>
+                            <div className='hidden sm:flex sm:items-center'>
+                              <span className='text-lg text-zinc-400 font-medium'>$</span>
+                              <span className='text-lg text-zinc-400 font-medium'>
+                                {tokenData.symbol}
+                              </span>
+                              <div className='ml-3'>
+                                <WatchlistButton
+                                  mintAddress={tokenData.mintAddress}
+                                  initialWatchlistStatus={tokenData.isWatchlisted}
+                                  onStatusChange={(isWatchlisted) => {
+                                    setTokenData((prev: TokenWithWatchlistStatus | null) =>
+                                      prev ? { ...prev, isWatchlisted } : null,
+                                    );
+                                  }}
+                                  size='sm'
+                                  tokenSymbol={tokenData.symbol}
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className='hidden sm:flex items-center gap-2 flex-shrink-0'>
-                          <SolscanButton
-                            address={tokenData.mintAddress}
-                            type='token'
-                            className='relative flex items-center gap-1 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 h-8 px-2 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'>
-                            <span className='font-mono text-zinc-200 text-xs'>
-                              {truncateAddress(tokenData.mintAddress)}
-                            </span>
-                            <svg
-                              xmlns='http://www.w3.org/2000/svg'
-                              width='12'
-                              height='12'
-                              viewBox='0 0 24 24'
-                              fill='none'
-                              stroke='currentColor'
-                              strokeWidth='2'
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              className='text-blue-400 transition-colors'>
-                              <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
-                              <polyline points='15 3 21 3 21 9' />
-                              <line x1='10' y1='14' x2='21' y2='3' />
-                            </svg>
-                          </SolscanButton>
+                          <div className='hidden sm:flex items-center gap-2 flex-shrink-0'>
+                            <SolscanButton
+                              address={tokenData.mintAddress}
+                              type='token'
+                              className='relative flex items-center gap-1 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 h-8 px-2 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'>
+                              <span className='font-mono text-zinc-200 text-xs'>
+                                {truncateAddress(tokenData.mintAddress)}
+                              </span>
+                              <svg
+                                xmlns='http://www.w3.org/2000/svg'
+                                width='12'
+                                height='12'
+                                viewBox='0 0 24 24'
+                                fill='none'
+                                stroke='currentColor'
+                                strokeWidth='2'
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                className='text-blue-400 transition-colors'>
+                                <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
+                                <polyline points='15 3 21 3 21 9' />
+                                <line x1='10' y1='14' x2='21' y2='3' />
+                              </svg>
+                            </SolscanButton>
 
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(tokenData.mintAddress);
+                                toast({
+                                  title: 'Address copied',
+                                  description: 'Token address copied to clipboard',
+                                });
+                              }}
+                              className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
+                              title='Copy address'>
+                              <Copy className='w-4 h-4 text-blue-400' />
+                            </button>
+
+                            {/* Desktop Social buttons */}
+                            {tokenData.websiteUrl && (
+                              <Link
+                                href={tokenData.websiteUrl}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                                title='Website'>
+                                <Globe className='w-4 h-4 text-blue-400' />
+                              </Link>
+                            )}
+
+                            {tokenData.twitterHandle && (
+                              <Link
+                                href={`https://twitter.com/${tokenData.twitterHandle}`}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                                title='Twitter'>
+                                <Twitter
+                                  className={`w-4 h-4 ${tokenHistoryData?.history && tokenHistoryData.history.length > 0 ? 'text-red-400' : 'text-blue-400'}`}
+                                />
+                              </Link>
+                            )}
+
+                            {tokenData.telegramUrl && (
+                              <Link
+                                href={tokenData.telegramUrl}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                                title='Telegram'>
+                                <MessageSquare className='w-4 h-4 text-blue-400' />
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                        <p className='text-zinc-400 max-w-full md:max-w-[75%] text-sm'>
+                          {tokenData.description}
+                        </p>
+
+                        {/* Mobile Social Buttons */}
+                        <div className='flex sm:hidden items-center gap-2 mt-3'>
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(tokenData.mintAddress);
@@ -455,7 +565,6 @@ export default function Page({ params, commentId }: PageProps) {
                             <Copy className='w-4 h-4 text-blue-400' />
                           </button>
 
-                          {/* Desktop Social buttons */}
                           {tokenData.websiteUrl && (
                             <Link
                               href={tokenData.websiteUrl}
@@ -490,86 +599,98 @@ export default function Page({ params, commentId }: PageProps) {
                               <MessageSquare className='w-4 h-4 text-blue-400' />
                             </Link>
                           )}
+
+                          <SolscanButton
+                            address={tokenData.mintAddress}
+                            type='token'
+                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'>
+                            <svg
+                              xmlns='http://www.w3.org/2000/svg'
+                              width='16'
+                              height='16'
+                              viewBox='0 0 24 24'
+                              fill='none'
+                              stroke='currentColor'
+                              strokeWidth='2'
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              className='text-blue-400 transition-colors'>
+                              <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
+                              <polyline points='15 3 21 3 21 9' />
+                              <line x1='10' y1='14' x2='21' y2='3' />
+                            </svg>
+                          </SolscanButton>
                         </div>
-                      </div>
-                      <p className='text-zinc-400 max-w-full md:max-w-[75%] text-sm'>
-                        {tokenData.description}
-                      </p>
-
-                      {/* Mobile Social Buttons */}
-                      <div className='flex sm:hidden items-center gap-2 mt-3'>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(tokenData.mintAddress);
-                            toast({
-                              title: 'Address copied',
-                              description: 'Token address copied to clipboard',
-                            });
-                          }}
-                          className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
-                          title='Copy address'>
-                          <Copy className='w-4 h-4 text-blue-400' />
-                        </button>
-
-                        {tokenData.websiteUrl && (
-                          <Link
-                            href={tokenData.websiteUrl}
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                            title='Website'>
-                            <Globe className='w-4 h-4 text-blue-400' />
-                          </Link>
-                        )}
-
-                        {tokenData.twitterHandle && (
-                          <Link
-                            href={`https://twitter.com/${tokenData.twitterHandle}`}
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                            title='Twitter'>
-                            <Twitter
-                              className={`w-4 h-4 ${tokenHistoryData?.history && tokenHistoryData.history.length > 0 ? 'text-red-400' : 'text-blue-400'}`}
-                            />
-                          </Link>
-                        )}
-
-                        {tokenData.telegramUrl && (
-                          <Link
-                            href={tokenData.telegramUrl}
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                            title='Telegram'>
-                            <MessageSquare className='w-4 h-4 text-blue-400' />
-                          </Link>
-                        )}
-
-                        <SolscanButton
-                          address={tokenData.mintAddress}
-                          type='token'
-                          className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'>
-                          <svg
-                            xmlns='http://www.w3.org/2000/svg'
-                            width='16'
-                            height='16'
-                            viewBox='0 0 24 24'
-                            fill='none'
-                            stroke='currentColor'
-                            strokeWidth='2'
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            className='text-blue-400 transition-colors'>
-                            <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
-                            <polyline points='15 3 21 3 21 9' />
-                            <line x1='10' y1='14' x2='21' y2='3' />
-                          </svg>
-                        </SolscanButton>
                       </div>
                     </div>
                   </div>
-                </div>
+
+                  {/* Ownership Verification */}
+                  {tokenData && (
+                    <div className='absolute bottom-4 right-4 text-right text-xs'>
+                      {tokenData.verifiedCreatorUserId ? (
+                        user?.id === tokenData.verifiedCreatorUserId ? (
+                          <div className='inline-flex items-center gap-1 px-2 py-1 rounded bg-green-600/80 text-white font-medium'>
+                            <Shield className='w-3 h-3' />
+                            Verified Ownership
+                          </div>
+                        ) : tokenData.verifiedCreatorUser ? (
+                          <Button
+                            variant='ghost'
+                            size='sm'
+                            className='h-auto px-2 py-1 text-xs text-green-400 hover:text-green-300 hover:bg-green-900/20'
+                            asChild>
+                            <Link href={`/users/${tokenData.verifiedCreatorUser.username}`}>
+                              <Shield className='w-3 h-3 mr-1' />
+                              Dev verified: @{tokenData.verifiedCreatorUser.username}
+                            </Link>
+                          </Button>
+                        ) : (
+                          <div className='inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-700 text-zinc-300 font-medium'>
+                            <Shield className='w-3 h-3' />
+                            <span>Dev Verified</span>
+                          </div>
+                        )
+                      ) : (
+                        isAuthenticated &&
+                        user &&
+                        !isVerifyingCreator && (
+                          <button
+                            onClick={handleVerifyCreator}
+                            disabled={isVerifyingCreator}
+                            className='inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white'>
+                            <Shield className='w-3 h-3' />
+                            Verify token ownership
+                          </button>
+                        )
+                      )}
+
+                      {/* Loading Indicator */}
+                      {isVerifyingCreator && (
+                        <div className='flex items-center justify-end gap-1 text-zinc-400 mt-1'>
+                          <svg
+                            className='animate-spin h-3 w-3'
+                            xmlns='http://www.w3.org/2000/svg'
+                            fill='none'
+                            viewBox='0 0 24 24'>
+                            <circle
+                              className='opacity-25'
+                              cx='12'
+                              cy='12'
+                              r='10'
+                              stroke='currentColor'
+                              strokeWidth='4'></circle>
+                            <path
+                              className='opacity-75'
+                              fill='currentColor'
+                              d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
+                          </svg>
+                          Verifying...
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className='text-center p-8'>
                   <h2 className='text-xl font-semibold text-red-500 mb-2'>Token not found</h2>
@@ -875,6 +996,8 @@ export default function Page({ params, commentId }: PageProps) {
                       ref={commentSectionRef}
                       tokenMintAddress={tokenData.mintAddress}
                       commentId={commentIdFromProps}
+                      verifiedCreatorUserId={tokenData.verifiedCreatorUserId}
+                      tokenSymbol={tokenData.symbol}
                     />
                   )}
                 </CardContent>

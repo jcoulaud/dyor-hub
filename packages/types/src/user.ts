@@ -11,6 +11,7 @@ export interface User {
   createdAt: string;
   followersCount?: number;
   followingCount?: number;
+  createdTokens?: { mintAddress: string; symbol: string }[];
 }
 
 export interface UserProfile extends User {

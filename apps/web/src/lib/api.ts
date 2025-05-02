@@ -164,10 +164,17 @@ const isPublicUserRoute = (endpoint: string): boolean => {
 // Helper function to determine if an endpoint is for public token data
 const isPublicTokenRoute = (endpoint: string): boolean => {
   const normalizedEndpoint = endpoint.replace(/^\/+/, '');
+
+  // Exclude specific authenticated endpoints under /tokens/
+  if (normalizedEndpoint.endsWith('/verify-creator')) {
+    return false;
+  }
+
+  // Existing public checks
   return (
     normalizedEndpoint.startsWith('tokens/') &&
     normalizedEndpoint !== 'tokens' &&
-    normalizedEndpoint !== 'tokens/hot'
+    !normalizedEndpoint.startsWith('tokens/hot')
   );
 };
 
