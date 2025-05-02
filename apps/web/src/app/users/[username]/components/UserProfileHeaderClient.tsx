@@ -81,10 +81,16 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
                               <Link
                                 href={`/tokens/${token.mintAddress}`}
                                 key={token.mintAddress}
-                                className='inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100/10 text-green-400 border border-green-500/20 hover:bg-green-100/20 transition-colors'
+                                className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-emerald-600/30 to-green-600/20 text-green-300 border border-green-500/20 hover:border-green-400/40 hover:from-emerald-600/40 hover:to-green-600/30 transition-all duration-300 shadow-sm shadow-green-900/20 backdrop-blur-md'
                                 title={`Verified creator of $${token.symbol.toUpperCase()}`}>
-                                <Shield className='h-2.5 w-2.5 mr-0.5' />$
-                                {token.symbol.toUpperCase()} team
+                                <Shield className='h-3 w-3 text-green-300 drop-shadow-md' />
+                                <span className='flex items-center'>
+                                  <span className='text-green-300/80 mr-0.5'>$</span>
+                                  <span className='font-semibold'>
+                                    {token.symbol.toUpperCase()}
+                                  </span>
+                                  <span className='ml-1 text-green-300/90'>team</span>
+                                </span>
                               </Link>
                             );
                           })}

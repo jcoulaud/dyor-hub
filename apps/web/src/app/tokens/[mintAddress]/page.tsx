@@ -628,25 +628,28 @@ export default function Page({ params, commentId }: PageProps) {
                     <div className='absolute bottom-4 right-4 text-right text-xs'>
                       {tokenData.verifiedCreatorUserId ? (
                         user?.id === tokenData.verifiedCreatorUserId ? (
-                          <div className='inline-flex items-center gap-1 px-2 py-1 rounded bg-green-600/80 text-white font-medium'>
-                            <Shield className='w-3 h-3' />
-                            Verified Ownership
+                          <div className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-green-600/40 to-emerald-500/30 text-white text-xs font-medium border border-green-500/30 shadow-lg shadow-green-900/20 backdrop-blur-sm'>
+                            <Shield className='w-3.5 h-3.5 text-green-300 drop-shadow-sm' />
+                            <span className='font-semibold'>Verified Ownership</span>
                           </div>
                         ) : tokenData.verifiedCreatorUser ? (
                           <Button
                             variant='ghost'
                             size='sm'
-                            className='h-auto px-2 py-1 text-xs text-green-400 hover:text-green-300 hover:bg-green-900/20'
+                            className='h-auto px-2.5 py-1 text-xs gap-1.5 rounded-lg bg-gradient-to-r from-green-600/20 to-emerald-500/10 text-green-300 border border-green-500/30 hover:from-green-600/30 hover:to-emerald-500/20 hover:text-green-200 hover:border-green-400/40 transition-all duration-300 shadow-sm backdrop-blur-sm'
                             asChild>
                             <Link href={`/users/${tokenData.verifiedCreatorUser.username}`}>
-                              <Shield className='w-3 h-3 mr-1' />
-                              Dev verified: @{tokenData.verifiedCreatorUser.username}
+                              <Shield className='w-3.5 h-3.5 text-green-300 drop-shadow-sm' />
+                              <span className='font-medium'>Dev verified: </span>
+                              <span className='font-semibold'>
+                                @{tokenData.verifiedCreatorUser.username}
+                              </span>
                             </Link>
                           </Button>
                         ) : (
-                          <div className='inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-700 text-zinc-300 font-medium'>
-                            <Shield className='w-3 h-3' />
-                            <span>Dev Verified</span>
+                          <div className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-zinc-700/50 to-zinc-800/40 text-zinc-200 text-xs font-medium border border-zinc-600/20 shadow-sm backdrop-blur-sm'>
+                            <Shield className='w-3.5 h-3.5 text-zinc-300' />
+                            <span className='font-medium'>Dev Verified</span>
                           </div>
                         )
                       ) : (
@@ -656,18 +659,18 @@ export default function Page({ params, commentId }: PageProps) {
                           <button
                             onClick={handleVerifyCreator}
                             disabled={isVerifyingCreator}
-                            className='inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white'>
-                            <Shield className='w-3 h-3' />
-                            Verify token ownership
+                            className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-blue-600/40 to-blue-500/30 hover:from-blue-600/50 hover:to-blue-500/40 text-white text-xs font-medium border border-blue-500/30 hover:border-blue-400/50 shadow-md hover:shadow-lg shadow-blue-900/20 backdrop-blur-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer'>
+                            <Shield className='w-3.5 h-3.5 text-blue-300' />
+                            <span className='font-semibold'>Verify token ownership</span>
                           </button>
                         )
                       )}
 
                       {/* Loading Indicator */}
                       {isVerifyingCreator && (
-                        <div className='flex items-center justify-end gap-1 text-zinc-400 mt-1'>
+                        <div className='flex items-center justify-end gap-2 text-zinc-300 mt-1'>
                           <svg
-                            className='animate-spin h-3 w-3'
+                            className='animate-spin h-4 w-4'
                             xmlns='http://www.w3.org/2000/svg'
                             fill='none'
                             viewBox='0 0 24 24'>
@@ -683,7 +686,7 @@ export default function Page({ params, commentId }: PageProps) {
                               fill='currentColor'
                               d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
                           </svg>
-                          Verifying...
+                          <span className='font-medium'>Verifying...</span>
                         </div>
                       )}
                     </div>

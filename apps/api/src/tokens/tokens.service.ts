@@ -1080,9 +1080,6 @@ export class TokensService {
     tokenMintAddress: string,
     userId: string,
   ): Promise<{ success: boolean; message: string }> {
-    this.logger.log(
-      `Attempting creator verification for token ${tokenMintAddress} by user ${userId}`,
-    );
     // 1. Get user's verified wallets
     const userWallets = await this.walletRepository.find({
       where: { userId: userId, isVerified: true },
@@ -1099,9 +1096,6 @@ export class TokensService {
     }
     const verifiedAddressesLower = userWallets.map((w) =>
       w.address.toLowerCase(),
-    );
-    this.logger.debug(
-      `User ${userId} verified wallets (lowercase): ${verifiedAddressesLower.join(', ')}`,
     );
 
     // 2. Get token data
@@ -1190,9 +1184,7 @@ export class TokensService {
 
       token.verifiedCreatorUserId = userId;
       await this.tokenRepository.save(token);
-      this.logger.log(
-        `User ${userId} successfully verified as creator for token ${tokenMintAddress}`,
-      );
+
       return {
         success: true,
         message: 'Creator status verified successfully!',
