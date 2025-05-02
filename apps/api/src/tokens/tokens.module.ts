@@ -1,11 +1,13 @@
+import { HttpModule } from '@nestjs/axios';
 import { Module, forwardRef } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { CommentsModule } from '../comments/comments.module';
+import { TokenEntity, WalletEntity } from '../entities';
 import { CommentEntity } from '../entities/comment.entity';
 import { TokenSentimentEntity } from '../entities/token-sentiment.entity';
 import { TokenWatchlistEntity } from '../entities/token-watchlist.entity';
-import { TokenEntity } from '../entities/token.entity';
 import { TwitterUsernameHistoryEntity } from '../entities/twitter-username-history.entity';
 import { UserEntity } from '../entities/user.entity';
 import { WatchlistModule } from '../watchlist/watchlist.module';
@@ -19,12 +21,15 @@ import { TwitterHistoryService } from './twitter-history.service';
   imports: [
     TypeOrmModule.forFeature([
       TokenEntity,
+      WalletEntity,
+      CommentEntity,
       TwitterUsernameHistoryEntity,
       TokenWatchlistEntity,
       TokenSentimentEntity,
       UserEntity,
-      CommentEntity,
     ]),
+    HttpModule,
+    ConfigModule,
     forwardRef(() => WatchlistModule),
     forwardRef(() => AuthModule),
     forwardRef(() => CommentsModule),

@@ -8,18 +8,24 @@ import {
   TokenStats,
   TrenchBundleApiResponse,
 } from '@dyor-hub/types';
+import { HttpService } from '@nestjs/axios';
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { AxiosError } from 'axios';
 import { subDays, subMonths } from 'date-fns';
-import { FindManyOptions, In, Repository } from 'typeorm';
+import { firstValueFrom } from 'rxjs';
+import { DataSource, FindManyOptions, In, Repository } from 'typeorm';
+import { TokenEntity, WalletEntity } from '../entities';
 import { CommentEntity } from '../entities/comment.entity';
-import { TokenEntity } from '../entities/token.entity';
 import { WatchlistService } from '../watchlist/watchlist.service';
 import { TwitterHistoryService } from './twitter-history.service';
 
@@ -107,6 +113,13 @@ interface DexScreenerTokenPair {
   };
 }
 
+interface BirdeyeSecurityResponse {
+  data?: {
+    creatorAddress?: string | null;
+  } | null;
+  success: boolean;
+}
+
 @Injectable()
 export class TokensService {
   private readonly logger = new Logger(TokensService.name);
@@ -119,9 +132,13 @@ export class TokensService {
   constructor(
     @InjectRepository(TokenEntity)
     private readonly tokenRepository: Repository<TokenEntity>,
+    @InjectRepository(WalletEntity)
+    private readonly walletRepository: Repository<WalletEntity>,
+    private readonly dataSource: DataSource,
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
     @InjectRepository(CommentEntity)
     private readonly commentRepository: Repository<CommentEntity>,
-    private readonly configService: ConfigService,
     private readonly twitterHistoryService: TwitterHistoryService,
     private readonly watchlistService?: WatchlistService,
   ) {}
@@ -996,6 +1013,195 @@ export class TokensService {
     } catch (error) {
       this.logger.error('[getHotTokens] Error finding hot tokens:', error);
       return { items: [], meta: { total: 0, page, limit, totalPages: 0 } };
+    }
+  }
+
+  private async fetchTokenCreator(
+    tokenAddress: string,
+  ): Promise<string | null> {
+    const BIRDEYE_API_KEY = this.configService.get<string>('BIRDEYE_API_KEY');
+    if (!BIRDEYE_API_KEY) {
+      this.logger.error('Birdeye API key is missing in config.');
+      throw new ServiceUnavailableException(
+        'Server configuration error preventing verification.',
+      );
+    }
+
+    const url = `https://public-api.birdeye.so/defi/token_security?address=${tokenAddress}`;
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<BirdeyeSecurityResponse>(url, {
+          headers: { 'X-API-KEY': BIRDEYE_API_KEY },
+        }),
+      );
+
+      if (!response || !response.data) {
+        this.logger.error(
+          `Birdeye API unexpected response structure for ${tokenAddress}:`,
+          response,
+        );
+        return null;
+      }
+
+      if (response.status !== 200 || !response.data.success) {
+        this.logger.error(
+          `Birdeye API error for ${tokenAddress}: Status ${response.status}`,
+          response.data,
+        );
+        return null;
+      }
+
+      const creatorAddress = response.data.data?.creatorAddress || null;
+      this.logger.log(
+        `Birdeye check for ${tokenAddress}: creatorAddress = ${creatorAddress}`,
+      );
+      return creatorAddress;
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      this.logger.error(
+        `Error fetching from Birdeye for ${tokenAddress}: Status ${axiosError.response?.status}`,
+        axiosError.response?.data || axiosError.message,
+      );
+      return null;
+    }
+  }
+
+  async verifyTokenCreator(
+    tokenMintAddress: string,
+    userId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    this.logger.log(
+      `Attempting creator verification for token ${tokenMintAddress} by user ${userId}`,
+    );
+    // 1. Get user's verified wallets
+    const userWallets = await this.walletRepository.find({
+      where: { userId: userId, isVerified: true },
+      select: ['address'],
+    });
+
+    if (userWallets.length === 0) {
+      this.logger.warn(
+        `User ${userId} has no verified wallets for verification.`,
+      );
+      throw new BadRequestException(
+        'User has no verified wallets to perform verification.',
+      );
+    }
+    const verifiedAddressesLower = userWallets.map((w) =>
+      w.address.toLowerCase(),
+    );
+    this.logger.debug(
+      `User ${userId} verified wallets (lowercase): ${verifiedAddressesLower.join(', ')}`,
+    );
+
+    // 2. Get token data
+    let token = await this.tokenRepository.findOne({
+      where: { mintAddress: tokenMintAddress },
+    });
+
+    if (!token) {
+      this.logger.warn(`Token ${tokenMintAddress} not found for verification.`);
+      throw new NotFoundException(
+        `Token with address ${tokenMintAddress} not found.`,
+      );
+    }
+
+    if (token.verifiedCreatorUserId && token.verifiedCreatorUserId !== userId) {
+      this.logger.warn(
+        `Token ${tokenMintAddress} already verified by user ${token.verifiedCreatorUserId}. Denying verification for user ${userId}.`,
+      );
+      throw new ConflictException(
+        'This token creator status is already verified by another user.',
+      );
+    }
+    if (token.verifiedCreatorUserId && token.verifiedCreatorUserId === userId) {
+      this.logger.log(
+        `Token ${tokenMintAddress} already verified by this user ${userId}.`,
+      );
+      return {
+        success: true,
+        message: 'You are already verified as the creator for this token.',
+      };
+    }
+
+    let creatorAddress = token.creatorAddress;
+
+    // 3. Fetch from Birdeye if not stored
+    if (!creatorAddress) {
+      this.logger.log(
+        `Creator address for ${tokenMintAddress} not in DB, fetching from Birdeye...`,
+      );
+      creatorAddress = await this.fetchTokenCreator(tokenMintAddress);
+
+      if (creatorAddress) {
+        token.creatorAddress = creatorAddress;
+        await this.tokenRepository.save(token);
+        this.logger.log(
+          `Stored creator address ${creatorAddress} for token ${tokenMintAddress}`,
+        );
+      } else {
+        this.logger.error(
+          `Could not retrieve creator address for token ${tokenMintAddress} from Birdeye.`,
+        );
+        throw new ServiceUnavailableException(
+          'Could not retrieve creator address from external service. Please try again later.',
+        );
+      }
+    }
+
+    // 4. Comparison
+    const isCreator =
+      creatorAddress &&
+      verifiedAddressesLower.includes(creatorAddress.toLowerCase());
+    this.logger.log(
+      `Token ${tokenMintAddress}: DB/Fetched Creator=${creatorAddress}, User Wallets Match=${isCreator}`,
+    );
+
+    // 5. Update if match
+    if (isCreator) {
+      const freshToken = await this.tokenRepository.findOne({
+        where: { mintAddress: tokenMintAddress },
+        select: ['verifiedCreatorUserId'],
+      });
+      if (
+        freshToken?.verifiedCreatorUserId &&
+        freshToken.verifiedCreatorUserId !== userId
+      ) {
+        this.logger.warn(
+          `Race Condition: Token ${tokenMintAddress} verified by ${freshToken.verifiedCreatorUserId} while user ${userId} was verifying.`,
+        );
+        throw new ConflictException(
+          'This token creator status was verified by another user just now.',
+        );
+      }
+      if (freshToken?.verifiedCreatorUserId === userId) {
+        this.logger.log(
+          `Race Condition Check: Token ${tokenMintAddress} already verified by this user ${userId}.`,
+        );
+        return {
+          success: true,
+          message: 'You are already verified as the creator for this token.',
+        };
+      }
+
+      token.verifiedCreatorUserId = userId;
+      await this.tokenRepository.save(token);
+      this.logger.log(
+        `User ${userId} successfully verified as creator for token ${tokenMintAddress}`,
+      );
+      return {
+        success: true,
+        message: 'Creator status verified successfully!',
+      };
+    } else {
+      this.logger.log(
+        `Verification failed for user ${userId} and token ${tokenMintAddress}: Wallet mismatch.`,
+      );
+      return {
+        success: false,
+        message:
+          'None of your verified wallets match the token creator address.',
+      };
     }
   }
 }
