@@ -12,6 +12,7 @@ import {
   UserStreakEntity,
 } from '../entities';
 import { GamificationModule } from '../gamification/gamification.module';
+import { TokensModule } from '../tokens/tokens.module';
 import { UsersModule } from '../users/users.module';
 import { AdminGuard } from './admin.guard';
 import { BadgeAdminController } from './controllers/badge-admin.controller';
@@ -38,6 +39,7 @@ import { StreakAdminService } from './services/streak-admin.service';
     AuthModule,
     GamificationModule,
     UsersModule,
+    TokensModule,
   ],
   controllers: [
     BadgeAdminController,

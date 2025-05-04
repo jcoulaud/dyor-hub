@@ -1,58 +1,59 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ApiError, dev } from '@/lib/api';
-import { Loader2 } from 'lucide-react';
+import { dev } from '@/lib/api';
 import { useState } from 'react';
 
 export default function DevAdminPage() {
   const { toast } = useToast();
-  const [isFixingTsLoading, setIsFixingTsLoading] = useState(false);
+  const [isBackfilling, setIsBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<string | null>(null);
 
-  const handleFixTimestampsClick = async () => {
-    setIsFixingTsLoading(true);
+  const handleBackfillCreators = async () => {
+    setIsBackfilling(true);
+    setBackfillResult(null);
     try {
-      const result = await dev.admin.fixCommentTimestamps();
+      const result = await dev.admin.backfillTokenCreators();
+      const message = `${result.message} Processed: ${result.result.processed}, Updated: ${result.result.updated}, Failed: ${result.result.failed}`;
+      setBackfillResult(message);
       toast({
-        title: 'Timestamp Fix Finished',
-        description: `${result.message} Updated: ${result.updated}, Failed: ${result.failed}`,
+        title: 'Backfill Started',
+        description: message,
       });
     } catch (error) {
-      const errorMessage = error instanceof ApiError ? error.message : 'An unknown error occurred';
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      setBackfillResult(`Error: ${errorMessage}`);
       toast({
-        title: 'Timestamp Fix Failed',
+        title: 'Backfill Error',
         description: errorMessage,
         variant: 'destructive',
       });
-      console.error('Fix Timestamps error:', error);
     } finally {
-      setIsFixingTsLoading(false);
+      setIsBackfilling(false);
     }
   };
 
   return (
-    <div className='space-y-6'>
-      <h1 className='text-2xl font-bold text-white'>Developer Actions</h1>
+    <div className='container mx-auto p-4'>
+      <h1 className='mb-4 text-2xl font-bold'>Dev Admin Tools</h1>
 
-      {/* Card 3: Fix Comment Timestamps */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Fix Backfilled Comment Timestamps</CardTitle>
-          <CardDescription>
-            Updates the `createdAt` timestamp for explanation comments that were created much later
-            than their associated Token Call (e.g., during backfill). Sets the comment `createdAt`
-            to the call&apos;s `createdAt`.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleFixTimestampsClick} disabled={isFixingTsLoading}>
-            {isFixingTsLoading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-            Fix Comment Timestamps
-          </Button>
-        </CardContent>
-      </Card>
+      <div className='rounded-lg border bg-card p-6 text-card-foreground shadow-sm'>
+        <h2 className='mb-3 text-lg font-semibold'>Token Creator Backfill</h2>
+        <p className='mb-4 text-sm text-muted-foreground'>
+          Fetch and store the creator address for all tokens currently missing it in the database.
+          Uses the Birdeye API.
+        </p>
+        <Button
+          onClick={handleBackfillCreators}
+          disabled={isBackfilling}
+          aria-label='Start backfilling token creator addresses'>
+          {isBackfilling ? 'Backfilling...' : 'Backfill Token Creators'}
+        </Button>
+        {backfillResult && (
+          <pre className='mt-4 overflow-x-auto rounded bg-muted p-3 text-sm'>{backfillResult}</pre>
+        )}
+      </div>
     </div>
   );
 }

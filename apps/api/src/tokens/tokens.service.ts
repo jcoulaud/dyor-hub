@@ -1045,9 +1045,7 @@ export class TokensService {
     }
   }
 
-  private async fetchTokenCreator(
-    tokenAddress: string,
-  ): Promise<string | null> {
+  public async fetchTokenCreator(tokenAddress: string): Promise<string | null> {
     const BIRDEYE_API_KEY = this.configService.get<string>('BIRDEYE_API_KEY');
     if (!BIRDEYE_API_KEY) {
       this.logger.error('Creator fetch API key is missing in config.');

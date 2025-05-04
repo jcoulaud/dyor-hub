@@ -2086,17 +2086,25 @@ export const dev = {
     },
     */
 
+    /* DEPRECATED
     // Function to FIX timestamps
-    fixCommentTimestamps: async (): Promise<{
+    fixCommentTimestamps: async (): Promise<{ message: string; updated: number; failed: number }> => {
+      return api<{ message: string; updated: number; failed: number }>(
+        'admin/dev/fix-backfilled-comment-timestamps',
+        { method: 'POST' },
+      );
+    },
+    */
+
+    backfillTokenCreators: async (): Promise<{
       message: string;
-      updated: number;
-      failed: number;
+      result: { processed: number; updated: number; failed: number };
     }> => {
-      return api<{
+      const response = await api<{
         message: string;
-        updated: number;
-        failed: number;
-      }>('admin/dev/fix-backfilled-comment-timestamps', { method: 'POST' });
+        result: { processed: number; updated: number; failed: number };
+      }>(`/admin/dev/backfill-creators`);
+      return response;
     },
   },
 };
