@@ -39,39 +39,4 @@ export class DevAdminController {
       throw error;
     }
   }
-
-  /*
-  // DEPRECATED: Endpoint to CREATE missing comments
-  @Post('backfill-default-token-call-comments')
-  async backfillDefaultComments() {
-    const count = await this.devAdminService.backfillDefaultTokenCallComments();
-    return { message: `Successfully created ${count} new default comments.` };
-  }
-  */
-
-  /*
-  // DEPRECATED: Endpoint to LINK existing comments
-  @Post('link-existing-token-call-comments')
-  async linkExistingComments() {
-    const result = await this.devAdminService.linkExistingExplanationComments();
-    return {
-      message: 'Linking process finished.',
-      updated: result.updatedCount,
-      failed: result.failedCount,
-      skippedAlreadyLinked: result.skippedAlreadyLinked,
-      skippedNotFound: result.skippedNotFound,
-    };
-  }
-  */
-
-  // Endpoint to FIX timestamps
-  @Post('fix-backfilled-comment-timestamps')
-  async fixCommentTimestamps() {
-    const result = await this.devAdminService.fixBackfilledCommentTimestamps();
-    return {
-      message: 'Timestamp fixing process finished.',
-      updated: result.updatedCount,
-      failed: result.failedCount,
-    };
-  }
 }

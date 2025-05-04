@@ -2057,45 +2057,6 @@ export const tokenCallsLeaderboard = {
 
 export const dev = {
   admin: {
-    /*
-    // DEPRECATED: Function to CREATE missing comments
-    backfillDefaultComments: async (): Promise<{ message: string }> => {
-      return api<{ message: string }>(
-        'admin/dev/backfill-default-token-call-comments',
-        { method: 'POST' },
-      );
-    },
-    */
-
-    /*
-    // DEPRECATED: Function to LINK existing comments
-    linkExistingExplanationComments: async (): Promise<{
-      message: string;
-      updated: number;
-      failed: number;
-      skippedAlreadyLinked: number;
-      skippedNotFound: number;
-    }> => {
-      return api<{
-        message: string;
-        updated: number;
-        failed: number;
-        skippedAlreadyLinked: number;
-        skippedNotFound: number;
-      }>('admin/dev/link-existing-token-call-comments', { method: 'POST' });
-    },
-    */
-
-    /* DEPRECATED
-    // Function to FIX timestamps
-    fixCommentTimestamps: async (): Promise<{ message: string; updated: number; failed: number }> => {
-      return api<{ message: string; updated: number; failed: number }>(
-        'admin/dev/fix-backfilled-comment-timestamps',
-        { method: 'POST' },
-      );
-    },
-    */
-
     backfillTokenCreators: async (): Promise<{
       message: string;
       result: { processed: number; updated: number; failed: number };
