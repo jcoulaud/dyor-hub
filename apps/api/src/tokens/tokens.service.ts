@@ -469,6 +469,25 @@ export class TokensService {
         const newToken = this.tokenRepository.create(baseTokenData);
         token = await this.tokenRepository.save(newToken);
 
+        // Fetch and store creator address
+        try {
+          const creatorAddress = await this.fetchTokenCreator(
+            token.mintAddress,
+          );
+          if (creatorAddress) {
+            token.creatorAddress = creatorAddress;
+            token = await this.tokenRepository.save(token);
+          } else {
+            this.logger.log(
+              `No creator address found via Birdeye for new token ${token.mintAddress}`,
+            );
+          }
+        } catch (fetchError) {
+          this.logger.error(
+            `Error fetching creator for new token ${token.mintAddress}: ${fetchError.message}`,
+          );
+        }
+
         // Fetch Twitter username history if available
         if (token.twitterHandle) {
           await this.twitterHistoryService.fetchAndStoreUsernameHistory(token);
@@ -1128,23 +1147,15 @@ export class TokensService {
       };
     }
 
-    let creatorAddress = token.creatorAddress;
-
-    // 3. Fetch from external API if not stored
+    // 3. Check if creator address exists on the token
+    const creatorAddress = token.creatorAddress;
     if (!creatorAddress) {
-      creatorAddress = await this.fetchTokenCreator(tokenMintAddress);
-
-      if (creatorAddress) {
-        token.creatorAddress = creatorAddress;
-        await this.tokenRepository.save(token);
-      } else {
-        this.logger.error(
-          `Could not retrieve creator address for token ${tokenMintAddress} from Birdeye.`,
-        );
-        throw new ServiceUnavailableException(
-          'Could not retrieve creator address from external service. Please try again later.',
-        );
-      }
+      this.logger.warn(
+        `Verification attempt failed for ${tokenMintAddress}: Creator address is not available. It might not have been fetched or Birdeye doesn't have it.`,
+      );
+      throw new BadRequestException(
+        "Creator address is not available for this token. Verification cannot proceed. This might be because the external service doesn't have this data.",
+      );
     }
 
     // 4. Comparison
