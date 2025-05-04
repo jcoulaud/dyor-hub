@@ -1,17 +1,15 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatLargeNumber, truncateAddress } from '@/lib/utils';
-import type { TokenStats as TokenStatsType, TwitterUsernameHistoryEntity } from '@dyor-hub/types';
+import type { TokenStats as TokenStatsType } from '@dyor-hub/types';
 import { TokenHolder } from '@dyor-hub/types';
 import { format, formatDistanceStrict } from 'date-fns';
-import { BarChart2, DollarSign, History, Twitter, Users } from 'lucide-react';
-import Link from 'next/link';
+import { BarChart2, DollarSign, Users } from 'lucide-react';
 import { SolscanButton } from '../SolscanButton';
 import TokenPriceChart from './TokenPriceChart';
 
 interface TokenStatsProps {
   stats: TokenStatsType;
   tokenMintAddress: string;
-  twitterHistory?: TwitterUsernameHistoryEntity | null;
   tokenSymbol?: string;
 }
 
@@ -63,12 +61,7 @@ const formatDateSafe = (
   }
 };
 
-export const TokenStats = ({
-  stats,
-  twitterHistory,
-  tokenMintAddress,
-  tokenSymbol,
-}: TokenStatsProps) => {
+export const TokenStats = ({ stats, tokenMintAddress, tokenSymbol }: TokenStatsProps) => {
   if (!stats) {
     return (
       <div className='space-y-6'>
@@ -189,33 +182,6 @@ export const TokenStats = ({
                     />
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Twitter History */}
-      {twitterHistory?.history && twitterHistory.history.length > 0 && (
-        <div className='space-y-3 mt-8'>
-          <h3 className='text-sm font-medium text-zinc-400 flex items-center justify-between'>
-            <div className='flex items-center'>
-              <History className='h-4 w-4 mr-2 text-red-400' />
-              Twitter History
-            </div>
-            <Link
-              href={`https://twitter.com/${twitterHistory.twitterUsername}`}
-              target='_blank'
-              rel='noopener noreferrer'
-              className='hover:text-red-300 transition-colors cursor-pointer'>
-              <Twitter className='h-4 w-4 text-red-400' />
-            </Link>
-          </h3>
-          <div className='space-y-2'>
-            {[...twitterHistory.history].reverse().map((entry, index) => (
-              <div key={index} className='flex items-center justify-between py-1'>
-                <span className='text-sm font-medium text-red-400'>@{entry.username}</span>
-                <span className='text-xs text-zinc-500'>{formatDateSafe(entry.last_checked)}</span>
               </div>
             ))}
           </div>
