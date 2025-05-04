@@ -6,7 +6,7 @@ interface SolscanButtonProps {
   address: string;
   className?: string;
   children?: ReactNode;
-  type?: 'account' | 'token';
+  type?: 'account' | 'token' | 'tx';
 }
 
 export function SolscanButton({
@@ -17,12 +17,31 @@ export function SolscanButton({
 }: SolscanButtonProps) {
   const handleClick = () => {
     const baseUrl = 'https://solscan.io';
-    const url = type === 'token' ? `${baseUrl}/token/${address}` : `${baseUrl}/account/${address}`;
+    let url;
+
+    if (type === 'token') {
+      url = `${baseUrl}/token/${address}`;
+    } else if (type === 'tx') {
+      url = `${baseUrl}/tx/${address}`;
+    } else {
+      url = `${baseUrl}/account/${address}`;
+    }
 
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const tooltipText = type === 'token' ? 'View token on Solscan' : 'View account on Solscan';
+  const getTooltipText = () => {
+    switch (type) {
+      case 'token':
+        return 'View token on Solscan';
+      case 'tx':
+        return 'View transaction on Solscan';
+      default:
+        return 'View account on Solscan';
+    }
+  };
+
+  const tooltipText = getTooltipText();
 
   // If no children are provided, render the default button
   if (!children) {
@@ -51,10 +70,7 @@ export function SolscanButton({
 
   // If children are provided, render them with the Solscan functionality
   return (
-    <button
-      onClick={handleClick}
-      className={`${className} hover:scale-105 transition-transform duration-200`}
-      title={tooltipText}>
+    <button onClick={handleClick} className={`${className}`} title={tooltipText}>
       {children}
     </button>
   );

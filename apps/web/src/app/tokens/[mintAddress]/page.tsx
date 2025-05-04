@@ -30,6 +30,7 @@ import {
   TokenStats as TokenStatsType,
   TwitterUsernameHistoryEntity,
 } from '@dyor-hub/types';
+import { formatDistanceToNow } from 'date-fns';
 import {
   BarChart3,
   Code,
@@ -51,7 +52,39 @@ interface PageProps {
   commentId?: string;
 }
 
-type TokenWithWatchlistStatus = Token & { isWatchlisted?: boolean };
+type TokenWithWatchlistStatus = Token & {
+  isWatchlisted?: boolean;
+  creatorAddress?: string | null;
+  creationTime?: Date | null;
+  creationTx?: string | null;
+};
+
+const formatCreationTime = (dateString: string | Date | null | undefined): string | null => {
+  if (!dateString) return null;
+  try {
+    const date = new Date(dateString);
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch (e) {
+    console.error('Error formatting date:', e);
+    return 'Invalid date';
+  }
+};
+
+const formatExactDate = (dateString: string | Date | null | undefined): string | null => {
+  if (!dateString) return null;
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return 'Invalid date';
+  }
+};
 
 export default function Page({ params, commentId }: PageProps) {
   const { mintAddress } = use(params);
@@ -68,7 +101,6 @@ export default function Page({ params, commentId }: PageProps) {
   const [tokenData, setTokenData] = useState<TokenWithWatchlistStatus | null>(null);
   const [tokenStatsData, setTokenStatsData] = useState<TokenStatsType | null>(null);
   const [isHeaderLoaded, setIsHeaderLoaded] = useState(false);
-  const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [sentimentData, setSentimentData] = useState<TokenSentimentStats | null>(null);
   const [isVoting, setIsVoting] = useState(false);
   const [userCalls, setUserCalls] = useState<TokenCall[]>([]);
@@ -209,7 +241,6 @@ export default function Page({ params, commentId }: PageProps) {
     const fetchData = async () => {
       setIsLoading(true);
       setIsHeaderLoaded(false);
-      setIsStatsLoaded(false);
       setIsLoadingUserCalls(true);
       setUserCalls([]);
       setTokenData(null);
@@ -251,7 +282,6 @@ export default function Page({ params, commentId }: PageProps) {
         if (tokenStatsResult.status === 'fulfilled') {
           setTokenStatsData(tokenStatsResult.value);
         }
-        setIsStatsLoaded(true);
 
         if (twitterHistoryResult.status === 'fulfilled') {
           setTokenHistoryData(twitterHistoryResult.value);
@@ -691,10 +721,10 @@ export default function Page({ params, commentId }: PageProps) {
         <div className='grid grid-cols-1 xxs:grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 xl:grid-cols-12 gap-4 sm:gap-6 xl:gap-8'>
           {/* Left column - Token data */}
           <div className='col-span-1 xxs:col-span-2 xs:col-span-2 sm:col-span-2 xl:col-span-3 space-y-4 sm:space-y-6 xl:space-y-8 order-1 xxs:order-none xs:order-none sm:order-none'>
-            <div className='relative group'>
+            <div className='relative'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
               <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
-                <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 transition-opacity duration-300' />
                 <CardHeader className='pb-2 relative'>
                   <div className='flex items-center mb-4'>
                     {!isHeaderLoaded ? (
@@ -716,8 +746,8 @@ export default function Page({ params, commentId }: PageProps) {
                   <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
                 </CardHeader>
                 <CardContent className='relative pt-0'>
-                  {isLoading || !isStatsLoaded ? (
-                    <div className='space-y-6'>
+                  {isLoading || !isHeaderLoaded ? (
+                    <div className='space-y-6 py-4'>
                       <div className='space-y-3'>
                         <Skeleton className='h-5 w-24' />
                         <div className='space-y-2'>
@@ -726,14 +756,19 @@ export default function Page({ params, commentId }: PageProps) {
                           <Skeleton className='h-6 w-full' />
                         </div>
                       </div>
-
+                      <div className='space-y-3'>
+                        <Skeleton className='h-5 w-36' />
+                        <div className='space-y-2'>
+                          <Skeleton className='h-6 w-full' />
+                          <Skeleton className='h-6 w-full' />
+                        </div>
+                      </div>
                       {/* Price chart skeleton */}
                       <div className='w-full h-[120px] bg-zinc-900 rounded-xl'>
                         <div className='h-full w-full flex items-center justify-center'>
                           <div className='w-full h-[80px] bg-zinc-800/50 animate-pulse rounded-lg'></div>
                         </div>
                       </div>
-
                       {/* Supply info skeleton */}
                       <div className='space-y-3'>
                         <Skeleton className='h-5 w-36' />
@@ -742,7 +777,6 @@ export default function Page({ params, commentId }: PageProps) {
                           <Skeleton className='h-6 w-full' />
                         </div>
                       </div>
-
                       {/* Top holders skeleton */}
                       <div className='space-y-3'>
                         <Skeleton className='h-5 w-28' />
@@ -754,19 +788,95 @@ export default function Page({ params, commentId }: PageProps) {
                         </div>
                       </div>
                     </div>
-                  ) : tokenData && tokenStatsData ? (
-                    <TokenStats stats={tokenStatsData} tokenMintAddress={tokenData.mintAddress} />
-                  ) : (
-                    <div className='space-y-4 text-zinc-300'>
-                      <div className='flex items-center justify-center py-8'>
-                        <div className='inline-flex items-center px-4 py-2 rounded-full bg-red-950/20 backdrop-blur-sm border border-red-500/10'>
-                          <Shield className='h-4 w-4 text-red-400 mr-2' />
-                          <span className='text-sm font-medium text-zinc-200'>
-                            {isDev
-                              ? 'Token information is disabled in local development mode. To access token information, please run the app in production mode.'
-                              : 'Unable to load token data. Please refresh or try again later.'}
-                          </span>
+                  ) : tokenData ? (
+                    <div className='py-4 space-y-6'>
+                      {/* Token Security Info */}
+                      {(tokenData.creatorAddress ||
+                        tokenData.creationTime ||
+                        tokenData.creationTx) && (
+                        <div className='space-y-3 text-xs'>
+                          <h3 className='text-sm font-medium text-zinc-400 flex items-center gap-2'>
+                            <Shield className='w-4 h-4 text-blue-400' />
+                            Token Creation Details
+                          </h3>
+                          <div className='space-y-2 pl-1 text-zinc-300'>
+                            {tokenData.creatorAddress && (
+                              <div className='flex justify-between items-center'>
+                                <span className='text-sm'>Creator Wallet:</span>
+                                <SolscanButton
+                                  address={tokenData.creatorAddress}
+                                  type='account'
+                                  className='flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors font-mono text-xs cursor-pointer'>
+                                  {truncateAddress(tokenData.creatorAddress)}
+                                  <ExternalLink className='w-3 h-3' />
+                                </SolscanButton>
+                              </div>
+                            )}
+
+                            {tokenData.creationTx && (
+                              <div className='flex justify-between items-center'>
+                                <span className='text-sm'>Creation Tx:</span>
+                                <SolscanButton
+                                  address={tokenData.creationTx}
+                                  type='tx'
+                                  className='flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors font-mono text-xs cursor-pointer'>
+                                  {truncateAddress(tokenData.creationTx)}
+                                  <ExternalLink className='w-3 h-3' />
+                                </SolscanButton>
+                              </div>
+                            )}
+
+                            {tokenData.creationTime && (
+                              <div className='flex justify-between items-center'>
+                                <span className='text-sm'>Created:</span>
+                                <div className='relative group'>
+                                  <span className='font-medium'>
+                                    {formatCreationTime(tokenData.creationTime) || 'N/A'}
+                                  </span>
+                                  <div className='absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block z-20'>
+                                    <div className='bg-zinc-800 backdrop-blur-sm border border-zinc-700/50 px-3 py-2 rounded-lg shadow-xl text-xs whitespace-nowrap animate-in fade-in-50 zoom-in-95 slide-in-from-top-2'>
+                                      <span className='font-medium text-blue-300'>
+                                        {formatExactDate(tokenData.creationTime)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          {/* Divider */}
+                          <div className='pt-3'>
+                            <div className='w-full h-[1px] bg-gradient-to-r from-zinc-700/20 via-zinc-700/50 to-zinc-700/20'></div>
+                          </div>
                         </div>
+                      )}
+
+                      {/* Existing Market Data */}
+                      {tokenStatsData ? (
+                        <TokenStats
+                          stats={tokenStatsData}
+                          tokenMintAddress={tokenData.mintAddress}
+                        />
+                      ) : (
+                        <div className='flex items-center justify-center py-8'>
+                          <div className='inline-flex items-center px-4 py-2 rounded-full bg-red-950/20 backdrop-blur-sm border border-red-500/10'>
+                            <Shield className='h-4 w-4 text-red-400 mr-2' />
+                            <span className='text-sm font-medium text-zinc-200'>
+                              {isDev
+                                ? 'Market data disabled in local dev.'
+                                : 'Unable to load market data.'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className='flex items-center justify-center py-8'>
+                      <div className='inline-flex items-center px-4 py-2 rounded-full bg-red-950/20 backdrop-blur-sm border border-red-500/10'>
+                        <Shield className='h-4 w-4 text-red-400 mr-2' />
+                        <span className='text-sm font-medium text-zinc-200'>
+                          Unable to load token information.
+                        </span>
                       </div>
                     </div>
                   )}

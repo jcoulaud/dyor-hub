@@ -102,7 +102,7 @@ export const TokenStats = ({ stats, tokenMintAddress, tokenSymbol }: TokenStatsP
       {(stats.price || stats.marketCap || stats.volume24h) && (
         <div className='space-y-3'>
           <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
-            <DollarSign className='h-4 w-4 mr-2 text-green-400' />
+            <DollarSign className='h-4 w-4 mr-2 text-blue-400' />
             Market Data
           </h3>
           <div className='space-y-2'>
