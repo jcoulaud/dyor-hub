@@ -45,12 +45,6 @@ export class TokenEntity {
   @Column({ name: 'views_count', default: 0, type: 'integer' })
   viewsCount: number;
 
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
-
   @Column({ type: 'varchar', nullable: true })
   creatorAddress?: string | null;
 
@@ -65,7 +59,6 @@ export class TokenEntity {
   @JoinColumn({ name: 'verifiedCreatorUserId' })
   verifiedCreatorUser?: UserEntity | null;
 
-  // Relationships
   @OneToMany(() => CommentEntity, (comment) => comment.token)
   comments: CommentEntity[];
 
@@ -86,4 +79,17 @@ export class TokenEntity {
 
   @OneToMany(() => TokenCallEntity, (call) => call.token)
   tokenCalls: TokenCallEntity[];
+
+  @Column({ type: 'text', nullable: true })
+  creationTx: string | null;
+
+  @Index()
+  @Column({ type: 'timestamptz', nullable: true })
+  creationTime: Date | null;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 }

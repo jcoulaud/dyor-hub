@@ -113,9 +113,16 @@ interface DexScreenerTokenPair {
   };
 }
 
+interface BirdeyeSecurityResponseData {
+  creatorAddress?: string | null;
+  creationTx?: string | null;
+  creationTime?: number | null;
+  [key: string]: any;
+}
+
 interface BirdeyeSecurityResponse {
   data?: {
-    creatorAddress?: string | null;
+    data?: BirdeyeSecurityResponseData | null;
   } | null;
   success: boolean;
 }
@@ -469,22 +476,26 @@ export class TokensService {
         const newToken = this.tokenRepository.create(baseTokenData);
         token = await this.tokenRepository.save(newToken);
 
-        // Fetch and store creator address
+        // Fetch and store security info
         try {
-          const creatorAddress = await this.fetchTokenCreator(
+          const securityInfo = await this.fetchTokenSecurityInfo(
             token.mintAddress,
           );
-          if (creatorAddress) {
-            token.creatorAddress = creatorAddress;
+          if (securityInfo) {
+            token.creatorAddress = securityInfo.creatorAddress ?? null;
+            token.creationTx = securityInfo.creationTx ?? null;
+            token.creationTime = securityInfo.creationTime
+              ? new Date(securityInfo.creationTime)
+              : null;
             token = await this.tokenRepository.save(token);
           } else {
             this.logger.log(
-              `No creator address found via Birdeye for new token ${token.mintAddress}`,
+              `No security info found via Birdeye for new token ${token.mintAddress}`,
             );
           }
         } catch (fetchError) {
           this.logger.error(
-            `Error fetching creator for new token ${token.mintAddress}: ${fetchError.message}`,
+            `Error fetching security info for new token ${token.mintAddress}: ${fetchError.message}`,
           );
         }
 
@@ -1045,52 +1056,64 @@ export class TokensService {
     }
   }
 
-  public async fetchTokenCreator(tokenAddress: string): Promise<string | null> {
+  public async fetchTokenSecurityInfo(
+    tokenAddress: string,
+  ): Promise<BirdeyeSecurityResponseData | null> {
     const BIRDEYE_API_KEY = this.configService.get<string>('BIRDEYE_API_KEY');
     if (!BIRDEYE_API_KEY) {
-      this.logger.error('Creator fetch API key is missing in config.');
+      this.logger.error('Security info fetch API key is missing in config.');
       throw new ServiceUnavailableException(
         'Server configuration error preventing verification.',
       );
     }
 
     const url = `https://public-api.birdeye.so/defi/token_security?address=${tokenAddress}`;
-    try {
-      const response = await firstValueFrom(
-        this.httpService.get<BirdeyeSecurityResponse>(url, {
-          headers: { 'X-API-KEY': BIRDEYE_API_KEY },
-        }),
-      );
+    const cacheKey = `token_security_${tokenAddress}`;
 
-      if (!response || !response.data) {
-        this.logger.error(
-          `Creator fetch API unexpected response structure for ${tokenAddress}:`,
-          response,
-        );
-        return null;
-      }
-
-      if (response.status !== 200 || !response.data.success) {
-        this.logger.error(
-          `Creator fetch API error for ${tokenAddress}: Status ${response.status}`,
-          response.data,
-        );
-        return null;
-      }
-
-      const creatorAddress = response.data.data?.creatorAddress || null;
-      this.logger.log(
-        `Creator fetch for ${tokenAddress}: creatorAddress = ${creatorAddress}`,
-      );
-      return creatorAddress;
-    } catch (error) {
-      const axiosError = error as AxiosError;
-      this.logger.error(
-        `Error fetching creator from external API for ${tokenAddress}: Status ${axiosError.response?.status}`,
-        axiosError.response?.data || axiosError.message,
-      );
-      return null;
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
     }
+
+    const requestPromise = (async () => {
+      try {
+        const response = await firstValueFrom(
+          this.httpService.get<BirdeyeSecurityResponse>(url, {
+            headers: { 'X-API-KEY': BIRDEYE_API_KEY },
+          }),
+        );
+
+        if (!response || !response.data) {
+          this.logger.error(
+            `Security info fetch API unexpected response structure for ${tokenAddress}:`,
+            response,
+          );
+          return null;
+        }
+
+        if (response.status !== 200 || !response.data.success) {
+          this.logger.error(
+            `Security info fetch API error for ${tokenAddress}: Status ${response.status}`,
+            response.data,
+          );
+          return null;
+        }
+
+        const securityData = response.data.data ?? null;
+        return securityData;
+      } catch (error) {
+        const axiosError = error as AxiosError;
+        this.logger.error(
+          `Error fetching security info from external API for ${tokenAddress}: Status ${axiosError.response?.status}`,
+          axiosError.response?.data || axiosError.message,
+        );
+        return null;
+      } finally {
+        this.pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
   }
 
   async verifyTokenCreator(

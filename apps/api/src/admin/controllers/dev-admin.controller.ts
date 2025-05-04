@@ -20,20 +20,20 @@ export class DevAdminController {
     @Inject(DevAdminService) private readonly devAdminService: DevAdminService,
   ) {}
 
-  @Post('backfill-creators')
+  @Post('backfill-security')
   @HttpCode(HttpStatus.OK)
-  async backfillCreators() {
-    this.logger.log('Received request to backfill token creator addresses.');
+  async backfillSecurityInfo() {
+    this.logger.log('Received request to backfill token security info.');
     try {
-      const result = await this.devAdminService.backfillTokenCreatorAddresses();
-      this.logger.log('Token creator backfill finished successfully.');
+      const result = await this.devAdminService.backfillTokenSecurityInfo();
+      this.logger.log('Token security info backfill finished successfully.');
       return {
-        message: 'Token creator backfill process initiated.',
+        message: 'Token security info backfill process initiated.',
         result,
       };
     } catch (error) {
       this.logger.error(
-        `Token creator backfill failed: ${error.message}`,
+        `Token security info backfill failed: ${error.message}`,
         error.stack,
       );
       throw error;

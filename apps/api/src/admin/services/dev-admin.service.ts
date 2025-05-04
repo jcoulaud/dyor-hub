@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { TokenEntity } from '../../entities';
 import { TokensService } from '../../tokens/tokens.service';
 
@@ -14,22 +14,25 @@ export class DevAdminService {
     private readonly tokensService: TokensService,
   ) {}
 
-  async backfillTokenCreatorAddresses(): Promise<{
+  async backfillTokenSecurityInfo(): Promise<{
     processed: number;
     updated: number;
     failed: number;
+    noData: number;
   }> {
-    this.logger.log('Starting backfill for token creator addresses...');
+    this.logger.log('Starting backfill for token security info...');
     const tokensToProcess = await this.tokenRepository.find({
-      where: { creatorAddress: IsNull() },
       select: ['mintAddress'],
     });
 
     let updated = 0;
     let failed = 0;
+    let noData = 0;
     const totalToProcess = tokensToProcess.length;
 
-    this.logger.log(`Found ${totalToProcess} tokens missing creator address.`);
+    this.logger.log(
+      `Found ${totalToProcess} tokens potentially missing security info.`,
+    );
 
     for (let i = 0; i < totalToProcess; i++) {
       const token = tokensToProcess[i];
@@ -37,37 +40,57 @@ export class DevAdminService {
         `Processing token ${i + 1}/${totalToProcess}: ${token.mintAddress}`,
       );
       try {
-        const creatorAddress = await this.tokensService.fetchTokenCreator(
+        const securityInfo = await this.tokensService.fetchTokenSecurityInfo(
           token.mintAddress,
         );
 
-        if (creatorAddress) {
-          await this.tokenRepository.update(
-            { mintAddress: token.mintAddress },
-            { creatorAddress: creatorAddress },
-          );
-          updated++;
-          this.logger.log(
-            `Updated token ${token.mintAddress} with creator ${creatorAddress}`,
-          );
+        if (securityInfo) {
+          const updatePayload: Partial<TokenEntity> = {
+            creatorAddress: securityInfo.creatorAddress ?? null,
+            creationTx: securityInfo.creationTx ?? null,
+            creationTime: securityInfo.creationTime
+              ? new Date(securityInfo.creationTime)
+              : null,
+          };
+
+          if (
+            updatePayload.creatorAddress ||
+            updatePayload.creationTx ||
+            updatePayload.creationTime
+          ) {
+            await this.tokenRepository.update(
+              { mintAddress: token.mintAddress },
+              updatePayload,
+            );
+            updated++;
+            this.logger.log(
+              `Updated token ${token.mintAddress} with security info: ${JSON.stringify(updatePayload)}`,
+            );
+          } else {
+            noData++;
+            this.logger.log(
+              `Security info fetched for ${token.mintAddress}, but contained no data. Skipping update.`,
+            );
+          }
         } else {
+          noData++;
           this.logger.log(
-            `No creator address found for ${token.mintAddress}, skipping update.`,
+            `No security info could be retrieved for ${token.mintAddress}, skipping update.`,
           );
         }
-        // Add a small delay to avoid hitting rate limits aggressively
-        await new Promise((resolve) => setTimeout(resolve, 200)); // 200ms delay
+        await new Promise((resolve) => setTimeout(resolve, 250));
       } catch (error) {
         failed++;
         this.logger.error(
-          `Failed to fetch/update creator for ${token.mintAddress}: ${error.message}`,
+          `Failed during security info backfill for ${token.mintAddress}: ${error.message}`,
         );
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
 
     this.logger.log(
-      `Backfill complete. Processed: ${totalToProcess}, Updated: ${updated}, Failed: ${failed}`,
+      `Security info backfill complete. Processed: ${totalToProcess}, Updated: ${updated}, No Data/Failed Fetch: ${noData + failed}`,
     );
-    return { processed: totalToProcess, updated, failed };
+    return { processed: totalToProcess, updated, failed, noData };
   }
 }
