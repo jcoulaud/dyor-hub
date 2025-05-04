@@ -12,6 +12,7 @@ import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
 import { TwitterHistoryTooltip } from '@/components/tokens/TwitterHistoryTooltip';
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
+import { WebsiteInfoTooltip } from '@/components/tokens/WebsiteInfoTooltip';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,7 +35,6 @@ import {
   Code,
   Copy,
   ExternalLink,
-  Globe,
   MessageSquare,
   Search,
   Shield,
@@ -518,14 +518,7 @@ export default function Page({ params, commentId }: PageProps) {
 
                             {/* Desktop Social buttons */}
                             {tokenData.websiteUrl && (
-                              <Link
-                                href={tokenData.websiteUrl}
-                                target='_blank'
-                                rel='noopener noreferrer'
-                                className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                                title='Website'>
-                                <Globe className='w-4 h-4 text-blue-400' />
-                              </Link>
+                              <WebsiteInfoTooltip websiteUrl={tokenData.websiteUrl} />
                             )}
 
                             {tokenData.twitterHandle && (
@@ -567,14 +560,7 @@ export default function Page({ params, commentId }: PageProps) {
                           </button>
 
                           {tokenData.websiteUrl && (
-                            <Link
-                              href={tokenData.websiteUrl}
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                              title='Website'>
-                              <Globe className='w-4 h-4 text-blue-400' />
-                            </Link>
+                            <WebsiteInfoTooltip websiteUrl={tokenData.websiteUrl} />
                           )}
 
                           {tokenData.twitterHandle && (

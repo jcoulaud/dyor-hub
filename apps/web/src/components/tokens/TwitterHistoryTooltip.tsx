@@ -96,7 +96,7 @@ export const TwitterHistoryTooltip = ({
             <TooltipContent
               side='bottom'
               align='center'
-              className='p-0 bg-zinc-900/95 border border-zinc-700/50 rounded-lg shadow-lg'>
+              className='p-0 bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-lg'>
               <div className='w-[280px] max-h-80 overflow-auto'>
                 <div className='p-3 border-b border-zinc-800'>
                   <div className='flex items-center justify-between'>
