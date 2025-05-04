@@ -1,6 +1,6 @@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, parseISO } from 'date-fns';
-import { Globe } from 'lucide-react';
+import { ExternalLink, Globe } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -20,17 +20,29 @@ interface DomainEvent {
   eventDate: string;
 }
 
-// Map of TLDs to their RDAP servers
-const RDAP_SERVERS: Record<string, string> = {
-  com: 'https://rdap.verisign.com/com/v1',
-  net: 'https://rdap.verisign.com/net/v1',
-  org: 'https://rdap.publicinterestregistry.org/rdap',
-  io: 'https://rdap.centralnic.com/io',
-  xyz: 'https://rdap.centralnic.com/xyz',
-  app: 'https://www.registry.google/rdap',
-  dev: 'https://www.registry.google/rdap',
-  ai: 'https://rdap.centralnic.com/ai',
-};
+interface RdapLink {
+  rel: string;
+  href: string;
+  type?: string;
+  value?: string;
+}
+
+interface RdapResponse {
+  events?: DomainEvent[];
+  links?: RdapLink[];
+  objectClassName?: string;
+  handle?: string;
+  ldhName?: string;
+  unicodeName?: string;
+  status?: string[];
+  entities?: unknown[];
+  notices?: unknown[];
+  rdapConformance?: string[];
+  secureDNS?: unknown;
+  nameservers?: unknown[];
+}
+
+const RDAP_BOOTSTRAP_URL = 'https://data.iana.org/rdap/dns.json';
 
 const formatDate = (dateString: string): string => {
   try {
@@ -61,8 +73,44 @@ export const WebsiteInfoTooltip = ({ websiteUrl, className = '' }: WebsiteInfoTo
   const domain = getDomain(websiteUrl);
   const domainParts = domain.split('.');
   const tld = domainParts.length > 1 ? domainParts[domainParts.length - 1].toLowerCase() : '';
+  const rdapLookupUrl = `https://client.rdap.org/?type=domain&object=${encodeURIComponent(domain)}`;
 
   useEffect(() => {
+    const findRdapService = async (domain: string, tld: string) => {
+      try {
+        // Use IANA bootstrap service to find the correct RDAP server
+        const bootstrapResponse = await fetch(RDAP_BOOTSTRAP_URL);
+        if (!bootstrapResponse.ok) {
+          throw new Error('Bootstrap service unavailable');
+        }
+
+        const bootstrapData = await bootstrapResponse.json();
+
+        // Look for matching TLD in the bootstrap data
+        let baseUrl = null;
+        if (bootstrapData.services && Array.isArray(bootstrapData.services)) {
+          for (const service of bootstrapData.services) {
+            if (Array.isArray(service[0]) && service[0].includes(tld)) {
+              baseUrl = service[1][0];
+              break;
+            }
+          }
+        }
+
+        if (baseUrl) {
+          if (!baseUrl.endsWith('/')) {
+            baseUrl += '/';
+          }
+          return `${baseUrl}domain/${domain}`;
+        }
+
+        return null;
+      } catch (error) {
+        console.error('Error finding RDAP service:', error);
+        return null;
+      }
+    };
+
     const fetchDomainInfo = async () => {
       if (!domain || !tld) return;
 
@@ -70,49 +118,84 @@ export const WebsiteInfoTooltip = ({ websiteUrl, className = '' }: WebsiteInfoTo
       setError(null);
 
       try {
-        const rdapBase = RDAP_SERVERS[tld] || `https://rdap.centralnic.com/${tld}`;
-        const rdapUrl = `${rdapBase}/domain/${domain}`;
+        // Try to discover the appropriate RDAP server
+        const rdapUrl = await findRdapService(domain, tld);
+
+        if (!rdapUrl) {
+          throw new Error('Could not determine the appropriate RDAP server');
+        }
 
         const response = await fetch(rdapUrl);
 
         if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('Domain not found in RDAP registry');
-          } else {
-            throw new Error(`Failed to fetch domain info: ${response.status}`);
+          // Handle redirects or references to other RDAP servers
+          if (response.status === 301 || response.status === 302 || response.status === 303) {
+            const redirectUrl = response.headers.get('Location');
+            if (redirectUrl) {
+              const redirectResponse = await fetch(redirectUrl);
+              if (!redirectResponse.ok) {
+                throw new Error('Failed to fetch from redirect');
+              }
+              const data = await redirectResponse.json();
+              processRdapData(data);
+              return;
+            }
           }
+          throw new Error('Could not fetch domain information');
         }
 
         const data = await response.json();
-
-        if (data.events && Array.isArray(data.events)) {
-          const registrationEvent = data.events.find(
-            (event: DomainEvent) => event.eventAction === 'registration',
-          );
-          const expirationEvent = data.events.find(
-            (event: DomainEvent) => event.eventAction === 'expiration',
-          );
-          const lastChangedEvent = data.events.find(
-            (event: DomainEvent) =>
-              event.eventAction === 'last changed' ||
-              event.eventAction === 'last update of RDAP database',
-          );
-
-          setDomainInfo({
-            registered: registrationEvent?.eventDate || 'Unknown',
-            expires: expirationEvent?.eventDate || 'Unknown',
-            lastUpdated: lastChangedEvent?.eventDate || 'Unknown',
-          });
-        } else {
-          setError('No domain event information available');
-        }
-      } catch (err) {
-        console.error('Error fetching domain info:', err);
-        const errorMessage =
-          err instanceof Error ? err.message : 'Could not fetch domain information';
-        setError(errorMessage);
+        processRdapData(data);
+      } catch {
+        setError('We could not fetch the registration information for this domain');
       } finally {
         setLoading(false);
+      }
+    };
+
+    const processRdapData = (data: RdapResponse) => {
+      if (data.events && Array.isArray(data.events)) {
+        const registrationEvent = data.events.find(
+          (event: DomainEvent) => event.eventAction === 'registration',
+        );
+        const expirationEvent = data.events.find(
+          (event: DomainEvent) => event.eventAction === 'expiration',
+        );
+        const lastChangedEvent = data.events.find(
+          (event: DomainEvent) =>
+            event.eventAction === 'last changed' ||
+            event.eventAction === 'last update of RDAP database',
+        );
+
+        setDomainInfo({
+          registered: registrationEvent?.eventDate || 'Unknown',
+          expires: expirationEvent?.eventDate || 'Unknown',
+          lastUpdated: lastChangedEvent?.eventDate || 'Unknown',
+        });
+      } else if (data.links && Array.isArray(data.links)) {
+        // Some RDAP servers respond with links to the actual data
+        const relatedLink = data.links.find(
+          (link: RdapLink) => link.rel === 'related' && link.href && link.href.includes('/domain/'),
+        );
+
+        if (relatedLink && relatedLink.href) {
+          fetch(relatedLink.href)
+            .then((response) => {
+              if (!response.ok) throw new Error('Failed to fetch from related link');
+              return response.json();
+            })
+            .then((relatedData: RdapResponse) => {
+              processRdapData(relatedData);
+            })
+            .catch(() => {
+              setError('We could not fetch the registration information for this domain');
+            });
+          return;
+        }
+
+        setError('No domain registration information available');
+      } else {
+        setError('No domain registration information available');
       }
     };
 
@@ -182,7 +265,19 @@ export const WebsiteInfoTooltip = ({ websiteUrl, className = '' }: WebsiteInfoTo
                     <span className='ml-2 text-xs text-zinc-400'>Loading domain info...</span>
                   </div>
                 ) : error ? (
-                  <div className='text-xs text-zinc-400 py-2'>{error}</div>
+                  <div className='space-y-3'>
+                    <div className='text-xs text-zinc-400 py-2'>{error}</div>
+                    <div className='pt-2 border-t border-zinc-800'>
+                      <Link
+                        href={rdapLookupUrl}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='flex items-center justify-center gap-1.5 w-full text-xs text-blue-400 py-2 hover:text-blue-300'>
+                        <span>Check on RDAP.org</span>
+                        <ExternalLink className='h-3 w-3' />
+                      </Link>
+                    </div>
+                  </div>
                 ) : domainInfo ? (
                   <div className='space-y-3'>
                     <div className='flex justify-between items-center'>
