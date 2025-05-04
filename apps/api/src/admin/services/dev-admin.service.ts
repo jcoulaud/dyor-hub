@@ -49,7 +49,7 @@ export class DevAdminService {
             creatorAddress: securityInfo.creatorAddress ?? null,
             creationTx: securityInfo.creationTx ?? null,
             creationTime: securityInfo.creationTime
-              ? new Date(securityInfo.creationTime)
+              ? new Date(securityInfo.creationTime * 1000)
               : null,
           };
 

@@ -485,7 +485,7 @@ export class TokensService {
             token.creatorAddress = securityInfo.creatorAddress ?? null;
             token.creationTx = securityInfo.creationTx ?? null;
             token.creationTime = securityInfo.creationTime
-              ? new Date(securityInfo.creationTime)
+              ? new Date(securityInfo.creationTime * 1000)
               : null;
             token = await this.tokenRepository.save(token);
           } else {
