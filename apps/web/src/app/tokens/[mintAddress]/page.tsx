@@ -10,6 +10,7 @@ import { TokenBundlesSection } from '@/components/tokens/bundles/TokenBundlesSec
 import { TokenExternalLinks } from '@/components/tokens/TokenExternalLinks';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
+import { TwitterHistoryTooltip } from '@/components/tokens/TwitterHistoryTooltip';
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,7 +39,6 @@ import {
   Search,
   Shield,
   Sparkles,
-  Twitter,
 } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, usePathname, useRouter } from 'next/navigation';
@@ -529,16 +529,10 @@ export default function Page({ params, commentId }: PageProps) {
                             )}
 
                             {tokenData.twitterHandle && (
-                              <Link
-                                href={`https://twitter.com/${tokenData.twitterHandle}`}
-                                target='_blank'
-                                rel='noopener noreferrer'
-                                className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                                title='Twitter'>
-                                <Twitter
-                                  className={`w-4 h-4 ${tokenHistoryData?.history && tokenHistoryData.history.length > 0 ? 'text-red-400' : 'text-blue-400'}`}
-                                />
-                              </Link>
+                              <TwitterHistoryTooltip
+                                twitterHandle={tokenData.twitterHandle}
+                                twitterHistory={tokenHistoryData}
+                              />
                             )}
 
                             {tokenData.telegramUrl && (
@@ -584,16 +578,10 @@ export default function Page({ params, commentId }: PageProps) {
                           )}
 
                           {tokenData.twitterHandle && (
-                            <Link
-                              href={`https://twitter.com/${tokenData.twitterHandle}`}
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                              title='Twitter'>
-                              <Twitter
-                                className={`w-4 h-4 ${tokenHistoryData?.history && tokenHistoryData.history.length > 0 ? 'text-red-400' : 'text-blue-400'}`}
-                              />
-                            </Link>
+                            <TwitterHistoryTooltip
+                              twitterHandle={tokenData.twitterHandle}
+                              twitterHistory={tokenHistoryData}
+                            />
                           )}
 
                           {tokenData.telegramUrl && (
@@ -781,11 +769,7 @@ export default function Page({ params, commentId }: PageProps) {
                       </div>
                     </div>
                   ) : tokenData && tokenStatsData ? (
-                    <TokenStats
-                      stats={tokenStatsData}
-                      tokenMintAddress={tokenData.mintAddress}
-                      twitterHistory={tokenHistoryData}
-                    />
+                    <TokenStats stats={tokenStatsData} tokenMintAddress={tokenData.mintAddress} />
                   ) : (
                     <div className='space-y-4 text-zinc-300'>
                       <div className='flex items-center justify-center py-8'>
