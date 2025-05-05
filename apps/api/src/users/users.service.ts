@@ -175,6 +175,7 @@ export class UsersService {
     limit: number = 10,
     type?: string,
     sort: 'recent' | 'popular' = 'recent',
+    search?: string,
   ): Promise<PaginatedResult<UserActivityDto>> {
     page = Math.max(1, page);
     limit = Math.min(50, Math.max(1, limit));
@@ -189,6 +190,7 @@ export class UsersService {
         c.upvotes_count as upvotes,
         c.downvotes_count as downvotes,
         t.symbol as "tokenSymbol",
+        t.name as "tokenName",
         CASE WHEN c.parent_id IS NOT NULL THEN true ELSE false END as "isReply",
         false as "isUpvote",
         false as "isDownvote",
@@ -210,6 +212,7 @@ export class UsersService {
         c.upvotes_count as upvotes,
         c.downvotes_count as downvotes,
         t.symbol as "tokenSymbol",
+        t.name as "tokenName",
         CASE WHEN c.parent_id IS NOT NULL THEN true ELSE false END as "isReply",
         CASE WHEN cv.vote_type = 'upvote' THEN true ELSE false END as "isUpvote",
         CASE WHEN cv.vote_type = 'downvote' THEN true ELSE false END as "isDownvote",
@@ -226,6 +229,7 @@ export class UsersService {
     const queryParams: any[] = [userId];
     let paramCount = 1;
 
+    // Apply filter by type
     if (type) {
       switch (type) {
         case 'comments':
@@ -247,6 +251,30 @@ export class UsersService {
       }
     }
 
+    // Apply search filter if search term is provided
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim().toLowerCase()}%`;
+      paramCount++;
+
+      if (commentsQuery) {
+        commentsQuery += ` AND (
+          LOWER(c.content) LIKE $${paramCount} OR 
+          LOWER(t.symbol) LIKE $${paramCount} OR 
+          LOWER(t.name) LIKE $${paramCount}
+        )`;
+      }
+
+      if (votesQuery) {
+        votesQuery += ` AND (
+          LOWER(c.content) LIKE $${paramCount} OR 
+          LOWER(t.symbol) LIKE $${paramCount} OR 
+          LOWER(t.name) LIKE $${paramCount}
+        )`;
+      }
+
+      queryParams.push(searchTerm);
+    }
+
     let fullQuery = '';
     if (commentsQuery && votesQuery) {
       fullQuery = `(${commentsQuery}) UNION ALL (${votesQuery})`;
@@ -260,18 +288,16 @@ export class UsersService {
       sort === 'popular' ? `(upvotes - downvotes) DESC` : `"createdAt" DESC`;
 
     const countQuery = `SELECT COUNT(*) FROM (${fullQuery}) as count_all`;
+    const total = await this.userRepository.manager
+      .query(countQuery, queryParams)
+      .then((result) => parseInt(result[0].count, 10));
+
+    // Execute the main query to get the data
     const mainQuery = `
       SELECT * FROM (${fullQuery}) as combined 
       ORDER BY ${orderBy}
       LIMIT $${++paramCount} OFFSET $${++paramCount}
     `;
-
-    const countResult = await this.userRepository.manager.query(
-      countQuery,
-      queryParams,
-    );
-    const total = parseInt(countResult[0].count, 10);
-
     const mainQueryParams = [...queryParams, limit, skip];
     const rawResults = await this.userRepository.manager.query(
       mainQuery,
@@ -292,6 +318,7 @@ export class UsersService {
         upvotes: parseInt(raw.upvotes, 10) || 0,
         downvotes: parseInt(raw.downvotes, 10) || 0,
         tokenSymbol: raw.tokenSymbol || '',
+        tokenName: raw.tokenName || '',
         isReply:
           raw.isReply === true || raw.isReply === 'true' || raw.isReply === 1,
         isUpvote:

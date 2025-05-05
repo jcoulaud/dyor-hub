@@ -39,6 +39,7 @@ export interface UserActivity {
   upvotes: number;
   downvotes: number;
   tokenSymbol: string;
+  tokenName?: string;
   isReply: boolean;
   isUpvote?: boolean;
   isDownvote?: boolean;

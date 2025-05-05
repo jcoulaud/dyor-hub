@@ -116,6 +116,7 @@ export class UsersController {
     @Query('limit') limit: number = 10,
     @Query('type') type?: string,
     @Query('sort') sort: 'recent' | 'popular' = 'recent',
+    @Query('search') search?: string,
   ): Promise<PaginatedResult<UserActivity>> {
     const user = await this.usersService.findByUsername(username);
 
@@ -130,6 +131,7 @@ export class UsersController {
       limit ? parseInt(limit as any, 10) : 10,
       type,
       sort,
+      search,
     );
   }
 
