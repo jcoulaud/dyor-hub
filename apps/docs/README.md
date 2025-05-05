@@ -1,7 +1,9 @@
 # DYOR Hub Documentation
 
-Welcome to the DYOR Hub documentation. This documentation is synced with GitBook.
+This is the documentation for DYOR Hub. It is synced with GitBook for easy reference.
+
+CA: 2MCmXsjSXHoQYR6ckg6Af4mhQKDMJMGy6JKh8C4Qpump
 
 ---
 
-_Documentation is being set up. More content will be added soon._
+_Documentation is currently being expanded. Additional content will be added soon._
