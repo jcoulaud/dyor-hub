@@ -1,8 +1,9 @@
 'use client';
 
+import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { users } from '@/lib/api';
-import { ActivityType } from '@dyor-hub/types';
+import { ActivityType, UserStats } from '@dyor-hub/types';
 import { formatDistanceStrict } from 'date-fns';
 import {
   ArrowDown,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { useDebounce } from 'use-debounce';
 import { UserComment } from './page';
 
 const CommentContent = ({ html }: { html: string }) => {
@@ -126,12 +128,19 @@ export function Activity({
     totalPages: Math.ceil((totalActivities || 0) / 10),
   });
 
-  const [activityCounts, setActivityCounts] = useState({
+  const [activityCounts, setActivityCounts] = useState<UserStats>({
     comments: 0,
     replies: 0,
     upvotes: 0,
     downvotes: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    reputation: 0,
   });
+
+  // State for search input
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm] = useDebounce(searchInput, 300);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -150,10 +159,41 @@ export function Activity({
     setIsLoading(true);
     setError(null);
     try {
-      const result = await users.getUserActivity(username, currentPage, 10, typeFilter, sortFilter);
+      const result = await users.getUserActivity(
+        username,
+        currentPage,
+        10,
+        typeFilter,
+        sortFilter,
+        searchTerm.trim() || undefined,
+      );
 
       setVisibleComments(result.data);
       setPagination(result.meta);
+
+      if (searchTerm.trim()) {
+        const countsByType = result.data.reduce(
+          (counts, item) => {
+            if (item.isUpvote) counts.upvotes++;
+            else if (item.isDownvote) counts.downvotes++;
+            else if (item.isReply) counts.replies++;
+            else counts.comments++;
+            return counts;
+          },
+          { comments: 0, replies: 0, upvotes: 0, downvotes: 0 },
+        );
+
+        setActivityCounts((prev) => ({
+          ...prev,
+          comments: countsByType.comments,
+          replies: countsByType.replies,
+          upvotes: countsByType.upvotes,
+          downvotes: countsByType.downvotes,
+        }));
+      } else {
+        const stats = await users.getUserStats(username);
+        setActivityCounts(stats);
+      }
     } catch (error) {
       console.error('Failed to load user activity', error);
       setError('Failed to load activity. Please try again later.');
@@ -161,7 +201,7 @@ export function Activity({
     } finally {
       setIsLoading(false);
     }
-  }, [username, currentPage, typeFilter, sortFilter]);
+  }, [username, currentPage, typeFilter, sortFilter, searchTerm]);
 
   useEffect(() => {
     fetchActivity();
@@ -184,21 +224,45 @@ export function Activity({
     setCurrentPage(page);
   };
 
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const totalDisplayActivities =
+    activityCounts.comments +
+    activityCounts.replies +
+    activityCounts.upvotes +
+    activityCounts.downvotes;
+
   return (
     <div className='mb-12'>
       {/* Activity header  */}
       <div className='mb-6 bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/50 rounded-xl overflow-hidden'>
         <div className='p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
-          <div className='flex items-center justify-between'>
+          <div className='flex items-center'>
             <h2 className='text-xl font-semibold flex items-center gap-2 text-white/90'>
               <span className='w-6 h-6 flex items-center justify-center rounded-full bg-blue-600/20 text-blue-400'>
                 <Clock className='h-3.5 w-3.5' />
               </span>
               Activity
             </h2>
+          </div>
+
+          <div className='flex items-center gap-4'>
+            {/* Search bar */}
+            <div className='w-full sm:w-64'>
+              <Input
+                type='search'
+                placeholder='Search activities...'
+                className='h-[35px] bg-zinc-800/60 border-zinc-700/50 text-white placeholder:text-gray-400 rounded-md px-3'
+                onChange={handleSearchChange}
+                value={searchInput}
+              />
+            </div>
 
             {/* Sort Filters */}
-            <div className='flex items-center text-sm text-zinc-400 sm:hidden'>
+            <div className='flex items-center text-sm text-zinc-400'>
               <button
                 onClick={() => handleSortFilterChange('recent')}
                 className={`px-3 py-1.5 rounded-l-md border cursor-pointer ${
@@ -219,28 +283,6 @@ export function Activity({
               </button>
             </div>
           </div>
-
-          {/* Sort Filters - Desktop only */}
-          <div className='hidden sm:flex items-center text-sm text-zinc-400'>
-            <button
-              onClick={() => handleSortFilterChange('recent')}
-              className={`px-3 py-1.5 rounded-l-md border cursor-pointer ${
-                sortFilter === 'recent'
-                  ? 'bg-zinc-800 text-white border-zinc-700'
-                  : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:bg-zinc-800/80 hover:text-zinc-300'
-              } transition-colors duration-200`}>
-              Recent
-            </button>
-            <button
-              onClick={() => handleSortFilterChange('popular')}
-              className={`px-3 py-1.5 rounded-r-md border-t border-r border-b cursor-pointer ${
-                sortFilter === 'popular'
-                  ? 'bg-zinc-800 text-white border-zinc-700'
-                  : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:bg-zinc-800/80 hover:text-zinc-300'
-              } transition-colors duration-200`}>
-              Popular
-            </button>
-          </div>
         </div>
 
         {/* Type Filters  */}
@@ -252,7 +294,7 @@ export function Activity({
               icon={<CircleDot className='h-3.5 w-3.5' />}
               color='text-blue-400'
               label='All'
-              count={totalActivities}
+              count={totalDisplayActivities}
             />
             <TypeFilterTab
               active={typeFilter === 'comments'}
@@ -313,8 +355,10 @@ export function Activity({
         ) : visibleComments.length === 0 ? (
           // Empty state
           <div className='py-12 text-center text-zinc-400'>
-            <p className='mb-2'>No activities found.</p>
-            {typeFilter !== 'all' && (
+            <p className='mb-2'>
+              {searchTerm ? 'No activities found matching your search.' : 'No activity yet.'}
+            </p>
+            {typeFilter !== 'all' && !searchTerm && (
               <button
                 onClick={() => handleTypeFilterChange('all')}
                 className='px-4 py-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/30 rounded text-zinc-300 text-sm transition-colors cursor-pointer'>
@@ -365,11 +409,9 @@ export function Activity({
                       )}
                     </div>
 
-                    {/* Simply render the content from the backend */}
                     <CommentContent html={comment.content} />
 
-                    {/* Keep the conditional rendering for votes */}
-                    {!comment.isRemoved && ( // Hide votes if comment is removed
+                    {!comment.isRemoved && (
                       <div className='flex items-center gap-3 mt-1.5 text-xs'>
                         <div className='flex items-center gap-1 text-green-400/90'>
                           <ThumbsUp className='h-3 w-3' />

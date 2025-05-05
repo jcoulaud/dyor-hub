@@ -27,6 +27,9 @@ export class UserActivityDto implements UserActivity {
   tokenSymbol: string;
 
   @Expose()
+  tokenName: string;
+
+  @Expose()
   isReply: boolean;
 
   @Expose()
@@ -48,6 +51,7 @@ export class UserActivityDto implements UserActivity {
   static fromComment(
     comment: CommentEntity,
     tokenSymbol?: string,
+    tokenName?: string,
   ): UserActivityDto {
     return new UserActivityDto({
       id: comment.id,
@@ -57,6 +61,7 @@ export class UserActivityDto implements UserActivity {
       upvotes: comment.upvotes,
       downvotes: comment.downvotes,
       tokenSymbol: tokenSymbol || '',
+      tokenName: tokenName || '',
       isReply: Boolean(comment.parentId),
       parentCommentId: comment.parentId,
       isRemoved: Boolean(comment.removedById),
@@ -67,6 +72,7 @@ export class UserActivityDto implements UserActivity {
     vote: CommentVoteEntity,
     comment: CommentEntity,
     tokenSymbol?: string,
+    tokenName?: string,
   ): UserActivityDto {
     return new UserActivityDto({
       id: vote.id,
@@ -76,6 +82,7 @@ export class UserActivityDto implements UserActivity {
       upvotes: comment.upvotes,
       downvotes: comment.downvotes,
       tokenSymbol: tokenSymbol || '',
+      tokenName: tokenName || '',
       isReply: Boolean(comment.parentId),
       isUpvote: vote.type === 'upvote',
       isDownvote: vote.type === 'downvote',

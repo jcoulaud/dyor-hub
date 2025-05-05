@@ -893,6 +893,7 @@ export const users = {
     limit: number = 10,
     type?: 'all' | 'comments' | 'replies' | 'upvotes' | 'downvotes',
     sort: 'recent' | 'popular' = 'recent',
+    search?: string,
   ): Promise<{
     data: UserActivity[];
     meta: {
@@ -909,6 +910,7 @@ export const users = {
       params.append('limit', limit.toString());
       if (sort) params.append('sort', sort);
       if (type && type !== 'all') params.append('type', type);
+      if (search) params.append('search', search);
 
       const sanitizedUsername = encodeURIComponent(username);
       const endpoint = `users/${sanitizedUsername}/activity?${params.toString()}`;
