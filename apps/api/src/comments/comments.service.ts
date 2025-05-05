@@ -660,7 +660,7 @@ export class CommentsService {
           );
 
           if (recipientsToNotify.length > 0) {
-            const notificationMessage = `@${user.username} mentioned you in a comment on ${token.symbol}.`;
+            const notificationMessage = `@${user.username} mentioned you in a comment on $${token.symbol}.`;
             const commentExcerpt = plainTextContent.substring(0, 150); // Use plain text excerpt
 
             recipientsToNotify.forEach((recipientUser) => {
