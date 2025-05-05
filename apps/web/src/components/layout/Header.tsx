@@ -9,7 +9,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { CONTRACT_ADDRESS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
-import { BarChart2, DollarSign, Home, Link as LinkIcon, Menu, Trophy, X } from 'lucide-react';
+import {
+  BarChart2,
+  BookOpen,
+  DollarSign,
+  Home,
+  Link as LinkIcon,
+  Menu,
+  Trophy,
+  X,
+} from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -53,6 +62,13 @@ export function Header() {
                 className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-green-600/90 to-emerald-700/90 hover:from-green-500/90 hover:to-emerald-600/90 border border-white/10 shadow-md hover:shadow-emerald-900/20 hover:scale-[1.02]'>
                 Token Calls
               </Link>
+              <a
+                href='https://juliens-organization-7.gitbook.io/dyor-hub'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='px-4 py-2 text-sm font-medium text-white hover:text-white/90 transition-all duration-200 rounded-full bg-gradient-to-r from-pink-600/90 to-rose-700/90 hover:from-pink-500/90 hover:to-rose-600/90 border border-white/10 shadow-md hover:shadow-rose-900/20 hover:scale-[1.02]'>
+                Documentation
+              </a>
               <a
                 href={`https://dexscreener.com/solana/${CONTRACT_ADDRESS}`}
                 target='_blank'
@@ -106,6 +122,15 @@ export function Header() {
                     <BarChart2 className='h-4 w-4' />
                     <span>Token Calls</span>
                   </Link>
+                  <a
+                    href='https://juliens-organization-7.gitbook.io/dyor-hub'
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className='flex items-center gap-2 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
+                    <BookOpen className='h-4 w-4' />
+                    <span>Documentation</span>
+                  </a>
                   <a
                     href={`https://dexscreener.com/solana/${CONTRACT_ADDRESS}`}
                     target='_blank'
