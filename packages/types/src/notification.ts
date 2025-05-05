@@ -91,7 +91,7 @@ export interface BadgeUnlockedData extends NotificationBaseData {
 
 export interface CommentMentionData extends NotificationBaseData {
   commentId: string;
-  projectId: string;
+  tokenMintAddress: string;
   senderId: string;
   senderUsername: string;
   commentExcerpt: string;

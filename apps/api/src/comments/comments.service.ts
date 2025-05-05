@@ -666,7 +666,7 @@ export class CommentsService {
             recipientsToNotify.forEach((recipientUser) => {
               const metadata: CommentMentionData = {
                 commentId: savedComment.id,
-                projectId: savedComment.tokenMintAddress,
+                tokenMintAddress: savedComment.tokenMintAddress,
                 senderId: savedComment.userId,
                 senderUsername: user.username,
                 commentExcerpt: commentExcerpt,

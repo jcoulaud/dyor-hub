@@ -256,6 +256,7 @@ export function NotificationBell() {
       case NotificationType.FOLLOWED_USER_VOTE:
       case NotificationType.COMMENT_REPLY:
       case NotificationType.UPVOTE_RECEIVED:
+      case NotificationType.COMMENT_MENTION:
         const mintAddress = notification.relatedMetadata?.tokenMintAddress;
         if (mintAddress && notification.relatedEntityId) {
           return `/tokens/${mintAddress}/comments/${notification.relatedEntityId}`;
