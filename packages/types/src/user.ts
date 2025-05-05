@@ -72,3 +72,10 @@ export interface UserFollows {
   notify_on_vote: boolean;
   created_at: string;
 }
+
+export interface UserSearchResult {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+}

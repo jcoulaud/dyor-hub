@@ -14,6 +14,7 @@ export enum NotificationType {
   FOLLOWED_USER_VOTE = 'followed_user_vote',
   REFERRAL_SUCCESS = 'referral_success',
   TIP_RECEIVED = 'tip_received',
+  COMMENT_MENTION = 'comment_mention',
 }
 
 export enum NotificationEventType {
@@ -31,6 +32,7 @@ export enum NotificationEventType {
   FOLLOWED_USER_VOTE = 'followed_user.vote',
   REFERRAL_SUCCESS = 'referral.success',
   TIP_RECEIVED = 'tip.received',
+  COMMENT_MENTION = 'comment.mention',
 }
 
 export interface NotificationPreference {
@@ -87,7 +89,19 @@ export interface BadgeUnlockedData extends NotificationBaseData {
   level?: number;
 }
 
-export type NotificationData = BadgeUnlockedData | TokenCallVerifiedData | NotificationBaseData;
+export interface CommentMentionData extends NotificationBaseData {
+  commentId: string;
+  projectId: string;
+  senderId: string;
+  senderUsername: string;
+  commentExcerpt: string;
+}
+
+export type NotificationData =
+  | BadgeUnlockedData
+  | TokenCallVerifiedData
+  | CommentMentionData
+  | NotificationBaseData;
 
 export interface Notification {
   id: string;

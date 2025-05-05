@@ -47,6 +47,7 @@ import {
   UserPreferences,
   UserRankings,
   UserReputation,
+  UserSearchResult,
   UserStats,
   UserStreak,
   VoteType,
@@ -1185,6 +1186,20 @@ export const users = {
       console.error('[getMyDyorhubBalance] Error fetching balance:', error);
 
       return { balance: 0 };
+    }
+  },
+
+  search: async (query: string, limit: number = 10): Promise<UserSearchResult[]> => {
+    try {
+      const params = new URLSearchParams();
+      params.append('query', query);
+      params.append('limit', limit.toString());
+      const endpoint = `users/search?${params.toString()}`;
+      const data = await api<UserSearchResult[]>(endpoint);
+      return data;
+    } catch (error) {
+      console.error(`Error searching users with query "${query}":`, error);
+      return [];
     }
   },
 };

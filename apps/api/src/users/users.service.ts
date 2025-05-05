@@ -1,4 +1,8 @@
-import { UserPreferences, defaultUserPreferences } from '@dyor-hub/types';
+import {
+  defaultUserPreferences,
+  UserPreferences,
+  UserSearchResult,
+} from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -420,6 +424,38 @@ export class UsersService {
         error,
       );
       throw error;
+    }
+  }
+
+  async searchUsers(
+    query: string,
+    limit: number = 10,
+  ): Promise<UserSearchResult[]> {
+    if (!query || query.trim().length < 1) {
+      return [];
+    }
+
+    try {
+      const users = await this.userRepository.find({
+        where: [
+          { username: ILike(`%${query}%`) },
+          { displayName: ILike(`%${query}%`) },
+        ],
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+        take: limit,
+        order: {
+          username: 'ASC',
+        },
+      });
+      return users;
+    } catch (error) {
+      this.logger.error(`Error searching users with query "${query}":`, error);
+      return [];
     }
   }
 }

@@ -1,4 +1,4 @@
-import { UserActivity, UserStats } from '@dyor-hub/types';
+import { UserActivity, UserSearchResult, UserStats } from '@dyor-hub/types';
 import {
   Body,
   Controller,
@@ -46,6 +46,19 @@ export class UsersController {
     @Inject(forwardRef(() => FollowsService))
     private readonly followsService: FollowsService,
   ) {}
+
+  @Public()
+  @Get('search')
+  async searchUsers(
+    @Query('query') query: string,
+    @Query('limit') limit?: string,
+  ): Promise<UserSearchResult[]> {
+    if (!query || query.length < 1) {
+      return [];
+    }
+    const numericLimit = limit ? parseInt(limit, 10) : 10;
+    return this.usersService.searchUsers(query, numericLimit);
+  }
 
   @UseGuards(OptionalAuthGuard)
   @Get('me/preferences')
