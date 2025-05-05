@@ -480,6 +480,9 @@ const LeaderboardPage = () => {
                           <span className='text-[10px] text-gray-400 flex items-center gap-1 mt-0.5'>
                             <span className='text-gray-400'>Hit Rate:</span>
                             {formatAccuracyRate(entries[1].accuracyRate)}
+                            <span className='ml-1'>
+                              ({entries[1].successfulCalls}/{entries[1].totalCalls})
+                            </span>
                           </span>
                           {/* Avg Multi Tooltip */}
                           <Tooltip>
@@ -560,6 +563,9 @@ const LeaderboardPage = () => {
                           <span className='text-[10px] text-amber-500 flex items-center gap-1 mt-0.5'>
                             <span className='text-amber-500'>Hit Rate:</span>
                             {formatAccuracyRate(entries[0].accuracyRate)}
+                            <span className='ml-1'>
+                              ({entries[0].successfulCalls}/{entries[0].totalCalls})
+                            </span>
                           </span>
                           {/* Avg Multi Tooltip */}
                           <Tooltip>
@@ -640,6 +646,9 @@ const LeaderboardPage = () => {
                           <span className='text-[10px] text-amber-600 flex items-center gap-1 mt-0.5'>
                             <span className='text-amber-600'>Hit Rate:</span>
                             {formatAccuracyRate(entries[2].accuracyRate)}
+                            <span className='ml-1'>
+                              ({entries[2].successfulCalls}/{entries[2].totalCalls})
+                            </span>
                           </span>
                           {/* Avg Multi Tooltip */}
                           <Tooltip>
