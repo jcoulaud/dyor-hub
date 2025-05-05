@@ -36,6 +36,7 @@ import {
   Code,
   Copy,
   ExternalLink,
+  Eye,
   MessageSquare,
   Search,
   Shield,
@@ -57,6 +58,7 @@ type TokenWithWatchlistStatus = Token & {
   creatorAddress?: string | null;
   creationTime?: Date | null;
   creationTx?: string | null;
+  viewsCount?: number;
 };
 
 const formatCreationTime = (dateString: string | Date | null | undefined): string | null => {
@@ -573,6 +575,18 @@ export default function Page({ params, commentId }: PageProps) {
                         <p className='text-zinc-400 max-w-full md:max-w-[75%] text-sm'>
                           {tokenData.description}
                         </p>
+
+                        {/* Views Count Display */}
+                        {tokenData.viewsCount !== undefined && (
+                          <div className='flex items-center mt-2'>
+                            <div className='inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-800/70 border border-zinc-700/50 backdrop-blur-sm'>
+                              <Eye className='w-3.5 h-3.5 mr-1.5 text-blue-400' />
+                              <span className='text-xs font-medium text-zinc-200'>
+                                {tokenData.viewsCount.toLocaleString()} views
+                              </span>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Mobile Social Buttons */}
                         <div className='flex sm:hidden items-center gap-2 mt-3'>
