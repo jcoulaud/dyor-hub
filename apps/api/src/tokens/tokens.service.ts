@@ -59,6 +59,10 @@ interface BirdeyeTokenOverviewData {
   circulatingSupply?: number;
   holder?: number;
   v24hUSD?: number;
+  v24hChangePercent?: number;
+  buy24h?: number;
+  sell24h?: number;
+  uniqueWallet24h?: number;
   [key: string]: any;
 }
 
@@ -610,6 +614,11 @@ export class TokensService {
         price: overviewData.price,
         marketCap: overviewData.marketCap,
         volume24h: overviewData.v24hUSD,
+        volume24hChangePercent: overviewData.v24hChangePercent,
+        buyCount24h: overviewData.buy24h,
+        sellCount24h: overviewData.sell24h,
+        uniqueWallets24h: overviewData.uniqueWallet24h,
+        holders: overviewData.holder,
         totalSupply: totalSupplyString,
         circulatingSupply: circulatingSupplyString,
         topHolders,

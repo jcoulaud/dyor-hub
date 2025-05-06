@@ -1,9 +1,8 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatLargeNumber, truncateAddress } from '@/lib/utils';
-import type { TokenStats as TokenStatsType } from '@dyor-hub/types';
-import { TokenHolder } from '@dyor-hub/types';
+import { TokenHolder, TokenStats as TokenStatsType } from '@dyor-hub/types';
 import { format, formatDistanceStrict } from 'date-fns';
-import { BarChart2, DollarSign, Users } from 'lucide-react';
+import { BarChart2, DollarSign, TrendingDown, TrendingUp, Users } from 'lucide-react';
 import { SolscanButton } from '../SolscanButton';
 import TokenPriceChart from './TokenPriceChart';
 
@@ -99,34 +98,82 @@ export const TokenStats = ({ stats, tokenMintAddress, tokenSymbol }: TokenStatsP
   return (
     <div className='space-y-6 text-zinc-300'>
       {/* Market Data */}
-      {(stats.price || stats.marketCap || stats.volume24h) && (
-        <div className='space-y-3'>
-          <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
-            <DollarSign className='h-4 w-4 mr-2 text-blue-400' />
-            Market Data
-          </h3>
-          <div className='space-y-2'>
-            {stats.price !== undefined && (
-              <div className='flex justify-between items-center'>
-                <span className='text-sm'>Price:</span>
-                <span className='font-medium'>${formatPrice(stats.price)}</span>
-              </div>
-            )}
-            {stats.marketCap !== undefined && (
-              <div className='flex justify-between items-center'>
-                <span className='text-sm'>Market Cap:</span>
-                <span className='font-medium'>${formatLargeNumber(stats.marketCap)}</span>
-              </div>
-            )}
-            {stats.volume24h !== undefined && (
-              <div className='flex justify-between items-center'>
-                <span className='text-sm'>24h Volume:</span>
+      <div className='space-y-3'>
+        <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
+          <DollarSign className='h-4 w-4 mr-2 text-blue-400' />
+          Market Data
+        </h3>
+        <div className='space-y-2'>
+          {/* Price */}
+          {stats.price != null && (
+            <div className='flex justify-between items-center'>
+              <span className='text-sm'>Price:</span>
+              <span className='font-medium'>${formatPrice(stats.price)}</span>
+            </div>
+          )}
+
+          {/* Market Cap */}
+          {stats.marketCap != null && (
+            <div className='flex justify-between items-center'>
+              <span className='text-sm'>Market Cap:</span>
+              <span className='font-medium'>${formatLargeNumber(stats.marketCap)}</span>
+            </div>
+          )}
+
+          {/* 24h Volume */}
+          {stats.volume24h != null && (
+            <div className='flex justify-between items-center'>
+              <span className='text-sm'>24h Volume:</span>
+              <div className='flex items-center gap-1'>
                 <span className='font-medium'>${formatLargeNumber(stats.volume24h)}</span>
+                {stats.volume24hChangePercent != null && (
+                  <span
+                    className={`flex items-center text-xs ml-1 ${
+                      stats.volume24hChangePercent >= 0 ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                    {stats.volume24hChangePercent >= 0 ? (
+                      <TrendingUp className='w-3 h-3 mr-0.5' />
+                    ) : (
+                      <TrendingDown className='w-3 h-3 mr-0.5' />
+                    )}
+                    {Math.abs(stats.volume24hChangePercent).toFixed(1)}%
+                  </span>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Buy/Sell Ratio */}
+          {stats.buyCount24h != null && stats.sellCount24h != null && (
+            <div className='flex justify-between items-center'>
+              <span className='text-sm'>Buy/Sell Ratio:</span>
+              <div className='flex items-center'>
+                <span className='font-medium text-green-400'>{stats.buyCount24h}</span>
+                <span className='mx-1 text-zinc-500'>/</span>
+                <span className='font-medium text-red-400'>{stats.sellCount24h}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Unique Trading Wallets */}
+          {stats.uniqueWallets24h != null && (
+            <div className='flex justify-between items-center'>
+              <span className='text-sm'>24h Unique Trading Wallets:</span>
+              <span className='font-medium'>{stats.uniqueWallets24h}</span>
+            </div>
+          )}
+
+          {/* Total Holders */}
+          {stats.holders != null && (
+            <div className='flex justify-between items-center'>
+              <span className='text-sm'>Total Holders:</span>
+              <span className='font-medium'>
+                {typeof stats.holders === 'number' ? stats.holders.toLocaleString() : stats.holders}
+              </span>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Price Chart */}
       <TokenPriceChart

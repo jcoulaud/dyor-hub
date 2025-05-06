@@ -53,6 +53,13 @@ export interface TokenStats {
   marketCap?: number;
   volume24h?: number;
 
+  // Trading statistics
+  volume24hChangePercent?: number;
+  buyCount24h?: number;
+  sellCount24h?: number;
+  uniqueWallets24h?: number;
+  holders?: number;
+
   // Supply information
   totalSupply: string;
   circulatingSupply: string;

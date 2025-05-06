@@ -268,7 +268,7 @@ export default function Page({ params, commentId }: PageProps) {
           if (isAuthenticated && tokenResult.value) {
             try {
               const isWatchlisted = await watchlist.isTokenWatchlisted(mintAddress);
-              tokenWithStatus = { ...tokenResult.value, isWatchlisted };
+              tokenWithStatus = { ...tokenWithStatus, isWatchlisted };
             } catch {
               /* ignore watchlist error */
             }
