@@ -914,7 +914,7 @@ export default function Page({ params, commentId }: PageProps) {
               </Card>
 
               {/* Trading Analysis Section */}
-              <div className='relative'>
+              <div className='relative mt-4 sm:mt-6 xl:mt-8'>
                 <div className='absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
                 <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
                   <div className='absolute inset-0 bg-gradient-to-br from-purple-600/5 to-indigo-800/5 opacity-0 transition-opacity duration-300' />
