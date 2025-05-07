@@ -800,16 +800,13 @@ export const tokens = {
 
   getEarlyBuyerInfo: async (mintAddress: string): Promise<EarlyBuyerInfo | null> => {
     try {
-      const response = await fetch(`/api/tokens/${mintAddress}/early-buyers`);
-      if (!response.ok) {
-        console.error('Failed to fetch early buyer info', await response.text());
+      const data = await publicApi<EarlyBuyerInfo>(`tokens/${mintAddress}/early-buyers`);
+      return data;
+    } catch (error) {
+      console.error(`Error fetching early buyer info for ${mintAddress}:`, error);
+      if (error instanceof ApiError && error.status === 404) {
         return null;
       }
-      const text = await response.text();
-      if (!text) return null;
-      return JSON.parse(text);
-    } catch (error) {
-      console.error('Error fetching early buyer info:', error);
       return null;
     }
   },

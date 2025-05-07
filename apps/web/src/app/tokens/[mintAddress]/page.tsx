@@ -7,6 +7,7 @@ import { SolscanButton } from '@/components/SolscanButton';
 import { TokenCallsSection } from '@/components/token-calls/token-page/TokenCallsSection';
 import { EmbedButtonDialog } from '@/components/token/EmbedButtonDialog';
 import { TokenBundlesSection } from '@/components/tokens/bundles/TokenBundlesSection';
+import { EarlyBuyersInfo } from '@/components/tokens/EarlyBuyersInfo';
 import { TokenExternalLinks } from '@/components/tokens/TokenExternalLinks';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
@@ -23,6 +24,7 @@ import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import {
   Comment,
+  EarlyBuyerInfo as EarlyBuyerInfoType,
   SentimentType,
   Token,
   TokenCall,
@@ -37,6 +39,7 @@ import {
   Copy,
   ExternalLink,
   Eye,
+  History,
   MessageSquare,
   Search,
   Shield,
@@ -111,6 +114,8 @@ export default function Page({ params, commentId }: PageProps) {
   const [tokenHistoryData, setTokenHistoryData] = useState<TwitterUsernameHistoryEntity | null>(
     null,
   );
+  const [earlyBuyerInfo, setEarlyBuyerInfo] = useState<EarlyBuyerInfoType | null>(null);
+  const [isEarlyBuyerInfoLoading, setIsEarlyBuyerInfoLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showEmbedDialog, setShowEmbedDialog] = useState(false);
   const commentSectionRef = useRef<CommentSectionHandle>(null);
@@ -244,10 +249,12 @@ export default function Page({ params, commentId }: PageProps) {
       setIsLoading(true);
       setIsHeaderLoaded(false);
       setIsLoadingUserCalls(true);
+      setIsEarlyBuyerInfoLoading(true);
       setUserCalls([]);
       setTokenData(null);
       setTokenStatsData(null);
       setTokenHistoryData(null);
+      setEarlyBuyerInfo(null);
 
       if (!isValidSolanaAddress(mintAddress)) {
         if (isMounted) notFound();
@@ -255,11 +262,13 @@ export default function Page({ params, commentId }: PageProps) {
       }
 
       try {
-        const [tokenResult, tokenStatsResult, twitterHistoryResult] = await Promise.allSettled([
-          tokens.getByMintAddress(mintAddress),
-          isDev ? Promise.resolve(null) : tokens.getTokenStats(mintAddress),
-          isDev ? Promise.resolve(null) : tokens.getTwitterHistory(mintAddress),
-        ]);
+        const [tokenResult, tokenStatsResult, twitterHistoryResult, earlyBuyerResult] =
+          await Promise.allSettled([
+            tokens.getByMintAddress(mintAddress),
+            isDev ? Promise.resolve(null) : tokens.getTokenStats(mintAddress),
+            isDev ? Promise.resolve(null) : tokens.getTwitterHistory(mintAddress),
+            tokens.getEarlyBuyerInfo(mintAddress),
+          ]);
 
         if (!isMounted) return;
 
@@ -289,6 +298,12 @@ export default function Page({ params, commentId }: PageProps) {
           setTokenHistoryData(twitterHistoryResult.value);
         }
 
+        if (earlyBuyerResult.status === 'fulfilled') {
+          setEarlyBuyerInfo(earlyBuyerResult.value);
+        } else {
+          setEarlyBuyerInfo(null);
+        }
+
         if (isAuthenticated && user?.id) {
           try {
             const userCallResponse = await tokenCalls.list(
@@ -312,6 +327,7 @@ export default function Page({ params, commentId }: PageProps) {
       } catch {
       } finally {
         if (isMounted) setIsLoading(false);
+        if (isMounted) setIsEarlyBuyerInfoLoading(false);
       }
     };
 
@@ -733,7 +749,7 @@ export default function Page({ params, commentId }: PageProps) {
 
         {/* Main three-column layout */}
         <div className='grid grid-cols-1 xxs:grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 xl:grid-cols-12 gap-4 sm:gap-6 xl:gap-8'>
-          {/* Left column - Token data */}
+          {/* Left column - Token data & Early Buyers */}
           <div className='col-span-1 xxs:col-span-2 xs:col-span-2 sm:col-span-2 xl:col-span-3 space-y-4 sm:space-y-6 xl:space-y-8 order-1 xxs:order-none xs:order-none sm:order-none'>
             <div className='relative'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
@@ -896,6 +912,31 @@ export default function Page({ params, commentId }: PageProps) {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Trading Analysis Section */}
+              <div className='relative'>
+                <div className='absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+                <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                  <div className='absolute inset-0 bg-gradient-to-br from-purple-600/5 to-indigo-800/5 opacity-0 transition-opacity duration-300' />
+                  <CardHeader className='pb-2 relative'>
+                    <div className='flex items-center'>
+                      <div className='h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center mr-4 group-hover:bg-purple-500/20 transition-colors duration-300'>
+                        <History className='h-5 w-5 text-purple-400' />
+                      </div>
+                      <CardTitle className='text-xl font-semibold text-white'>
+                        Trading Analysis
+                      </CardTitle>
+                    </div>
+                    <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent mt-3'></div>
+                  </CardHeader>
+                  <CardContent className='relative pt-4 pb-6'>
+                    <EarlyBuyersInfo
+                      earlyBuyerInfo={earlyBuyerInfo}
+                      isLoading={isEarlyBuyerInfoLoading}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
 
               <div className='mt-4 sm:mt-6 xl:mt-8'>
                 {tokenData && <TokenBundlesSection mintAddress={mintAddress} />}
