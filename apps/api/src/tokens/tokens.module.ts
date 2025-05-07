@@ -4,7 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { CommentsModule } from '../comments/comments.module';
-import { TokenEntity, WalletEntity } from '../entities';
+import { EarlyTokenBuyerEntity, TokenEntity, WalletEntity } from '../entities';
 import { CommentEntity } from '../entities/comment.entity';
 import { TokenSentimentEntity } from '../entities/token-sentiment.entity';
 import { TokenWatchlistEntity } from '../entities/token-watchlist.entity';
@@ -27,6 +27,7 @@ import { TwitterHistoryService } from './twitter-history.service';
       TokenWatchlistEntity,
       TokenSentimentEntity,
       UserEntity,
+      EarlyTokenBuyerEntity,
     ]),
     HttpModule,
     ConfigModule,

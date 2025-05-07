@@ -1,4 +1,5 @@
 import {
+  EarlyBuyerInfo,
   PaginatedHotTokensResult,
   PaginatedTokensResponse,
   ProcessedBundleData,
@@ -119,6 +120,18 @@ export class TokensController {
       throw new NotFoundException(
         `Could not fetch current price for token ${mintAddress}`,
       );
+    }
+    return result;
+  }
+
+  @Public()
+  @Get(':mintAddress/early-buyers')
+  async getEarlyBuyerInfo(
+    @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
+  ): Promise<EarlyBuyerInfo | null> {
+    const result = await this.tokensService.getEarlyBuyerInfo(mintAddress);
+    if (!result) {
+      return null;
     }
     return result;
   }

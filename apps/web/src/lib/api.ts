@@ -8,6 +8,7 @@ import {
   Comment,
   CreateCommentDto,
   CreateTokenCallInput,
+  EarlyBuyerInfo,
   FeedActivity,
   GetTippingEligibilityResponseDto,
   GiphySearchResponse,
@@ -794,6 +795,22 @@ export const tokens = {
       } else {
         throw new ApiError(500, 'An unknown error occurred during verification.');
       }
+    }
+  },
+
+  getEarlyBuyerInfo: async (mintAddress: string): Promise<EarlyBuyerInfo | null> => {
+    try {
+      const response = await fetch(`/api/tokens/${mintAddress}/early-buyers`);
+      if (!response.ok) {
+        console.error('Failed to fetch early buyer info', await response.text());
+        return null;
+      }
+      const text = await response.text();
+      if (!text) return null;
+      return JSON.parse(text);
+    } catch (error) {
+      console.error('Error fetching early buyer info:', error);
+      return null;
     }
   },
 };

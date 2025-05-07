@@ -2,6 +2,7 @@
 export * from './badge.entity';
 export * from './comment-vote.entity';
 export * from './comment.entity';
+export * from './early-token-buyer.entity';
 export * from './leaderboard.entity';
 export * from './notification-preference.entity';
 export * from './notification.entity';
