@@ -19,12 +19,18 @@ import {
   Post,
   Query,
   Req,
+  SetMetadata,
   UseGuards,
 } from '@nestjs/common';
 import { subDays } from 'date-fns';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS,
+  MIN_TOKEN_HOLDING_KEY,
+} from '../common/constants';
+import { TokenGatedGuard } from '../common/guards/token-gated.guard';
 import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
 import { TokenEntity } from '../entities/token.entity';
 import { UserEntity } from '../entities/user.entity';
@@ -124,7 +130,8 @@ export class TokensController {
     return result;
   }
 
-  @Public()
+  @UseGuards(JwtAuthGuard, TokenGatedGuard)
+  @SetMetadata(MIN_TOKEN_HOLDING_KEY, MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS)
   @Get(':mintAddress/early-buyers')
   async getEarlyBuyerInfo(
     @Param('mintAddress', SolanaAddressPipe) mintAddress: string,

@@ -7,11 +7,15 @@ import {
   Param,
   Post,
   Put,
+  SetMetadata,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { MIN_TOKEN_HOLDING_FOR_FOLDERS } from '../common/constants';
+import {
+  MIN_TOKEN_HOLDING_FOR_FOLDERS,
+  MIN_TOKEN_HOLDING_KEY,
+} from '../common/constants';
 import { TokenGatedGuard } from '../common/guards/token-gated.guard';
 import { TokenEntity } from '../entities/token.entity';
 import { UserEntity } from '../entities/user.entity';
@@ -67,6 +71,7 @@ export class WatchlistFolderController {
 
   @Post()
   @UseGuards(TokenGatedGuard)
+  @SetMetadata(MIN_TOKEN_HOLDING_KEY, MIN_TOKEN_HOLDING_FOR_FOLDERS)
   async createFolder(
     @CurrentUser() user: any,
     @Body() body: { name: string; folderType: 'token' | 'user' },

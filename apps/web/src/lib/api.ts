@@ -168,7 +168,10 @@ const isPublicTokenRoute = (endpoint: string): boolean => {
   const normalizedEndpoint = endpoint.replace(/^\/+/, '');
 
   // Exclude specific authenticated endpoints under /tokens/
-  if (normalizedEndpoint.endsWith('/verify-creator')) {
+  if (
+    normalizedEndpoint.endsWith('/verify-creator') ||
+    normalizedEndpoint.endsWith('/early-buyers')
+  ) {
     return false;
   }
 
@@ -800,14 +803,14 @@ export const tokens = {
 
   getEarlyBuyerInfo: async (mintAddress: string): Promise<EarlyBuyerInfo | null> => {
     try {
-      const data = await publicApi<EarlyBuyerInfo>(`tokens/${mintAddress}/early-buyers`);
+      const data = await api<EarlyBuyerInfo>(`tokens/${mintAddress}/early-buyers`);
       return data;
     } catch (error) {
       console.error(`Error fetching early buyer info for ${mintAddress}:`, error);
       if (error instanceof ApiError && error.status === 404) {
         return null;
       }
-      return null;
+      throw error;
     }
   },
 };

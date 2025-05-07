@@ -24,7 +24,6 @@ import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import {
   Comment,
-  EarlyBuyerInfo as EarlyBuyerInfoType,
   SentimentType,
   Token,
   TokenCall,
@@ -114,8 +113,6 @@ export default function Page({ params, commentId }: PageProps) {
   const [tokenHistoryData, setTokenHistoryData] = useState<TwitterUsernameHistoryEntity | null>(
     null,
   );
-  const [earlyBuyerInfo, setEarlyBuyerInfo] = useState<EarlyBuyerInfoType | null>(null);
-  const [isEarlyBuyerInfoLoading, setIsEarlyBuyerInfoLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showEmbedDialog, setShowEmbedDialog] = useState(false);
   const commentSectionRef = useRef<CommentSectionHandle>(null);
@@ -249,12 +246,10 @@ export default function Page({ params, commentId }: PageProps) {
       setIsLoading(true);
       setIsHeaderLoaded(false);
       setIsLoadingUserCalls(true);
-      setIsEarlyBuyerInfoLoading(true);
       setUserCalls([]);
       setTokenData(null);
       setTokenStatsData(null);
       setTokenHistoryData(null);
-      setEarlyBuyerInfo(null);
 
       if (!isValidSolanaAddress(mintAddress)) {
         if (isMounted) notFound();
@@ -262,13 +257,11 @@ export default function Page({ params, commentId }: PageProps) {
       }
 
       try {
-        const [tokenResult, tokenStatsResult, twitterHistoryResult, earlyBuyerResult] =
-          await Promise.allSettled([
-            tokens.getByMintAddress(mintAddress),
-            isDev ? Promise.resolve(null) : tokens.getTokenStats(mintAddress),
-            isDev ? Promise.resolve(null) : tokens.getTwitterHistory(mintAddress),
-            tokens.getEarlyBuyerInfo(mintAddress),
-          ]);
+        const [tokenResult, tokenStatsResult, twitterHistoryResult] = await Promise.allSettled([
+          tokens.getByMintAddress(mintAddress),
+          isDev ? Promise.resolve(null) : tokens.getTokenStats(mintAddress),
+          isDev ? Promise.resolve(null) : tokens.getTwitterHistory(mintAddress),
+        ]);
 
         if (!isMounted) return;
 
@@ -298,12 +291,6 @@ export default function Page({ params, commentId }: PageProps) {
           setTokenHistoryData(twitterHistoryResult.value);
         }
 
-        if (earlyBuyerResult.status === 'fulfilled') {
-          setEarlyBuyerInfo(earlyBuyerResult.value);
-        } else {
-          setEarlyBuyerInfo(null);
-        }
-
         if (isAuthenticated && user?.id) {
           try {
             const userCallResponse = await tokenCalls.list(
@@ -327,7 +314,6 @@ export default function Page({ params, commentId }: PageProps) {
       } catch {
       } finally {
         if (isMounted) setIsLoading(false);
-        if (isMounted) setIsEarlyBuyerInfoLoading(false);
       }
     };
 
@@ -930,10 +916,7 @@ export default function Page({ params, commentId }: PageProps) {
                     <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent mt-3'></div>
                   </CardHeader>
                   <CardContent className='relative pt-4 pb-6'>
-                    <EarlyBuyersInfo
-                      earlyBuyerInfo={earlyBuyerInfo}
-                      isLoading={isEarlyBuyerInfoLoading}
-                    />
+                    <EarlyBuyersInfo mintAddress={mintAddress} />
                   </CardContent>
                 </Card>
               </div>

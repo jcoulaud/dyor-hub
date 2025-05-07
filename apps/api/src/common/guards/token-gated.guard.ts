@@ -6,17 +6,18 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { WalletsService } from '../../wallets/wallets.service';
-import {
-  DYORHUB_CONTRACT_ADDRESS,
-  MIN_TOKEN_HOLDING_FOR_FEED,
-} from '../constants';
+import { DYORHUB_CONTRACT_ADDRESS, MIN_TOKEN_HOLDING_KEY } from '../constants';
 
 @Injectable()
 export class TokenGatedGuard implements CanActivate {
   private readonly logger = new Logger(TokenGatedGuard.name);
 
-  constructor(private readonly walletsService: WalletsService) {}
+  constructor(
+    private readonly walletsService: WalletsService,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -28,7 +29,10 @@ export class TokenGatedGuard implements CanActivate {
     }
 
     const requiredTokenAddress = DYORHUB_CONTRACT_ADDRESS;
-    const minTokenHolding = MIN_TOKEN_HOLDING_FOR_FEED;
+    const minTokenHolding = this.reflector.get<number | undefined>(
+      MIN_TOKEN_HOLDING_KEY,
+      context.getHandler(),
+    );
 
     if (
       !requiredTokenAddress ||
@@ -36,10 +40,11 @@ export class TokenGatedGuard implements CanActivate {
       minTokenHolding < 0
     ) {
       this.logger.error(
-        'Token gating constants are invalid or not configured properly.',
+        `Token gating is not configured properly for handler: ${context.getClass().name}.${context.getHandler().name}. ` +
+          `Ensure @SetMetadata(MIN_TOKEN_HOLDING_KEY, value) is used with a valid number. Current value: ${minTokenHolding}`,
       );
       throw new InternalServerErrorException(
-        'Token gating configuration error.',
+        'Token gating configuration error for this feature.',
       );
     }
 
