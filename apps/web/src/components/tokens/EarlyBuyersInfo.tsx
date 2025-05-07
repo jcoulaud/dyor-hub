@@ -162,38 +162,34 @@ export const EarlyBuyersInfo = ({ mintAddress, className }: EarlyBuyersInfoProps
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err);
-        let description = err.message || 'Failed to load early buyer information.';
+        let description = 'An unknown error occurred.';
         let errorTitle = 'Error';
+        const toastVariant: 'default' | 'destructive' = 'destructive';
+
+        const errorData = err.data as Partial<TokenGatedErrorData> | string | undefined;
+        const messageFromServer =
+          typeof errorData === 'object' && errorData?.message
+            ? errorData.message
+            : typeof errorData === 'string'
+              ? errorData
+              : err.message;
 
         if (err.status === 403) {
           errorTitle = 'Access Denied';
-          const errorDetails = err.data as TokenGatedErrorData | undefined;
-          description = errorDetails?.message || `Token gated: Insufficient balance.`;
-          if (errorDetails?.currentBalance && errorDetails?.requiredBalance) {
-            description += ` You have ${errorDetails.currentBalance}, required ${errorDetails.requiredBalance}.`;
-          }
-          toast({
-            variant: 'destructive',
-            title: errorTitle,
-            description: description,
-          });
+          description = messageFromServer || 'Access to this feature is restricted.';
         } else if (err.status === 401) {
           errorTitle = 'Authentication Required';
-          description = 'Please log in again to access this feature.';
-          toast({
-            variant: 'destructive',
-            title: errorTitle,
-            description: description,
-          });
+          description = messageFromServer || 'Please log in again to access this feature.';
         } else {
           errorTitle = `Error ${err.status}`;
-          description = err.message || 'An error occurred.';
-          toast({
-            variant: 'destructive',
-            title: errorTitle,
-            description: description,
-          });
+          description = messageFromServer || 'An error occurred.';
         }
+
+        toast({
+          variant: toastVariant,
+          title: errorTitle,
+          description: description,
+        });
       } else {
         setError(new ApiError(500, 'An unexpected error occurred.'));
         toast({
@@ -255,14 +251,17 @@ export const EarlyBuyersInfo = ({ mintAddress, className }: EarlyBuyersInfoProps
     }
 
     if (error) {
+      const errorData = error.data as Partial<TokenGatedErrorData> | string | undefined;
+      const messageFromServer =
+        typeof errorData === 'object' && errorData?.message
+          ? errorData.message
+          : typeof errorData === 'string'
+            ? errorData
+            : error.message;
+
       if (error.status === 403) {
-        const errorDetails = error.data as TokenGatedErrorData | undefined;
-        const requiredBalanceStr = errorDetails?.requiredBalance
-          ? parseInt(errorDetails.requiredBalance, 10).toLocaleString()
-          : 'the required amount';
-        const currentBalanceStr = errorDetails?.currentBalance
-          ? parseInt(errorDetails.currentBalance, 10).toLocaleString()
-          : 'insufficient';
+        const hasBalanceInfo =
+          typeof errorData === 'object' && errorData?.requiredBalance && errorData?.currentBalance;
 
         return (
           <>
@@ -273,15 +272,24 @@ export const EarlyBuyersInfo = ({ mintAddress, className }: EarlyBuyersInfoProps
               </DialogTitle>
             </DialogHeader>
             <div className='py-6 px-4 text-center text-sm text-zinc-300 space-y-3'>
-              <p>
-                {errorDetails?.message || 'Access to this feature requires holding more tokens.'}
-              </p>
-              <p className='font-semibold'>
-                Required: {requiredBalanceStr} $DYORHUB <br />
-                Your Balance: {currentBalanceStr} $DYORHUB
-              </p>
+              <p>{messageFromServer || 'Access to this feature is restricted.'}</p>
+              {hasBalanceInfo && (
+                <p className='font-semibold'>
+                  Required:{' '}
+                  {errorData.requiredBalance
+                    ? parseInt(errorData.requiredBalance, 10).toLocaleString()
+                    : '-'}{' '}
+                  $DYORHUB <br />
+                  Your Balance:{' '}
+                  {errorData.currentBalance
+                    ? parseInt(errorData.currentBalance, 10).toLocaleString()
+                    : '-'}{' '}
+                  $DYORHUB
+                </p>
+              )}
               <p className='text-xs text-zinc-400 pt-2'>
-                Please ensure your primary connected wallet holds the required amount.
+                Please ensure your primary connected wallet holds the required amount or is
+                verified.
               </p>
             </div>
           </>
@@ -292,13 +300,11 @@ export const EarlyBuyersInfo = ({ mintAddress, className }: EarlyBuyersInfoProps
           <DialogHeader className='pb-2'>
             <DialogTitle className='text-zinc-100 flex items-center text-red-400'>
               <AlertTriangle className='w-4 h-4 mr-2' />
-              Error
+              Error {error.status || ''}
             </DialogTitle>
           </DialogHeader>
           <div className='py-6 px-4 text-center text-sm text-zinc-300'>
-            <p>
-              {error.message || 'Failed to load early buyer information. Please try again later.'}
-            </p>
+            <p>{messageFromServer || 'Failed to load information. Please try again later.'}</p>
           </div>
         </>
       );
