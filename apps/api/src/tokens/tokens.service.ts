@@ -1,4 +1,6 @@
 import {
+  EarlyBuyerInfo,
+  EarlyBuyerWallet,
   HotTokenResult,
   PaginatedHotTokensResult,
   PaginatedTokensResponse,
@@ -24,7 +26,7 @@ import { AxiosError } from 'axios';
 import { subDays, subMonths } from 'date-fns';
 import { firstValueFrom } from 'rxjs';
 import { DataSource, FindManyOptions, In, Repository } from 'typeorm';
-import { TokenEntity, WalletEntity } from '../entities';
+import { EarlyTokenBuyerEntity, TokenEntity, WalletEntity } from '../entities';
 import { CommentEntity } from '../entities/comment.entity';
 import { WatchlistService } from '../watchlist/watchlist.service';
 import { TwitterHistoryService } from './twitter-history.service';
@@ -131,6 +133,37 @@ interface BirdeyeSecurityResponse {
   success: boolean;
 }
 
+interface BirdeyeWalletTokenBalance {
+  balance: number;
+  uiAmount?: number;
+  decimals?: number;
+}
+
+interface BirdeyeV1TokenTradeItem {
+  blockUnixTime: number;
+  txHash: string;
+  side: 'buy' | 'sell';
+  owner: string;
+  txType?: string;
+  source?: string;
+  from?: { symbol?: string; address?: string; uiAmount?: number };
+  to?: { symbol?: string; address?: string; uiAmount?: number };
+  amount?: number;
+  volume_usd?: number;
+}
+
+interface BirdeyeV1TokenTradesResponse {
+  data?: {
+    items?: BirdeyeV1TokenTradeItem[];
+  };
+  success?: boolean;
+}
+
+const BIRDEYE_API_BASE = 'https://public-api.birdeye.so';
+const MAX_EARLY_BUYERS = 20;
+const EARLY_BUYER_INFO_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const EARLY_BUYER_INDIVIDUAL_BALANCE_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
 @Injectable()
 export class TokensService {
   private readonly logger = new Logger(TokensService.name);
@@ -139,12 +172,15 @@ export class TokensService {
   private readonly pendingRequests: Map<string, Promise<any>> = new Map();
   private readonly cacheTimestamps: Map<string, number> = new Map();
   private readonly dexScreenerCache: Map<string, any> = new Map();
+  private readonly tokenDataCache: Map<string, any> = new Map();
 
   constructor(
     @InjectRepository(TokenEntity)
     private readonly tokenRepository: Repository<TokenEntity>,
     @InjectRepository(WalletEntity)
     private readonly walletRepository: Repository<WalletEntity>,
+    @InjectRepository(EarlyTokenBuyerEntity)
+    private readonly earlyTokenBuyerRepository: Repository<EarlyTokenBuyerEntity>,
     private readonly dataSource: DataSource,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
@@ -1240,5 +1276,285 @@ export class TokensService {
           'None of your verified wallets match the token creator address. Please go to /account/wallet to connect and verify the deployer wallet.',
       };
     }
+  }
+
+  async getEarlyBuyerInfo(mintAddress: string): Promise<EarlyBuyerInfo | null> {
+    const cacheKey = `early_buyer_info_${mintAddress}`;
+    const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
+
+    if (
+      cachedTimestamp &&
+      Date.now() - cachedTimestamp < EARLY_BUYER_INFO_CACHE_TTL
+    ) {
+      const cachedData = this.tokenDataCache.get(cacheKey);
+      if (cachedData) {
+        return cachedData as EarlyBuyerInfo;
+      }
+    }
+
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
+    }
+
+    const requestPromise = (async (): Promise<EarlyBuyerInfo | null> => {
+      const token = await this.tokenRepository.findOneBy({
+        mintAddress: mintAddress,
+      });
+      if (!token) {
+        throw new NotFoundException(`Token ${mintAddress} not found.`);
+      }
+
+      const tokenCreationTimestampSeconds = token.creationTime
+        ? Math.floor(token.creationTime.getTime() / 1000)
+        : null;
+      if (!tokenCreationTimestampSeconds) {
+        this.tokenDataCache.set(cacheKey, null);
+        this.cacheTimestamps.set(cacheKey, Date.now());
+        return null;
+      }
+
+      let dbEarlyBuyers = await this.earlyTokenBuyerRepository.find({
+        where: { token: { mintAddress: mintAddress } },
+        order: { rank: 'ASC' },
+        take: MAX_EARLY_BUYERS,
+      });
+
+      if (dbEarlyBuyers.length === 0) {
+        const fetchedAndStoredBuyers =
+          await this.fetchAndStoreFirstTwentyBuyers(
+            token,
+            tokenCreationTimestampSeconds,
+          );
+        if (fetchedAndStoredBuyers.length > 0) {
+          dbEarlyBuyers = fetchedAndStoredBuyers;
+        } else {
+          this.tokenDataCache.set(cacheKey, null);
+          this.cacheTimestamps.set(cacheKey, Date.now());
+          return null;
+        }
+      }
+
+      if (dbEarlyBuyers.length === 0) {
+        this.tokenDataCache.set(cacheKey, null);
+        this.cacheTimestamps.set(cacheKey, Date.now());
+        return null;
+      }
+
+      const earlyBuyersWithStatus: EarlyBuyerWallet[] = [];
+      let stillHoldingCount = 0;
+      const birdeyeApiKey = this.configService.get<string>('BIRDEYE_API_KEY');
+
+      const balanceCheckPromises = dbEarlyBuyers.map(async (buyerEntity) => {
+        let isHolding = buyerEntity.isStillHolding;
+
+        if (
+          !(
+            buyerEntity.lastCheckedAt &&
+            Date.now() - buyerEntity.lastCheckedAt.getTime() <
+              EARLY_BUYER_INDIVIDUAL_BALANCE_REFRESH_INTERVAL &&
+            isHolding !== null
+          )
+        ) {
+          try {
+            const balanceResponse = await firstValueFrom(
+              this.httpService.get<{ data?: BirdeyeWalletTokenBalance }>(
+                `${BIRDEYE_API_BASE}/v1/wallet/token_balance?wallet=${buyerEntity.buyerWalletAddress}&token_address=${mintAddress}`,
+                {
+                  headers: { 'X-API-KEY': birdeyeApiKey, 'X-CHAIN': 'solana' },
+                },
+              ),
+            );
+            const rawBalance = balanceResponse.data?.data?.balance;
+            isHolding = typeof rawBalance === 'number' && rawBalance > 0;
+
+            buyerEntity.isStillHolding = isHolding;
+            buyerEntity.lastCheckedAt = new Date();
+            this.earlyTokenBuyerRepository
+              .save(buyerEntity)
+              .catch((e) =>
+                this.logger.error(
+                  `Failed to save buyer entity update for ${buyerEntity.id}`,
+                  e.stack,
+                ),
+              );
+          } catch (error) {
+            isHolding = false;
+            buyerEntity.isStillHolding = false;
+            buyerEntity.lastCheckedAt = new Date();
+            this.earlyTokenBuyerRepository
+              .save(buyerEntity)
+              .catch((e) =>
+                this.logger.error(
+                  `Failed to save buyer entity update on error for ${buyerEntity.id}`,
+                  e.stack,
+                ),
+              );
+          }
+        }
+
+        return {
+          address: buyerEntity.buyerWalletAddress,
+          isHolding: !!isHolding,
+          purchaseTxSignature:
+            buyerEntity.initialPurchaseTxSignature ?? undefined,
+        };
+      });
+
+      const results = await Promise.all(balanceCheckPromises);
+      results.forEach((r) => {
+        if (r.isHolding) stillHoldingCount++;
+        earlyBuyersWithStatus.push({
+          address: r.address,
+          isHolding: r.isHolding,
+          purchaseTxSignature: r.purchaseTxSignature,
+        });
+      });
+
+      const result: EarlyBuyerInfo = {
+        tokenMintAddress: mintAddress,
+        totalEarlyBuyersCount: dbEarlyBuyers.length,
+        stillHoldingCount,
+        earlyBuyers: earlyBuyersWithStatus.sort((a, b) => {
+          const rankA =
+            dbEarlyBuyers.find((dbb) => dbb.buyerWalletAddress === a.address)
+              ?.rank || MAX_EARLY_BUYERS + 1;
+          const rankB =
+            dbEarlyBuyers.find((dbb) => dbb.buyerWalletAddress === b.address)
+              ?.rank || MAX_EARLY_BUYERS + 1;
+          return rankA - rankB;
+        }),
+        lastChecked: new Date().toISOString(),
+      };
+
+      this.tokenDataCache.set(cacheKey, result);
+      this.cacheTimestamps.set(cacheKey, Date.now());
+
+      return result;
+    })().finally(() => {
+      this.pendingRequests.delete(cacheKey);
+    });
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
+  }
+
+  private async fetchAndStoreFirstTwentyBuyers(
+    token: TokenEntity,
+    tokenCreationTimestampSeconds: number,
+  ): Promise<EarlyTokenBuyerEntity[]> {
+    const uniqueBuyerAddressesWithTime = new Map<
+      string,
+      { firstBuyTimestamp: number; txHash?: string }
+    >();
+    const birdeyeApiKey = this.configService.get<string>('BIRDEYE_API_KEY');
+    let offset = 0;
+    const limit = 50;
+    let transactionsFetched = 0;
+    const MAX_TRANSACTIONS_TO_FETCH = 500;
+
+    while (
+      transactionsFetched < MAX_TRANSACTIONS_TO_FETCH &&
+      uniqueBuyerAddressesWithTime.size < MAX_EARLY_BUYERS
+    ) {
+      try {
+        const apiUrl = `${BIRDEYE_API_BASE}/defi/txs/token`;
+        const apiParams = {
+          address: token.mintAddress,
+          offset: offset,
+          limit: limit,
+          tx_type: 'swap',
+          sort_type: 'asc',
+        };
+
+        const response = await firstValueFrom(
+          this.httpService.get<BirdeyeV1TokenTradesResponse>(apiUrl, {
+            params: apiParams,
+            headers: { 'X-API-KEY': birdeyeApiKey, 'X-CHAIN': 'solana' },
+          }),
+        );
+
+        const items = response.data?.data?.items;
+        if (!items || items.length === 0) {
+          break;
+        }
+        transactionsFetched += items.length;
+
+        for (const tx of items) {
+          if (tx.blockUnixTime < tokenCreationTimestampSeconds) continue;
+
+          if (tx.side !== 'buy') continue;
+
+          const buyerWallet = tx.owner;
+
+          if (buyerWallet) {
+            if (!uniqueBuyerAddressesWithTime.has(buyerWallet)) {
+              uniqueBuyerAddressesWithTime.set(buyerWallet, {
+                firstBuyTimestamp: tx.blockUnixTime,
+                txHash: tx.txHash,
+              });
+              if (uniqueBuyerAddressesWithTime.size >= MAX_EARLY_BUYERS) break;
+            }
+          }
+        }
+
+        if (uniqueBuyerAddressesWithTime.size >= MAX_EARLY_BUYERS) {
+          break;
+        }
+
+        offset += items.length;
+      } catch (error) {
+        this.logger.error(
+          `Failed to fetch V1 transactions batch for ${token.mintAddress} (offset ${offset}): ${error.message}`,
+          error.stack,
+        );
+        break;
+      }
+    }
+
+    if (uniqueBuyerAddressesWithTime.size === 0) {
+      return [];
+    }
+
+    const buyersData = Array.from(uniqueBuyerAddressesWithTime.entries()).map(
+      ([address, data]) => ({ address, ...data }),
+    );
+
+    const newEntities: EarlyTokenBuyerEntity[] = [];
+    for (let i = 0; i < buyersData.length; i++) {
+      const buyer = buyersData[i];
+      const purchaseTimestamp =
+        buyer.firstBuyTimestamp && Number.isFinite(buyer.firstBuyTimestamp)
+          ? new Date(buyer.firstBuyTimestamp * 1000)
+          : null;
+      if (!purchaseTimestamp) {
+        continue;
+      }
+      const newBuyer = this.earlyTokenBuyerRepository.create({
+        token: token,
+        tokenMintAddress: token.mintAddress,
+        buyerWalletAddress: buyer.address,
+        rank: i + 1,
+        initialPurchaseTimestamp: purchaseTimestamp,
+        initialPurchaseTxSignature: buyer.txHash,
+        isStillHolding: null,
+        lastCheckedAt: null,
+      });
+      newEntities.push(newBuyer);
+    }
+
+    if (newEntities.length > 0) {
+      try {
+        await this.earlyTokenBuyerRepository.save(newEntities);
+
+        return newEntities;
+      } catch (dbError) {
+        this.logger.error(
+          `Failed to store early buyers for ${token.mintAddress} from V1: ${dbError.message}`,
+          dbError.stack,
+        );
+        return [];
+      }
+    }
+    return [];
   }
 }

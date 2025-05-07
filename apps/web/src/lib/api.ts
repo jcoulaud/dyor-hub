@@ -8,6 +8,7 @@ import {
   Comment,
   CreateCommentDto,
   CreateTokenCallInput,
+  EarlyBuyerInfo,
   FeedActivity,
   GetTippingEligibilityResponseDto,
   GiphySearchResponse,
@@ -167,7 +168,10 @@ const isPublicTokenRoute = (endpoint: string): boolean => {
   const normalizedEndpoint = endpoint.replace(/^\/+/, '');
 
   // Exclude specific authenticated endpoints under /tokens/
-  if (normalizedEndpoint.endsWith('/verify-creator')) {
+  if (
+    normalizedEndpoint.endsWith('/verify-creator') ||
+    normalizedEndpoint.endsWith('/early-buyers')
+  ) {
     return false;
   }
 
@@ -794,6 +798,19 @@ export const tokens = {
       } else {
         throw new ApiError(500, 'An unknown error occurred during verification.');
       }
+    }
+  },
+
+  getEarlyBuyerInfo: async (mintAddress: string): Promise<EarlyBuyerInfo | null> => {
+    try {
+      const data = await api<EarlyBuyerInfo>(`tokens/${mintAddress}/early-buyers`);
+      return data;
+    } catch (error) {
+      console.error(`Error fetching early buyer info for ${mintAddress}:`, error);
+      if (error instanceof ApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
     }
   },
 };

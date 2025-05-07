@@ -5,6 +5,7 @@ import {
   BadgeEntity,
   CommentEntity,
   CommentVoteEntity,
+  EarlyTokenBuyerEntity,
   LeaderboardEntity,
   NotificationEntity,
   NotificationPreferenceEntity,
@@ -50,6 +51,7 @@ export const dataSourceOptions: DataSourceOptions = {
     TwitterUsernameHistoryEntity,
     WalletEntity,
     TokenWatchlistEntity,
+    EarlyTokenBuyerEntity,
     // Watchlist folder entities
     WatchlistFolderEntity,
     TokenWatchlistFolderItemEntity,

@@ -10,6 +10,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { CommentEntity } from './comment.entity';
+import { EarlyTokenBuyerEntity } from './early-token-buyer.entity';
 import { TokenCallEntity } from './token-call.entity';
 import { TokenSentimentEntity } from './token-sentiment.entity';
 import { TokenWatchlistEntity } from './token-watchlist.entity';
@@ -86,6 +87,12 @@ export class TokenEntity {
   @Index()
   @Column({ type: 'timestamptz', nullable: true })
   creationTime: Date | null;
+
+  @OneToMany(() => EarlyTokenBuyerEntity, (earlyBuyer) => earlyBuyer.token, {
+    cascade: true,
+    eager: false,
+  })
+  earlyBuyers: EarlyTokenBuyerEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -199,3 +199,17 @@ export interface SingleBundleData extends TrenchBundle {
 export interface ProcessedBundleData extends Omit<TrenchBundleApiResponse, 'bundles'> {
   bundles: SingleBundleData[];
 }
+
+export interface EarlyBuyerWallet {
+  address: string;
+  isHolding: boolean;
+  purchaseTxSignature?: string;
+}
+
+export interface EarlyBuyerInfo {
+  tokenMintAddress: string;
+  totalEarlyBuyersCount: number;
+  stillHoldingCount: number;
+  earlyBuyers: EarlyBuyerWallet[];
+  lastChecked: string;
+}
