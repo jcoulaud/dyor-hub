@@ -204,6 +204,7 @@ export interface EarlyBuyerWallet {
   address: string;
   isHolding: boolean;
   purchaseTxSignature?: string;
+  rank: number;
 }
 
 export interface EarlyBuyerInfo {

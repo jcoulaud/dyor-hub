@@ -42,6 +42,7 @@ const WalletCard = ({ wallet }: { wallet: EarlyBuyerWallet }) => {
   return (
     <div className='flex items-center justify-between rounded-md bg-zinc-800/60 px-2.5 py-1.5 border border-zinc-700/50'>
       <div className='flex items-center gap-2'>
+        <span className='text-xs font-semibold text-zinc-400 mr-1'>#{wallet.rank}</span>
         {wallet.isHolding ? (
           <span className='inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-900/30 text-emerald-400 border border-emerald-800/30'>
             Hold
@@ -94,7 +95,13 @@ const WalletCard = ({ wallet }: { wallet: EarlyBuyerWallet }) => {
 
 const EarlyBuyersDialog = ({ earlyBuyerInfo }: { earlyBuyerInfo: EarlyBuyerInfo }) => {
   const sortedBuyers = useMemo(
-    () => [...earlyBuyerInfo.earlyBuyers].sort((a, b) => Number(b.isHolding) - Number(a.isHolding)),
+    () =>
+      [...earlyBuyerInfo.earlyBuyers].sort((a, b) => {
+        if (a.rank !== b.rank) {
+          return a.rank - b.rank;
+        }
+        return Number(b.isHolding) - Number(a.isHolding);
+      }),
     [earlyBuyerInfo.earlyBuyers],
   );
 

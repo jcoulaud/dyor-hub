@@ -1397,6 +1397,7 @@ export class TokensService {
           isHolding: !!isHolding,
           purchaseTxSignature:
             buyerEntity.initialPurchaseTxSignature ?? undefined,
+          rank: buyerEntity.rank,
         };
       });
 
@@ -1407,6 +1408,7 @@ export class TokensService {
           address: r.address,
           isHolding: r.isHolding,
           purchaseTxSignature: r.purchaseTxSignature,
+          rank: r.rank,
         });
       });
 
