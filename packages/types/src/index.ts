@@ -27,3 +27,10 @@ export interface PaginatedResult<T> {
     totalPages: number;
   };
 }
+
+export interface TokenGatedErrorData {
+  message?: string;
+  currentBalance?: string;
+  requiredBalance?: string;
+  requiredTokenSymbol?: string;
+}

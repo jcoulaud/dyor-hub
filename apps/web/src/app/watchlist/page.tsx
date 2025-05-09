@@ -2,6 +2,7 @@
 
 import { ActivityItem } from '@/components/activity/ActivityItem';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { TokenGatedMessage } from '@/components/common/TokenGatedMessage';
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
 import {
   AlertDialog,
@@ -49,7 +50,13 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FeedActivity, Token, User, WatchlistFolder } from '@dyor-hub/types';
+import type {
+  FeedActivity,
+  Token,
+  TokenGatedErrorData,
+  User,
+  WatchlistFolder as WatchlistFolderType,
+} from '@dyor-hub/types';
 import {
   AlertCircle,
   BookmarkIcon,
@@ -76,7 +83,7 @@ const UNORGANIZED_FOLDER_NAME = 'Unorganized Tokens';
 
 type WatchlistedToken = Token & { addedAt: Date };
 
-interface FolderItem extends WatchlistFolder {
+interface FolderItem extends WatchlistFolderType {
   items: TokenItem[];
   type: 'folder';
 }
@@ -108,49 +115,6 @@ function FeedContent({ activities }: FeedContentProps) {
         <ActivityItem key={activity.id} activity={activity} showUser />
       ))}
     </div>
-  );
-}
-
-interface TokenGatedMessageProps {
-  requiredAmount: number;
-  currentBalance?: string | number | null;
-  featureName?: string;
-}
-
-function TokenGatedMessage({
-  requiredAmount,
-  currentBalance,
-  featureName = 'Feed',
-}: TokenGatedMessageProps) {
-  const formattedRequired = requiredAmount.toLocaleString();
-  const formattedBalance =
-    typeof currentBalance === 'string' || typeof currentBalance === 'number'
-      ? Number(currentBalance).toLocaleString()
-      : null;
-
-  return (
-    <Card className='bg-zinc-900/30 border-zinc-800/50'>
-      <div className='text-center py-16 px-4'>
-        <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800/70 mb-4'>
-          <Lock className='h-6 w-6 text-yellow-400' />
-        </div>
-        <h3 className='text-lg font-medium text-white mb-2'>{featureName} Access Restricted</h3>
-        <p className='text-zinc-400 mb-6 max-w-md mx-auto'>
-          Access to this {featureName.toLowerCase()} requires holding a minimum of{` `}
-          <span className='font-bold text-white'>{formattedRequired}</span> {DYORHUB_SYMBOL} tokens.
-          {formattedBalance !== null && (
-            <>
-              {` `}Your current balance is{` `}
-              <span className='font-bold text-white'>{formattedBalance}</span>.
-            </>
-          )}
-          {` `}Please ensure your primary connected wallet meets this requirement.
-        </p>
-        <Button asChild variant='outline'>
-          <Link href='/account/wallet'>Manage Wallet</Link>
-        </Button>
-      </div>
-    </Card>
   );
 }
 
@@ -1308,13 +1272,17 @@ export default function WatchlistPage() {
     }
 
     if (feedError === 'forbidden') {
-      return (
-        <TokenGatedMessage
-          requiredAmount={MIN_TOKEN_HOLDING_FOR_FEED}
-          currentBalance={feedAccessDeniedBalance}
-          featureName='Feed'
-        />
+      const gatedError = new ApiError(
+        403,
+        `Access to the Feed feature requires holding at least ${MIN_TOKEN_HOLDING_FOR_FEED.toLocaleString()} ${DYORHUB_SYMBOL}.`,
+        {
+          message: `Access to the Feed feature requires holding at least ${MIN_TOKEN_HOLDING_FOR_FEED.toLocaleString()} ${DYORHUB_SYMBOL}.`,
+          currentBalance: feedAccessDeniedBalance || undefined,
+          requiredBalance: MIN_TOKEN_HOLDING_FOR_FEED.toString(),
+          requiredTokenSymbol: DYORHUB_SYMBOL,
+        } as Partial<TokenGatedErrorData>,
       );
+      return <TokenGatedMessage error={gatedError} featureName='Feed' />;
     }
 
     if (feedError === 'generic') {

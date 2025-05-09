@@ -1,5 +1,6 @@
 'use client';
 
+import { TokenGatedMessage } from '@/components/common/TokenGatedMessage';
 import { SolscanButton } from '@/components/SolscanButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -11,7 +12,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { ApiError, tokens as apiTokens } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import type { TokenPurchaseInfo, TrackedWalletHolderStats } from '@dyor-hub/types';
+import type {
+  TokenGatedErrorData,
+  TokenPurchaseInfo,
+  TrackedWalletHolderStats,
+} from '@dyor-hub/types';
 import {
   AlertTriangle,
   BarChart4,
@@ -21,7 +26,8 @@ import {
   Copy,
   Diamond,
   DollarSign,
-  TableIcon,
+  LineChart,
+  Lock,
   TrendingUp,
   Users,
   Wallet,
@@ -819,29 +825,6 @@ const LoadingDialogContent = () => (
   </>
 );
 
-// Error dialog content
-const ErrorDialogContent = ({ error }: { error: ApiError }) => (
-  <>
-    <DialogHeader className='pb-2'>
-      <DialogTitle className='text-zinc-100 flex items-center text-red-400'>
-        <AlertTriangle className='w-5 h-5 mr-2' />
-        Error {error.status || ''}
-      </DialogTitle>
-    </DialogHeader>
-    <div className='py-6 px-4 text-center'>
-      <div className='bg-red-950/20 rounded-lg border border-red-800/30 p-4 mb-4'>
-        <AlertTriangle className='w-10 h-10 text-red-400 mx-auto mb-2' />
-        <p className='text-zinc-300'>
-          {error.message || 'Failed to load information. Please try again later.'}
-        </p>
-      </div>
-      <p className='text-xs text-zinc-500 mt-4'>
-        You can try refreshing the page or checking back later.
-      </p>
-    </div>
-  </>
-);
-
 // Main component
 export const TokenHolderAnalysisInfo = ({
   mintAddress,
@@ -870,11 +853,20 @@ export const TokenHolderAnalysisInfo = ({
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err);
-        toast({
-          variant: 'destructive',
-          title: `Error ${err.status || ''}`,
-          description: err.message || 'An error occurred while fetching holder analysis.',
-        });
+        if (err.status !== 403) {
+          const errorData = err.data as Partial<TokenGatedErrorData> | string | undefined;
+          const messageFromServer =
+            typeof errorData === 'object' && errorData?.message
+              ? errorData.message
+              : typeof errorData === 'string'
+                ? errorData
+                : err.message;
+          toast({
+            variant: 'destructive',
+            title: `Error ${err.status || ''}`,
+            description: messageFromServer || 'An error occurred while fetching holder analysis.',
+          });
+        }
       } else if (err instanceof Error) {
         setError(new ApiError(500, err.message || 'An unexpected error occurred.'));
         toast({
@@ -903,41 +895,91 @@ export const TokenHolderAnalysisInfo = ({
     }
   }, [analysisData, error, fetchData]);
 
+  const renderInitialButton = () => (
+    <Button
+      onClick={handleButtonClick}
+      variant='outline'
+      size='sm'
+      disabled={dialogOpen && isLoading}
+      className='w-full bg-zinc-900/60 border-zinc-700/50 hover:bg-zinc-800/80 text-zinc-200 flex items-center justify-between'>
+      <div className='flex items-center'>
+        <LineChart className='w-4 h-4 mr-2 text-zinc-200' />
+        <span className='font-medium'>View Diamond Hands Analysis</span>
+      </div>
+      <ChevronRight className='w-4 h-4 ml-auto' />
+    </Button>
+  );
+
+  const renderDialogView = () => {
+    if (isLoading) {
+      return <LoadingDialogContent />;
+    }
+    if (error) {
+      if (error.status === 403) {
+        return (
+          <>
+            <DialogHeader className='pb-2'>
+              <DialogTitle className='text-zinc-100 flex items-center text-orange-400'>
+                <Lock className='w-4 h-4 mr-2' />
+                Access Gated
+              </DialogTitle>
+            </DialogHeader>
+            <TokenGatedMessage error={error} featureName='Diamond Hands Analysis' />
+          </>
+        );
+      }
+      const errorData = error.data as Partial<TokenGatedErrorData> | string | undefined;
+      const messageFromServer =
+        typeof errorData === 'object' && errorData?.message
+          ? errorData.message
+          : typeof errorData === 'string'
+            ? errorData
+            : error.message;
+      return (
+        <>
+          <DialogHeader className='pb-2'>
+            <DialogTitle className='text-zinc-100 flex items-center text-red-400'>
+              <AlertTriangle className='w-4 h-4 mr-2' />
+              Error {error.status || ''}
+            </DialogTitle>
+          </DialogHeader>
+          <div className='py-6 px-4 text-center text-sm text-zinc-300'>
+            <p>{messageFromServer || 'Failed to load information. Please try again later.'}</p>
+          </div>
+        </>
+      );
+    }
+    if (analysisData) {
+      return <HolderAnalysisDialogContent analysisData={analysisData} />;
+    }
+    return (
+      <>
+        <DialogHeader className='pb-2'>
+          <DialogTitle className='text-zinc-100 flex items-center'>
+            <LineChart className='w-4 h-4 mr-2 text-teal-400' />
+            Diamond Hands Analysis
+          </DialogTitle>
+        </DialogHeader>
+        <div className='py-10 px-4 text-center text-sm text-zinc-400'>
+          Click button to load analysis or no data found.
+        </div>
+      </>
+    );
+  };
+
   return (
     <>
       <div className={cn('space-y-3', className)}>
         <h3 className='text-sm font-medium text-zinc-400 flex items-center gap-2'>
-          <TableIcon className='w-4 h-4 mr-1 text-teal-400' />
+          <LineChart className='w-4 h-4 text-teal-400' />
           Diamond Hands Analysis
         </h3>
-
-        <Button
-          onClick={handleButtonClick}
-          variant='outline'
-          size='sm'
-          disabled={dialogOpen && isLoading}
-          className='w-full bg-zinc-900/60 border-zinc-700/50 hover:bg-zinc-800/80 text-zinc-200 flex items-center justify-between group'>
-          <div className='flex items-center'>
-            <TableIcon className='w-4 h-4 mr-2 text-zinc-200' />
-            <span className='font-medium'>View Holder Analysis</span>
-          </div>
-          <ChevronRight className='w-4 h-4 ml-auto group-hover:text-teal-400 transition-colors' />
-        </Button>
+        {renderInitialButton()}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className='max-w-3xl bg-zinc-900/95 border-zinc-700 text-zinc-100 shadow-xl'>
-          {isLoading ? (
-            <LoadingDialogContent />
-          ) : error ? (
-            <ErrorDialogContent error={error} />
-          ) : analysisData ? (
-            <HolderAnalysisDialogContent analysisData={analysisData} />
-          ) : (
-            <div className='py-10 px-4 text-center'>
-              <p className='text-zinc-400'>No data available.</p>
-            </div>
-          )}
+        <DialogContent className='max-w-2xl bg-zinc-900/95 border-zinc-700 text-zinc-100'>
+          {renderDialogView()}
         </DialogContent>
       </Dialog>
     </>
