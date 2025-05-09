@@ -9,6 +9,7 @@ import { EmbedButtonDialog } from '@/components/token/EmbedButtonDialog';
 import { TokenBundlesSection } from '@/components/tokens/bundles/TokenBundlesSection';
 import { EarlyBuyersInfo } from '@/components/tokens/EarlyBuyersInfo';
 import { TokenExternalLinks } from '@/components/tokens/TokenExternalLinks';
+import { TokenHolderAnalysisInfo } from '@/components/tokens/TokenHolderAnalysisInfo';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
 import { TwitterHistoryTooltip } from '@/components/tokens/TwitterHistoryTooltip';
@@ -915,8 +916,9 @@ export default function Page({ params, commentId }: PageProps) {
                     </div>
                     <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent mt-3'></div>
                   </CardHeader>
-                  <CardContent className='relative pt-4 pb-6'>
+                  <CardContent className='relative pt-4 pb-6 space-y-4'>
                     <EarlyBuyersInfo mintAddress={mintAddress} />
+                    <TokenHolderAnalysisInfo mintAddress={mintAddress} />
                   </CardContent>
                 </Card>
               </div>

@@ -43,6 +43,7 @@ import { TelegramModule } from './telegram/telegram.module';
 import { TippingModule } from './tipping/tipping.module';
 import { TokenCallsLeaderboardModule } from './token-calls-leaderboard/tokenCallsLeaderboard.module';
 import { TokenCallsModule } from './token-calls/token-calls.module';
+import { TokenHolderAnalysisModule } from './token-holder-analysis/token-holder-analysis.module';
 import { TokensModule } from './tokens/tokens.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
@@ -96,6 +97,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     TippingModule,
     UploadsModule,
     ModerationModule,
+    TokenHolderAnalysisModule,
   ],
   controllers: [AppController],
   providers: [

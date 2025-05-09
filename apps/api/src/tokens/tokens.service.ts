@@ -82,7 +82,7 @@ interface BirdeyeV3HolderItem {
   ui_amount: number;
 }
 
-interface BirdeyeV3HolderResponse {
+export interface BirdeyeV3HolderResponse {
   data?: {
     items?: BirdeyeV3HolderItem[];
   };
@@ -677,7 +677,7 @@ export class TokensService {
     }
   }
 
-  private async fetchTopHolders(
+  public async fetchTopHolders(
     mintAddress: string,
     providedOverviewData?: BirdeyeTokenOverviewResponse['data'],
   ): Promise<TokenHolder[]> {
