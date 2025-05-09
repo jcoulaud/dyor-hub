@@ -289,6 +289,7 @@ export class TokenHolderAnalysisService {
           tokenAmountUi: tokenAmountBought,
           spentUsd: usdValueOfTrade,
           approxMarketCapAtPurchaseUsd: currentPurchasePrice * tokenTotalSupply,
+          txHash: trade.tx_hash,
         };
         allPurchases.push(purchase);
         fifoPurchaseQueue.push({

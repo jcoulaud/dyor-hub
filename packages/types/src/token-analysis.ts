@@ -4,6 +4,7 @@ export interface TokenPurchaseInfo {
   tokenAmountUi: number;
   spentUsd: number;
   approxMarketCapAtPurchaseUsd?: number;
+  txHash?: string;
 }
 
 export interface TrackedWalletPurchaseRound {

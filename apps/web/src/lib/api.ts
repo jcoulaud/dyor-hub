@@ -663,9 +663,11 @@ export const tokens = {
     const tokenCacheKey = `api:tokens/${mintAddress}`;
     const statsCacheKey = `api:tokens/${mintAddress}/stats`;
     const twitterHistoryCacheKey = `api:tokens/${mintAddress}/twitter-history`;
+    const holderAnalysisCacheKey = `api:token-holder-analysis/${mintAddress}`;
     apiCache.delete(tokenCacheKey);
     apiCache.delete(statsCacheKey);
     apiCache.delete(twitterHistoryCacheKey);
+    apiCache.delete(holderAnalysisCacheKey);
 
     return api<void>(`tokens/${mintAddress}/refresh`, { method: 'POST' });
   },
@@ -810,9 +812,26 @@ export const tokens = {
     if (!mintAddress) {
       throw new Error('Mint address is required to fetch token holder analysis.');
     }
-    // The main `api` helper will route to /api/token-holder-analysis/${mintAddress} or equivalent
-    const data = await api<TrackedWalletHolderStats[]>(`token-holder-analysis/${mintAddress}`);
-    return data;
+
+    try {
+      const sanitizedMintAddress = encodeURIComponent(mintAddress);
+      const endpoint = `token-holder-analysis/${sanitizedMintAddress}`;
+      const cacheKey = `api:${endpoint}`;
+
+      const cachedData = getCache<TrackedWalletHolderStats[]>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      const data = await api<TrackedWalletHolderStats[]>(endpoint);
+
+      setCache(cacheKey, data, 3600000);
+
+      return data;
+    } catch (error) {
+      console.error(`Error fetching token holder analysis for ${mintAddress}:`, error);
+      throw error;
+    }
   },
 };
 
