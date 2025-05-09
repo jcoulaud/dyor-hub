@@ -24,6 +24,25 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+function formatBioPreview(bio: string) {
+  if (!bio) return null;
+
+  const normalizedBio = bio.replace(/\r\n/g, '\n');
+  const lines = normalizedBio.split('\n');
+
+  return (
+    <div className='whitespace-pre-line space-y-2'>
+      {lines.map((line, i) => {
+        if (!line.trim()) {
+          return <div key={i} className='h-4'></div>;
+        }
+
+        return <div key={i}>{line}</div>;
+      })}
+    </div>
+  );
+}
+
 const profileFormSchema = z.object({
   displayName: z.string().max(30, 'Display name cannot exceed 30 characters'),
   bio: z.string().max(400, 'Bio cannot exceed 400 characters'),
@@ -93,10 +112,12 @@ export default function ProfilePage() {
     }
 
     try {
-      const updatedUser = await users.updateProfile({
+      const payload = {
         displayName: values.displayName === user.displayName ? undefined : values.displayName,
         bio: values.bio === user.bio ? undefined : values.bio,
-      });
+      };
+
+      const updatedUser = await users.updateProfile(payload);
 
       setUser(updatedUser);
       form.reset({
@@ -164,7 +185,9 @@ export default function ProfilePage() {
 
             {user.bio && (
               <div className='max-w-lg mt-2'>
-                <p className='text-sm text-foreground/80'>{user.bio}</p>
+                <div className='text-sm text-foreground/80 whitespace-pre-line'>
+                  {formatBioPreview(user.bio)}
+                </div>
               </div>
             )}
           </div>

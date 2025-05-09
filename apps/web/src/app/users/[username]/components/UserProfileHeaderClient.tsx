@@ -13,6 +13,60 @@ import { MessageSquare, Reply, Shield, ThumbsDown, ThumbsUp, Twitter } from 'luc
 import Image from 'next/image';
 import Link from 'next/link';
 
+function formatBioWithLinks(bio: string) {
+  if (!bio) return null;
+
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+  const lines = bio.replace(/\r\n/g, '\n').split('\n');
+
+  return (
+    <div className='whitespace-pre-line space-y-2'>
+      {lines.map((line, i) => {
+        if (!line.trim()) {
+          return <div key={i} className='h-4'></div>;
+        }
+
+        let lastIndex = 0;
+        const elements: React.ReactNode[] = [];
+        let match: RegExpExecArray | null;
+
+        urlRegex.lastIndex = 0;
+
+        while ((match = urlRegex.exec(line)) !== null) {
+          const url = match[0];
+          const index = match.index;
+
+          if (index > lastIndex) {
+            elements.push(
+              <span key={`text-${lastIndex}`}>{line.substring(lastIndex, index)}</span>,
+            );
+          }
+
+          elements.push(
+            <a
+              key={`link-${index}`}
+              href={url}
+              target='_blank'
+              rel='noopener noreferrer'
+              className='text-blue-400 hover:underline'>
+              {url}
+            </a>,
+          );
+
+          lastIndex = index + url.length;
+        }
+
+        if (lastIndex < line.length) {
+          elements.push(<span key={`text-${lastIndex}`}>{line.substring(lastIndex)}</span>);
+        }
+
+        return <div key={i}>{elements.length > 0 ? elements : line}</div>;
+      })}
+    </div>
+  );
+}
+
 interface UserProfileHeaderClientProps {
   profileUser: User & {
     followersCount?: number;
@@ -119,9 +173,9 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
 
                   {profileUser.bio && (
                     <div className='mt-3 max-w-3xl'>
-                      <p className='text-sm text-zinc-300/90 text-center md:text-left'>
-                        {profileUser.bio}
-                      </p>
+                      <div className='text-sm text-zinc-300/90 text-center md:text-left'>
+                        {formatBioWithLinks(profileUser.bio)}
+                      </div>
                     </div>
                   )}
                 </div>

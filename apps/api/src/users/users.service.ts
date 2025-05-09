@@ -16,6 +16,18 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserActivityDto } from './dto/user-activity.dto';
 import { UserStatsDto } from './dto/user-stats.dto';
 
+function processBio(bio: string): string {
+  if (!bio) return bio;
+
+  let processedBio = bio.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  processedBio = processedBio.replace(/(\n[\s\t]*){2,}/g, '\n\n');
+  processedBio = processedBio.replace(/\n{3,}/g, '\n\n');
+
+  processedBio = processedBio.trim();
+
+  return processedBio;
+}
+
 export interface PaginatedResult<T> {
   data: T[];
   meta: {
@@ -128,7 +140,7 @@ export class UsersService {
       user.displayName = updateProfileDto.displayName;
     }
     if (updateProfileDto.bio !== undefined) {
-      user.bio = updateProfileDto.bio;
+      user.bio = processBio(updateProfileDto.bio);
     }
 
     await this.userRepository.save(user);

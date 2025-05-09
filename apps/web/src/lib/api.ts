@@ -1067,6 +1067,7 @@ export const users = {
         method: 'PATCH',
         body: payload,
       });
+
       apiCache.delete('api:auth/profile');
       return data;
     } catch (error) {
