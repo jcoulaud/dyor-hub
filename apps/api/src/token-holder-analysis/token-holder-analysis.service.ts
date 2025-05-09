@@ -2,6 +2,7 @@ import {
   TokenHolder,
   TokenPurchaseInfo,
   TrackedWalletHolderStats,
+  TrackedWalletPurchaseRound,
 } from '@dyor-hub/types';
 import { HttpService } from '@nestjs/axios';
 import {
@@ -195,32 +196,35 @@ export class TokenHolderAnalysisService {
     tokenTotalSupply: number,
   ): TrackedWalletHolderStats | null {
     this.logger.debug(
-      `Processing ${trades.length} trades for wallet ${walletAddress}`,
+      `Processing ${trades.length} trades for wallet ${walletAddress} for token ${trackedTokenAddress}`,
     );
 
-    const currentBalanceUi = holderInfo.amount;
-    const percentageOfTotal =
-      tokenTotalSupply > 0 ? (currentBalanceUi / tokenTotalSupply) * 100 : 0;
+    const statsOutput: TrackedWalletHolderStats = {
+      walletAddress,
+      currentBalanceUi: holderInfo.amount,
+      currentBalanceRaw: holderInfo.amount.toString(),
+      percentageOfTotalSupply:
+        tokenTotalSupply > 0 && isFinite(holderInfo.amount / tokenTotalSupply)
+          ? (holderInfo.amount / tokenTotalSupply) * 100
+          : 0,
+      overallAverageBuyPriceUsd: 0,
+      firstEverPurchase: null,
+      purchaseRounds: [],
+      lastSellOffTimestamp: undefined,
+      currentHoldingDurationSeconds: 0,
+    };
 
     if (trades.length === 0) {
-      return {
-        walletAddress,
-        currentBalanceUi,
-        currentBalanceRaw: holderInfo.amount.toString(),
-        percentageOfTotalSupply: isFinite(percentageOfTotal)
-          ? percentageOfTotal
-          : 0,
-        overallAverageBuyPriceUsd: 0,
-        firstEverPurchase: null,
-        purchaseRounds: [],
-        lastSellOffTimestamp: undefined,
-        currentHoldingDurationSeconds: undefined,
-      };
+      return statsOutput;
     }
 
-    let firstPurchase: TokenPurchaseInfo | null = null;
-    let totalSpentUsd = 0;
-    let totalTokensBoughtUi = 0;
+    trades.sort((a, b) => a.block_unix_time - b.block_unix_time);
+
+    let calculatedBalanceUi = 0;
+    const allPurchases: TokenPurchaseInfo[] = [];
+    let activeRound: TrackedWalletPurchaseRound | null = null;
+    let roundIdCounter = 1;
+    let actualLastSellOffTime: number | undefined = undefined;
 
     for (const trade of trades) {
       const isBuy =
@@ -228,48 +232,151 @@ export class TokenHolderAnalysisService {
         trade.to.address.toLowerCase() === trackedTokenAddress.toLowerCase() &&
         trade.owner.toLowerCase() === walletAddress.toLowerCase();
 
+      const isSell =
+        trade.side === 'sell' &&
+        trade.from.address.toLowerCase() ===
+          trackedTokenAddress.toLowerCase() &&
+        trade.owner.toLowerCase() === walletAddress.toLowerCase();
+
+      if (!isBuy && !isSell) {
+        continue;
+      }
+
       if (isBuy) {
         const tokenAmountBought =
           trade.to.ui_amount > 0 ? trade.to.ui_amount : 0;
         const usdValueOfTrade = trade.volume_usd > 0 ? trade.volume_usd : 0;
 
-        const pricePerToken =
-          tokenAmountBought > 0 ? usdValueOfTrade / tokenAmountBought : 0;
+        if (tokenAmountBought === 0) continue;
+
+        const pricePerToken = usdValueOfTrade / tokenAmountBought;
 
         const purchase: TokenPurchaseInfo = {
-          priceUsd: pricePerToken > 0 ? pricePerToken : trade.to.price || 0,
+          priceUsd: isFinite(pricePerToken)
+            ? pricePerToken
+            : trade.to.price || 0,
           timestamp: trade.block_unix_time,
           tokenAmountUi: tokenAmountBought,
           spentUsd: usdValueOfTrade,
         };
 
-        if (!firstPurchase) {
-          firstPurchase = { ...purchase };
+        allPurchases.push(purchase);
+        if (!statsOutput.firstEverPurchase) {
+          statsOutput.firstEverPurchase = { ...purchase };
         }
-        totalSpentUsd += purchase.spentUsd;
-        totalTokensBoughtUi += purchase.tokenAmountUi;
+
+        if (!activeRound) {
+          activeRound = {
+            roundId: roundIdCounter++,
+            firstPurchaseInRound: { ...purchase },
+            subsequentPurchasesInRound: [],
+            totalTokensBoughtUi: 0,
+            totalUsdSpent: 0,
+            averageBuyPriceUsd: 0,
+            startTime: purchase.timestamp,
+            soldAmountUi: 0,
+            soldEverythingFromRound: false,
+          };
+          statsOutput.purchaseRounds.push(activeRound);
+        }
+
+        if (
+          activeRound.firstPurchaseInRound.timestamp !== purchase.timestamp ||
+          activeRound.totalTokensBoughtUi > 0
+        ) {
+          activeRound.subsequentPurchasesInRound.push(purchase);
+        }
+
+        activeRound.totalTokensBoughtUi += tokenAmountBought;
+        activeRound.totalUsdSpent += usdValueOfTrade;
+        if (activeRound.totalTokensBoughtUi > 0) {
+          activeRound.averageBuyPriceUsd =
+            activeRound.totalUsdSpent / activeRound.totalTokensBoughtUi;
+        } else {
+          activeRound.averageBuyPriceUsd = 0;
+        }
+
+        calculatedBalanceUi += tokenAmountBought;
+      } else if (isSell) {
+        const tokenAmountSold =
+          trade.from.ui_amount > 0 ? trade.from.ui_amount : 0;
+        if (tokenAmountSold === 0) continue;
+
+        if (activeRound) {
+          activeRound.soldAmountUi += tokenAmountSold;
+        }
+
+        calculatedBalanceUi -= tokenAmountSold;
+
+        const epsilon = 0.000001;
+        if (calculatedBalanceUi <= epsilon) {
+          calculatedBalanceUi = 0;
+          actualLastSellOffTime = trade.block_unix_time;
+
+          if (activeRound) {
+            activeRound.soldEverythingFromRound = true;
+            activeRound.endTime = trade.block_unix_time;
+            activeRound.holdingDurationSeconds =
+              activeRound.endTime - activeRound.startTime;
+            activeRound = null;
+          }
+        }
       }
     }
 
-    const overallAverageBuyPrice =
-      totalTokensBoughtUi > 0 ? totalSpentUsd / totalTokensBoughtUi : 0;
+    statsOutput.lastSellOffTimestamp = actualLastSellOffTime;
 
-    return {
-      walletAddress,
-      currentBalanceUi,
-      currentBalanceRaw: holderInfo.amount.toString(),
-      percentageOfTotalSupply: isFinite(percentageOfTotal)
-        ? percentageOfTotal
-        : 0,
-      overallAverageBuyPriceUsd: isNaN(overallAverageBuyPrice)
-        ? 0
-        : overallAverageBuyPrice,
-      firstEverPurchase: firstPurchase,
-      purchaseRounds: [],
-      lastSellOffTimestamp: undefined,
-      currentHoldingDurationSeconds: firstPurchase
-        ? Math.floor(Date.now() / 1000) - firstPurchase.timestamp
-        : undefined,
-    };
+    if (allPurchases.length > 0) {
+      const totalUsdSpentOverall = allPurchases.reduce(
+        (sum, p) => sum + p.spentUsd,
+        0,
+      );
+      const totalTokensBoughtOverall = allPurchases.reduce(
+        (sum, p) => sum + p.tokenAmountUi,
+        0,
+      );
+      statsOutput.overallAverageBuyPriceUsd =
+        totalTokensBoughtOverall > 0 &&
+        isFinite(totalUsdSpentOverall / totalTokensBoughtOverall)
+          ? totalUsdSpentOverall / totalTokensBoughtOverall
+          : 0;
+    }
+
+    let currentHoldingPeriodStartTime: number | null = null;
+    if (calculatedBalanceUi > 0) {
+      if (actualLastSellOffTime) {
+        const firstPurchaseAfterLastSellOff = allPurchases.find(
+          (p) => p.timestamp > actualLastSellOffTime!,
+        );
+        if (firstPurchaseAfterLastSellOff) {
+          currentHoldingPeriodStartTime =
+            firstPurchaseAfterLastSellOff.timestamp;
+        }
+      } else if (statsOutput.firstEverPurchase) {
+        currentHoldingPeriodStartTime = statsOutput.firstEverPurchase.timestamp;
+      }
+    }
+
+    if (currentHoldingPeriodStartTime !== null) {
+      statsOutput.currentHoldingDurationSeconds =
+        Math.floor(Date.now() / 1000) - currentHoldingPeriodStartTime;
+    } else {
+      statsOutput.currentHoldingDurationSeconds = 0;
+    }
+
+    if (!isFinite(statsOutput.percentageOfTotalSupply))
+      statsOutput.percentageOfTotalSupply = 0;
+    if (!isFinite(statsOutput.overallAverageBuyPriceUsd))
+      statsOutput.overallAverageBuyPriceUsd = 0;
+    statsOutput.purchaseRounds.forEach((round) => {
+      if (!isFinite(round.averageBuyPriceUsd)) round.averageBuyPriceUsd = 0;
+      if (
+        round.holdingDurationSeconds &&
+        !isFinite(round.holdingDurationSeconds)
+      )
+        round.holdingDurationSeconds = 0;
+    });
+
+    return statsOutput;
   }
 }
