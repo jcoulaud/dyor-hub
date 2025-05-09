@@ -21,6 +21,7 @@ import {
   Copy,
   Diamond,
   DollarSign,
+  TableIcon,
   TrendingUp,
   Users,
   Wallet,
@@ -902,47 +903,26 @@ export const TokenHolderAnalysisInfo = ({
     }
   }, [analysisData, error, fetchData]);
 
-  // Calculate some basic stats for the initial button display
-  const diamondHandsCount = useMemo(() => {
-    if (!analysisData) return null;
-    return analysisData.filter(
-      (wallet) =>
-        wallet.currentHoldingDurationSeconds && wallet.currentHoldingDurationSeconds > 604800, // 7+ days
-    ).length;
-  }, [analysisData]);
-
   return (
     <>
       <div className={cn('space-y-3', className)}>
         <h3 className='text-sm font-medium text-zinc-400 flex items-center gap-2'>
-          <Diamond className='w-4 h-4 text-teal-400' />
+          <TableIcon className='w-4 h-4 mr-1 text-teal-400' />
           Diamond Hands Analysis
         </h3>
 
-        <Card
-          className='bg-zinc-900 border-zinc-700/50 hover:border-teal-500/30 transition-all duration-300 cursor-pointer overflow-hidden group shadow-md'
-          onClick={handleButtonClick}>
-          <CardContent className='p-4'>
-            <div className='flex items-center justify-between mb-3'>
-              <div className='flex items-center gap-2'>
-                <Diamond className='w-5 h-5 text-teal-400 group-hover:text-teal-300 transition-colors' />
-                <span className='text-zinc-200 font-medium'>View Holder Analysis</span>
-              </div>
-              <ChevronRight className='w-5 h-5 text-zinc-500 group-hover:text-teal-400 transition-transform group-hover:translate-x-1' />
-            </div>
-
-            {analysisData && !isLoading && !error ? (
-              <div className='flex justify-between text-xs text-zinc-400'>
-                <span>{analysisData.length} wallets analyzed</span>
-                {diamondHandsCount !== null && (
-                  <span className='text-teal-400'>{diamondHandsCount} diamond hands</span>
-                )}
-              </div>
-            ) : (
-              <div className='h-4 w-full bg-zinc-800/60 rounded animate-pulse' />
-            )}
-          </CardContent>
-        </Card>
+        <Button
+          onClick={handleButtonClick}
+          variant='outline'
+          size='sm'
+          disabled={dialogOpen && isLoading}
+          className='w-full bg-zinc-900/60 border-zinc-700/50 hover:bg-zinc-800/80 text-zinc-200 flex items-center justify-between group'>
+          <div className='flex items-center'>
+            <TableIcon className='w-4 h-4 mr-2 text-zinc-200' />
+            <span className='font-medium'>View Holder Analysis</span>
+          </div>
+          <ChevronRight className='w-4 h-4 ml-auto group-hover:text-teal-400 transition-colors' />
+        </Button>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
