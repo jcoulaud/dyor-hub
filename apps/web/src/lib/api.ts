@@ -40,6 +40,7 @@ import {
   TokenSentimentStats,
   TokenStats,
   TopStreakUsers,
+  TrackedWalletHolderStats,
   TwitterUsernameHistoryEntity,
   User,
   UserActivity,
@@ -584,13 +585,11 @@ export const tokens = {
       const endpoint = `tokens/${sanitizedMintAddress}`;
       const cacheKey = `api:${endpoint}`;
 
-      // Check cache first
       const cachedData = getCache<TokenWithWatchlistStatus>(cacheKey);
       if (cachedData) {
         return cachedData;
       }
 
-      // Create a new request
       const data = await api<TokenWithWatchlistStatus>(endpoint);
       setCache(cacheKey, data, 5 * 1000);
       return data;
@@ -606,13 +605,11 @@ export const tokens = {
       const endpoint = `tokens/${sanitizedMintAddress}/stats`;
       const cacheKey = `api:${endpoint}`;
 
-      // Check cache first
       const cachedData = getCache<TokenStats>(cacheKey);
       if (cachedData) {
         return cachedData;
       }
 
-      // Create a new request
       const data = await api<TokenStats>(endpoint);
       setCache(cacheKey, data, 5 * 1000);
       return data;
@@ -663,7 +660,6 @@ export const tokens = {
   },
 
   refreshToken: (mintAddress: string) => {
-    // Clear cache for this token
     const tokenCacheKey = `api:tokens/${mintAddress}`;
     const statsCacheKey = `api:tokens/${mintAddress}/stats`;
     const twitterHistoryCacheKey = `api:tokens/${mintAddress}/twitter-history`;
@@ -680,13 +676,11 @@ export const tokens = {
       const endpoint = `tokens/${sanitizedMintAddress}/sentiment`;
       const cacheKey = `api:${endpoint}`;
 
-      // Check cache first (using same 5s TTL as other token stats)
       const cachedData = getCache<TokenSentimentStats>(cacheKey);
       if (cachedData) {
         return cachedData;
       }
 
-      // Call the main 'api' helper (which routes public GET requests for tokens/ via publicApi)
       const data = await api<TokenSentimentStats>(endpoint);
       setCache(cacheKey, data, 5 * 1000);
       return data;
@@ -704,22 +698,18 @@ export const tokens = {
       const sanitizedMintAddress = encodeURIComponent(mintAddress);
       const endpoint = `tokens/${sanitizedMintAddress}/sentiment`;
 
-      // Call the main 'api' helper.
-      // NOTE: If the main 'api' function routes this POST request via publicApi due to the 'tokens/' path,
-      // this will result in a 401 Unauthorized error because publicApi omits credentials.
       const data = await api<{ success: boolean }>(endpoint, {
         method: 'POST',
-        body: { sentimentType }, // Body expected by the backend controller
+        body: { sentimentType },
       });
 
-      // Invalidate cache for this endpoint after modification
       const cacheKey = `api:${endpoint}`;
       apiCache.delete(cacheKey);
 
       return data;
     } catch (error) {
       console.error(`Error adding/updating sentiment for ${mintAddress}:`, error);
-      throw error; // Re-throw for the component to handle
+      throw error;
     }
   },
 
@@ -728,21 +718,17 @@ export const tokens = {
       const sanitizedMintAddress = encodeURIComponent(mintAddress);
       const endpoint = `tokens/${sanitizedMintAddress}/sentiment`;
 
-      // Call the main 'api' helper.
-      // NOTE: If the main 'api' function routes this DELETE request via publicApi due to the 'tokens/' path,
-      // this will result in a 401 Unauthorized error because publicApi omits credentials.
       const data = await api<{ success: boolean }>(endpoint, {
         method: 'DELETE',
       });
 
-      // Invalidate cache for this endpoint after modification
       const cacheKey = `api:${endpoint}`;
       apiCache.delete(cacheKey);
 
       return data;
     } catch (error) {
       console.error(`Error removing sentiment for ${mintAddress}:`, error);
-      throw error; // Re-throw for the component to handle
+      throw error;
     }
   },
 
@@ -818,6 +804,15 @@ export const tokens = {
       }
       throw error;
     }
+  },
+
+  getTokenHolderAnalysis: async (mintAddress: string): Promise<TrackedWalletHolderStats[]> => {
+    if (!mintAddress) {
+      throw new Error('Mint address is required to fetch token holder analysis.');
+    }
+    // The main `api` helper will route to /api/token-holder-analysis/${mintAddress} or equivalent
+    const data = await api<TrackedWalletHolderStats[]>(`token-holder-analysis/${mintAddress}`);
+    return data;
   },
 };
 

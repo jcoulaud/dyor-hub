@@ -3,6 +3,7 @@ export interface TokenPurchaseInfo {
   timestamp: number;
   tokenAmountUi: number;
   spentUsd: number;
+  approxMarketCapAtPurchaseUsd?: number;
 }
 
 export interface TrackedWalletPurchaseRound {
@@ -17,6 +18,7 @@ export interface TrackedWalletPurchaseRound {
   soldAmountUi: number;
   soldEverythingFromRound: boolean;
   holdingDurationSeconds?: number;
+  realizedPnlUsd?: number;
 }
 
 export interface TrackedWalletHolderStats {
@@ -26,6 +28,9 @@ export interface TrackedWalletHolderStats {
   percentageOfTotalSupply?: number;
   overallAverageBuyPriceUsd: number;
   firstEverPurchase: TokenPurchaseInfo | null;
+  totalUsdValueOfSales?: number;
+  overallRealizedPnlUsd?: number;
+  analyzedTokenTotalSupply?: number;
   purchaseRounds: TrackedWalletPurchaseRound[];
   lastSellOffTimestamp?: number;
   currentHoldingDurationSeconds?: number;

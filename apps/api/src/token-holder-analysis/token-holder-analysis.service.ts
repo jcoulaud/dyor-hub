@@ -70,9 +70,6 @@ export class TokenHolderAnalysisService {
   async getTopHolderWalletActivity(
     tokenAddress: string,
   ): Promise<TrackedWalletHolderStats[]> {
-    this.logger.log(`Fetching top holder activity for token: ${tokenAddress}`);
-
-    // Fetch token creation time and total supply
     const tokenEntity = await this.tokensService.getTokenData(tokenAddress);
     if (!tokenEntity) {
       throw new NotFoundException(`Token ${tokenAddress} not found.`);
@@ -103,89 +100,114 @@ export class TokenHolderAnalysisService {
     }
 
     const topHolders: TokenHolder[] =
-      await this.tokensService.fetchTopHolders(tokenAddress); // fetchTopHolders uses overviewData for percentages
+      await this.tokensService.fetchTopHolders(tokenAddress);
     if (!topHolders || topHolders.length === 0) {
-      this.logger.warn(`No holders found for token ${tokenAddress}`);
       return [];
     }
 
-    const walletsToAnalyze = topHolders.slice(0, 30);
-    const analyzedWallets: TrackedWalletHolderStats[] = [];
+    const walletsToAnalyze = topHolders.slice(0, 20);
+    const finalAnalyzedWallets: TrackedWalletHolderStats[] = [];
+    const batchSize = 3;
 
-    for (const holder of walletsToAnalyze) {
-      const holderAddress = holder.address;
-      this.logger.debug(
-        `Analyzing wallet: ${holderAddress} for token: ${tokenAddress}`,
-      );
+    for (let i = 0; i < walletsToAnalyze.length; i += batchSize) {
+      const currentBatch = walletsToAnalyze.slice(i, i + batchSize);
 
-      const allTradesForWallet: BirdeyeTokenTradeV3Item[] = [];
-      let offset = 0;
-      const limit = 100;
-      let hasNextPage = true;
+      const analysisPromises = currentBatch.map(async (holder) => {
+        const holderAddress = holder.address;
 
-      while (hasNextPage) {
-        try {
-          const headers = { 'X-API-KEY': this.BIRDEYE_API_KEY };
-          const params = {
-            address: tokenAddress,
-            owner: holderAddress,
-            after_time: tokenCreationTime,
-            before_time: Math.floor(Date.now() / 1000),
-            sort_by: 'block_unix_time',
-            sort_type: 'asc',
-            limit,
-            offset,
-            tx_type: 'swap',
-          };
+        const allTradesForWalletUnsorted: BirdeyeTokenTradeV3Item[] = [];
+        const timeChunkSizeSeconds = 29 * 24 * 60 * 60;
+        let chunkBeforeTime = Math.floor(Date.now() / 1000);
+        let chunkAfterTime = Math.max(
+          tokenCreationTime,
+          chunkBeforeTime - timeChunkSizeSeconds,
+        );
 
-          this.logger.debug(
-            `Fetching trades for ${holderAddress}, offset: ${offset}`,
-          );
-          const response = await firstValueFrom(
-            this.httpService.get<BirdeyeTokenTradeV3Response>(
-              `${this.BIRDEYE_BASE_URL}/defi/v3/token/txs`,
-              { headers, params },
-            ),
-          );
+        while (chunkBeforeTime > tokenCreationTime) {
+          let offset = 0;
+          const limit = 100;
+          let hasNextPageInChunk = true;
 
-          if (response.data?.success && response.data.data?.items) {
-            allTradesForWallet.push(...response.data.data.items);
-            if (
-              response.data.data.has_next &&
-              response.data.data.items.length > 0
-            ) {
-              offset += limit;
-            } else {
-              hasNextPage = false;
+          while (hasNextPageInChunk) {
+            try {
+              const headers = { 'X-API-KEY': this.BIRDEYE_API_KEY };
+              const params = {
+                address: tokenAddress,
+                owner: holderAddress,
+                after_time: chunkAfterTime,
+                before_time: chunkBeforeTime,
+                sort_by: 'block_unix_time',
+                sort_type: 'desc',
+                limit,
+                offset,
+                tx_type: 'swap',
+              };
+
+              const response = await firstValueFrom(
+                this.httpService.get<BirdeyeTokenTradeV3Response>(
+                  `${this.BIRDEYE_BASE_URL}/defi/v3/token/txs`,
+                  { headers, params },
+                ),
+              );
+
+              if (response.data?.success && response.data.data?.items) {
+                allTradesForWalletUnsorted.push(...response.data.data.items);
+                if (
+                  response.data.data.has_next &&
+                  response.data.data.items.length > 0 && // Ensure items.length > 0 to prevent infinite loop on empty page with has_next true
+                  response.data.data.items.length === limit // Only continue if a full page was returned
+                ) {
+                  offset += limit;
+                } else {
+                  hasNextPageInChunk = false;
+                }
+              } else {
+                hasNextPageInChunk = false;
+              }
+            } catch (error) {
+              this.logger.error(
+                `Error fetching trades for ${holderAddress} in chunk [${new Date(chunkAfterTime * 1000).toISOString()}-${new Date(chunkBeforeTime * 1000).toISOString()}], offset ${offset}: ${error.message}`,
+              );
+              hasNextPageInChunk = false;
             }
-          } else {
-            this.logger.warn(
-              `No items or failed response for trades of ${holderAddress}, token ${tokenAddress}`,
-            );
-            hasNextPage = false;
           }
-        } catch (error) {
-          this.logger.error(
-            `Error fetching trades for wallet ${holderAddress}, token ${tokenAddress}: ${error.message}`,
-          );
-          hasNextPage = false;
-        }
-      }
-      this.logger.log(
-        `Fetched ${allTradesForWallet.length} trades for wallet ${holderAddress}`,
-      );
 
-      const stats = this.processWalletTrades(
-        holderAddress,
-        allTradesForWallet,
-        holder,
-        tokenAddress,
-        tokenTotalSupply,
+          if (chunkAfterTime === tokenCreationTime) {
+            break;
+          }
+          chunkBeforeTime = chunkAfterTime;
+          chunkAfterTime = Math.max(
+            tokenCreationTime,
+            chunkBeforeTime - timeChunkSizeSeconds,
+          );
+        }
+
+        const allTradesForWalletSorted = [...allTradesForWalletUnsorted].sort(
+          (a, b) => a.block_unix_time - b.block_unix_time,
+        );
+
+        try {
+          return this.processWalletTrades(
+            holderAddress,
+            allTradesForWalletSorted,
+            holder,
+            tokenAddress,
+            tokenTotalSupply,
+          );
+        } catch (processingError) {
+          return null;
+        }
+      });
+
+      const batchResults = await Promise.all(analysisPromises);
+      finalAnalyzedWallets.push(
+        ...(batchResults.filter(
+          (stats) => stats !== null,
+        ) as TrackedWalletHolderStats[]),
       );
-      if (stats) analyzedWallets.push(stats);
     }
 
-    return analyzedWallets;
+    return finalAnalyzedWallets;
   }
 
   private processWalletTrades(
@@ -195,10 +217,6 @@ export class TokenHolderAnalysisService {
     trackedTokenAddress: string,
     tokenTotalSupply: number,
   ): TrackedWalletHolderStats | null {
-    this.logger.debug(
-      `Processing ${trades.length} trades for wallet ${walletAddress} for token ${trackedTokenAddress}`,
-    );
-
     const statsOutput: TrackedWalletHolderStats = {
       walletAddress,
       currentBalanceUi: holderInfo.amount,
@@ -209,12 +227,16 @@ export class TokenHolderAnalysisService {
           : 0,
       overallAverageBuyPriceUsd: 0,
       firstEverPurchase: null,
+      totalUsdValueOfSales: 0,
+      overallRealizedPnlUsd: 0,
+      analyzedTokenTotalSupply: tokenTotalSupply,
       purchaseRounds: [],
       lastSellOffTimestamp: undefined,
       currentHoldingDurationSeconds: 0,
     };
 
     if (trades.length === 0) {
+      statsOutput.analyzedTokenTotalSupply = tokenTotalSupply;
       return statsOutput;
     }
 
@@ -225,6 +247,14 @@ export class TokenHolderAnalysisService {
     let activeRound: TrackedWalletPurchaseRound | null = null;
     let roundIdCounter = 1;
     let actualLastSellOffTime: number | undefined = undefined;
+    let accumulatedTotalUsdFromSales = 0;
+
+    const fifoPurchaseQueue: Array<{
+      amountUi: number;
+      priceUsd: number;
+      spentUsd: number;
+      timestamp: number;
+    }> = [];
 
     for (const trade of trades) {
       const isBuy =
@@ -246,21 +276,28 @@ export class TokenHolderAnalysisService {
         const tokenAmountBought =
           trade.to.ui_amount > 0 ? trade.to.ui_amount : 0;
         const usdValueOfTrade = trade.volume_usd > 0 ? trade.volume_usd : 0;
-
         if (tokenAmountBought === 0) continue;
 
         const pricePerToken = usdValueOfTrade / tokenAmountBought;
+        const currentPurchasePrice = isFinite(pricePerToken)
+          ? pricePerToken
+          : trade.to.price || 0;
 
         const purchase: TokenPurchaseInfo = {
-          priceUsd: isFinite(pricePerToken)
-            ? pricePerToken
-            : trade.to.price || 0,
+          priceUsd: currentPurchasePrice,
           timestamp: trade.block_unix_time,
           tokenAmountUi: tokenAmountBought,
           spentUsd: usdValueOfTrade,
+          approxMarketCapAtPurchaseUsd: currentPurchasePrice * tokenTotalSupply,
         };
-
         allPurchases.push(purchase);
+        fifoPurchaseQueue.push({
+          amountUi: tokenAmountBought,
+          priceUsd: currentPurchasePrice,
+          spentUsd: usdValueOfTrade,
+          timestamp: purchase.timestamp,
+        });
+
         if (!statsOutput.firstEverPurchase) {
           statsOutput.firstEverPurchase = { ...purchase };
         }
@@ -276,6 +313,7 @@ export class TokenHolderAnalysisService {
             startTime: purchase.timestamp,
             soldAmountUi: 0,
             soldEverythingFromRound: false,
+            realizedPnlUsd: 0,
           };
           statsOutput.purchaseRounds.push(activeRound);
         }
@@ -289,30 +327,57 @@ export class TokenHolderAnalysisService {
 
         activeRound.totalTokensBoughtUi += tokenAmountBought;
         activeRound.totalUsdSpent += usdValueOfTrade;
-        if (activeRound.totalTokensBoughtUi > 0) {
-          activeRound.averageBuyPriceUsd =
-            activeRound.totalUsdSpent / activeRound.totalTokensBoughtUi;
-        } else {
-          activeRound.averageBuyPriceUsd = 0;
-        }
+        activeRound.averageBuyPriceUsd =
+          activeRound.totalTokensBoughtUi > 0
+            ? activeRound.totalUsdSpent / activeRound.totalTokensBoughtUi
+            : 0;
 
         calculatedBalanceUi += tokenAmountBought;
       } else if (isSell) {
-        const tokenAmountSold =
+        let tokenAmountSold =
           trade.from.ui_amount > 0 ? trade.from.ui_amount : 0;
+        const usdReceivedFromSale = trade.volume_usd > 0 ? trade.volume_usd : 0;
         if (tokenAmountSold === 0) continue;
 
+        accumulatedTotalUsdFromSales += usdReceivedFromSale;
+        let costOfSoldTokensThisTrade = 0;
+        let remainingAmountToAccountForSale = tokenAmountSold;
+
+        while (
+          remainingAmountToAccountForSale > 0 &&
+          fifoPurchaseQueue.length > 0
+        ) {
+          const earliestPurchase = fifoPurchaseQueue[0];
+          const amountFromThisFifoEntry = Math.min(
+            remainingAmountToAccountForSale,
+            earliestPurchase.amountUi,
+          );
+
+          costOfSoldTokensThisTrade +=
+            amountFromThisFifoEntry * earliestPurchase.priceUsd;
+
+          earliestPurchase.amountUi -= amountFromThisFifoEntry;
+          remainingAmountToAccountForSale -= amountFromThisFifoEntry;
+
+          if (earliestPurchase.amountUi <= 0.000001) {
+            fifoPurchaseQueue.shift();
+          }
+        }
+
+        const pnlForThisSale = usdReceivedFromSale - costOfSoldTokensThisTrade;
+        statsOutput.overallRealizedPnlUsd =
+          (statsOutput.overallRealizedPnlUsd || 0) + pnlForThisSale;
         if (activeRound) {
+          activeRound.realizedPnlUsd =
+            (activeRound.realizedPnlUsd || 0) + pnlForThisSale;
           activeRound.soldAmountUi += tokenAmountSold;
         }
 
         calculatedBalanceUi -= tokenAmountSold;
-
         const epsilon = 0.000001;
         if (calculatedBalanceUi <= epsilon) {
           calculatedBalanceUi = 0;
           actualLastSellOffTime = trade.block_unix_time;
-
           if (activeRound) {
             activeRound.soldEverythingFromRound = true;
             activeRound.endTime = trade.block_unix_time;
@@ -324,6 +389,7 @@ export class TokenHolderAnalysisService {
       }
     }
 
+    statsOutput.totalUsdValueOfSales = accumulatedTotalUsdFromSales;
     statsOutput.lastSellOffTimestamp = actualLastSellOffTime;
 
     if (allPurchases.length > 0) {
@@ -368,6 +434,17 @@ export class TokenHolderAnalysisService {
       statsOutput.percentageOfTotalSupply = 0;
     if (!isFinite(statsOutput.overallAverageBuyPriceUsd))
       statsOutput.overallAverageBuyPriceUsd = 0;
+    if (
+      statsOutput.totalUsdValueOfSales &&
+      !isFinite(statsOutput.totalUsdValueOfSales)
+    )
+      statsOutput.totalUsdValueOfSales = 0;
+    if (
+      statsOutput.overallRealizedPnlUsd &&
+      !isFinite(statsOutput.overallRealizedPnlUsd)
+    )
+      statsOutput.overallRealizedPnlUsd = 0;
+
     statsOutput.purchaseRounds.forEach((round) => {
       if (!isFinite(round.averageBuyPriceUsd)) round.averageBuyPriceUsd = 0;
       if (
@@ -375,8 +452,31 @@ export class TokenHolderAnalysisService {
         !isFinite(round.holdingDurationSeconds)
       )
         round.holdingDurationSeconds = 0;
+      if (round.realizedPnlUsd && !isFinite(round.realizedPnlUsd))
+        round.realizedPnlUsd = 0;
+      if (
+        round.firstPurchaseInRound.approxMarketCapAtPurchaseUsd &&
+        !isFinite(round.firstPurchaseInRound.approxMarketCapAtPurchaseUsd)
+      ) {
+        round.firstPurchaseInRound.approxMarketCapAtPurchaseUsd = 0;
+      }
+      round.subsequentPurchasesInRound.forEach((p) => {
+        if (
+          p.approxMarketCapAtPurchaseUsd &&
+          !isFinite(p.approxMarketCapAtPurchaseUsd)
+        )
+          p.approxMarketCapAtPurchaseUsd = 0;
+      });
     });
+    if (
+      statsOutput.firstEverPurchase &&
+      statsOutput.firstEverPurchase.approxMarketCapAtPurchaseUsd &&
+      !isFinite(statsOutput.firstEverPurchase.approxMarketCapAtPurchaseUsd)
+    ) {
+      statsOutput.firstEverPurchase.approxMarketCapAtPurchaseUsd = 0;
+    }
 
+    statsOutput.analyzedTokenTotalSupply = tokenTotalSupply;
     return statsOutput;
   }
 }
