@@ -9,6 +9,7 @@ export * from './reputation';
 export * from './streak';
 export * from './tip';
 export * from './token';
+export * from './token-analysis';
 export * from './token-call';
 export * from './uploads';
 export * from './user';
