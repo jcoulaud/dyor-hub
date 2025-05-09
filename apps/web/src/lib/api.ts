@@ -56,6 +56,12 @@ import {
   WatchlistFolder,
 } from '@dyor-hub/types';
 
+// Add a type for the update payload
+interface UpdateProfilePayload {
+  displayName?: string;
+  bio?: string;
+}
+
 interface PublicWalletInfo {
   address: string;
   isVerified: boolean;
@@ -1052,6 +1058,21 @@ export const users = {
       body: { walletAddress },
     });
     return response;
+  },
+
+  updateProfile: async (payload: UpdateProfilePayload): Promise<User> => {
+    try {
+      const endpoint = 'users/me/profile';
+      const data = await api<User>(endpoint, {
+        method: 'PATCH',
+        body: payload,
+      });
+      apiCache.delete('api:auth/profile');
+      return data;
+    } catch (error) {
+      console.error('[updateProfile] Error updating user profile:', error);
+      throw error;
+    }
   },
 
   admin: {
