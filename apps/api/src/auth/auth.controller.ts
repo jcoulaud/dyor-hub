@@ -56,6 +56,7 @@ export class AuthController {
       twitterId: fullUser.twitterId,
       username: fullUser.username,
       displayName: fullUser.displayName,
+      bio: fullUser.bio,
       avatarUrl: fullUser.avatarUrl,
       twitterAccessToken: fullUser.twitterAccessToken,
       twitterRefreshToken: fullUser.twitterRefreshToken,

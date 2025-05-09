@@ -8,6 +8,7 @@ import {
   Comment,
   CreateCommentDto,
   CreateTokenCallInput,
+  EarlyBuyerInfo,
   FeedActivity,
   GetTippingEligibilityResponseDto,
   GiphySearchResponse,
@@ -47,12 +48,19 @@ import {
   UserPreferences,
   UserRankings,
   UserReputation,
+  UserSearchResult,
   UserStats,
   UserStreak,
   VoteType,
   WalletResponse,
   WatchlistFolder,
 } from '@dyor-hub/types';
+
+// Add a type for the update payload
+interface UpdateProfilePayload {
+  displayName?: string;
+  bio?: string;
+}
 
 interface PublicWalletInfo {
   address: string;
@@ -166,7 +174,10 @@ const isPublicTokenRoute = (endpoint: string): boolean => {
   const normalizedEndpoint = endpoint.replace(/^\/+/, '');
 
   // Exclude specific authenticated endpoints under /tokens/
-  if (normalizedEndpoint.endsWith('/verify-creator')) {
+  if (
+    normalizedEndpoint.endsWith('/verify-creator') ||
+    normalizedEndpoint.endsWith('/early-buyers')
+  ) {
     return false;
   }
 
@@ -795,6 +806,19 @@ export const tokens = {
       }
     }
   },
+
+  getEarlyBuyerInfo: async (mintAddress: string): Promise<EarlyBuyerInfo | null> => {
+    try {
+      const data = await api<EarlyBuyerInfo>(`tokens/${mintAddress}/early-buyers`);
+      return data;
+    } catch (error) {
+      console.error(`Error fetching early buyer info for ${mintAddress}:`, error);
+      if (error instanceof ApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
 };
 
 // Keep local DTO definition if not shared
@@ -1036,6 +1060,22 @@ export const users = {
     return response;
   },
 
+  updateProfile: async (payload: UpdateProfilePayload): Promise<User> => {
+    try {
+      const endpoint = 'users/me/profile';
+      const data = await api<User>(endpoint, {
+        method: 'PATCH',
+        body: payload,
+      });
+
+      apiCache.delete('api:auth/profile');
+      return data;
+    } catch (error) {
+      console.error('[updateProfile] Error updating user profile:', error);
+      throw error;
+    }
+  },
+
   admin: {
     getLastRegisteredUsers: async (limit: number): Promise<User[]> => {
       try {
@@ -1185,6 +1225,20 @@ export const users = {
       console.error('[getMyDyorhubBalance] Error fetching balance:', error);
 
       return { balance: 0 };
+    }
+  },
+
+  search: async (query: string, limit: number = 10): Promise<UserSearchResult[]> => {
+    try {
+      const params = new URLSearchParams();
+      params.append('query', query);
+      params.append('limit', limit.toString());
+      const endpoint = `users/search?${params.toString()}`;
+      const data = await api<UserSearchResult[]>(endpoint);
+      return data;
+    } catch (error) {
+      console.error(`Error searching users with query "${query}":`, error);
+      return [];
     }
   },
 };

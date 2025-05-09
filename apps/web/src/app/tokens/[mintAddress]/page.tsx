@@ -7,6 +7,7 @@ import { SolscanButton } from '@/components/SolscanButton';
 import { TokenCallsSection } from '@/components/token-calls/token-page/TokenCallsSection';
 import { EmbedButtonDialog } from '@/components/token/EmbedButtonDialog';
 import { TokenBundlesSection } from '@/components/tokens/bundles/TokenBundlesSection';
+import { EarlyBuyersInfo } from '@/components/tokens/EarlyBuyersInfo';
 import { TokenExternalLinks } from '@/components/tokens/TokenExternalLinks';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
@@ -36,6 +37,8 @@ import {
   Code,
   Copy,
   ExternalLink,
+  Eye,
+  History,
   MessageSquare,
   Search,
   Shield,
@@ -57,6 +60,7 @@ type TokenWithWatchlistStatus = Token & {
   creatorAddress?: string | null;
   creationTime?: Date | null;
   creationTx?: string | null;
+  viewsCount?: number;
 };
 
 const formatCreationTime = (dateString: string | Date | null | undefined): string | null => {
@@ -266,7 +270,7 @@ export default function Page({ params, commentId }: PageProps) {
           if (isAuthenticated && tokenResult.value) {
             try {
               const isWatchlisted = await watchlist.isTokenWatchlisted(mintAddress);
-              tokenWithStatus = { ...tokenResult.value, isWatchlisted };
+              tokenWithStatus = { ...tokenWithStatus, isWatchlisted };
             } catch {
               /* ignore watchlist error */
             }
@@ -574,6 +578,18 @@ export default function Page({ params, commentId }: PageProps) {
                           {tokenData.description}
                         </p>
 
+                        {/* Views Count Display */}
+                        {tokenData.viewsCount !== undefined && (
+                          <div className='flex items-center mt-2'>
+                            <div className='inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-800/70 border border-zinc-700/50 backdrop-blur-sm'>
+                              <Eye className='w-3.5 h-3.5 mr-1.5 text-blue-400' />
+                              <span className='text-xs font-medium text-zinc-200'>
+                                {tokenData.viewsCount.toLocaleString()} views
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Mobile Social Buttons */}
                         <div className='flex sm:hidden items-center gap-2 mt-3'>
                           <button
@@ -719,7 +735,7 @@ export default function Page({ params, commentId }: PageProps) {
 
         {/* Main three-column layout */}
         <div className='grid grid-cols-1 xxs:grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 xl:grid-cols-12 gap-4 sm:gap-6 xl:gap-8'>
-          {/* Left column - Token data */}
+          {/* Left column - Token data & Early Buyers */}
           <div className='col-span-1 xxs:col-span-2 xs:col-span-2 sm:col-span-2 xl:col-span-3 space-y-4 sm:space-y-6 xl:space-y-8 order-1 xxs:order-none xs:order-none sm:order-none'>
             <div className='relative'>
               <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
@@ -882,6 +898,28 @@ export default function Page({ params, commentId }: PageProps) {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Trading Analysis Section */}
+              <div className='relative mt-4 sm:mt-6 xl:mt-8'>
+                <div className='absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+                <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                  <div className='absolute inset-0 bg-gradient-to-br from-purple-600/5 to-indigo-800/5 opacity-0 transition-opacity duration-300' />
+                  <CardHeader className='pb-2 relative'>
+                    <div className='flex items-center'>
+                      <div className='h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center mr-4 group-hover:bg-purple-500/20 transition-colors duration-300'>
+                        <History className='h-5 w-5 text-purple-400' />
+                      </div>
+                      <CardTitle className='text-xl font-semibold text-white'>
+                        Trading Analysis
+                      </CardTitle>
+                    </div>
+                    <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent mt-3'></div>
+                  </CardHeader>
+                  <CardContent className='relative pt-4 pb-6'>
+                    <EarlyBuyersInfo mintAddress={mintAddress} />
+                  </CardContent>
+                </Card>
+              </div>
 
               <div className='mt-4 sm:mt-6 xl:mt-8'>
                 {tokenData && <TokenBundlesSection mintAddress={mintAddress} />}

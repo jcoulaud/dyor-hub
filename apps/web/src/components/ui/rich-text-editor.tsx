@@ -1,21 +1,27 @@
 import { useToast } from '@/hooks/use-toast';
-import { uploads } from '@/lib/api';
+import { uploads, users } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { PresignedUrlRequest, PresignedUrlResponse } from '@dyor-hub/types';
+import { PresignedUrlRequest, PresignedUrlResponse, UserSearchResult } from '@dyor-hub/types';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
+import { Range, type Editor as CoreEditor } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
+import Mention, { MentionOptions } from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
-import { type Editor, EditorContent, useEditor } from '@tiptap/react';
+import { EditorContent, ReactRenderer, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Code, Image as ImageIcon, Italic, List, Quote, Smile } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion';
+import { AtSign, Bold, Code, Image as ImageIcon, Italic, List, Quote, Smile } from 'lucide-react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { TbGif } from 'react-icons/tb';
+import tippy, { Instance, Props } from 'tippy.js';
 import { v4 as uuidv4 } from 'uuid';
 import { GifPicker } from '../gif-picker/GifPicker';
+import { Avatar, AvatarFallback, AvatarImage } from './avatar';
 import { Button } from './button';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 
+import 'tippy.js/dist/tippy.css';
 import './rich-text-editor.css';
 
 interface RichTextEditorProps {
@@ -317,6 +323,12 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
     }
   };
 
+  const insertMention = () => {
+    if (editor) {
+      editor.chain().focus().insertContent('@').run();
+    }
+  };
+
   if (!editor) {
     return null;
   }
@@ -392,6 +404,25 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
           </Button>
         ))}
 
+        {/* Mention Button */}
+        <Button
+          variant='ghost'
+          size='sm'
+          onClick={(e) => {
+            e.preventDefault();
+            insertMention();
+          }}
+          className={cn('h-8 w-8 p-0 relative group')}
+          aria-label='Mention user'
+          title='Mention user (@)'>
+          <AtSign className='h-4 w-4' />
+          <span className='sr-only'>Mention user</span>
+          <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 before:content-[""] before:absolute before:top-full before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-zinc-800'>
+            Mention user
+            <span className='ml-2 opacity-75'>@</span>
+          </div>
+        </Button>
+
         {/* Emoji Popover */}
         <Popover open={isEmojiPopoverOpen} onOpenChange={setIsEmojiPopoverOpen}>
           <PopoverTrigger asChild>
@@ -466,6 +497,195 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
   );
 };
 
+// Suggestion List
+interface SuggestionListProps {
+  items: UserSearchResult[];
+  command: (user: { id: string; label: string }) => void;
+}
+
+export interface SuggestionListRef {
+  onKeyDown: (props: SuggestionKeyDownProps) => boolean;
+}
+
+const SuggestionList = forwardRef<SuggestionListRef, SuggestionListProps>((props, ref) => {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const selectItem = (index: number) => {
+    const item = props.items[index];
+    if (item) {
+      props.command({ id: item.username, label: item.username });
+    }
+  };
+
+  useEffect(() => setSelectedIndex(0), [props.items]);
+
+  useImperativeHandle(ref, () => ({
+    onKeyDown: ({ event }: SuggestionKeyDownProps): boolean => {
+      if (event.key === 'ArrowUp') {
+        setSelectedIndex((selectedIndex + props.items.length - 1) % props.items.length);
+        return true;
+      }
+      if (event.key === 'ArrowDown') {
+        setSelectedIndex((selectedIndex + 1) % props.items.length);
+        return true;
+      }
+      if (event.key === 'Enter') {
+        selectItem(selectedIndex);
+        return true;
+      }
+      return false;
+    },
+  }));
+
+  return (
+    <div className='z-50 w-80 rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent hover:scrollbar-thumb-zinc-600'>
+      {props.items.length ? (
+        props.items.map((item, index) => (
+          <button
+            key={item.id}
+            className={cn(
+              'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full text-left gap-2',
+              index === selectedIndex && 'bg-accent text-accent-foreground',
+            )}
+            onClick={() => selectItem(index)}>
+            <Avatar className='h-7 w-7'>
+              <AvatarImage src={item.avatarUrl} alt={item.username} />
+              <AvatarFallback>{item.displayName?.charAt(0)?.toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className='flex flex-col'>
+              <span className='font-medium leading-none'>{item.displayName}</span>
+              <span className='text-xs text-muted-foreground mt-1'>@{item.username}</span>
+            </div>
+          </button>
+        ))
+      ) : (
+        <div className='p-2 text-sm text-muted-foreground flex items-center justify-center py-4'>
+          No users found
+        </div>
+      )}
+    </div>
+  );
+});
+SuggestionList.displayName = 'SuggestionList';
+
+// Mention Suggestion Configuration
+
+type SuggestionRenderProps = SuggestionProps<UserSearchResult>;
+
+const suggestionConfig: MentionOptions['suggestion'] = {
+  items: async ({ query }: { query: string }): Promise<UserSearchResult[]> => {
+    if (!query || query.length < 1) {
+      return users.search('', 5);
+    }
+    return users.search(query, 7);
+  },
+
+  render: () => {
+    let component: ReactRenderer<SuggestionListRef, SuggestionListProps>;
+    let popup: Instance<Props>[];
+
+    return {
+      onStart: (props: SuggestionRenderProps) => {
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+        component = new ReactRenderer(SuggestionList, {
+          props,
+          editor: props.editor as any,
+        });
+
+        const clientRect = props.clientRect?.();
+        if (!clientRect) {
+          return;
+        }
+
+        popup = tippy('body', {
+          getReferenceClientRect: () => clientRect,
+          appendTo: () => document.body,
+          content: component.element,
+          showOnCreate: true,
+          interactive: true,
+          trigger: 'manual',
+          placement: 'bottom-start',
+          animation: 'shift-away',
+          theme: 'mention',
+          maxWidth: 'none',
+        });
+      },
+
+      onUpdate(props: SuggestionRenderProps) {
+        component.updateProps(props);
+
+        const clientRect = props.clientRect?.();
+        if (!clientRect) {
+          return;
+        }
+
+        popup[0].setProps({
+          getReferenceClientRect: () => clientRect,
+        });
+      },
+
+      onKeyDown(props: SuggestionKeyDownProps) {
+        if (props.event.key === 'Escape') {
+          popup[0].hide();
+          return true;
+        }
+        return !!component.ref?.onKeyDown(props);
+      },
+
+      onExit() {
+        if (popup && popup[0]) {
+          popup[0].destroy();
+        }
+        if (component) {
+          component.destroy();
+        }
+      },
+
+      command: ({
+        editor,
+        range,
+        props,
+      }: {
+        editor: CoreEditor;
+        range: Range;
+        props: UserSearchResult & { label?: string };
+      }) => {
+        const nodeAfter = editor.view.state.doc.nodeAt(range.to);
+        const overrideSpace = nodeAfter?.text?.startsWith(' ');
+
+        if (overrideSpace) {
+          range.to += 1;
+        }
+
+        editor
+          .chain()
+          .focus()
+          .insertContentAt(range, [
+            {
+              type: 'mention',
+              attrs: {
+                id: props.username,
+                label: props.username,
+              },
+            },
+            { type: 'text', text: ' ' },
+          ])
+          .run();
+
+        window.getSelection()?.collapseToEnd();
+      },
+
+      allow: ({ editor, range }: { editor: CoreEditor; range: Range }) => {
+        const $from = editor.state.doc.resolve(range.from);
+        const type = editor.schema.nodes.mention;
+        if (!type) return false;
+        const allow = !!$from.parent.type.contentMatch.matchType(type);
+        return allow;
+      },
+    };
+  },
+};
+
 export function RichTextEditor({
   content,
   onChange,
@@ -482,7 +702,7 @@ export function RichTextEditor({
     e.stopPropagation();
   };
 
-  const editor = useEditor({
+  const editorInstance = useEditor({
     extensions: [
       StarterKit.configure({
         bulletList: {
@@ -498,6 +718,8 @@ export function RichTextEditor({
             class: 'rounded-md bg-muted p-4',
           },
         },
+        bold: false,
+        italic: false,
       }),
       Placeholder.configure({
         placeholder,
@@ -512,6 +734,15 @@ export function RichTextEditor({
           class: 'uploaded-image',
         },
       }),
+      Mention.configure({
+        renderLabel({ node }) {
+          return `@${node.attrs.label}`;
+        },
+        HTMLAttributes: {
+          class: 'mention bg-blue-400/20 text-primary rounded px-1 py-0.5 font-semibold',
+        },
+        suggestion: suggestionConfig,
+      }) as any,
     ],
     content,
     editable: !readOnly,
@@ -533,16 +764,31 @@ export function RichTextEditor({
   });
 
   useEffect(() => {
-    if (editor && autoFocus) {
-      editor.commands.focus();
+    if (editorInstance && autoFocus) {
+      editorInstance.commands.focus('end');
     }
-  }, [editor, autoFocus]);
+  }, [editorInstance, autoFocus]);
 
   useEffect(() => {
-    if (editor && editor.getHTML() !== content) {
-      editor.commands.setContent(content);
+    if (editorInstance && editorInstance.getHTML() !== content) {
+      editorInstance.commands.setContent(content, false);
     }
-  }, [editor, content]);
+  }, [editorInstance, content]);
+
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .tippy-box[data-theme~='mention'] {
+        background-color: transparent;
+        border: none;
+        box-shadow: none;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   const handleRequestExpand = () => {
     if (!readOnly && variant === 'main' && !isExpanded) {
@@ -555,14 +801,15 @@ export function RichTextEditor({
       className={cn(
         'bg-background overflow-hidden',
         variant === 'main' && !isExpanded && 'hover:bg-accent/50 cursor-text',
+        !readOnly && 'border',
       )}
       onClick={handleRequestExpand}>
       {!readOnly && isExpanded && (
         <div onClick={handleMenuBarClick}>
-          <MenuBar editor={editor} />
+          <MenuBar editor={editorInstance} />
         </div>
       )}
-      <EditorContent editor={editor} />
+      <EditorContent editor={editorInstance} />
     </div>
   );
 }

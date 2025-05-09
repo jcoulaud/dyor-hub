@@ -53,6 +53,13 @@ export interface TokenStats {
   marketCap?: number;
   volume24h?: number;
 
+  // Trading statistics
+  volume24hChangePercent?: number;
+  buyCount24h?: number;
+  sellCount24h?: number;
+  uniqueWallets24h?: number;
+  holders?: number;
+
   // Supply information
   totalSupply: string;
   circulatingSupply: string;
@@ -191,4 +198,19 @@ export interface SingleBundleData extends TrenchBundle {
 // Overall structure after processing (bundles is an array)
 export interface ProcessedBundleData extends Omit<TrenchBundleApiResponse, 'bundles'> {
   bundles: SingleBundleData[];
+}
+
+export interface EarlyBuyerWallet {
+  address: string;
+  isHolding: boolean;
+  purchaseTxSignature?: string;
+  rank: number;
+}
+
+export interface EarlyBuyerInfo {
+  tokenMintAddress: string;
+  totalEarlyBuyersCount: number;
+  stillHoldingCount: number;
+  earlyBuyers: EarlyBuyerWallet[];
+  lastChecked: string;
 }

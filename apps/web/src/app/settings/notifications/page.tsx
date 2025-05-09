@@ -98,6 +98,11 @@ const notificationTypes: NotificationTypeConfig[] = [
     description: `Get notified when another user sends you a ${DYORHUB_SYMBOL} tip.`,
   },
   {
+    id: NotificationType.COMMENT_MENTION,
+    label: 'Comment Mention',
+    description: 'Get notified when someone mentions you in a comment',
+  },
+  {
     id: NotificationType.SYSTEM,
     label: 'System Notifications',
     description: 'Important system-wide notifications',

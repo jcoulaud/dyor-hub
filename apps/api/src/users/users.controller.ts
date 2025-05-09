@@ -1,4 +1,4 @@
-import { UserActivity, UserStats } from '@dyor-hub/types';
+import { UserActivity, UserSearchResult, UserStats } from '@dyor-hub/types';
 import {
   Body,
   Controller,
@@ -31,6 +31,7 @@ import { UpdateFollowPreferencesDto } from '../follows/dto/update-follow-prefere
 import { FollowsService } from '../follows/follows.service';
 import { TokenCallsService } from '../token-calls/token-calls.service';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserTokenCallStatsDto } from './dto/user-token-call-stats.dto';
 import { PaginatedResult, UsersService } from './users.service';
 
@@ -46,6 +47,19 @@ export class UsersController {
     @Inject(forwardRef(() => FollowsService))
     private readonly followsService: FollowsService,
   ) {}
+
+  @Public()
+  @Get('search')
+  async searchUsers(
+    @Query('query') query: string,
+    @Query('limit') limit?: string,
+  ): Promise<UserSearchResult[]> {
+    if (!query || query.length < 1) {
+      return [];
+    }
+    const numericLimit = limit ? parseInt(limit, 10) : 10;
+    return this.usersService.searchUsers(query, numericLimit);
+  }
 
   @UseGuards(OptionalAuthGuard)
   @Get('me/preferences')
@@ -72,6 +86,22 @@ export class UsersController {
       user.id,
       updatePreferencesDto.preferences,
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/profile')
+  async updateProfile(
+    @CurrentUser() user: { id: string },
+    @Body() updateProfileDto: UpdateProfileDto,
+  ): Promise<UserResponseDto> {
+    if (!user?.id) {
+      throw new NotFoundException('User not found to update profile');
+    }
+    const updatedUser = await this.usersService.updateUserProfile(
+      user.id,
+      updateProfileDto,
+    );
+    return UserResponseDto.fromEntity(updatedUser);
   }
 
   @Public()

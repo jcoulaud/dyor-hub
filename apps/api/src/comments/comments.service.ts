@@ -1,6 +1,8 @@
 import {
+  CommentMentionData,
   LatestComment,
   NotificationEventType,
+  NotificationType,
   PaginatedLatestCommentsResponse,
   UpdateCommentDto,
   VoteType,
@@ -23,6 +25,7 @@ import { TokenEntity } from '../entities/token.entity';
 import { UserFollows } from '../entities/user-follows.entity';
 import { UserEntity } from '../entities/user.entity';
 import { GamificationEvent } from '../gamification/services/activity-hooks.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PerspectiveService } from '../services/perspective.service';
 import { TelegramAdminService } from '../telegram/admin/telegram-admin.service';
 import { UploadsService } from '../uploads/uploads.service';
@@ -53,6 +56,7 @@ export class CommentsService {
     private readonly telegramAdminService: TelegramAdminService,
     private readonly eventEmitter: EventEmitter2,
     private readonly uploadsService: UploadsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // --- Helper Function to Process HTML for Images ---
@@ -105,6 +109,30 @@ export class CommentsService {
     }
 
     return $('body').html() || '';
+  }
+
+  // Helper function to extract plain text from HTML
+  private extractPlainText(html: string): string {
+    try {
+      const $ = cheerio.load(html);
+      return $('*').text();
+    } catch (error) {
+      this.logger.warn(
+        `Error parsing HTML for plain text extraction: ${error}`,
+      );
+      return '';
+    }
+  }
+
+  // Helper function to extract mention usernames from text
+  private extractMentions(text: string): string[] {
+    const mentionRegex = /@([a-zA-Z0-9_]{3,30})/g; // Regex for @username (adjust length as needed)
+    const matches = text.match(mentionRegex);
+    if (!matches) {
+      return [];
+    }
+    // Extract usernames without the '@'
+    return matches.map((mention) => mention.substring(1));
   }
 
   async findByTokenMintAddress(
@@ -613,6 +641,60 @@ export class CommentsService {
       comment.parentId = createCommentDto.parentId || null;
 
       const savedComment = await this.commentRepository.save(comment);
+
+      // Mention Notification
+      try {
+        const plainTextContent = this.extractPlainText(savedComment.content);
+        const mentionedUsernames = this.extractMentions(plainTextContent);
+        const uniqueMentions = new Set(mentionedUsernames);
+
+        if (uniqueMentions.size > 0) {
+          const potentialRecipients = await this.userRepository.find({
+            where: { username: In([...uniqueMentions]) },
+            select: ['id', 'username'],
+          });
+
+          // Filter out the author and ensure recipient exists
+          const recipientsToNotify = potentialRecipients.filter(
+            (recipient) => recipient.id !== savedComment.userId,
+          );
+
+          if (recipientsToNotify.length > 0) {
+            const notificationMessage = `@${user.username} mentioned you in a comment on $${token.symbol}.`;
+            const commentExcerpt = plainTextContent.substring(0, 150); // Use plain text excerpt
+
+            recipientsToNotify.forEach((recipientUser) => {
+              const metadata: CommentMentionData = {
+                commentId: savedComment.id,
+                tokenMintAddress: savedComment.tokenMintAddress,
+                senderId: savedComment.userId,
+                senderUsername: user.username,
+                commentExcerpt: commentExcerpt,
+              };
+
+              this.notificationsService
+                .createNotification(
+                  recipientUser.id,
+                  NotificationType.COMMENT_MENTION,
+                  notificationMessage,
+                  savedComment.id,
+                  'comment',
+                  metadata,
+                )
+                .catch((error) => {
+                  this.logger.error(
+                    `Failed to create mention notification for user ${recipientUser.id} from comment ${savedComment.id}: ${error.message}`,
+                  );
+                });
+            });
+          }
+        }
+      } catch (mentionError) {
+        this.logger.error(
+          `Error processing mentions for comment ${savedComment.id}: ${mentionError.message}`,
+          mentionError.stack,
+        );
+      }
 
       // Send notification to telegram channel
       try {

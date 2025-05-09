@@ -1,4 +1,8 @@
-import { UserPreferences, defaultUserPreferences } from '@dyor-hub/types';
+import {
+  defaultUserPreferences,
+  UserPreferences,
+  UserSearchResult,
+} from '@dyor-hub/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,8 +12,21 @@ import { CommentEntity } from '../entities/comment.entity';
 import { UserReputationEntity } from '../entities/user-reputation.entity';
 import { UserStreakEntity } from '../entities/user-streak.entity';
 import { UserEntity } from '../entities/user.entity';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserActivityDto } from './dto/user-activity.dto';
 import { UserStatsDto } from './dto/user-stats.dto';
+
+function processBio(bio: string): string {
+  if (!bio) return bio;
+
+  let processedBio = bio.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  processedBio = processedBio.replace(/(\n[\s\t]*){2,}/g, '\n\n');
+  processedBio = processedBio.replace(/\n{3,}/g, '\n\n');
+
+  processedBio = processedBio.trim();
+
+  return processedBio;
+}
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -51,6 +68,7 @@ export class UsersService {
           'user.username',
           'user.displayName',
           'user.avatarUrl',
+          'user.bio',
           'user.isAdmin',
           'user.preferences',
           'user.createdAt',
@@ -107,6 +125,26 @@ export class UsersService {
       ...defaultUserPreferences,
       ...updatedPreferences,
     };
+  }
+
+  async updateUserProfile(
+    userId: string,
+    updateProfileDto: UpdateProfileDto,
+  ): Promise<UserEntity> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+
+    if (updateProfileDto.displayName !== undefined) {
+      user.displayName = updateProfileDto.displayName;
+    }
+    if (updateProfileDto.bio !== undefined) {
+      user.bio = processBio(updateProfileDto.bio);
+    }
+
+    await this.userRepository.save(user);
+    return user;
   }
 
   async getUserStats(userId: string): Promise<UserStatsDto> {
@@ -420,6 +458,38 @@ export class UsersService {
         error,
       );
       throw error;
+    }
+  }
+
+  async searchUsers(
+    query: string,
+    limit: number = 10,
+  ): Promise<UserSearchResult[]> {
+    if (!query || query.trim().length < 1) {
+      return [];
+    }
+
+    try {
+      const users = await this.userRepository.find({
+        where: [
+          { username: ILike(`%${query}%`) },
+          { displayName: ILike(`%${query}%`) },
+        ],
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+        take: limit,
+        order: {
+          username: 'ASC',
+        },
+      });
+      return users;
+    } catch (error) {
+      this.logger.error(`Error searching users with query "${query}":`, error);
+      return [];
     }
   }
 }

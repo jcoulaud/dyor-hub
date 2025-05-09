@@ -104,7 +104,7 @@ export function UserMenu() {
             </DropdownMenuItem>
           </Link>
 
-          <Link href='/account/wallet'>
+          <Link href='/account/profile'>
             <DropdownMenuItem className='flex items-center gap-2 md:px-3 md:py-2.5 px-2.5 py-2 text-sm text-zinc-200 hover:text-white focus:text-white cursor-pointer rounded-lg hover:bg-zinc-800 focus:bg-zinc-800 transition-colors'>
               <UserCog className='h-4 w-4' />
               <span>Account</span>

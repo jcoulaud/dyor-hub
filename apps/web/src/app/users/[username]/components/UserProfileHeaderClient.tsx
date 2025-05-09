@@ -13,6 +13,60 @@ import { MessageSquare, Reply, Shield, ThumbsDown, ThumbsUp, Twitter } from 'luc
 import Image from 'next/image';
 import Link from 'next/link';
 
+function formatBioWithLinks(bio: string) {
+  if (!bio) return null;
+
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+  const lines = bio.replace(/\r\n/g, '\n').split('\n');
+
+  return (
+    <div className='whitespace-pre-line space-y-2'>
+      {lines.map((line, i) => {
+        if (!line.trim()) {
+          return <div key={i} className='h-4'></div>;
+        }
+
+        let lastIndex = 0;
+        const elements: React.ReactNode[] = [];
+        let match: RegExpExecArray | null;
+
+        urlRegex.lastIndex = 0;
+
+        while ((match = urlRegex.exec(line)) !== null) {
+          const url = match[0];
+          const index = match.index;
+
+          if (index > lastIndex) {
+            elements.push(
+              <span key={`text-${lastIndex}`}>{line.substring(lastIndex, index)}</span>,
+            );
+          }
+
+          elements.push(
+            <a
+              key={`link-${index}`}
+              href={url}
+              target='_blank'
+              rel='noopener noreferrer'
+              className='text-blue-400 hover:underline'>
+              {url}
+            </a>,
+          );
+
+          lastIndex = index + url.length;
+        }
+
+        if (lastIndex < line.length) {
+          elements.push(<span key={`text-${lastIndex}`}>{line.substring(lastIndex)}</span>);
+        }
+
+        return <div key={i}>{elements.length > 0 ? elements : line}</div>;
+      })}
+    </div>
+  );
+}
+
 interface UserProfileHeaderClientProps {
   profileUser: User & {
     followersCount?: number;
@@ -36,8 +90,8 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
       {/* Top Section: Avatar, Name, Twitter */}
       <div className='p-6 pb-4 relative'>
         <div className='absolute top-0 right-0 w-48 h-48 rounded-full bg-gradient-to-br from-blue-500/10 to-purple-600/10 blur-xl'></div>
-        <div className='flex flex-col md:flex-row md:items-center gap-4'>
-          <div className='w-20 h-20 rounded-full overflow-hidden border-2 border-white/5 shadow-xl relative mx-auto md:mx-0'>
+        <div className='flex flex-col md:flex-row md:items-start gap-4'>
+          <div className='w-20 h-20 rounded-full overflow-hidden border-2 border-white/5 shadow-xl relative mx-auto md:mx-0 md:mt-1'>
             {avatarUrl ? (
               <Image
                 src={avatarUrl}
@@ -54,9 +108,9 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
               </div>
             )}
           </div>
-          <div className='text-center md:text-left flex-1'>
+          <div className='text-center md:text-left flex-1 max-w-full'>
             <div className='flex flex-col md:flex-row md:items-start md:justify-between'>
-              <div>
+              <div className='flex-1 max-w-full'>
                 <div className='flex items-center gap-1 mb-1 md:hidden justify-center w-full'>
                   <ShareButton />
                   <TwitterShareButton
@@ -64,8 +118,8 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
                     userId={profileUser.id}
                   />
                 </div>
-                <div className='flex flex-col items-center md:items-start'>
-                  <h1 className='text-2xl font-bold text-white flex items-center gap-2'>
+                <div className='flex flex-col items-center md:items-start max-w-full'>
+                  <h1 className='text-2xl font-bold text-white flex items-center gap-2 flex-wrap'>
                     {profileUser.displayName}
                     <div className='hidden md:flex items-center gap-1'>
                       <ShareButton />
@@ -116,6 +170,14 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
                         </Link>
                       </div>
                     )}
+
+                  {profileUser.bio && (
+                    <div className='mt-3 max-w-3xl'>
+                      <div className='text-sm text-zinc-300/90 text-center md:text-left'>
+                        {formatBioWithLinks(profileUser.bio)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className='flex items-center gap-3 mt-3 md:mt-1 mx-auto md:mx-0'>

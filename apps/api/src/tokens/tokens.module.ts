@@ -4,12 +4,13 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { CommentsModule } from '../comments/comments.module';
-import { TokenEntity, WalletEntity } from '../entities';
+import { EarlyTokenBuyerEntity, TokenEntity, WalletEntity } from '../entities';
 import { CommentEntity } from '../entities/comment.entity';
 import { TokenSentimentEntity } from '../entities/token-sentiment.entity';
 import { TokenWatchlistEntity } from '../entities/token-watchlist.entity';
 import { TwitterUsernameHistoryEntity } from '../entities/twitter-username-history.entity';
 import { UserEntity } from '../entities/user.entity';
+import { WalletsModule } from '../wallets/wallets.module';
 import { WatchlistModule } from '../watchlist/watchlist.module';
 import { TokenSentimentController } from './token-sentiment.controller';
 import { TokenSentimentService } from './token-sentiment.service';
@@ -27,9 +28,11 @@ import { TwitterHistoryService } from './twitter-history.service';
       TokenWatchlistEntity,
       TokenSentimentEntity,
       UserEntity,
+      EarlyTokenBuyerEntity,
     ]),
     HttpModule,
     ConfigModule,
+    WalletsModule,
     forwardRef(() => WatchlistModule),
     forwardRef(() => AuthModule),
     forwardRef(() => CommentsModule),

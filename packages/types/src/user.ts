@@ -5,6 +5,7 @@ export interface User {
   username: string;
   displayName: string;
   avatarUrl?: string;
+  bio?: string;
   isAdmin: boolean;
   preferences?: Partial<UserPreferences>;
   primaryWalletAddress?: string;
@@ -18,6 +19,7 @@ export interface UserProfile extends User {
   twitterId?: string;
   twitterAccessToken?: string;
   twitterRefreshToken?: string;
+  bio?: string;
   preferences?: Record<string, any>;
 }
 
@@ -71,4 +73,11 @@ export interface UserFollows {
   notify_on_comment: boolean;
   notify_on_vote: boolean;
   created_at: string;
+}
+
+export interface UserSearchResult {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
 }

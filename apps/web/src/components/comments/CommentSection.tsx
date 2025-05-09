@@ -52,6 +52,25 @@ import { CommentInput } from './CommentInput';
 import { CopyLinkButton } from './CopyLinkButton';
 import { TwitterShareButton } from './TwitterShareButton';
 
+const processMentionsInHtml = (html: string): string => {
+  const mentionSpanRegex = /<span\s+[^>]*?class="mention[^>]*?>@([a-zA-Z0-9_-]+)<\/span>/g;
+
+  // Apply first replacement for TipTap spans
+  let processedHtml = html.replace(mentionSpanRegex, (match, username) => {
+    const cleanUsername = username.trim();
+    return `<a href="/users/${cleanUsername}" class="mention bg-blue-400/20 text-primary rounded px-1 py-0.5 font-semibold no-underline">@${cleanUsername}</a>`;
+  });
+
+  const plainMentionRegex = /(?<!\S)@([a-zA-Z0-9_-]+)(?!\S)/g;
+
+  // Apply second replacement
+  processedHtml = processedHtml.replace(plainMentionRegex, (match, username) => {
+    return `<a href="/users/${username}" class="mention bg-blue-400/20 text-primary rounded px-1 py-0.5 font-semibold no-underline">@${username}</a>`;
+  });
+
+  return processedHtml;
+};
+
 interface CommentSectionProps {
   tokenMintAddress: string;
   commentId?: string;
@@ -650,6 +669,8 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
         }
       };
 
+      const processedContent = processMentionsInHtml(comment.content);
+
       return (
         <div
           ref={commentElementRef}
@@ -794,7 +815,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
                       'prose prose-sm dark:prose-invert mt-1 max-w-none break-words',
                       comment.isRemoved && 'opacity-40',
                     )}
-                    dangerouslySetInnerHTML={{ __html: comment.content }}
+                    dangerouslySetInnerHTML={{ __html: processedContent }}
                   />
                 )}
 
