@@ -1,4 +1,9 @@
-# $DYORHUB Tokenomics
+---
+description: Learn about the $DYORHUB token, its distribution, and tokenomics model
+icon: coins
+---
+
+# Tokenomics
 
 The $DYORHUB token is the core utility token of the DYORHub platform — powering research, rewards, and token-gated features across the ecosystem.
 
@@ -16,21 +21,21 @@ Importantly, **$DYORHUB was launched using Pump.fun**, following a fully decentr
 
 We chose to launch $DYORHUB on [Pump.fun](https://pump.fun) because it guarantees a **rug-proof, fair, and immutable token distribution**, with no tricks or hidden allocations.
 
-Here’s what this means:
+Here's what this means:
 
-* **No presale**
-* **No private allocation**
-* **No dev mint**
-* **No wallet whitelist**
-* **No liquidity rug risk**
+- **No presale**
+- **No private allocation**
+- **No dev mint**
+- **No wallet whitelist**
+- **No liquidity rug risk**
 
 ### 🔐 Why This Matters
 
 Launching with pump.fun protects users and keeps the playing field level:
 
-* No centralized supply control
-* No team wallets selling on your head
-* No token rug risk
-* Easy on-chain verification
+- No centralized supply control
+- No team wallets selling on your head
+- No token rug risk
+- Easy on-chain verification
 
 We believe in **doing your own research** — and that starts with a fair launch.

@@ -6,6 +6,7 @@
 
 - [Useful Links](overview/useful-links.md)
 - [Team](overview/team.md)
+- [tokenomics](overview/tokenomics.md)
 
 ## Basics
 
