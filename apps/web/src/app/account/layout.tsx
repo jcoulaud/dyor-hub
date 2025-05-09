@@ -26,6 +26,17 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
 
             <nav className='flex flex-col space-y-1'>
               <Link
+                href='/account/profile'
+                className={`flex items-center gap-2 p-3 rounded-md ${
+                  pathname === '/account/profile'
+                    ? 'bg-primary/10 text-primary font-medium hover:bg-primary/15 transition-colors'
+                    : 'hover:bg-accent text-foreground hover:text-foreground/80 transition-colors'
+                }`}>
+                <User className='h-4 w-4' />
+                <span>Profile</span>
+              </Link>
+
+              <Link
                 href='/account/wallet'
                 className={`flex items-center gap-2 p-3 rounded-md ${
                   pathname === '/account/wallet' || pathname === '/account'

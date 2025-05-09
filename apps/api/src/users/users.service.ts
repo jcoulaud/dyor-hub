@@ -12,6 +12,7 @@ import { CommentEntity } from '../entities/comment.entity';
 import { UserReputationEntity } from '../entities/user-reputation.entity';
 import { UserStreakEntity } from '../entities/user-streak.entity';
 import { UserEntity } from '../entities/user.entity';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserActivityDto } from './dto/user-activity.dto';
 import { UserStatsDto } from './dto/user-stats.dto';
 
@@ -55,6 +56,7 @@ export class UsersService {
           'user.username',
           'user.displayName',
           'user.avatarUrl',
+          'user.bio',
           'user.isAdmin',
           'user.preferences',
           'user.createdAt',
@@ -111,6 +113,26 @@ export class UsersService {
       ...defaultUserPreferences,
       ...updatedPreferences,
     };
+  }
+
+  async updateUserProfile(
+    userId: string,
+    updateProfileDto: UpdateProfileDto,
+  ): Promise<UserEntity> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+
+    if (updateProfileDto.displayName !== undefined) {
+      user.displayName = updateProfileDto.displayName;
+    }
+    if (updateProfileDto.bio !== undefined) {
+      user.bio = updateProfileDto.bio;
+    }
+
+    await this.userRepository.save(user);
+    return user;
   }
 
   async getUserStats(userId: string): Promise<UserStatsDto> {

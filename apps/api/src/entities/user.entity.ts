@@ -42,6 +42,9 @@ export class UserEntity {
   @Column({ name: 'display_name', type: 'varchar' })
   displayName: string;
 
+  @Column({ name: 'bio', type: 'text', nullable: true })
+  bio: string | null;
+
   @Column({ name: 'avatar_url', type: 'varchar' })
   avatarUrl: string;
 
