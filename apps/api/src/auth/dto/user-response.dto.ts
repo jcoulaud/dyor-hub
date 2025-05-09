@@ -6,6 +6,7 @@ export class UserResponseDto {
   displayName: string;
   username: string;
   avatarUrl: string;
+  bio?: string;
   isAdmin: boolean;
   preferences?: Partial<UserPreferences>;
   primaryWalletAddress?: string;
@@ -50,6 +51,7 @@ export class UserResponseDto {
       displayName: user.displayName,
       username: user.username,
       avatarUrl: user.avatarUrl,
+      bio: user.bio ?? undefined,
       isAdmin: user.isAdmin || false,
       preferences: { ...defaultUserPreferences, ...(user.preferences || {}) },
       primaryWalletAddress: finalAddress,

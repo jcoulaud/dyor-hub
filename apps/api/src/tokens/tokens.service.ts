@@ -1184,7 +1184,7 @@ export class TokensService {
     );
 
     // 2. Get token data
-    let token = await this.tokenRepository.findOne({
+    const token = await this.tokenRepository.findOne({
       where: { mintAddress: tokenMintAddress },
     });
 

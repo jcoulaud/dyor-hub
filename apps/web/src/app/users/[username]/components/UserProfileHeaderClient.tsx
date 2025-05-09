@@ -36,8 +36,8 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
       {/* Top Section: Avatar, Name, Twitter */}
       <div className='p-6 pb-4 relative'>
         <div className='absolute top-0 right-0 w-48 h-48 rounded-full bg-gradient-to-br from-blue-500/10 to-purple-600/10 blur-xl'></div>
-        <div className='flex flex-col md:flex-row md:items-center gap-4'>
-          <div className='w-20 h-20 rounded-full overflow-hidden border-2 border-white/5 shadow-xl relative mx-auto md:mx-0'>
+        <div className='flex flex-col md:flex-row md:items-start gap-4'>
+          <div className='w-20 h-20 rounded-full overflow-hidden border-2 border-white/5 shadow-xl relative mx-auto md:mx-0 md:mt-1'>
             {avatarUrl ? (
               <Image
                 src={avatarUrl}
@@ -54,9 +54,9 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
               </div>
             )}
           </div>
-          <div className='text-center md:text-left flex-1'>
+          <div className='text-center md:text-left flex-1 max-w-full'>
             <div className='flex flex-col md:flex-row md:items-start md:justify-between'>
-              <div>
+              <div className='flex-1 max-w-full'>
                 <div className='flex items-center gap-1 mb-1 md:hidden justify-center w-full'>
                   <ShareButton />
                   <TwitterShareButton
@@ -64,8 +64,8 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
                     userId={profileUser.id}
                   />
                 </div>
-                <div className='flex flex-col items-center md:items-start'>
-                  <h1 className='text-2xl font-bold text-white flex items-center gap-2'>
+                <div className='flex flex-col items-center md:items-start max-w-full'>
+                  <h1 className='text-2xl font-bold text-white flex items-center gap-2 flex-wrap'>
                     {profileUser.displayName}
                     <div className='hidden md:flex items-center gap-1'>
                       <ShareButton />
@@ -116,6 +116,14 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
                         </Link>
                       </div>
                     )}
+
+                  {profileUser.bio && (
+                    <div className='mt-3 max-w-3xl'>
+                      <p className='text-sm text-zinc-300/90 text-center md:text-left'>
+                        {profileUser.bio}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className='flex items-center gap-3 mt-3 md:mt-1 mx-auto md:mx-0'>
