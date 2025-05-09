@@ -25,8 +25,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 const profileFormSchema = z.object({
-  displayName: z.string().max(50, 'Display name cannot exceed 50 characters'),
-  bio: z.string().max(500, 'Bio cannot exceed 500 characters'),
+  displayName: z.string().max(30, 'Display name cannot exceed 30 characters'),
+  bio: z.string().max(400, 'Bio cannot exceed 400 characters'),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
