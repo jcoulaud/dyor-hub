@@ -79,7 +79,7 @@ export class TokenGatedGuard implements CanActivate {
           `User ${user.id} denied token gated access. Balance: ${currentBalanceNum}, Required: ${minHoldingNum}`,
         );
         throw new ForbiddenException({
-          message: `Insufficient token balance. Requires ${minHoldingNum} tokens.`,
+          message: 'Insufficient token balance.',
           currentBalance: currentBalanceNum.toString(),
           requiredBalance: minHoldingNum.toString(),
         });

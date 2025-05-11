@@ -4,5 +4,6 @@ export const DYORHUB_SYMBOL = '$DYORHUB';
 export const MIN_TOKEN_HOLDING_FOR_FEED = 100000;
 export const MIN_TOKEN_HOLDING_FOR_FOLDERS = 100000;
 export const MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS = 500000;
+export const MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS = 1500000;
 
-export const MIN_TOKEN_HOLDING_KEY = 'minTokenHolding';
+export const MIN_TOKEN_HOLDING_KEY = 'minDyorHubHolding';
