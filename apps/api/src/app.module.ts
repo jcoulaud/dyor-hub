@@ -8,6 +8,7 @@ import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { OptionalAuthGuard } from './auth/optional-auth.guard';
 import { CommentsModule } from './comments/comments.module';
+import { CreditsModule } from './credits/credits.module';
 import dataSource from './datasource';
 import {
   BadgeEntity,
@@ -98,6 +99,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     UploadsModule,
     ModerationModule,
     TokenHolderAnalysisModule,
+    CreditsModule,
   ],
   controllers: [AppController],
   providers: [

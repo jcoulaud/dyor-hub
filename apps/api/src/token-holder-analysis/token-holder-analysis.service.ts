@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import { CreditsService } from '../credits/credits.service';
 import { TokensService } from '../tokens/tokens.service';
 
 export interface BirdeyeTokenTradeAssetDetail {
@@ -65,11 +66,49 @@ export class TokenHolderAnalysisService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly tokensService: TokensService,
+    private readonly creditsService: CreditsService,
   ) {}
 
+  private async getTokenAgeInMonths(tokenAddress: string): Promise<number> {
+    this.logger.log(`Fetching age for token: ${tokenAddress}`);
+    const tokenEntity = await this.tokensService.getTokenData(tokenAddress);
+    if (tokenEntity && tokenEntity.creationTime) {
+      const ageInMillis = Date.now() - tokenEntity.creationTime.getTime();
+      const ageInMonths = ageInMillis / (1000 * 60 * 60 * 24 * (365.25 / 12));
+      return ageInMonths;
+    }
+    this.logger.warn(
+      `Could not determine creation time for ${tokenAddress}, assuming 0 months old for cost calculation.`,
+    );
+    return 0;
+  }
+
+  private calculateCreditCost(tokenAgeInMonths: number): number {
+    const BASE_COST = 1;
+    const costPerFullYear = 1;
+
+    const fullYears = Math.floor(tokenAgeInMonths / 12);
+    const cost = BASE_COST + fullYears * costPerFullYear;
+
+    return Math.max(1, cost);
+  }
+
   async getTopHolderWalletActivity(
+    userId: string,
     tokenAddress: string,
   ): Promise<TrackedWalletHolderStats[]> {
+    const tokenAgeInMonths = await this.getTokenAgeInMonths(tokenAddress);
+    const creditCost = this.calculateCreditCost(tokenAgeInMonths);
+    this.logger.log(
+      `Credit cost for ${tokenAddress} (age: ${tokenAgeInMonths.toFixed(1)} months) is ${creditCost} credits.`,
+    );
+
+    await this.creditsService.deductCredits(
+      userId,
+      creditCost,
+      `Token Holder Analysis for ${tokenAddress}`,
+    );
+
     const tokenEntity = await this.tokensService.getTokenData(tokenAddress);
     if (!tokenEntity) {
       throw new NotFoundException(`Token ${tokenAddress} not found.`);
@@ -154,8 +193,8 @@ export class TokenHolderAnalysisService {
                 allTradesForWalletUnsorted.push(...response.data.data.items);
                 if (
                   response.data.data.has_next &&
-                  response.data.data.items.length > 0 && // Ensure items.length > 0 to prevent infinite loop on empty page with has_next true
-                  response.data.data.items.length === limit // Only continue if a full page was returned
+                  response.data.data.items.length > 0 &&
+                  response.data.data.items.length === limit
                 ) {
                   offset += limit;
                 } else {

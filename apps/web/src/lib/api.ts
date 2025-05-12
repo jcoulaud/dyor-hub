@@ -8,6 +8,8 @@ import {
   Comment,
   CreateCommentDto,
   CreateTokenCallInput,
+  CreditPackage,
+  CreditTransaction,
   EarlyBuyerInfo,
   FeedActivity,
   GetTippingEligibilityResponseDto,
@@ -2204,5 +2206,35 @@ export const uploads = {
       method: 'POST',
       body: data,
     });
+  },
+};
+
+export const credits = {
+  getAvailablePackages: async (): Promise<CreditPackage[]> => {
+    return api<CreditPackage[]>('credits/packages');
+  },
+
+  purchaseCredits: async (data: {
+    packageId: string;
+    solanaTransactionId: string;
+  }): Promise<User> => {
+    return api<User>('credits/purchase', { method: 'POST', body: data });
+  },
+
+  getBalance: async (): Promise<{ credits: number }> => {
+    return api<{ credits: number }>('credits/balance');
+  },
+
+  getHistory: async (params: {
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResult<CreditTransaction>> => {
+    const urlParams = new URLSearchParams();
+    if (params.page) urlParams.set('page', params.page.toString());
+    if (params.limit) urlParams.set('limit', params.limit.toString());
+    const queryString = urlParams.toString();
+    return api<PaginatedResult<CreditTransaction>>(
+      `credits/history${queryString ? `?${queryString}` : ''}`,
+    );
   },
 };
