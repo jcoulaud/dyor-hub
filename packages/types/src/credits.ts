@@ -1,5 +1,3 @@
-import type { User } from './user';
-
 export interface CreditPackage {
   id: string;
   name: string;
@@ -16,10 +14,23 @@ export enum CreditTransactionType {
 export interface CreditTransaction {
   id: string;
   userId: string;
-  user?: User;
   type: CreditTransactionType;
   amount: number;
-  solanaTransactionId?: string;
-  details?: string;
+  solanaTransactionId?: string | null;
+  details?: string | null;
   createdAt: Date;
+}
+
+export interface CreateCreditPackageDto {
+  name: string;
+  credits: number;
+  solPrice: number;
+  isActive?: boolean;
+}
+
+export interface UpdateCreditPackageDto {
+  name?: string;
+  credits?: number;
+  solPrice?: number;
+  isActive?: boolean;
 }

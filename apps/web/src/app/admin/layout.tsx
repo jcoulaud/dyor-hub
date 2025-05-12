@@ -7,6 +7,7 @@ import {
   BadgeCheck,
   BarChart3,
   Code,
+  Coins,
   Flame,
   Medal,
   ShieldCheck,
@@ -50,6 +51,11 @@ const navItems = [
     title: 'Users',
     href: '/admin/users',
     icon: Users,
+  },
+  {
+    title: 'Credits',
+    href: '/admin/credits',
+    icon: Coins,
   },
   {
     title: 'Dev',

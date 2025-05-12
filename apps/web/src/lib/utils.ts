@@ -212,3 +212,14 @@ export const calculateMultiplier = (
 
   return tgtPrice / refPrice;
 };
+
+export function formatDateTime(dateString: string | Date): string {
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}

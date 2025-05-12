@@ -8,19 +8,27 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseBoolPipe,
   ParseIntPipe,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../admin/admin.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UserEntity } from '../entities/user.entity';
 import { CreditsService } from './credits.service';
+import { CreateCreditPackageDto } from './dto/create-credit-package.dto';
 import { PurchaseCreditsDto } from './dto/purchase-credits.dto';
+import { UpdateCreditPackageDto } from './dto/update-credit-package.dto';
 
 @Controller('credits')
 export class CreditsController {
@@ -102,5 +110,39 @@ export class CreditsController {
         totalPages: result.totalPages,
       },
     };
+  }
+
+  @Get('packages/admin')
+  @UseGuards(AuthGuard, AdminGuard)
+  async findAllPackages(
+    @Query('includeInactive', new DefaultValuePipe(false), ParseBoolPipe)
+    includeInactive?: boolean,
+  ): Promise<CreditPackage[]> {
+    return this.creditsService.findAllPackages(includeInactive);
+  }
+
+  @Post('packages/admin')
+  @UseGuards(AuthGuard, AdminGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async createPackage(
+    @Body() createDto: CreateCreditPackageDto,
+  ): Promise<CreditPackage> {
+    return this.creditsService.createPackage(createDto);
+  }
+
+  @Put('packages/admin/:id')
+  @UseGuards(AuthGuard, AdminGuard)
+  async updatePackage(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateCreditPackageDto,
+  ): Promise<CreditPackage> {
+    return this.creditsService.updatePackage(id, updateDto);
+  }
+
+  @Delete('packages/admin/:id')
+  @UseGuards(AuthGuard, AdminGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deletePackage(@Param('id') id: string): Promise<void> {
+    return this.creditsService.deletePackage(id);
   }
 }

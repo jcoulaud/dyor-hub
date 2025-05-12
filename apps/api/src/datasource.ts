@@ -1,6 +1,7 @@
 import { config } from 'dotenv';
 import * as path from 'path';
 import { DataSource, DataSourceOptions } from 'typeorm';
+import { CreditPackage } from './credits/entities/credit-package.entity';
 import { CreditTransaction } from './credits/entities/credit-transaction.entity';
 import {
   BadgeEntity,
@@ -74,6 +75,7 @@ export const dataSourceOptions: DataSourceOptions = {
     Referral,
     Tip,
     CreditTransaction,
+    CreditPackage,
   ],
   migrations: migrationsPath,
   migrationsTableName: 'typeorm_migrations',

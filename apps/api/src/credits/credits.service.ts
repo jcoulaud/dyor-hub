@@ -12,6 +12,8 @@ import { Repository } from 'typeorm';
 import { DYORHUB_MARKETING_ADDRESS } from '../common/constants';
 import { UserEntity } from '../entities/user.entity';
 import { SolanaRpcService } from '../solana/solana-rpc.service';
+import { CreateCreditPackageDto } from './dto/create-credit-package.dto';
+import { UpdateCreditPackageDto } from './dto/update-credit-package.dto';
 import { CreditPackage } from './entities/credit-package.entity';
 import { CreditTransaction } from './entities/credit-transaction.entity';
 
@@ -248,10 +250,6 @@ export class CreditsService {
     expectedSolAmount: number,
     projectWalletAddress: string,
   ): Promise<ParsedTransactionWithMeta | null> {
-    this.logger.log(
-      `Verifying SOL purchase tx: ${signature} for ${expectedSolAmount} SOL to ${projectWalletAddress}`,
-    );
-
     const LAMPORTS_PER_SOL = 1_000_000_000;
     const expectedLamports = Math.round(expectedSolAmount * LAMPORTS_PER_SOL);
 
@@ -281,18 +279,12 @@ export class CreditsService {
           instruction.parsed.type === 'transfer'
         ) {
           const parsedInfo = instruction.parsed.info;
-          this.logger.debug(
-            `Found system transfer in tx ${signature}: From ${parsedInfo.source} To ${parsedInfo.destination} Amount ${parsedInfo.lamports} lamports`,
-          );
 
           if (
             parsedInfo.destination === projectWalletAddress &&
             parsedInfo.lamports === expectedLamports
           ) {
             transferVerified = true;
-            this.logger.log(
-              `Successfully verified SOL transfer in tx ${signature}: ${parsedInfo.lamports} lamports from ${parsedInfo.source} to ${parsedInfo.destination}`,
-            );
             break;
           }
         }
@@ -312,6 +304,52 @@ export class CreditsService {
         error.stack,
       );
       return null;
+    }
+  }
+
+  async findAllPackages(
+    includeInactive: boolean = false,
+  ): Promise<CreditPackage[]> {
+    const whereCondition: { isActive?: boolean } = {};
+    if (!includeInactive) {
+      whereCondition.isActive = true;
+    }
+    return this.creditPackageRepository.find({
+      where: whereCondition,
+      order: { credits: 'ASC' },
+    });
+  }
+
+  async createPackage(
+    createDto: CreateCreditPackageDto,
+  ): Promise<CreditPackage> {
+    const newPackage = this.creditPackageRepository.create(createDto);
+    return this.creditPackageRepository.save(newPackage);
+  }
+
+  async updatePackage(
+    id: string,
+    updateDto: UpdateCreditPackageDto,
+  ): Promise<CreditPackage> {
+    const existingPackage = await this.creditPackageRepository.findOneBy({
+      id,
+    });
+    if (!existingPackage) {
+      throw new NotFoundException(`Credit package with ID "${id}" not found`);
+    }
+
+    const updatedPackage = this.creditPackageRepository.merge(
+      existingPackage,
+      updateDto,
+    );
+
+    return this.creditPackageRepository.save(updatedPackage);
+  }
+
+  async deletePackage(id: string): Promise<void> {
+    const result = await this.creditPackageRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Credit package with ID "${id}" not found`);
     }
   }
 }

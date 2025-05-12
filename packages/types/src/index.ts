@@ -19,14 +19,16 @@ export * from './vote';
 export * from './wallet';
 export * from './watchlist';
 
+export interface PaginatedMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface PaginatedResult<T> {
   data: T[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
+  meta: PaginatedMeta;
 }
 
 export interface TokenGatedErrorData {

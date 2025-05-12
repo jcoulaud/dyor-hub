@@ -1,4 +1,5 @@
 export const CONTRACT_ADDRESS = '2MCmXsjSXHoQYR6ckg6Af4mhQKDMJMGy6JKh8C4Qpump';
+export const DYORHUB_MARKETING_ADDRESS = 'B5BwurzzkE1c6S4mrbcuenBTA3F7WwCWQP59dtScbsgx';
 export const DYORHUB_SYMBOL = '$DYORHUB';
 export const DYORHUB_DECIMALS = 6;
 export const DISCORD_URL = 'https://discord.gg/MDw6vG8E3y';

@@ -7,6 +7,7 @@ import {
   Badge as BadgeType,
   Comment,
   CreateCommentDto,
+  CreateCreditPackageDto,
   CreateTokenCallInput,
   CreditPackage,
   CreditTransaction,
@@ -44,6 +45,7 @@ import {
   TopStreakUsers,
   TrackedWalletHolderStats,
   TwitterUsernameHistoryEntity,
+  UpdateCreditPackageDto,
   User,
   UserActivity,
   UserBadge,
@@ -2225,16 +2227,41 @@ export const credits = {
     return api<{ credits: number }>('credits/balance');
   },
 
-  getHistory: async (params: {
-    page?: number;
-    limit?: number;
-  }): Promise<PaginatedResult<CreditTransaction>> => {
-    const urlParams = new URLSearchParams();
-    if (params.page) urlParams.set('page', params.page.toString());
-    if (params.limit) urlParams.set('limit', params.limit.toString());
-    const queryString = urlParams.toString();
-    return api<PaginatedResult<CreditTransaction>>(
-      `credits/history${queryString ? `?${queryString}` : ''}`,
-    );
+  getHistory: async (
+    params: { page?: number; limit?: number } = {},
+  ): Promise<PaginatedResult<CreditTransaction>> => {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.set('page', params.page.toString());
+    if (params.limit) searchParams.set('limit', params.limit.toString());
+    return api(`/credits/history?${searchParams.toString()}`);
   },
+
+  // --- Admin Credit Package Functions Nested ---
+  admin: {
+    findAllPackages: async (includeInactive: boolean = false): Promise<CreditPackage[]> => {
+      const query = includeInactive ? '?includeInactive=true' : '';
+      return api(`/credits/packages/admin${query}`);
+    },
+
+    createPackage: async (data: CreateCreditPackageDto): Promise<CreditPackage> => {
+      return api('/credits/packages/admin', {
+        method: 'POST',
+        body: data,
+      });
+    },
+
+    updatePackage: async (id: string, data: UpdateCreditPackageDto): Promise<CreditPackage> => {
+      return api(`/credits/packages/admin/${id}`, {
+        method: 'PUT',
+        body: data,
+      });
+    },
+
+    deletePackage: async (id: string): Promise<void> => {
+      return api(`/credits/packages/admin/${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+  // --- End Admin Functions ---
 };
