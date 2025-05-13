@@ -34,18 +34,20 @@ export interface Comment {
   isEdited: boolean;
   type: CommentType;
   tokenCallId: string | null;
-  tokenCall: TokenCallDetails | null;
+  tokenCall?: TokenCallDetails | null;
   removedBy: {
     id: string;
     isSelf: boolean;
   } | null;
   replies?: Comment[];
+  marketCapAtCreation?: number | null;
 }
 
 export interface LatestComment {
   id: string;
   content: string;
   createdAt: string;
+  marketCapAtCreation?: number | null;
   token: {
     tokenMintAddress: string;
     symbol: string;
@@ -63,6 +65,7 @@ export interface CreateCommentDto {
   content: string;
   tokenMintAddress: string;
   parentId?: string;
+  marketCapAtCreation?: number;
 }
 
 export interface UpdateCommentDto {

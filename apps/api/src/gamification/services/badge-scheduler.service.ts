@@ -43,15 +43,11 @@ export class BadgeSchedulerService {
   @Cron('0 */15 * * * *')
   async handlePeriodicBadgeCheck() {
     if (this.isPeriodicJobRunning) {
-      this.logger.warn(
-        'Skipping periodic badge check run - previous job still active.',
-      );
       return;
     }
 
     this.isPeriodicJobRunning = true;
     const startTime = Date.now();
-    this.logger.log(`Starting periodic badge check job...`);
 
     try {
       const activeSince = new Date(Date.now() - 60 * 60 * 1000);
@@ -66,14 +62,9 @@ export class BadgeSchedulerService {
       const userIdsToCheck = recentUsers.map((u) => u.userId);
 
       if (userIdsToCheck.length === 0) {
-        this.logger.log('No recently active users found to check badges for.');
         this.isPeriodicJobRunning = false; // Ensure flag is reset
         return;
       }
-
-      this.logger.log(
-        `Found ${userIdsToCheck.length} recently active users to check badges for.`,
-      );
 
       let usersProcessed = 0;
       let totalBadgesAwarded = 0;
@@ -93,9 +84,6 @@ export class BadgeSchedulerService {
       }
 
       const duration = Date.now() - startTime;
-      this.logger.log(
-        `Finished periodic badge check job in ${duration}ms. Processed ${usersProcessed}/${userIdsToCheck.length} users, awarded ${totalBadgesAwarded} badges.`,
-      );
     } catch (error) {
       this.logger.error(
         `Failed to complete periodic badge check job: ${error.message}`,
@@ -113,15 +101,11 @@ export class BadgeSchedulerService {
   @Cron('1 0 * * MON')
   async handleWeeklyBadgeCheck() {
     if (this.isWeeklyJobRunning) {
-      this.logger.warn(
-        'Skipping weekly leaderboard badge check run - previous job still active.',
-      );
       return;
     }
 
     this.isWeeklyJobRunning = true;
     const startTime = Date.now();
-    this.logger.log(`Starting weekly leaderboard badge check job...`);
     let totalAwardedCount = 0;
     let totalCheckedBadges = 0;
 
@@ -135,13 +119,10 @@ export class BadgeSchedulerService {
       });
 
       if (weeklyPercentBadges.length === 0) {
-        this.logger.log('No active weekly percentile badges found to process.');
         this.isWeeklyJobRunning = false;
         return;
       }
-      this.logger.log(
-        `Found ${weeklyPercentBadges.length} weekly percentile badges to process.`,
-      );
+
       totalCheckedBadges = weeklyPercentBadges.length;
 
       // 2. Get total ranked users for the relevant leaderboard (Weekly Reputation)
@@ -155,9 +136,6 @@ export class BadgeSchedulerService {
       const totalRankedUsers = leaderboardMetaResponse.meta?.total;
 
       if (totalRankedUsers === undefined || totalRankedUsers === 0) {
-        this.logger.log(
-          'No users found on the Weekly Reputation leaderboard. Skipping weekly awards.',
-        );
         this.isWeeklyJobRunning = false;
         return;
       }
@@ -166,7 +144,6 @@ export class BadgeSchedulerService {
       for (const badge of weeklyPercentBadges) {
         let awardedForThisBadge = 0;
         try {
-          this.logger.log(`Processing badge: ${badge.name} (ID: ${badge.id})`);
           // Calculate how many users represent the target percentile
           const targetPercentile = badge.thresholdValue;
           const targetCount = Math.ceil(
@@ -174,7 +151,6 @@ export class BadgeSchedulerService {
           );
 
           if (targetCount <= 0) {
-            this.logger.log(`Target count for ${badge.name} is 0. Skipping.`);
             continue; // Skip this badge if percentile threshold results in 0 users
           }
 
@@ -188,15 +164,8 @@ export class BadgeSchedulerService {
           const topUserIds = topUsersResponse.users.map((u) => u.userId);
 
           if (topUserIds.length === 0) {
-            this.logger.log(
-              `No users found for top ${targetPercentile}% for badge ${badge.name}. Skipping.`,
-            );
             continue;
           }
-
-          this.logger.log(
-            `Identified ${topUserIds.length} users potentially eligible for ${badge.name}.`,
-          );
 
           // Find which of these top users already have this specific badge
           const existingUserBadges = await this.userBadgeRepository.find({
@@ -210,10 +179,6 @@ export class BadgeSchedulerService {
           // Determine who needs the badge awarded
           const usersToAward = topUserIds.filter(
             (userId) => !usersWhoHaveBadge.has(userId),
-          );
-
-          this.logger.log(
-            `Awarding ${badge.name} to ${usersToAward.length} new users.`,
           );
 
           // Award the badge
@@ -232,9 +197,6 @@ export class BadgeSchedulerService {
                 badgeName: badge.name,
               });
             } catch (awardError) {
-              this.logger.error(
-                `Failed to award badge ${badge.id} to user ${userId}: ${awardError.message}`,
-              );
               // Continue to next user
             }
           }
@@ -249,9 +211,6 @@ export class BadgeSchedulerService {
       }
 
       const duration = Date.now() - startTime;
-      this.logger.log(
-        `Finished weekly leaderboard badge check job in ${duration}ms. Processed ${totalCheckedBadges} badges, awarded ${totalAwardedCount} total badges.`,
-      );
     } catch (error) {
       this.logger.error(
         `Failed to complete weekly leaderboard badge check job: ${error.message}`,

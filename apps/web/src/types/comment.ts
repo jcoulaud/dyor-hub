@@ -21,4 +21,5 @@ export type CommentType = {
     id: string;
     isSelf: boolean;
   } | null;
+  marketCapAtCreation?: number | null;
 };

@@ -76,6 +76,7 @@ interface CommentSectionProps {
   commentId?: string;
   verifiedCreatorUserId?: string | null;
   tokenSymbol?: string;
+  currentMarketCap?: number | null;
 }
 
 export interface CommentSectionHandle {
@@ -120,7 +121,13 @@ const getStatusText = (status: TokenCallStatus) => {
 };
 
 export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionProps>(
-  ({ tokenMintAddress, commentId, verifiedCreatorUserId, tokenSymbol }, ref) => {
+  ({ tokenMintAddress, commentId, verifiedCreatorUserId, tokenSymbol, currentMarketCap }, ref) => {
+    const marketCapRef = useRef(currentMarketCap);
+
+    useEffect(() => {
+      marketCapRef.current = currentMarketCap;
+    }, [currentMarketCap]);
+
     const [commentsList, setComments] = useState<CommentType[]>([]);
     const [sortBy, setSortBy] = useState<SortOption>('best');
     const [previousSort, setPreviousSort] = useState<SortOption | null>(null);
@@ -460,6 +467,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
           content: commentContent,
           tokenMintAddress,
           parentId,
+          marketCapAtCreation: marketCapRef.current ?? undefined,
         };
 
         try {
@@ -735,6 +743,11 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
                       comment.isRemoved && 'opacity-60',
                     )}>
                     {timeAgo}
+                    {comment.marketCapAtCreation && (
+                      <span className='ml-1 text-zinc-500'>
+                        · ${formatLargeNumber(comment.marketCapAtCreation)} MC
+                      </span>
+                    )}
                     {comment.isEdited && <span className='ml-1 italic'>(edited)</span>}
                   </span>
                 </div>
