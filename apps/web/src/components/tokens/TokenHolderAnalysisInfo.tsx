@@ -614,8 +614,8 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
                   <stop offset='100%' stopColor='#ef4444' stopOpacity='0.95' />
                 </linearGradient>
                 <linearGradient id='otherGradient' x1='0' y1='0' x2='0' y2='1'>
-                  <stop offset='0%' stopColor='#64748b' stopOpacity='0.7' />{' '}
-                  <stop offset='100%' stopColor='#64748b' stopOpacity='0.85' />{' '}
+                  <stop offset='0%' stopColor='#64748b' stopOpacity='0.7' />
+                  <stop offset='100%' stopColor='#64748b' stopOpacity='0.85' />
                 </linearGradient>
               </defs>
 
@@ -683,7 +683,7 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
                   d={`M 100 100 
                     L ${100 + 70 * Math.sin((diamondHandsPercentage / 100) * Math.PI * 2)} 
                       ${100 - 70 * Math.cos((diamondHandsPercentage / 100) * Math.PI * 2)} 
-                    A 70 70 0 ${paperHandsPercentage > 50 ? 1 : 0} 1 
+                    A 70 70 0 ${(paperHandsPercentage / 100) * Math.PI * 2 > Math.PI ? 1 : 0} 1 
                       ${100 + 70 * Math.sin(((diamondHandsPercentage + paperHandsPercentage) / 100) * Math.PI * 2)} 
                       ${100 - 70 * Math.cos(((diamondHandsPercentage + paperHandsPercentage) / 100) * Math.PI * 2)} 
                     Z`}
@@ -699,9 +699,9 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
                   d={`M 100 100 
                     L ${100 + 70 * Math.sin(((diamondHandsPercentage + paperHandsPercentage) / 100) * Math.PI * 2)} 
                       ${100 - 70 * Math.cos(((diamondHandsPercentage + paperHandsPercentage) / 100) * Math.PI * 2)} 
-                    A 70 70 0 ${otherHoldersPercentage > 50 && diamondHandsPercentage + paperHandsPercentage === 0 ? 1 : otherHoldersPercentage + diamondHandsPercentage + paperHandsPercentage > 50 && diamondHandsPercentage + paperHandsPercentage > 0 ? 1 : 0} 1 
-                      ${100 + 70 * Math.sin(((diamondHandsPercentage + paperHandsPercentage + otherHoldersPercentage) / 100) * Math.PI * 2)} 
-                      ${100 - 70 * Math.cos(((diamondHandsPercentage + paperHandsPercentage + otherHoldersPercentage) / 100) * Math.PI * 2)} 
+                    A 70 70 0 ${(otherHoldersPercentage / 100) * Math.PI * 2 > Math.PI ? 1 : 0} 1 
+                      ${100 + 70 * Math.sin(2 * Math.PI)} 
+                      ${100 - 70 * Math.cos(2 * Math.PI)} 
                     Z`}
                   fill='url(#otherGradient)'
                   stroke='#18181b'
