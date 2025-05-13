@@ -2,7 +2,7 @@
 
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { Separator } from '@/components/ui/separator';
-import { BadgeCheck, Flame, Gift, User, Users, WalletCards } from 'lucide-react';
+import { BadgeCheck, Coins, Flame, Gift, User, Users, WalletCards } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -89,6 +89,17 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                 }`}>
                 <Users className='h-4 w-4' />
                 <span>Referrals</span>
+              </Link>
+
+              <Link
+                href='/account/credits'
+                className={`flex items-center gap-2 p-3 rounded-md ${
+                  pathname === '/account/credits'
+                    ? 'bg-primary/10 text-primary font-medium hover:bg-primary/15 transition-colors'
+                    : 'hover:bg-accent text-foreground hover:text-foreground/80 transition-colors'
+                }`}>
+                <Coins className='h-4 w-4' />
+                <span>Credits</span>
               </Link>
             </nav>
           </aside>

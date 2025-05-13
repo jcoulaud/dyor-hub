@@ -85,7 +85,6 @@ export class TokenGatedGuard implements CanActivate {
         });
       }
 
-      this.logger.log(`User ${user.id} granted token gated access.`);
       return true;
     } catch (error) {
       if (error instanceof ForbiddenException) {

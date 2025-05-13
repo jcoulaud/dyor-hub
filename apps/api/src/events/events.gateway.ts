@@ -1,3 +1,4 @@
+import { TrackedWalletHolderStats } from '@dyor-hub/types';
 import { Logger } from '@nestjs/common';
 import {
   OnGatewayConnection,
@@ -11,31 +12,46 @@ import { parse } from 'cookie';
 import { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { JwtPayload } from '../auth/interfaces/auth.types';
-import { NotificationEntity } from '../entities';
 
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'https://localhost:3000',
+  origin: process.env.CLIENT_URL || true,
   methods: ['GET', 'POST'],
   credentials: true,
+  allowedHeaders: ['cookie', 'Cookie', 'authorization', 'Authorization'],
 };
 
-@WebSocketGateway({ namespace: '/notifications', cors: corsOptions })
-export class NotificationsGateway
+export interface AnalysisProgressEvent {
+  status: 'analyzing' | 'complete' | 'error' | 'queued';
+  message?: string;
+  error?: string;
+  analysisData?: TrackedWalletHolderStats[];
+  currentWallet?: number;
+  totalWallets?: number;
+  currentWalletAddress?: string;
+  tradesFound?: number;
+  sessionId?: string;
+}
+
+@WebSocketGateway({
+  namespace: '/analysis',
+  cors: corsOptions,
+})
+export class EventsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
-  // Inject WebSocket Server instance
   @WebSocketServer()
   server: Server;
 
-  private readonly logger = new Logger(NotificationsGateway.name);
-
-  // Store connected clients
+  private readonly logger = new Logger(EventsGateway.name);
   private clients: Map<string, string> = new Map();
+  private lastProgressByUser: Map<string, AnalysisProgressEvent> = new Map();
 
   constructor(private readonly authService: AuthService) {}
 
   afterInit(server: Server) {
-    this.logger.log('WebSocket Gateway Initialized (Notifications)');
+    setInterval(() => {
+      this.server.emit('ping');
+    }, 25000);
   }
 
   async handleConnection(client: Socket, ...args: any[]) {
@@ -60,9 +76,6 @@ export class NotificationsGateway
         try {
           cookies = parse(cookieHeader);
         } catch (parseError) {
-          this.logger.error(
-            `[Auth Attempt] Failed to manually parse cookie header: ${parseError}`,
-          );
           throw new WsException('Failed to parse authentication cookie.');
         }
       } else {
@@ -90,6 +103,12 @@ export class NotificationsGateway
 
       this.clients.set(client.id, userId);
       client.join(userId);
+
+      // If there was a previous progress event for this user, send it
+      const lastProgress = this.lastProgressByUser.get(userId);
+      if (lastProgress) {
+        client.emit('analysis_progress', lastProgress);
+      }
     } catch (error) {
       this.logger.error(
         `WebSocket Authentication failed for socket ${client.id}: ${error.message || error}`,
@@ -106,30 +125,20 @@ export class NotificationsGateway
     }
   }
 
-  sendNotificationToUser(
-    userId: string,
-    notification: NotificationEntity,
-  ): void {
-    if (userId && notification) {
-      this.logger.log(`Emitting new_notification to user room: ${userId}`);
-      this.server.to(userId).emit('new_notification', notification);
-    }
-  }
-
-  sendUnreadCountToUser(userId: string, count: number): void {
+  sendAnalysisProgress(userId: string, progress: AnalysisProgressEvent): void {
     if (userId) {
-      this.logger.log(
-        `Emitting update_unread_count (${count}) to user room: ${userId}`,
-      );
-      this.server.to(userId).emit('update_unread_count', count);
-    }
-  }
+      this.lastProgressByUser.set(userId, progress);
+      this.server.to(userId).emit('analysis_progress', progress);
 
-  /**
-   * Broadcasts a system-wide message.
-   */
-  sendSystemBroadcast(message: any): void {
-    this.logger.log('Emitting system_broadcast to all connected clients');
-    this.server.emit('system_broadcast', message);
+      // Clean up completed or errored analysis progress
+      if (progress.status === 'complete' || progress.status === 'error') {
+        setTimeout(() => {
+          const currentProgress = this.lastProgressByUser.get(userId);
+          if (currentProgress === progress) {
+            this.lastProgressByUser.delete(userId);
+          }
+        }, 90000);
+      }
+    }
   }
 }

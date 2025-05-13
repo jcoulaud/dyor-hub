@@ -9,6 +9,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
 import { CommentVoteEntity } from './comment-vote.entity';
 import { CommentEntity } from './comment.entity';
 import { LeaderboardEntity } from './leaderboard.entity';
@@ -144,6 +145,12 @@ export class UserEntity {
 
   @OneToMany(() => TokenEntity, (token) => token.verifiedCreatorUser)
   createdTokens: TokenEntity[];
+
+  @Column({ type: 'int', default: 0, name: 'credits' })
+  credits: number;
+
+  @OneToMany(() => CreditTransaction, (transaction) => transaction.user)
+  creditTransactions: CreditTransaction[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

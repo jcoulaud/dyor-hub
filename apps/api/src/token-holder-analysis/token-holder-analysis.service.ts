@@ -3,6 +3,7 @@ import {
   TokenPurchaseInfo,
   TrackedWalletHolderStats,
   TrackedWalletPurchaseRound,
+  WalletAnalysisCount,
 } from '@dyor-hub/types';
 import { HttpService } from '@nestjs/axios';
 import {
@@ -13,6 +14,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import { CreditsService } from '../credits/credits.service';
+import { EventsGateway } from '../events/events.gateway';
 import { TokensService } from '../tokens/tokens.service';
 
 export interface BirdeyeTokenTradeAssetDetail {
@@ -57,157 +60,285 @@ export interface BirdeyeTokenTradeV3Response {
 @Injectable()
 export class TokenHolderAnalysisService {
   private readonly logger = new Logger(TokenHolderAnalysisService.name);
-  private readonly BIRDEYE_API_KEY =
-    this.configService.get<string>('BIRDEYE_API_KEY');
-  private readonly BIRDEYE_BASE_URL = 'https://public-api.birdeye.so';
+  private readonly BIRDEYE_API_BASE = 'https://public-api.birdeye.so';
+  private readonly CHUNK_DURATION_MONTHS = 1;
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
     private readonly tokensService: TokensService,
+    private readonly creditsService: CreditsService,
+    private readonly eventsGateway: EventsGateway,
+    private readonly configService: ConfigService,
   ) {}
 
-  async getTopHolderWalletActivity(
+  async calculateAnalysisCreditCost(
     tokenAddress: string,
-  ): Promise<TrackedWalletHolderStats[]> {
+    walletCount: WalletAnalysisCount,
+  ): Promise<number> {
+    const tokenAgeInMonths = await this.getTokenAgeInMonths(tokenAddress);
+    return this.calculateCreditCost(tokenAgeInMonths, walletCount);
+  }
+
+  private calculateCreditCost(
+    tokenAgeInMonths: number,
+    walletCount: WalletAnalysisCount,
+  ): number {
+    const BASE_COST = 1;
+    const walletCountFactor = 0.08;
+    const ageFactor = Math.min(tokenAgeInMonths / 3, 4); // Cap age factor at 4x (12 months)
+
+    // Calculate the cost based on wallet count and token age
+    const cost =
+      (BASE_COST + walletCount * walletCountFactor) * (1 + ageFactor);
+
+    // Round up to ensure whole numbers
+    return Math.ceil(cost);
+  }
+
+  private async getTokenAgeInMonths(tokenAddress: string): Promise<number> {
     const tokenEntity = await this.tokensService.getTokenData(tokenAddress);
-    if (!tokenEntity) {
-      throw new NotFoundException(`Token ${tokenAddress} not found.`);
-    }
-
-    const tokenCreationTime = tokenEntity.creationTime
-      ? Math.floor(tokenEntity.creationTime.getTime() / 1000)
-      : null;
-
-    if (tokenCreationTime === null) {
-      this.logger.warn(`Token ${tokenAddress} does not have a creationTime.`);
-      throw new InternalServerErrorException(
-        `Missing creation time for token ${tokenAddress}.`,
+    if (!tokenEntity?.creationTime) {
+      throw new NotFoundException(
+        `Token ${tokenAddress} not found or missing creation time.`,
       );
     }
 
-    const overviewData =
-      await this.tokensService.fetchTokenOverview(tokenAddress);
-    const tokenTotalSupply = overviewData?.totalSupply;
+    const ageInMilliseconds = Date.now() - tokenEntity.creationTime.getTime();
+    const ageInMonths = ageInMilliseconds / (1000 * 60 * 60 * 24 * 30.44); // Average month length
+    return Math.max(0, ageInMonths);
+  }
 
-    if (typeof tokenTotalSupply !== 'number') {
-      this.logger.warn(
-        `Could not determine total supply for token ${tokenAddress}. Overview data: ${JSON.stringify(overviewData)}`,
-      );
-      throw new InternalServerErrorException(
-        `Missing total supply for token ${tokenAddress}.`,
-      );
-    }
+  async getTopHolderWalletActivity(
+    userId: string,
+    tokenAddress: string,
+    walletCount: WalletAnalysisCount = 20,
+    sessionId?: string,
+  ): Promise<{ message: string; analysisJobId?: string }> {
+    const tokenAgeInMonths = await this.getTokenAgeInMonths(tokenAddress);
+    const creditCost = this.calculateCreditCost(tokenAgeInMonths, walletCount);
 
-    const topHolders: TokenHolder[] =
-      await this.tokensService.fetchTopHolders(tokenAddress);
-    if (!topHolders || topHolders.length === 0) {
-      return [];
-    }
+    // Check and reserve credits first
+    await this.creditsService.checkAndReserveCredits(userId, creditCost);
 
-    const walletsToAnalyze = topHolders.slice(0, 20);
-    const finalAnalyzedWallets: TrackedWalletHolderStats[] = [];
-    const batchSize = 3;
+    // Run in the background
+    this._performFullAnalysis(
+      userId,
+      tokenAddress,
+      walletCount,
+      creditCost,
+      tokenAgeInMonths,
+      sessionId,
+    ).catch((error) => {
+      this.eventsGateway.sendAnalysisProgress(userId, {
+        currentWallet: 0,
+        totalWallets: walletCount,
+        status: 'error',
+        message: 'Analysis failed due to an unexpected internal error.',
+        error: 'Internal Server Error',
+        sessionId,
+      });
+      // Credits are released if the job fails before it can manage credits itself
+      this.creditsService
+        .releaseReservedCredits(userId, creditCost)
+        .catch((releaseError) => {
+          this.logger.error(
+            `Failed to release credits after catastrophic failure for user ${userId}, sessionId ${sessionId}: ${releaseError.message}`,
+          );
+        });
+    });
 
-    for (let i = 0; i < walletsToAnalyze.length; i += batchSize) {
-      const currentBatch = walletsToAnalyze.slice(i, i + batchSize);
+    this.eventsGateway.sendAnalysisProgress(userId, {
+      currentWallet: 0,
+      totalWallets: walletCount,
+      status: 'analyzing',
+      message: 'Analysis initiated...',
+      sessionId,
+    });
 
-      const analysisPromises = currentBatch.map(async (holder) => {
-        const holderAddress = holder.address;
+    return { message: 'Token holder analysis initiated successfully.' };
+  }
 
-        const allTradesForWalletUnsorted: BirdeyeTokenTradeV3Item[] = [];
-        const timeChunkSizeSeconds = 29 * 24 * 60 * 60;
-        let chunkBeforeTime = Math.floor(Date.now() / 1000);
-        let chunkAfterTime = Math.max(
-          tokenCreationTime,
-          chunkBeforeTime - timeChunkSizeSeconds,
+  private async _performFullAnalysis(
+    userId: string,
+    tokenAddress: string,
+    walletCount: WalletAnalysisCount,
+    creditCost: number,
+    tokenAgeInMonths: number,
+    sessionId?: string,
+  ): Promise<void> {
+    let finalAnalyzedWallets: TrackedWalletHolderStats[] = [];
+
+    // Initial progress update: Preparing to analyze
+    this.eventsGateway.sendAnalysisProgress(userId, {
+      currentWallet: 0,
+      totalWallets: walletCount,
+      status: 'analyzing',
+      message: `Preparing to analyze ${walletCount} wallets...`,
+      sessionId,
+    });
+
+    try {
+      const tokenEntity = await this.tokensService.getTokenData(tokenAddress);
+      if (!tokenEntity) {
+        throw new NotFoundException(`Token ${tokenAddress} not found.`);
+      }
+
+      this.eventsGateway.sendAnalysisProgress(userId, {
+        currentWallet: 0,
+        totalWallets: walletCount,
+        status: 'analyzing',
+        message: 'Fetching token overview data...',
+        sessionId,
+      });
+      const overviewData =
+        await this.tokensService.fetchTokenOverview(tokenAddress);
+      const tokenTotalSupply = overviewData?.totalSupply;
+
+      if (typeof tokenTotalSupply !== 'number') {
+        this.logger.error(
+          `Missing or invalid total supply for token ${tokenAddress}. Overview data: ${JSON.stringify(overviewData)}`,
         );
+        throw new InternalServerErrorException(
+          `Missing or invalid total supply for token ${tokenAddress}. Cannot proceed with analysis.`,
+        );
+      }
 
-        while (chunkBeforeTime > tokenCreationTime) {
-          let offset = 0;
-          const limit = 100;
-          let hasNextPageInChunk = true;
+      const tokenCreationTime = tokenEntity.creationTime
+        ? Math.floor(tokenEntity.creationTime.getTime() / 1000)
+        : null;
 
-          while (hasNextPageInChunk) {
-            try {
-              const headers = { 'X-API-KEY': this.BIRDEYE_API_KEY };
-              const params = {
-                address: tokenAddress,
-                owner: holderAddress,
-                after_time: chunkAfterTime,
-                before_time: chunkBeforeTime,
-                sort_by: 'block_unix_time',
-                sort_type: 'desc',
-                limit,
-                offset,
-                tx_type: 'swap',
-              };
+      if (tokenCreationTime === null) {
+        this.logger.warn(`Token ${tokenAddress} does not have a creationTime.`);
+        throw new InternalServerErrorException(
+          `Missing creation time for token ${tokenAddress}.`,
+        );
+      }
 
-              const response = await firstValueFrom(
-                this.httpService.get<BirdeyeTokenTradeV3Response>(
-                  `${this.BIRDEYE_BASE_URL}/defi/v3/token/txs`,
-                  { headers, params },
-                ),
+      const topHolders: TokenHolder[] =
+        await this.tokensService.fetchTopHolders(tokenAddress, walletCount);
+
+      if (!topHolders || topHolders.length === 0) {
+        this.eventsGateway.sendAnalysisProgress(userId, {
+          currentWallet: 0,
+          totalWallets: walletCount,
+          status: 'complete',
+          message: 'No top holders found for this token.',
+          sessionId,
+        });
+      } else {
+        const walletsToAnalyze = topHolders.slice(0, walletCount);
+
+        const batchSize = 3;
+
+        for (let i = 0; i < walletsToAnalyze.length; i += batchSize) {
+          const currentBatch = walletsToAnalyze.slice(i, i + batchSize);
+
+          const analysisPromises = currentBatch.map(
+            async (holder, batchIndex) => {
+              const walletIndex = i + batchIndex;
+              const holderAddress = holder.address;
+
+              this.eventsGateway.sendAnalysisProgress(userId, {
+                currentWallet: walletIndex + 1,
+                totalWallets: walletsToAnalyze.length,
+                currentWalletAddress: holderAddress,
+                tradesFound: 0,
+                status: 'analyzing',
+                message: `Wallet ${walletIndex + 1}/${walletsToAnalyze.length} (${holderAddress.substring(0, 6)}...): Initializing...`,
+                sessionId,
+              });
+
+              const tradeStats = await this._fetchWalletTradeHistoryInChunks(
+                userId,
+                tokenAddress,
+                holderAddress,
+                new Date(tokenCreationTime * 1000),
+                tokenAgeInMonths,
+                walletIndex,
+                walletsToAnalyze.length,
+                sessionId,
               );
 
-              if (response.data?.success && response.data.data?.items) {
-                allTradesForWalletUnsorted.push(...response.data.data.items);
-                if (
-                  response.data.data.has_next &&
-                  response.data.data.items.length > 0 && // Ensure items.length > 0 to prevent infinite loop on empty page with has_next true
-                  response.data.data.items.length === limit // Only continue if a full page was returned
-                ) {
-                  offset += limit;
-                } else {
-                  hasNextPageInChunk = false;
-                }
-              } else {
-                hasNextPageInChunk = false;
+              if (tradeStats.length === 0) {
+                this.eventsGateway.sendAnalysisProgress(userId, {
+                  currentWallet: walletIndex + 1,
+                  totalWallets: walletsToAnalyze.length,
+                  status: 'complete',
+                  message: 'No trades found for this wallet.',
+                  sessionId,
+                });
+                const emptyStat = this.processWalletTrades(
+                  holderAddress,
+                  [],
+                  holder,
+                  tokenAddress,
+                  tokenTotalSupply,
+                );
+                return emptyStat;
               }
-            } catch (error) {
-              this.logger.error(
-                `Error fetching trades for ${holderAddress} in chunk [${new Date(chunkAfterTime * 1000).toISOString()}-${new Date(chunkBeforeTime * 1000).toISOString()}], offset ${offset}: ${error.message}`,
+
+              const analyzedWalletData = this.processWalletTrades(
+                holderAddress,
+                tradeStats,
+                holder,
+                tokenAddress,
+                tokenTotalSupply,
               );
-              hasNextPageInChunk = false;
-            }
-          }
 
-          if (chunkAfterTime === tokenCreationTime) {
-            break;
-          }
-          chunkBeforeTime = chunkAfterTime;
-          chunkAfterTime = Math.max(
-            tokenCreationTime,
-            chunkBeforeTime - timeChunkSizeSeconds,
+              this.eventsGateway.sendAnalysisProgress(userId, {
+                currentWallet: walletIndex + 1,
+                totalWallets: walletsToAnalyze.length,
+                currentWalletAddress: holderAddress,
+                tradesFound: tradeStats.length,
+                status: 'analyzing',
+                message: `Wallet ${walletIndex + 1}/${walletsToAnalyze.length} (${holderAddress.substring(0, 6)}...): Completed. ${tradeStats.length} trades processed.`,
+                sessionId,
+              });
+
+              return analyzedWalletData;
+            },
+          );
+
+          const batchResults = await Promise.all(analysisPromises);
+          finalAnalyzedWallets.push(
+            ...batchResults.filter(
+              (stats): stats is TrackedWalletHolderStats => stats !== null,
+            ),
           );
         }
+      }
 
-        const allTradesForWalletSorted = [...allTradesForWalletUnsorted].sort(
-          (a, b) => a.block_unix_time - b.block_unix_time,
-        );
+      await this.creditsService.commitReservedCredits(
+        userId,
+        creditCost,
+        `Token Holder Analysis for ${tokenAddress} (${walletCount} wallets)`,
+      );
 
-        try {
-          return this.processWalletTrades(
-            holderAddress,
-            allTradesForWalletSorted,
-            holder,
-            tokenAddress,
-            tokenTotalSupply,
-          );
-        } catch (processingError) {
-          return null;
-        }
+      this.eventsGateway.sendAnalysisProgress(userId, {
+        currentWallet: walletCount,
+        totalWallets: walletCount,
+        status: 'complete',
+        message: 'Analysis complete',
+        analysisData: finalAnalyzedWallets,
+        sessionId,
+      });
+    } catch (error) {
+      await this.creditsService.releaseReservedCredits(userId, creditCost);
+
+      this.eventsGateway.sendAnalysisProgress(userId, {
+        status: 'error',
+        error: error.message,
+        message: 'Analysis failed',
+        currentWallet: 0,
+        totalWallets: walletCount,
+        sessionId,
       });
 
-      const batchResults = await Promise.all(analysisPromises);
-      finalAnalyzedWallets.push(
-        ...(batchResults.filter(
-          (stats) => stats !== null,
-        ) as TrackedWalletHolderStats[]),
+      this.logger.error(
+        `Failed to analyze token ${tokenAddress} for user ${userId}, sessionId ${sessionId}: ${error.message}`,
+        error.stack,
       );
     }
-
-    return finalAnalyzedWallets;
   }
 
   private processWalletTrades(
@@ -479,5 +610,103 @@ export class TokenHolderAnalysisService {
 
     statsOutput.analyzedTokenTotalSupply = tokenTotalSupply;
     return statsOutput;
+  }
+
+  private async _fetchWalletTradeHistoryInChunks(
+    userId: string,
+    tokenAddress: string,
+    walletAddress: string,
+    oldestTransactionDate: Date,
+    tokenAgeInMonths: number,
+    currentWalletIndex: number,
+    totalWalletsToAnalyze: number,
+    sessionId?: string,
+  ): Promise<BirdeyeTokenTradeV3Item[]> {
+    const allTrades: BirdeyeTokenTradeV3Item[] = [];
+    let offset = 0;
+    const limit = 100;
+    let currentPage = 1;
+    let fetchedTradesInChunk = 0;
+    let totalTradesFetchedForWallet = 0;
+
+    const numberOfChunks = Math.max(
+      1,
+      Math.ceil(tokenAgeInMonths / this.CHUNK_DURATION_MONTHS),
+    );
+
+    for (let chunk = 0; chunk < numberOfChunks; chunk++) {
+      const chunkEndDate = new Date(
+        oldestTransactionDate.getTime() +
+          (chunk + 1) * this.CHUNK_DURATION_MONTHS * 30 * 24 * 60 * 60 * 1000,
+      );
+      const chunkStartDate = new Date(
+        oldestTransactionDate.getTime() +
+          chunk * this.CHUNK_DURATION_MONTHS * 30 * 24 * 60 * 60 * 1000,
+      );
+
+      // Send progress: Starting a new chunk
+      this.eventsGateway.sendAnalysisProgress(userId, {
+        currentWallet: currentWalletIndex + 1,
+        totalWallets: totalWalletsToAnalyze,
+        currentWalletAddress: walletAddress,
+        status: 'analyzing',
+        message: `Wallet ${currentWalletIndex + 1}/${totalWalletsToAnalyze}: Fetching trades (batch ${chunk + 1}/${numberOfChunks})`,
+        tradesFound: totalTradesFetchedForWallet,
+        sessionId,
+      });
+
+      offset = 0;
+      currentPage = 1;
+      fetchedTradesInChunk = 0;
+
+      do {
+        const headers = {
+          'X-API-KEY': this.configService.get<string>('BIRDEYE_API_KEY') || '',
+        };
+        const params = {
+          address: tokenAddress,
+          owner: walletAddress,
+          after_time: chunkStartDate.getTime() / 1000,
+          before_time: chunkEndDate.getTime() / 1000,
+          sort_by: 'block_unix_time',
+          sort_type: 'desc',
+          limit,
+          offset,
+          tx_type: 'swap',
+        };
+
+        const response = await firstValueFrom(
+          this.httpService.get<BirdeyeTokenTradeV3Response>(
+            `${this.BIRDEYE_API_BASE}/defi/v3/token/txs`,
+            { headers, params, timeout: 30000 },
+          ),
+        );
+
+        if (response.data?.success && response.data.data?.items) {
+          const newItems = response.data.data.items;
+          allTrades.push(...newItems);
+          fetchedTradesInChunk = newItems.length;
+          totalTradesFetchedForWallet += newItems.length;
+
+          // Send progress: After fetching a page
+          this.eventsGateway.sendAnalysisProgress(userId, {
+            currentWallet: currentWalletIndex + 1,
+            totalWallets: totalWalletsToAnalyze,
+            currentWalletAddress: walletAddress,
+            status: 'analyzing',
+            message: `Wallet ${currentWalletIndex + 1}/${totalWalletsToAnalyze} (${walletAddress.substring(0, 6)}...): Found ${totalTradesFetchedForWallet} trades...`,
+            tradesFound: totalTradesFetchedForWallet,
+            sessionId,
+          });
+
+          if (newItems.length < limit) break;
+          offset += limit;
+          currentPage++;
+        } else {
+          break;
+        }
+      } while (fetchedTradesInChunk > 0);
+    }
+    return allTrades;
   }
 }

@@ -36,3 +36,10 @@ export interface TrackedWalletHolderStats {
   lastSellOffTimestamp?: number;
   currentHoldingDurationSeconds?: number;
 }
+
+export type WalletAnalysisCount = 10 | 20 | 50;
+
+export interface TokenHolderAnalysisParams {
+  walletCount?: WalletAnalysisCount;
+  sessionId?: string;
+}

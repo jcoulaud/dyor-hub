@@ -7,7 +7,10 @@ import {
   Badge as BadgeType,
   Comment,
   CreateCommentDto,
+  CreateCreditPackageDto,
   CreateTokenCallInput,
+  CreditPackage,
+  CreditTransaction,
   EarlyBuyerInfo,
   FeedActivity,
   GetTippingEligibilityResponseDto,
@@ -42,6 +45,7 @@ import {
   TopStreakUsers,
   TrackedWalletHolderStats,
   TwitterUsernameHistoryEntity,
+  UpdateCreditPackageDto,
   User,
   UserActivity,
   UserBadge,
@@ -808,30 +812,50 @@ export const tokens = {
     }
   },
 
-  getTokenHolderAnalysis: async (mintAddress: string): Promise<TrackedWalletHolderStats[]> => {
+  getTokenHolderAnalysis: async (
+    mintAddress: string,
+    walletCount?: 10 | 20 | 50,
+    sessionId?: string,
+  ): Promise<TrackedWalletHolderStats[]> => {
     if (!mintAddress) {
       throw new Error('Mint address is required to fetch token holder analysis.');
     }
 
-    try {
-      const sanitizedMintAddress = encodeURIComponent(mintAddress);
-      const endpoint = `token-holder-analysis/${sanitizedMintAddress}`;
-      const cacheKey = `api:${endpoint}`;
-
-      const cachedData = getCache<TrackedWalletHolderStats[]>(cacheKey);
-      if (cachedData) {
-        return cachedData;
-      }
-
-      const data = await api<TrackedWalletHolderStats[]>(endpoint);
-
-      setCache(cacheKey, data, 3600000);
-
-      return data;
-    } catch (error) {
-      console.error(`Error fetching token holder analysis for ${mintAddress}:`, error);
-      throw error;
+    const params = new URLSearchParams();
+    if (walletCount) {
+      params.append('walletCount', walletCount.toString());
     }
+    if (sessionId) {
+      params.append('sessionId', sessionId);
+    }
+
+    const sanitizedMintAddress = encodeURIComponent(mintAddress);
+    const response = await api<TrackedWalletHolderStats[]>(
+      `token-holder-analysis/${sanitizedMintAddress}?${params.toString()}`,
+    );
+
+    return response;
+  },
+
+  getTokenHolderAnalysisCost: async (
+    mintAddress: string,
+    walletCount?: 10 | 20 | 50,
+  ): Promise<{ creditCost: number }> => {
+    if (!mintAddress) {
+      throw new Error('Mint address is required to fetch token holder analysis cost.');
+    }
+
+    const params = new URLSearchParams();
+    if (walletCount) {
+      params.append('walletCount', walletCount.toString());
+    }
+
+    const sanitizedMintAddress = encodeURIComponent(mintAddress);
+    const response = await api<{ creditCost: number }>(
+      `token-holder-analysis/${sanitizedMintAddress}/credit-cost?${params.toString()}`,
+    );
+
+    return response;
   },
 };
 
@@ -2205,4 +2229,59 @@ export const uploads = {
       body: data,
     });
   },
+};
+
+export const credits = {
+  getAvailablePackages: async (): Promise<CreditPackage[]> => {
+    return api<CreditPackage[]>('credits/packages');
+  },
+
+  purchaseCredits: async (data: {
+    packageId: string;
+    solanaTransactionId: string;
+  }): Promise<User> => {
+    return api<User>('credits/purchase', { method: 'POST', body: data });
+  },
+
+  getBalance: async (): Promise<{ credits: number }> => {
+    return api<{ credits: number }>('credits/balance');
+  },
+
+  getHistory: async (
+    params: { page?: number; limit?: number } = {},
+  ): Promise<PaginatedResult<CreditTransaction>> => {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.set('page', params.page.toString());
+    if (params.limit) searchParams.set('limit', params.limit.toString());
+    return api(`/credits/history?${searchParams.toString()}`);
+  },
+
+  // --- Admin Credit Package Functions Nested ---
+  admin: {
+    findAllPackages: async (includeInactive: boolean = false): Promise<CreditPackage[]> => {
+      const query = includeInactive ? '?includeInactive=true' : '';
+      return api(`/credits/packages/admin${query}`);
+    },
+
+    createPackage: async (data: CreateCreditPackageDto): Promise<CreditPackage> => {
+      return api('/credits/packages/admin', {
+        method: 'POST',
+        body: data,
+      });
+    },
+
+    updatePackage: async (id: string, data: UpdateCreditPackageDto): Promise<CreditPackage> => {
+      return api(`/credits/packages/admin/${id}`, {
+        method: 'PUT',
+        body: data,
+      });
+    },
+
+    deletePackage: async (id: string): Promise<void> => {
+      return api(`/credits/packages/admin/${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+  // --- End Admin Functions ---
 };
