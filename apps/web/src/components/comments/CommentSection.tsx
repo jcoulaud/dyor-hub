@@ -669,7 +669,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
         }
       };
 
-      const processedContent = processMentionsInHtml(comment.content);
+      const processedContent = comment.isRemoved ? '' : processMentionsInHtml(comment.content);
 
       return (
         <div
@@ -814,114 +814,137 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
                       }}
                     />
                   </div>
-                ) : (
+                ) : comment.isRemoved ? (
                   <div
                     className={cn(
-                      'prose prose-sm dark:prose-invert mt-1 max-w-none break-words',
-                      comment.isRemoved && 'opacity-40',
-                    )}
+                      'prose prose-sm dark:prose-invert mt-1 max-w-none break-words italic text-muted-foreground',
+                    )}>
+                    [comment removed]
+                  </div>
+                ) : (
+                  <div
+                    className={cn('prose prose-sm dark:prose-invert mt-1 max-w-none break-words')}
                     dangerouslySetInnerHTML={{ __html: processedContent }}
                   />
                 )}
 
-                {/* Comment Footer */}
-                {!isEditing && (
-                  <div className='mt-2 flex items-center text-muted-foreground'>
-                    {/* Vote Buttons */}
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      className='h-8 px-1 cursor-pointer'
-                      onClick={() => handleVote(comment.id, 'upvote')}
-                      disabled={comment.isRemoved}>
-                      <ArrowBigUp
-                        className={cn(
-                          'h-4 w-4',
-                          comment.userVoteType === 'upvote' && 'fill-green-500 text-green-500',
-                          comment.isRemoved && 'opacity-40',
-                        )}
-                      />
-                    </Button>
-                    <span>{typeof comment.voteCount === 'number' ? comment.voteCount : 0}</span>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      className='h-8 px-1 cursor-pointer'
-                      onClick={() => handleVote(comment.id, 'downvote')}
-                      disabled={comment.isRemoved}>
-                      <ArrowBigDown
-                        className={cn(
-                          'h-4 w-4',
-                          comment.userVoteType === 'downvote' && 'fill-red-500 text-red-500',
-                          comment.isRemoved && 'opacity-40',
-                        )}
-                      />
-                    </Button>
-                    {/* Reply Button */}
-                    {depth < 5 && !comment.isRemoved && (
+                {/* Comment Footer - visible even when editing for delete/admin options */}
+                <div
+                  className={cn(
+                    'mt-2 flex items-center text-muted-foreground',
+                    isEditing && 'pt-1',
+                  )}>
+                  {/* Vote Buttons - hidden when editing */}
+                  {!isEditing && (
+                    <>
                       <Button
                         variant='ghost'
                         size='sm'
-                        className='h-8 gap-1 px-2 cursor-pointer'
-                        onClick={handleReplyClick}>
-                        <MessageSquare className='h-4 w-4' />
-                        <span className='hidden sm:inline text-xs'>Reply</span>
+                        className='h-8 px-1 cursor-pointer'
+                        onClick={() => handleVote(comment.id, 'upvote')}
+                        disabled={comment.isRemoved}>
+                        <ArrowBigUp
+                          className={cn(
+                            'h-4 w-4',
+                            comment.userVoteType === 'upvote' && 'fill-green-500 text-green-500',
+                            comment.isRemoved && 'opacity-40',
+                          )}
+                        />
                       </Button>
-                    )}
-                    {/* Share/Copy Buttons */}
-                    {!comment.isRemoved && (
-                      <>
-                        <TwitterShareButton comment={comment} tokenMintAddress={tokenMintAddress} />
-                        <CopyLinkButton comment={comment} tokenMintAddress={tokenMintAddress} />
-                      </>
-                    )}
-                    {/* Tip Button */}
-                    {!comment.isRemoved && !isCommentOwner && isAuthenticated && (
-                      <TipButton
-                        recipientUserId={comment.user.id}
-                        recipientUsername={comment.user.displayName || comment.user.username}
-                        contentType={
-                          comment.type === LocalCommentType.TOKEN_CALL_EXPLANATION
-                            ? 'call'
-                            : 'comment'
-                        }
-                        contentId={
-                          comment.type === LocalCommentType.TOKEN_CALL_EXPLANATION &&
-                          comment.tokenCallId
-                            ? comment.tokenCallId
-                            : comment.id
-                        }
-                        variant={'footer'}
-                      />
-                    )}
-                    {/* Admin/Delete Options */}
-                    {isAdmin && !isCommentOwner && !comment.isRemoved && (
-                      <AdminModeration comment={comment} onCommentUpdated={fetchComments} />
-                    )}
-                    {canRemove && !comment.isRemoved && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant='ghost' size='sm' className='h-8 px-2 cursor-pointer'>
-                            <MoreHorizontal className='h-4 w-4' />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align='end'>
-                          {isEditable && (
+                      <span className={cn(comment.isRemoved && 'opacity-40')}>
+                        {typeof comment.voteCount === 'number' ? comment.voteCount : 0}
+                      </span>
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        className='h-8 px-1 cursor-pointer'
+                        onClick={() => handleVote(comment.id, 'downvote')}
+                        disabled={comment.isRemoved}>
+                        <ArrowBigDown
+                          className={cn(
+                            'h-4 w-4',
+                            comment.userVoteType === 'downvote' && 'fill-red-500 text-red-500',
+                            comment.isRemoved && 'opacity-40',
+                          )}
+                        />
+                      </Button>
+                    </>
+                  )}
+                  {/* Reply Button - hidden when editing */}
+                  {!isEditing && depth < 5 && !comment.isRemoved && (
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      className='h-8 gap-1 px-2 cursor-pointer'
+                      onClick={handleReplyClick}>
+                      <MessageSquare className='h-4 w-4' />
+                      <span className='hidden sm:inline text-xs'>Reply</span>
+                    </Button>
+                  )}
+                  {/* Share/Copy Buttons - hidden when editing */}
+                  {!isEditing && !comment.isRemoved && (
+                    <>
+                      <TwitterShareButton comment={comment} tokenMintAddress={tokenMintAddress} />
+                      <CopyLinkButton comment={comment} tokenMintAddress={tokenMintAddress} />
+                    </>
+                  )}
+                  {/* Tip Button - hidden when editing */}
+                  {!isEditing && !comment.isRemoved && !isCommentOwner && isAuthenticated && (
+                    <TipButton
+                      recipientUserId={comment.user.id}
+                      recipientUsername={comment.user.displayName || comment.user.username}
+                      contentType={
+                        comment.type === LocalCommentType.TOKEN_CALL_EXPLANATION
+                          ? 'call'
+                          : 'comment'
+                      }
+                      contentId={
+                        comment.type === LocalCommentType.TOKEN_CALL_EXPLANATION &&
+                        comment.tokenCallId
+                          ? comment.tokenCallId
+                          : comment.id
+                      }
+                      variant={'footer'}
+                    />
+                  )}
+                  {/* Spacer to push admin/delete options to the right when other items are hidden */}
+                  {isEditing && <div className='flex-grow' />}
+
+                  {/* Admin/Delete Options - always visible if conditions met */}
+                  {isAdmin && !isCommentOwner && !comment.isRemoved && (
+                    <AdminModeration comment={comment} onCommentUpdated={fetchComments} />
+                  )}
+                  {canRemove && !comment.isRemoved && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant='ghost' size='sm' className='h-8 px-2 cursor-pointer'>
+                          <MoreHorizontal className='h-4 w-4' />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align='end'>
+                        {isEditable &&
+                          !isEditing && ( // Show Edit only if not currently editing
                             <DropdownMenuItem onClick={handleEditClick}>
                               <Pencil /> Edit
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem onClick={() => handleRemoveComment(comment.id)}>
-                            <Trash2 /> Delete
+                        {isEditing && ( // Show Cancel Edit if currently editing
+                          <DropdownMenuItem onClick={handleCancelEdit}>
+                            <XCircle size={16} className='mr-2' /> Cancel Edit
                           </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                )}
+                        )}
+                        <DropdownMenuItem
+                          onClick={() => handleRemoveComment(comment.id)}
+                          className='cursor-pointer hover:bg-destructive/10 hover:text-destructive-foreground'>
+                          <Trash2 /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
 
-                {/* Reply Input Area */}
-                {isReplying && (
+                {/* Reply Input Area - hidden when editing */}
+                {isReplying && !isEditing && (
                   <div className='mt-3 pl-10'>
                     <CommentInput
                       placeholder={`Replying to ${comment.user.displayName || comment.user.username}`}
@@ -956,9 +979,11 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
       );
     };
 
+    // Main content rendering logic
+    let content;
     if (commentId) {
       if (isLoadingSpecificComment) {
-        return (
+        content = (
           <Card className='p-4 animate-pulse'>
             <div className='flex gap-3'>
               <div className='w-10 h-20 bg-gray-200 rounded'></div>
@@ -970,10 +995,8 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
             </div>
           </Card>
         );
-      }
-
-      if (threadFetchError) {
-        return (
+      } else if (threadFetchError) {
+        content = (
           <Card className='p-6 text-center text-red-500 w-full'>
             <MessageSquare className='h-12 w-12 mx-auto mb-3 text-red-400' />
             <p>Could not load comment thread:</p>
@@ -988,161 +1011,157 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
             </Button>
           </Card>
         );
+      } else {
+        content = (
+          <div className='space-y-4'>
+            <div className='flex items-center gap-2'>
+              <Button
+                onClick={() => router.push(`/tokens/${tokenMintAddress}`)}
+                variant='ghost'
+                size='sm'
+                className='gap-2 text-muted-foreground hover:text-foreground cursor-pointer'>
+                <ArrowLeft className='h-4 w-4' />
+                All comments
+              </Button>
+            </div>
+            <div className='space-y-4 w-full'>
+              {threadComments.length > 0 ? (
+                threadComments.map((rootComment) => (
+                  <Comment
+                    key={rootComment.id}
+                    comment={rootComment}
+                    verifiedCreatorUserId={verifiedCreatorUserId}
+                    tokenSymbol={tokenSymbol}
+                  />
+                ))
+              ) : (
+                <p className='text-center text-muted-foreground'>Could not load comment thread.</p>
+              )}
+            </div>
+          </div>
+        );
       }
-
-      return (
+    } else {
+      // Regular view for all comments
+      content = (
         <div className='space-y-4'>
-          <div className='flex items-center gap-2'>
-            <Button
-              onClick={() => router.push(`/tokens/${tokenMintAddress}`)}
-              variant='ghost'
-              size='sm'
-              className='gap-2 text-muted-foreground hover:text-foreground cursor-pointer'>
-              <ArrowLeft className='h-4 w-4' />
-              All comments
-            </Button>
-          </div>
-
           <div className='space-y-4 w-full'>
-            {threadComments.length > 0 ? (
-              threadComments.map((rootComment) => (
-                <Comment
-                  key={rootComment.id}
-                  comment={rootComment}
-                  verifiedCreatorUserId={verifiedCreatorUserId}
-                  tokenSymbol={tokenSymbol}
-                />
-              ))
-            ) : (
-              <p className='text-center text-muted-foreground'>Could not load comment thread.</p>
-            )}
+            <CommentInput
+              onSubmit={(content) => handleSubmitComment(undefined, content)}
+              onCancel={() => setNewComment('')}
+              placeholder='Add a comment'
+              className='w-full'
+              onAuthRequired={() => {
+                setShowAuthModal(true);
+              }}
+            />
+            <div className='flex items-center pb-2 w-full'>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='text-sm gap-1 px-2 py-1 bg-zinc-800/30 border border-zinc-700/30 hover:bg-zinc-800/70'>
+                    <span className='text-muted-foreground mr-1'>Sort:</span>
+                    <span className='font-medium capitalize'>{sortBy}</span>
+                    <ChevronDown className='ml-1 h-3.5 w-3.5 opacity-70' />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='start' className='min-w-[120px]'>
+                  {(['best', 'new', 'old', 'controversial'] as const).map((option) => (
+                    <DropdownMenuItem
+                      key={option}
+                      onClick={() => handleSortChange(option)}
+                      className={cn(
+                        'capitalize flex items-center justify-between',
+                        sortBy === option ? 'bg-zinc-800 text-white font-medium' : '',
+                      )}>
+                      {option}
+                      {sortBy === option && (
+                        <svg
+                          xmlns='http://www.w3.org/2000/svg'
+                          width='16'
+                          height='16'
+                          viewBox='0 0 24 24'
+                          fill='none'
+                          stroke='currentColor'
+                          strokeWidth='2'
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          className='ml-2 h-3.5 w-3.5'>
+                          <polyline points='20 6 9 17 4 12'></polyline>
+                        </svg>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className='space-y-4'>
+              {commentsList.length > 0 ? (
+                <div className='space-y-3 w-full'>
+                  {commentsList.map((comment) => (
+                    <Comment
+                      key={comment.id}
+                      comment={comment}
+                      depth={0}
+                      verifiedCreatorUserId={verifiedCreatorUserId}
+                      tokenSymbol={tokenSymbol}
+                    />
+                  ))}
+                </div>
+              ) : isLoading ? (
+                <Card className='p-6 w-full'>
+                  <div className='space-y-4'>
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className='flex gap-3 animate-pulse'>
+                        <div className='w-8 h-8 bg-zinc-800/60 rounded-full'></div>
+                        <div className='flex-1 space-y-2'>
+                          <div className='h-4 bg-zinc-800/60 rounded w-1/4'></div>
+                          <div className='h-3 bg-zinc-800/40 rounded w-3/4'></div>
+                          <div className='h-3 bg-zinc-800/40 rounded w-1/2'></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              ) : (
+                <Card className='p-6 text-center text-gray-500 w-full'>
+                  <MessageSquare className='h-12 w-12 mx-auto mb-3 text-gray-400' />
+                  <p>No comments yet. Be the first to share your thoughts!</p>
+                </Card>
+              )}
+            </div>
           </div>
-
-          <AuthModal isOpen={showAuthModal} onClose={handleAuthModalClose} />
+          {/* Loading More Indicator */}
+          {isLoadingMore && (
+            <div className='flex items-center justify-center py-4'>
+              <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
+                <div className='flex space-x-2 mr-3'>
+                  <div className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'></div>
+                  <div
+                    className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'
+                    style={{ animationDelay: '300ms' }}></div>
+                  <div
+                    className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'
+                    style={{ animationDelay: '600ms' }}></div>
+                </div>
+                <span className='text-sm font-medium text-zinc-300'>Loading more comments</span>
+              </div>
+            </div>
+          )}
+          {/* Observer Target */}
+          <div ref={observerTarget} className='h-4' />
+          {/* Error Message */}
+          {error && <div className='text-center py-8 text-red-500'>{error}</div>}
         </div>
       );
     }
 
-    // Regular view for all comments
     return (
-      <div className='space-y-4'>
-        <div className='space-y-4 w-full'>
-          <CommentInput
-            onSubmit={(content) => handleSubmitComment(undefined, content)}
-            onCancel={() => setNewComment('')}
-            placeholder='Add a comment'
-            className='w-full'
-            onAuthRequired={() => {
-              setShowAuthModal(true);
-            }}
-          />
-
-          <div className='flex items-center pb-2 w-full'>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  className='text-sm gap-1 px-2 py-1 bg-zinc-800/30 border border-zinc-700/30 hover:bg-zinc-800/70'>
-                  <span className='text-muted-foreground mr-1'>Sort:</span>
-                  <span className='font-medium capitalize'>{sortBy}</span>
-                  <ChevronDown className='ml-1 h-3.5 w-3.5 opacity-70' />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align='start' className='min-w-[120px]'>
-                {(['best', 'new', 'old', 'controversial'] as const).map((option) => (
-                  <DropdownMenuItem
-                    key={option}
-                    onClick={() => handleSortChange(option)}
-                    className={cn(
-                      'capitalize flex items-center justify-between',
-                      sortBy === option ? 'bg-zinc-800 text-white font-medium' : '',
-                    )}>
-                    {option}
-                    {sortBy === option && (
-                      <svg
-                        xmlns='http://www.w3.org/2000/svg'
-                        width='16'
-                        height='16'
-                        viewBox='0 0 24 24'
-                        fill='none'
-                        stroke='currentColor'
-                        strokeWidth='2'
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        className='ml-2 h-3.5 w-3.5'>
-                        <polyline points='20 6 9 17 4 12'></polyline>
-                      </svg>
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          <div className='space-y-4'>
-            {commentsList.length > 0 ? (
-              <div className='space-y-3 w-full'>
-                {commentsList.map((comment) => (
-                  <Comment
-                    key={comment.id}
-                    comment={comment}
-                    depth={0}
-                    verifiedCreatorUserId={verifiedCreatorUserId}
-                    tokenSymbol={tokenSymbol}
-                  />
-                ))}
-              </div>
-            ) : isLoading ? (
-              <Card className='p-6 w-full'>
-                <div className='space-y-4'>
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className='flex gap-3 animate-pulse'>
-                      <div className='w-8 h-8 bg-zinc-800/60 rounded-full'></div>
-                      <div className='flex-1 space-y-2'>
-                        <div className='h-4 bg-zinc-800/60 rounded w-1/4'></div>
-                        <div className='h-3 bg-zinc-800/40 rounded w-3/4'></div>
-                        <div className='h-3 bg-zinc-800/40 rounded w-1/2'></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            ) : (
-              <Card className='p-6 text-center text-gray-500 w-full'>
-                <MessageSquare className='h-12 w-12 mx-auto mb-3 text-gray-400' />
-                <p>No comments yet. Be the first to share your thoughts!</p>
-              </Card>
-            )}
-          </div>
-        </div>
-
-        {/* Loading More Indicator */}
-        {isLoadingMore && (
-          <div className='flex items-center justify-center py-4'>
-            <div className='inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10'>
-              <div className='flex space-x-2 mr-3'>
-                <div className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'></div>
-                <div
-                  className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'
-                  style={{ animationDelay: '300ms' }}></div>
-                <div
-                  className='h-2 w-2 bg-blue-400 rounded-full animate-pulse'
-                  style={{ animationDelay: '600ms' }}></div>
-              </div>
-              <span className='text-sm font-medium text-zinc-300'>Loading more comments</span>
-            </div>
-          </div>
-        )}
-
-        {/* Observer Target */}
-        <div ref={observerTarget} className='h-4' />
-
-        {/* Error Message */}
-        {error && <div className='text-center py-8 text-red-500'>{error}</div>}
-
+      <>
+        {content}
         <AuthModal isOpen={showAuthModal} onClose={handleAuthModalClose} />
-
         {/* Comment Deletion Confirmation Dialog */}
         <AlertDialog
           open={isDeleteDialogOpen}
@@ -1170,7 +1189,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
+      </>
     );
   },
 );
