@@ -30,6 +30,7 @@ import {
   UserStreakEntity,
   WalletEntity,
 } from './entities';
+import { EventsModule } from './events/events.module';
 import { FeedModule } from './feed/feed.module';
 import { FollowsModule } from './follows/follows.module';
 import { GamificationModule } from './gamification/gamification.module';
@@ -100,6 +101,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     ModerationModule,
     TokenHolderAnalysisModule,
     CreditsModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [

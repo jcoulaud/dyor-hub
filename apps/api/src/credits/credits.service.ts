@@ -352,4 +352,55 @@ export class CreditsService {
       throw new NotFoundException(`Credit package with ID "${id}" not found`);
     }
   }
+
+  async checkAndReserveCredits(userId: string, amount: number): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: { credits: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.credits < amount) {
+      throw new BadRequestException('Insufficient credits');
+    }
+
+    // Reserve credits by deducting them temporarily
+    await this.userRepository
+      .createQueryBuilder()
+      .update(UserEntity)
+      .set({
+        credits: () => `credits - ${amount}`,
+      })
+      .where('id = :userId', { userId })
+      .execute();
+  }
+
+  async commitReservedCredits(
+    userId: string,
+    amount: number,
+    description?: string,
+  ): Promise<void> {
+    // Create the transaction record
+    await this.creditTransactionRepository.save({
+      userId,
+      amount: -amount,
+      description: description || 'Credit deduction',
+      type: DyorHubCreditTransactionType.USAGE,
+    });
+  }
+
+  async releaseReservedCredits(userId: string, amount: number): Promise<void> {
+    // Return reserved credits back to available credits
+    await this.userRepository
+      .createQueryBuilder()
+      .update(UserEntity)
+      .set({
+        credits: () => `credits + ${amount}`,
+      })
+      .where('id = :userId', { userId })
+      .execute();
+  }
 }

@@ -679,9 +679,17 @@ export class TokensService {
 
   public async fetchTopHolders(
     mintAddress: string,
+    limitOrOverviewData?: number | BirdeyeTokenOverviewResponse['data'],
     providedOverviewData?: BirdeyeTokenOverviewResponse['data'],
   ): Promise<TokenHolder[]> {
-    const cacheKey = `birdeye_v3_holders_${mintAddress}`;
+    const limit =
+      typeof limitOrOverviewData === 'number' ? limitOrOverviewData : 10;
+    const overviewData =
+      typeof limitOrOverviewData === 'number'
+        ? providedOverviewData
+        : limitOrOverviewData;
+
+    const cacheKey = `birdeye_v3_holders_${mintAddress}_${limit}`;
     const cachedData = this.topHoldersCache.get(cacheKey);
     const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
     const HOLDER_CACHE_TTL = 5 * 60 * 1000;
@@ -698,7 +706,7 @@ export class TokensService {
     }
 
     const requestPromise = (async (): Promise<TokenHolder[]> => {
-      const apiUrl = `https://public-api.birdeye.so/defi/v3/token/holder?address=${mintAddress}&limit=10&offset=0`;
+      const apiUrl = `https://public-api.birdeye.so/defi/v3/token/holder?address=${mintAddress}&limit=${limit}&offset=0`;
       try {
         const response = await fetch(apiUrl, {
           headers: {
@@ -727,15 +735,15 @@ export class TokensService {
           return [];
         }
 
-        const overviewData =
-          providedOverviewData || (await this.fetchTokenOverview(mintAddress));
-        if (!overviewData) {
+        const overviewDataToUse =
+          overviewData || (await this.fetchTokenOverview(mintAddress));
+        if (!overviewDataToUse) {
           this.logger.warn(
             `Could not get overview data for ${mintAddress} while calculating holder percentages.`,
           );
           return [];
         }
-        const overviewTotalSupply = overviewData.totalSupply ?? 0;
+        const overviewTotalSupply = overviewDataToUse.totalSupply ?? 0;
 
         const mappedHolders: TokenHolder[] = data.data.items.map((item) => {
           const holderAmount = item.ui_amount;

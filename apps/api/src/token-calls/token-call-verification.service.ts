@@ -28,12 +28,7 @@ export class TokenCallVerificationService {
   // Run verification job
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
-    this.logger.log('Starting Token Call Verification Job...');
-
     if (this.isJobRunning) {
-      this.logger.warn(
-        'Verification job is already running. Skipping this run.',
-      );
       return;
     }
 
@@ -44,7 +39,6 @@ export class TokenCallVerificationService {
       this.logger.error('Error during token call verification job:', error);
     } finally {
       this.isJobRunning = false;
-      this.logger.log('Token Call Verification Job finished.');
     }
   }
 
@@ -58,13 +52,8 @@ export class TokenCallVerificationService {
     });
 
     if (pendingCalls.length === 0) {
-      this.logger.log('No pending token calls found for verification.');
       return;
     }
-
-    this.logger.log(
-      `Found ${pendingCalls.length} pending token calls to verify.`,
-    );
 
     for (const call of pendingCalls) {
       try {

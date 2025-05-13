@@ -812,30 +812,46 @@ export const tokens = {
     }
   },
 
-  getTokenHolderAnalysis: async (mintAddress: string): Promise<TrackedWalletHolderStats[]> => {
+  getTokenHolderAnalysis: async (
+    mintAddress: string,
+    walletCount?: 10 | 20 | 50,
+  ): Promise<TrackedWalletHolderStats[]> => {
     if (!mintAddress) {
       throw new Error('Mint address is required to fetch token holder analysis.');
     }
 
-    try {
-      const sanitizedMintAddress = encodeURIComponent(mintAddress);
-      const endpoint = `token-holder-analysis/${sanitizedMintAddress}`;
-      const cacheKey = `api:${endpoint}`;
-
-      const cachedData = getCache<TrackedWalletHolderStats[]>(cacheKey);
-      if (cachedData) {
-        return cachedData;
-      }
-
-      const data = await api<TrackedWalletHolderStats[]>(endpoint);
-
-      setCache(cacheKey, data, 3600000);
-
-      return data;
-    } catch (error) {
-      console.error(`Error fetching token holder analysis for ${mintAddress}:`, error);
-      throw error;
+    const params = new URLSearchParams();
+    if (walletCount) {
+      params.append('walletCount', walletCount.toString());
     }
+
+    const sanitizedMintAddress = encodeURIComponent(mintAddress);
+    const response = await api<TrackedWalletHolderStats[]>(
+      `token-holder-analysis/${sanitizedMintAddress}?${params.toString()}`,
+    );
+
+    return response;
+  },
+
+  getTokenHolderAnalysisCost: async (
+    mintAddress: string,
+    walletCount?: 10 | 20 | 50,
+  ): Promise<{ creditCost: number }> => {
+    if (!mintAddress) {
+      throw new Error('Mint address is required to fetch token holder analysis cost.');
+    }
+
+    const params = new URLSearchParams();
+    if (walletCount) {
+      params.append('walletCount', walletCount.toString());
+    }
+
+    const sanitizedMintAddress = encodeURIComponent(mintAddress);
+    const response = await api<{ creditCost: number }>(
+      `token-holder-analysis/${sanitizedMintAddress}/credit-cost?${params.toString()}`,
+    );
+
+    return response;
   },
 };
 
