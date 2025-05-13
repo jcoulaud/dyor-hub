@@ -15,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { ApiError, tokens as apiTokens } from '@/lib/api';
+import { API_BASE_URL, ApiError, tokens as apiTokens } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import type {
@@ -1149,43 +1149,8 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
     const maxReconnectAttempts = 5;
 
     // --- Determine WebSocket URL ---
-    let socketUrl = '';
-
-    if (typeof window !== 'undefined') {
-      const currentProtocol = window.location.protocol;
-      const currentHost = window.location.hostname;
-      const currentPort = window.location.port; // This is the frontend port
-
-      const isLocalhost = currentHost === 'localhost' || currentHost === '127.0.0.1';
-
-      if (isLocalhost) {
-        // For local development, respect frontend protocol (HTTPS) but target backend port 3001
-        const backendPort = '3001';
-        socketUrl = `${currentProtocol}//${currentHost}:${backendPort}/analysis`;
-      } else {
-        // For production or other environments, derive from window.location (including its port if specified)
-        let baseUrl = `${currentProtocol}//${currentHost}`;
-        // Append frontend's port only if it's specified and not a standard port for the protocol
-        if (
-          currentPort &&
-          !(currentPort === '80' && currentProtocol === 'http:') &&
-          !(currentPort === '443' && currentProtocol === 'https:')
-        ) {
-          baseUrl += `:${currentPort}`;
-        }
-        socketUrl = `${baseUrl}/analysis`;
-      }
-    } else {
-      console.log('Cannot initialize WebSocket during SSR, no window object.');
-      return;
-    }
-
-    if (!socketUrl) {
-      console.error('Could not determine WebSocket URL after checks.');
-      return;
-    }
-
-    const socket = io(socketUrl, {
+    const socketUrlToConnect = `${API_BASE_URL}/analysis`;
+    const socket = io(socketUrlToConnect, {
       withCredentials: true,
       transports: ['websocket'],
       reconnection: true,
@@ -1270,15 +1235,37 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
         return;
       }
 
-      if (data.message && data.message.includes('batch') && data.tradesFound !== undefined) {
-        data.message = data.message.replace(
+      let currentMessage = data.message;
+
+      if (data.message === 'No trades found for this wallet.') {
+        data.tradesFound = 0;
+        if (data.currentWallet && data.totalWallets) {
+          currentMessage = `Wallet ${data.currentWallet}/${data.totalWallets}: Fetching trades`;
+        } else if (data.currentWalletAddress) {
+          currentMessage = `Wallet ${data.currentWalletAddress}: Fetching trades`;
+        } else {
+          currentMessage = 'Fetching trades';
+        }
+      }
+
+      if (currentMessage && currentMessage.includes('batch') && data.tradesFound !== undefined) {
+        data.message = currentMessage.replace(
           /batch \d+\/\d+/,
           `${data.tradesFound} transactions analyzed`,
         );
-      }
-
-      if (data.tradesFound !== undefined && !data.message?.includes('transactions analyzed')) {
-        data.message = `${data.message || ''} (${data.tradesFound} transactions analyzed)`;
+      } else if (
+        data.tradesFound !== undefined &&
+        !currentMessage?.includes('transactions analyzed') &&
+        !currentMessage?.includes('transactions found')
+      ) {
+        const base = currentMessage
+          ? currentMessage
+          : data.currentWallet && data.totalWallets
+            ? `Wallet ${data.currentWallet}/${data.totalWallets}: Fetching trades`
+            : 'Fetching trades';
+        data.message = `${base} (${data.tradesFound} transactions analyzed)`;
+      } else {
+        data.message = currentMessage;
       }
 
       setAnalysisProgress(data);
@@ -1445,12 +1432,7 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
   );
 
   const renderDialogView = () => {
-    // Always show loading state first when dialog opens, until new data arrives
-    if (
-      isLoading ||
-      (analysisProgress && analysisProgress.status === 'analyzing') ||
-      (analysisData && !analysisProgress)
-    ) {
+    if (isLoading || (analysisProgress && analysisProgress.status === 'analyzing')) {
       return (
         <>
           <DialogHeader className='pb-2'>
@@ -1461,55 +1443,49 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
           </DialogHeader>
           <div className='py-6 px-4'>
             <div className='space-y-4'>
-              {analysisProgress && analysisProgress.totalWallets > 0 ? (
-                <div className='space-y-2'>
-                  <div className='flex items-center gap-2'>
-                    <Loader2 className='w-5 h-5 animate-spin text-teal-400' />
-                    <span className='text-zinc-300'>
-                      {analysisProgress.message?.includes(
-                        analysisProgress.currentWalletAddress || '',
-                      )
-                        ? analysisProgress.message
-                        : analysisProgress.message ||
-                          `Analyzing wallets (${analysisProgress.currentWallet}/${analysisProgress.totalWallets})`}
-                    </span>
-                  </div>
-                  {analysisProgress.currentWalletAddress && (
-                    <div className='text-sm text-zinc-400'>
-                      Current wallet: {analysisProgress.currentWalletAddress}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className='flex items-center gap-2'>
-                  <Loader2 className='w-5 h-5 animate-spin text-teal-400' />
-                  <span className='text-zinc-300'>
-                    {isLoading
-                      ? 'Initiating analysis...'
-                      : analysisProgress?.message || 'Waiting for analysis to start...'}
-                  </span>
+              {/* Message Display Area */}
+              <div className='flex items-center gap-2'>
+                <Loader2 className='w-5 h-5 animate-spin text-teal-400' />
+                <span className='text-zinc-300'>
+                  {(() => {
+                    if (isLoading && !analysisProgress) return 'Initiating analysis...';
+                    if (analysisProgress) {
+                      if (
+                        analysisProgress.message?.includes(
+                          analysisProgress.currentWalletAddress || '',
+                        )
+                      ) {
+                        return analysisProgress.message;
+                      }
+                      return (
+                        analysisProgress.message ||
+                        `Analyzing wallets (${analysisProgress.currentWallet}/${analysisProgress.totalWallets})` // Fallback if somehow not set
+                      );
+                    }
+                    return 'Waiting for analysis to start...'; // General fallback
+                  })()}
+                </span>
+              </div>
+
+              {/* Current Wallet Address */}
+              {analysisProgress && analysisProgress.currentWalletAddress && (
+                <div className='text-sm text-zinc-400'>
+                  Current wallet: {analysisProgress.currentWalletAddress}
                 </div>
               )}
+
               {/* Progress Bar Section */}
-              {(analysisProgress && analysisProgress.totalWallets > 0) || isLoading ? ( // Show progress bar if loading or progress has totalWallets
+              {analysisProgress && analysisProgress.totalWallets > 0 ? (
                 <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/50 p-4'>
                   <div className='space-y-2'>
                     <div className='flex justify-between text-sm'>
                       <span className='text-zinc-400'>Analysis Progress</span>
                       <span className='text-zinc-300'>
                         {(() => {
-                          if (!analysisProgress || analysisProgress.totalWallets === 0) return '0%';
-                          if (analysisProgress.status === 'complete') return '100%';
-                          if (analysisProgress.status === 'analyzing') {
-                            const completedWallets = Math.max(
-                              0,
-                              analysisProgress.currentWallet - 1,
-                            );
-                            const progressPercent =
-                              (completedWallets / analysisProgress.totalWallets) * 100;
-                            return `${Math.round(progressPercent)}%`;
-                          }
-                          return '0%';
+                          const completedWallets = Math.max(0, analysisProgress.currentWallet - 1);
+                          const progressPercent =
+                            (completedWallets / analysisProgress.totalWallets) * 100;
+                          return `${Math.round(progressPercent)}%`;
                         })()}
                       </span>
                     </div>
@@ -1518,19 +1494,13 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
                         className='bg-teal-500 h-2 rounded-full transition-all duration-300'
                         style={{
                           width: (() => {
-                            if (!analysisProgress || analysisProgress.totalWallets === 0)
-                              return '0%';
-                            if (analysisProgress.status === 'complete') return '100%';
-                            if (analysisProgress.status === 'analyzing') {
-                              const completedWallets = Math.max(
-                                0,
-                                analysisProgress.currentWallet - 1,
-                              );
-                              const progressPercent =
-                                (completedWallets / analysisProgress.totalWallets) * 100;
-                              return `${progressPercent}%`;
-                            }
-                            return '0%';
+                            const completedWallets = Math.max(
+                              0,
+                              analysisProgress.currentWallet - 1,
+                            );
+                            const progressPercent =
+                              (completedWallets / analysisProgress.totalWallets) * 100;
+                            return `${progressPercent}%`;
                           })(),
                         }}
                       />
