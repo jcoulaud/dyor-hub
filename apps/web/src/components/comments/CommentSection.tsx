@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { comments } from '@/lib/api';
 import { cn, formatLargeNumber, formatPrice, getHighResAvatar } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
-import type { Comment, CreateCommentDto, VoteType } from '@dyor-hub/types';
+import type { Comment, VoteType } from '@dyor-hub/types';
 import { CommentType as LocalCommentType, TokenCallStatus } from '@dyor-hub/types';
 import { format, formatDistanceStrict, parseISO } from 'date-fns';
 import {
@@ -76,7 +76,6 @@ interface CommentSectionProps {
   commentId?: string;
   verifiedCreatorUserId?: string | null;
   tokenSymbol?: string;
-  currentMarketCap?: number | null;
 }
 
 export interface CommentSectionHandle {
@@ -121,13 +120,7 @@ const getStatusText = (status: TokenCallStatus) => {
 };
 
 export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionProps>(
-  ({ tokenMintAddress, commentId, verifiedCreatorUserId, tokenSymbol, currentMarketCap }, ref) => {
-    const marketCapRef = useRef(currentMarketCap);
-
-    useEffect(() => {
-      marketCapRef.current = currentMarketCap;
-    }, [currentMarketCap]);
-
+  ({ tokenMintAddress, commentId, verifiedCreatorUserId, tokenSymbol }, ref) => {
     const [commentsList, setComments] = useState<CommentType[]>([]);
     const [sortBy, setSortBy] = useState<SortOption>('best');
     const [previousSort, setPreviousSort] = useState<SortOption | null>(null);
@@ -463,11 +456,10 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
           return;
         }
 
-        const createCommentDto: CreateCommentDto = {
+        const createCommentDto = {
           content: commentContent,
           tokenMintAddress,
           parentId,
-          marketCapAtCreation: marketCapRef.current ?? undefined,
         };
 
         try {
@@ -949,7 +941,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
           {/* Replies */}
           {comment.replies && comment.replies.length > 0 && (
             <div className='space-y-2 sm:space-y-3'>
-              {comment.replies.map((reply) => (
+              {comment.replies.map((reply: CommentType) => (
                 <Comment
                   key={reply.id}
                   comment={reply}

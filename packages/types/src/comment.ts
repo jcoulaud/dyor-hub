@@ -65,7 +65,6 @@ export interface CreateCommentDto {
   content: string;
   tokenMintAddress: string;
   parentId?: string;
-  marketCapAtCreation?: number;
 }
 
 export interface UpdateCommentDto {

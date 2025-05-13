@@ -1,5 +1,5 @@
 import { CreateCommentDto as SharedCreateCommentDto } from '@dyor-hub/types';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateCommentDto implements SharedCreateCommentDto {
   @IsString()
@@ -13,8 +13,4 @@ export class CreateCommentDto implements SharedCreateCommentDto {
   @IsString()
   @IsOptional()
   parentId?: string;
-
-  @IsOptional()
-  @IsNumber()
-  marketCapAtCreation?: number;
 }

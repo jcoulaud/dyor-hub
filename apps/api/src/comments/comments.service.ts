@@ -28,6 +28,7 @@ import { GamificationEvent } from '../gamification/services/activity-hooks.servi
 import { NotificationsService } from '../notifications/notifications.service';
 import { PerspectiveService } from '../services/perspective.service';
 import { TelegramAdminService } from '../telegram/admin/telegram-admin.service';
+import { TokensService } from '../tokens/tokens.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -57,6 +58,7 @@ export class CommentsService {
     private readonly eventEmitter: EventEmitter2,
     private readonly uploadsService: UploadsService,
     private readonly notificationsService: NotificationsService,
+    private readonly tokensService: TokensService,
   ) {}
 
   // --- Helper Function to Process HTML for Images ---
@@ -570,7 +572,6 @@ export class CommentsService {
       let targetTokenMintAddress = createCommentDto.tokenMintAddress;
       let parentComment: CommentEntity | null = null;
 
-      // If this is a reply, find the parent comment
       if (createCommentDto.parentId) {
         parentComment = await this.commentRepository.findOne({
           where: { id: createCommentDto.parentId },
@@ -582,14 +583,11 @@ export class CommentsService {
             `Parent comment with ID ${createCommentDto.parentId} not found`,
           );
         }
-
-        // Use the parent's token address for consistency
         targetTokenMintAddress = parentComment.tokenMintAddress;
       }
 
-      // Find token by the determined mint address
       const token = await this.tokenRepository.findOne({
-        where: { mintAddress: targetTokenMintAddress }, // Use targetTokenMintAddress
+        where: { mintAddress: targetTokenMintAddress },
       });
 
       if (!token) {
@@ -598,7 +596,6 @@ export class CommentsService {
         );
       }
 
-      // Find user
       const user = await this.userRepository.findOne({
         where: { id: userId },
       });
@@ -607,24 +604,19 @@ export class CommentsService {
         throw new UnauthorizedException('User not found');
       }
 
-      // Process content for images *before* toxicity check and saving
       const processedContent = await this.processCommentContentForImages(
         createCommentDto.content,
       );
 
-      // Toxicity check on processed content?
       try {
         const analysis = await this.perspectiveService.analyzeText(
           createCommentDto.content,
         );
-
-        // Log whether we're checking or skipping in local environment
         if (process.env.NODE_ENV !== 'production') {
           this.logger.debug(
             'In local environment - Perspective API check was skipped',
           );
         }
-
         if (analysis.isToxic) {
           throw new BadRequestException(
             'Comment contains toxic content and cannot be posted',
@@ -634,16 +626,34 @@ export class CommentsService {
         this.logger.warn(`Perspective API error: ${error.message}`);
       }
 
+      // Fetch current market cap
+      let currentMarketCap: number | null = null;
+      try {
+        const stats = await this.tokensService.getTokenStats(
+          targetTokenMintAddress,
+        );
+        if (stats && typeof stats.marketCap === 'number') {
+          currentMarketCap = stats.marketCap;
+        } else {
+          this.logger.warn(
+            `Could not retrieve valid market cap for token ${targetTokenMintAddress} during comment creation. Stats: ${JSON.stringify(stats)}`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error fetching market cap via tokensService.getTokenStats for ${targetTokenMintAddress}: ${error.message}`,
+          error.stack,
+        );
+      }
+
       const comment = new CommentEntity();
-      // Use the *processed* content with confirmed image URLs
       comment.content = processedContent;
       comment.user = user;
       comment.userId = userId;
-      comment.tokenMintAddress = targetTokenMintAddress; // Use the determined address
+      comment.tokenMintAddress = targetTokenMintAddress;
       comment.token = token;
       comment.parentId = createCommentDto.parentId || null;
-      comment.marketCapAtCreation =
-        createCommentDto.marketCapAtCreation || null;
+      comment.marketCapAtCreation = currentMarketCap;
 
       const savedComment = await this.commentRepository.save(comment);
 
@@ -757,12 +767,10 @@ export class CommentsService {
 
       return savedComment;
     } catch (error) {
-      // Log specific errors if needed
       this.logger.error(
         `Failed to create comment: ${error.message}`,
         error.stack,
       );
-      // Re-throw or handle as appropriate
       throw error;
     }
   }
