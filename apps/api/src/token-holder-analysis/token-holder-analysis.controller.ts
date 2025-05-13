@@ -50,10 +50,13 @@ export class TokenHolderAnalysisController {
       );
     }
 
+    const { sessionId } = params;
+
     return this.analysisService.getTopHolderWalletActivity(
       user.id,
       tokenAddress,
       walletCount as WalletAnalysisCount,
+      sessionId,
     );
   }
 

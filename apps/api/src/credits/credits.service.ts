@@ -387,7 +387,7 @@ export class CreditsService {
     await this.creditTransactionRepository.save({
       userId,
       amount: -amount,
-      description: description || 'Credit deduction',
+      details: description || 'Credit deduction',
       type: DyorHubCreditTransactionType.USAGE,
     });
   }

@@ -3,6 +3,7 @@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Pagination } from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { credits } from '@/lib/api';
@@ -29,7 +30,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
-const DEFAULT_HISTORY_LIMIT = 10;
+const DEFAULT_HISTORY_LIMIT = 5;
 
 type PurchaseStep = 'input' | 'sending' | 'confirming' | 'success' | 'error';
 
@@ -58,7 +59,6 @@ export default function CreditsPage() {
   const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(null);
   const [purchaseStep, setPurchaseStep] = useState<PurchaseStep>('input');
   const [error, setError] = useState<string | null>(null);
-  const [historyPage, setHistoryPage] = useState(1);
 
   const loadBalance = useCallback(async () => {
     setIsBalanceLoading(true);
@@ -102,7 +102,7 @@ export default function CreditsPage() {
           page,
           limit: DEFAULT_HISTORY_LIMIT,
         });
-        setHistory((prev) => (page === 1 ? data.data : [...prev, ...data.data]));
+        setHistory(data.data);
         setHistoryMeta(data.meta);
       } catch {
         toast({
@@ -248,14 +248,6 @@ export default function CreditsPage() {
       setError(errorMessage);
       setPurchaseStep('error');
       console.error('Transaction error:', error);
-    }
-  };
-
-  const handleLoadMoreHistory = () => {
-    if (historyMeta && historyMeta.page < historyMeta.totalPages) {
-      const nextPage = historyPage + 1;
-      setHistoryPage(nextPage);
-      loadHistory(nextPage);
     }
   };
 
@@ -447,20 +439,15 @@ export default function CreditsPage() {
                   </div>
                 </div>
               ))}
-              {historyMeta && historyMeta.page < historyMeta.totalPages && (
-                <Button
-                  variant='outline'
-                  onClick={handleLoadMoreHistory}
-                  disabled={isHistoryLoading}
-                  className='w-full'>
-                  {isHistoryLoading ? (
-                    <>
-                      <Loader2 className='mr-2 h-4 w-4 animate-spin' /> Loading...
-                    </>
-                  ) : (
-                    'Load More'
-                  )}
-                </Button>
+              {historyMeta && historyMeta.totalPages > 1 && (
+                <div className='mt-6'>
+                  <Pagination
+                    currentPage={historyMeta.page}
+                    totalPages={historyMeta.totalPages}
+                    onPageChange={loadHistory}
+                    isLoading={isHistoryLoading}
+                  />
+                </div>
               )}
             </div>
           ) : (

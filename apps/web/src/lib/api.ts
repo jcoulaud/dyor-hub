@@ -815,6 +815,7 @@ export const tokens = {
   getTokenHolderAnalysis: async (
     mintAddress: string,
     walletCount?: 10 | 20 | 50,
+    sessionId?: string,
   ): Promise<TrackedWalletHolderStats[]> => {
     if (!mintAddress) {
       throw new Error('Mint address is required to fetch token holder analysis.');
@@ -823,6 +824,9 @@ export const tokens = {
     const params = new URLSearchParams();
     if (walletCount) {
       params.append('walletCount', walletCount.toString());
+    }
+    if (sessionId) {
+      params.append('sessionId', sessionId);
     }
 
     const sanitizedMintAddress = encodeURIComponent(mintAddress);

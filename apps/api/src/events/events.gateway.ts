@@ -21,14 +21,15 @@ const corsOptions = {
 };
 
 export interface AnalysisProgressEvent {
-  currentWallet: number;
-  totalWallets: number;
+  status: 'analyzing' | 'complete' | 'error' | 'queued';
+  message?: string;
+  error?: string;
+  analysisData?: TrackedWalletHolderStats[];
+  currentWallet?: number;
+  totalWallets?: number;
   currentWalletAddress?: string;
   tradesFound?: number;
-  status: 'analyzing' | 'complete' | 'error';
-  error?: string;
-  message?: string;
-  analysisData?: TrackedWalletHolderStats[];
+  sessionId?: string;
 }
 
 @WebSocketGateway({
@@ -108,8 +109,6 @@ export class EventsGateway
       if (lastProgress) {
         client.emit('analysis_progress', lastProgress);
       }
-
-      this.logger.log(`Client connected: ${client.id} (User: ${userId})`);
     } catch (error) {
       this.logger.error(
         `WebSocket Authentication failed for socket ${client.id}: ${error.message || error}`,

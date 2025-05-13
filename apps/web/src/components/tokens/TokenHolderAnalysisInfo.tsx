@@ -930,6 +930,7 @@ interface AnalysisProgress {
   message?: string;
   error?: string;
   analysisData?: TrackedWalletHolderStats[];
+  sessionId?: string;
 }
 
 export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderAnalysisInfoProps) {
@@ -944,6 +945,10 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
   const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [hasShownCompletionToast, setHasShownCompletionToast] = useState(false);
+  const prevMintAddressRef = useRef<string>(mintAddress);
+  const currentAnalysisSessionId = useRef<string | null>(null);
+  const socketCreationTime = useRef<number>(0);
+  const analysisRequestTime = useRef<number>(0);
 
   const resetState = useCallback(() => {
     setError(null);
@@ -953,6 +958,12 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
     setIsLoading(false);
     setAnalysisProgress(null);
     setHasShownCompletionToast(false);
+    currentAnalysisSessionId.current = null;
+
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
   }, []);
 
   const handleCloseDialog = useCallback(() => {
@@ -964,8 +975,20 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
     setSelectedWalletCount(count);
   }, []);
 
+  // Completely clear analysis data when token changes
+  useEffect(() => {
+    if (prevMintAddressRef.current !== mintAddress) {
+      resetState();
+      prevMintAddressRef.current = mintAddress;
+    }
+  }, [mintAddress, resetState]);
+
   const handleStartAnalysis = useCallback(async () => {
     if (!selectedWalletCount) return;
+
+    // Generate a new session ID for this analysis request
+    const newSessionId = Math.random().toString(36).substring(2, 15);
+    currentAnalysisSessionId.current = newSessionId;
 
     // First check if we have enough credits
     try {
@@ -1023,7 +1046,11 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
     setHasShownCompletionToast(false);
 
     try {
-      await apiTokens.getTokenHolderAnalysis(mintAddress, selectedWalletCount);
+      // Record the time of the analysis request
+      analysisRequestTime.current = Date.now();
+
+      // Ensure newSessionId is passed to the backend API call
+      await apiTokens.getTokenHolderAnalysis(mintAddress, selectedWalletCount, newSessionId);
     } catch (err) {
       let apiError: ApiError;
       if (err instanceof ApiError) {
@@ -1187,7 +1214,35 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
       }
     });
 
+    // Store the current token address when setting up the handler
+    const tokenForHandler = mintAddress;
+
+    // Record time of socket creation to ignore stale responses
+    socketCreationTime.current = Date.now();
+
     socketRef.current.on('analysis_progress', (data: AnalysisProgress) => {
+      // Validate Session ID first
+      if (currentAnalysisSessionId.current) {
+        // Session is active, expect matching sessionId
+        if (data.sessionId && data.sessionId !== currentAnalysisSessionId.current) {
+          return;
+        }
+      } else {
+        if (data.status === 'complete' && data.analysisData && data.analysisData.length > 0) {
+          return;
+        }
+      }
+
+      const eventTimestamp = Date.now();
+      if (
+        tokenForHandler !== mintAddress ||
+        !socketRef.current ||
+        !dialogOpen ||
+        eventTimestamp < socketCreationTime.current
+      ) {
+        return;
+      }
+
       if (data.message && data.message.includes('batch') && data.tradesFound !== undefined) {
         data.message = data.message.replace(
           /batch \d+\/\d+/,
@@ -1210,6 +1265,19 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
         });
         setAnalysisData(null);
       } else if (data.status === 'complete') {
+        if (currentAnalysisSessionId.current) {
+          if (data.sessionId && data.sessionId !== currentAnalysisSessionId.current) {
+            return;
+          }
+        }
+
+        const timeAtCheck = Date.now();
+        const isFromOlderSocket = timeAtCheck < socketCreationTime.current;
+
+        if (tokenForHandler !== mintAddress || !dialogOpen || isFromOlderSocket) {
+          return;
+        }
+
         if (data.analysisData && !hasShownCompletionToast) {
           toast({
             title: 'Analysis Complete',
@@ -1217,9 +1285,11 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
           });
           setHasShownCompletionToast(true);
         }
+
         if (data.analysisData) {
-          setAnalysisData(data.analysisData);
+          setAnalysisData([...data.analysisData]);
         } else if (!data.analysisData && data.message === 'No trades found for this wallet.') {
+          setAnalysisData([]);
         } else if (!data.analysisData) {
           setAnalysisData([]);
         }
@@ -1233,17 +1303,14 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
       }
       socketRef.current = null;
     };
-  }, [user?.id, dialogOpen, hasShownCompletionToast]);
+  }, [user?.id, dialogOpen, hasShownCompletionToast, mintAddress]);
 
   const handleButtonClick = useCallback(() => {
-    setDialogOpen(true);
-    // Reset all analysis state when opening dialog for a new token
-    setAnalysisData(null);
-    setAnalysisProgress(null);
-    setSelectedWalletCount(null);
-    setError(null);
-    setHasShownCompletionToast(false);
     resetState();
+
+    socketCreationTime.current = Date.now() + 100000;
+
+    setDialogOpen(true);
 
     // Fetch credit costs
     const fetchCreditCosts = async () => {
@@ -1351,7 +1418,12 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
   );
 
   const renderDialogView = () => {
-    if (isLoading || (analysisProgress && analysisProgress.status === 'analyzing')) {
+    // Always show loading state first when dialog opens, until new data arrives
+    if (
+      isLoading ||
+      (analysisProgress && analysisProgress.status === 'analyzing') ||
+      (analysisData && !analysisProgress)
+    ) {
       return (
         <>
           <DialogHeader className='pb-2'>
@@ -1378,11 +1450,6 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
                   {analysisProgress.currentWalletAddress && (
                     <div className='text-sm text-zinc-400'>
                       Current wallet: {analysisProgress.currentWalletAddress}
-                      {analysisProgress.tradesFound !== undefined && (
-                        <span className='ml-2'>
-                          ({analysisProgress.tradesFound} transactions analyzed)
-                        </span>
-                      )}
                     </div>
                   )}
                 </div>
@@ -1556,8 +1623,10 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
       <Dialog
         open={dialogOpen}
         onOpenChange={(open) => {
+          if (!open) {
+            resetState();
+          }
           setDialogOpen(open);
-          if (!open) resetState();
         }}>
         <DialogContent className='max-w-4xl'>{renderDialogView()}</DialogContent>
       </Dialog>

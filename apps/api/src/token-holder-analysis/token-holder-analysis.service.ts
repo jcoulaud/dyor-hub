@@ -112,6 +112,7 @@ export class TokenHolderAnalysisService {
     userId: string,
     tokenAddress: string,
     walletCount: WalletAnalysisCount = 20,
+    sessionId?: string,
   ): Promise<{ message: string; analysisJobId?: string }> {
     const tokenAgeInMonths = await this.getTokenAgeInMonths(tokenAddress);
     const creditCost = this.calculateCreditCost(tokenAgeInMonths, walletCount);
@@ -126,24 +127,22 @@ export class TokenHolderAnalysisService {
       walletCount,
       creditCost,
       tokenAgeInMonths,
+      sessionId,
     ).catch((error) => {
-      this.logger.error(
-        `Unhandled error in _performFullAnalysis for user ${userId}, token ${tokenAddress}: ${error.message}`,
-        error.stack,
-      );
       this.eventsGateway.sendAnalysisProgress(userId, {
         currentWallet: 0,
         totalWallets: walletCount,
         status: 'error',
         message: 'Analysis failed due to an unexpected internal error.',
         error: 'Internal Server Error',
+        sessionId,
       });
       // Credits are released if the job fails before it can manage credits itself
       this.creditsService
         .releaseReservedCredits(userId, creditCost)
         .catch((releaseError) => {
           this.logger.error(
-            `Failed to release credits after catastrophic failure for user ${userId}: ${releaseError.message}`,
+            `Failed to release credits after catastrophic failure for user ${userId}, sessionId ${sessionId}: ${releaseError.message}`,
           );
         });
     });
@@ -153,6 +152,7 @@ export class TokenHolderAnalysisService {
       totalWallets: walletCount,
       status: 'analyzing',
       message: 'Analysis initiated...',
+      sessionId,
     });
 
     return { message: 'Token holder analysis initiated successfully.' };
@@ -164,13 +164,17 @@ export class TokenHolderAnalysisService {
     walletCount: WalletAnalysisCount,
     creditCost: number,
     tokenAgeInMonths: number,
+    sessionId?: string,
   ): Promise<void> {
+    let finalAnalyzedWallets: TrackedWalletHolderStats[] = [];
+
     // Initial progress update: Preparing to analyze
     this.eventsGateway.sendAnalysisProgress(userId, {
       currentWallet: 0,
       totalWallets: walletCount,
       status: 'analyzing',
       message: `Preparing to analyze ${walletCount} wallets...`,
+      sessionId,
     });
 
     try {
@@ -179,12 +183,12 @@ export class TokenHolderAnalysisService {
         throw new NotFoundException(`Token ${tokenAddress} not found.`);
       }
 
-      // Fetch token overview for total supply
       this.eventsGateway.sendAnalysisProgress(userId, {
         currentWallet: 0,
         totalWallets: walletCount,
         status: 'analyzing',
         message: 'Fetching token overview data...',
+        sessionId,
       });
       const overviewData =
         await this.tokensService.fetchTokenOverview(tokenAddress);
@@ -212,103 +216,98 @@ export class TokenHolderAnalysisService {
 
       const topHolders: TokenHolder[] =
         await this.tokensService.fetchTopHolders(tokenAddress, walletCount);
+
       if (!topHolders || topHolders.length === 0) {
-        // Send complete with no data if no holders found
         this.eventsGateway.sendAnalysisProgress(userId, {
           currentWallet: 0,
           totalWallets: walletCount,
           status: 'complete',
           message: 'No top holders found for this token.',
+          sessionId,
         });
-        // Commit credits even if no holders, as work (fetching holders) was done
-        await this.creditsService.commitReservedCredits(
-          userId,
-          creditCost,
-          `Token Holder Analysis (no holders) for ${tokenAddress} (${walletCount} wallets)`,
-        );
-        return;
-      }
+      } else {
+        const walletsToAnalyze = topHolders.slice(0, walletCount);
 
-      const walletsToAnalyze = topHolders.slice(0, walletCount);
-      const finalAnalyzedWallets: TrackedWalletHolderStats[] = [];
-      const batchSize = 3;
+        const batchSize = 3;
 
-      for (let i = 0; i < walletsToAnalyze.length; i += batchSize) {
-        const currentBatch = walletsToAnalyze.slice(i, i + batchSize);
+        for (let i = 0; i < walletsToAnalyze.length; i += batchSize) {
+          const currentBatch = walletsToAnalyze.slice(i, i + batchSize);
 
-        const analysisPromises = currentBatch.map(
-          async (holder, batchIndex) => {
-            const walletIndex = i + batchIndex;
-            const holderAddress = holder.address;
+          const analysisPromises = currentBatch.map(
+            async (holder, batchIndex) => {
+              const walletIndex = i + batchIndex;
+              const holderAddress = holder.address;
 
-            // Initial message for *this* wallet (before fetching trades)
-            this.eventsGateway.sendAnalysisProgress(userId, {
-              currentWallet: walletIndex + 1,
-              totalWallets: walletsToAnalyze.length,
-              currentWalletAddress: holderAddress,
-              tradesFound: 0,
-              status: 'analyzing',
-              message: `Wallet ${walletIndex + 1}/${walletsToAnalyze.length} (${holderAddress.substring(0, 6)}...): Initializing...`,
-            });
-
-            const tradeStats = await this._fetchWalletTradeHistoryInChunks(
-              userId,
-              tokenAddress,
-              holderAddress,
-              new Date(tokenCreationTime * 1000),
-              tokenAgeInMonths,
-              walletIndex,
-              walletsToAnalyze.length,
-            );
-
-            if (tradeStats.length === 0) {
-              // Send complete with no data if no trades found
               this.eventsGateway.sendAnalysisProgress(userId, {
                 currentWallet: walletIndex + 1,
                 totalWallets: walletsToAnalyze.length,
-                status: 'complete',
-                message: 'No trades found for this wallet.',
+                currentWalletAddress: holderAddress,
+                tradesFound: 0,
+                status: 'analyzing',
+                message: `Wallet ${walletIndex + 1}/${walletsToAnalyze.length} (${holderAddress.substring(0, 6)}...): Initializing...`,
+                sessionId,
               });
-              // Commit credits even if no trades, as work (fetching trades) was done
-              await this.creditsService.commitReservedCredits(
+
+              const tradeStats = await this._fetchWalletTradeHistoryInChunks(
                 userId,
-                creditCost,
-                `Token Holder Analysis (no trades) for ${tokenAddress} (${walletIndex + 1}/${walletsToAnalyze.length})`,
+                tokenAddress,
+                holderAddress,
+                new Date(tokenCreationTime * 1000),
+                tokenAgeInMonths,
+                walletIndex,
+                walletsToAnalyze.length,
+                sessionId,
               );
-              return null;
-            }
 
-            const analyzedWalletData = this.processWalletTrades(
-              holderAddress,
-              tradeStats,
-              holder,
-              tokenAddress,
-              tokenTotalSupply,
-            );
+              if (tradeStats.length === 0) {
+                this.eventsGateway.sendAnalysisProgress(userId, {
+                  currentWallet: walletIndex + 1,
+                  totalWallets: walletsToAnalyze.length,
+                  status: 'complete',
+                  message: 'No trades found for this wallet.',
+                  sessionId,
+                });
+                const emptyStat = this.processWalletTrades(
+                  holderAddress,
+                  [],
+                  holder,
+                  tokenAddress,
+                  tokenTotalSupply,
+                );
+                return emptyStat;
+              }
 
-            // Progress update after this wallet is fully processed
-            this.eventsGateway.sendAnalysisProgress(userId, {
-              currentWallet: walletIndex + 1,
-              totalWallets: walletsToAnalyze.length,
-              currentWalletAddress: holderAddress,
-              tradesFound: tradeStats.length,
-              status: 'analyzing',
-              message: `Wallet ${walletIndex + 1}/${walletsToAnalyze.length} (${holderAddress.substring(0, 6)}...): Completed. ${tradeStats.length} trades processed.`, // Use tradeStats.length
-            });
+              const analyzedWalletData = this.processWalletTrades(
+                holderAddress,
+                tradeStats,
+                holder,
+                tokenAddress,
+                tokenTotalSupply,
+              );
 
-            return analyzedWalletData;
-          },
-        );
+              this.eventsGateway.sendAnalysisProgress(userId, {
+                currentWallet: walletIndex + 1,
+                totalWallets: walletsToAnalyze.length,
+                currentWalletAddress: holderAddress,
+                tradesFound: tradeStats.length,
+                status: 'analyzing',
+                message: `Wallet ${walletIndex + 1}/${walletsToAnalyze.length} (${holderAddress.substring(0, 6)}...): Completed. ${tradeStats.length} trades processed.`,
+                sessionId,
+              });
 
-        const batchResults = await Promise.all(analysisPromises);
-        finalAnalyzedWallets.push(
-          ...batchResults.filter(
-            (stats): stats is TrackedWalletHolderStats => stats !== null,
-          ),
-        );
+              return analyzedWalletData;
+            },
+          );
+
+          const batchResults = await Promise.all(analysisPromises);
+          finalAnalyzedWallets.push(
+            ...batchResults.filter(
+              (stats): stats is TrackedWalletHolderStats => stats !== null,
+            ),
+          );
+        }
       }
 
-      // Commit the reserved credits after successful analysis
       await this.creditsService.commitReservedCredits(
         userId,
         creditCost,
@@ -316,14 +315,14 @@ export class TokenHolderAnalysisService {
       );
 
       this.eventsGateway.sendAnalysisProgress(userId, {
-        currentWallet: walletsToAnalyze.length, // All wallets processed
-        totalWallets: walletsToAnalyze.length,
+        currentWallet: walletCount,
+        totalWallets: walletCount,
         status: 'complete',
         message: 'Analysis complete',
         analysisData: finalAnalyzedWallets,
+        sessionId,
       });
     } catch (error) {
-      // Release the reserved credits on error
       await this.creditsService.releaseReservedCredits(userId, creditCost);
 
       this.eventsGateway.sendAnalysisProgress(userId, {
@@ -332,10 +331,11 @@ export class TokenHolderAnalysisService {
         message: 'Analysis failed',
         currentWallet: 0,
         totalWallets: walletCount,
+        sessionId,
       });
 
       this.logger.error(
-        `Failed to analyze token ${tokenAddress} for user ${userId}: ${error.message}`,
+        `Failed to analyze token ${tokenAddress} for user ${userId}, sessionId ${sessionId}: ${error.message}`,
         error.stack,
       );
     }
@@ -620,6 +620,7 @@ export class TokenHolderAnalysisService {
     tokenAgeInMonths: number,
     currentWalletIndex: number,
     totalWalletsToAnalyze: number,
+    sessionId?: string,
   ): Promise<BirdeyeTokenTradeV3Item[]> {
     const allTrades: BirdeyeTokenTradeV3Item[] = [];
     let offset = 0;
@@ -649,8 +650,9 @@ export class TokenHolderAnalysisService {
         totalWallets: totalWalletsToAnalyze,
         currentWalletAddress: walletAddress,
         status: 'analyzing',
-        message: `Wallet ${currentWalletIndex + 1}/${totalWalletsToAnalyze} (${walletAddress.substring(0, 6)}...): Fetching trades (batch ${chunk + 1}/${numberOfChunks})`,
+        message: `Wallet ${currentWalletIndex + 1}/${totalWalletsToAnalyze}: Fetching trades (batch ${chunk + 1}/${numberOfChunks})`,
         tradesFound: totalTradesFetchedForWallet,
+        sessionId,
       });
 
       offset = 0;
@@ -694,6 +696,7 @@ export class TokenHolderAnalysisService {
             status: 'analyzing',
             message: `Wallet ${currentWalletIndex + 1}/${totalWalletsToAnalyze} (${walletAddress.substring(0, 6)}...): Found ${totalTradesFetchedForWallet} trades...`,
             tradesFound: totalTradesFetchedForWallet,
+            sessionId,
           });
 
           if (newItems.length < limit) break;
