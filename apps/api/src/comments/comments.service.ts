@@ -341,6 +341,7 @@ export class CommentsService {
           type: comment.type,
           tokenCallId: comment.tokenCallId,
           tokenCall: tokenCallDto,
+          marketCapAtCreation: comment.marketCapAtCreation,
           removedBy:
             comment.removedById && comment.removedBy
               ? {
@@ -481,6 +482,7 @@ export class CommentsService {
           isEdited: true,
           type: true,
           tokenCallId: true,
+          marketCapAtCreation: true,
           user: {
             id: true,
             username: true,
@@ -547,6 +549,7 @@ export class CommentsService {
         type: comment.type,
         tokenCallId: comment.tokenCallId,
         tokenCall: tokenCallDto,
+        marketCapAtCreation: comment.marketCapAtCreation,
         removedBy: comment.removedById
           ? {
               id: comment.removedBy.id,
@@ -639,6 +642,8 @@ export class CommentsService {
       comment.tokenMintAddress = targetTokenMintAddress; // Use the determined address
       comment.token = token;
       comment.parentId = createCommentDto.parentId || null;
+      comment.marketCapAtCreation =
+        createCommentDto.marketCapAtCreation || null;
 
       const savedComment = await this.commentRepository.save(comment);
 
@@ -1022,8 +1027,9 @@ export class CommentsService {
       id: comment.id,
       content: comment.content,
       createdAt: comment.createdAt.toISOString(),
+      marketCapAtCreation: comment.marketCapAtCreation,
       token: {
-        tokenMintAddress: comment.tokenMintAddress,
+        tokenMintAddress: comment.token.mintAddress,
         symbol: comment.token.symbol,
       },
       user: {
@@ -1120,6 +1126,7 @@ export class CommentsService {
             isEdited: true,
             type: true,
             tokenCallId: true,
+            marketCapAtCreation: true,
             user: {
               id: true,
               username: true,
@@ -1196,6 +1203,7 @@ export class CommentsService {
           type: comment.type,
           tokenCallId: comment.tokenCallId,
           tokenCall: tokenCallDto,
+          marketCapAtCreation: comment.marketCapAtCreation,
           removedBy:
             comment.removedById && comment.removedBy
               ? {

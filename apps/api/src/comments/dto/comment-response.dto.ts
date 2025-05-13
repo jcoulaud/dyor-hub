@@ -93,4 +93,7 @@ export class CommentResponseDto {
   @Expose()
   @Type(() => CommentResponseDto)
   replies?: CommentResponseDto[];
+
+  @Expose()
+  marketCapAtCreation?: number | null;
 }

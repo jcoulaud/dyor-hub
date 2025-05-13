@@ -28,6 +28,13 @@ export class CommentEntity {
   content: string;
 
   @Column({
+    name: 'market_cap_at_creation',
+    type: 'double precision',
+    nullable: true,
+  })
+  marketCapAtCreation: number | null;
+
+  @Column({
     name: 'type',
     type: 'enum',
     enum: CommentType,
