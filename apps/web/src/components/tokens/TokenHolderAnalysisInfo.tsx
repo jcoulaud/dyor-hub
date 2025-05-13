@@ -566,6 +566,7 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
   // Calculate percentages for the pie chart (for visual display only)
   const diamondHandsPercentage = Math.round((stats.diamondHands / stats.totalWallets) * 100) || 0;
   const paperHandsPercentage = Math.round((stats.paperhands / stats.totalWallets) * 100) || 0;
+  const otherHoldersPercentage = Math.max(0, 100 - diamondHandsPercentage - paperHandsPercentage);
 
   return (
     <div className='space-y-4'>
@@ -611,6 +612,10 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
                 <linearGradient id='paperGradient' x1='0' y1='0' x2='0' y2='1'>
                   <stop offset='0%' stopColor='#ef4444' stopOpacity='0.8' />
                   <stop offset='100%' stopColor='#ef4444' stopOpacity='0.95' />
+                </linearGradient>
+                <linearGradient id='otherGradient' x1='0' y1='0' x2='0' y2='1'>
+                  <stop offset='0%' stopColor='#64748b' stopOpacity='0.7' />{' '}
+                  <stop offset='100%' stopColor='#64748b' stopOpacity='0.85' />{' '}
                 </linearGradient>
               </defs>
 
@@ -688,11 +693,27 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
                 />
               )}
 
+              {/* Other Holders portion */}
+              {otherHoldersPercentage > 0 && (
+                <path
+                  d={`M 100 100 
+                    L ${100 + 70 * Math.sin(((diamondHandsPercentage + paperHandsPercentage) / 100) * Math.PI * 2)} 
+                      ${100 - 70 * Math.cos(((diamondHandsPercentage + paperHandsPercentage) / 100) * Math.PI * 2)} 
+                    A 70 70 0 ${otherHoldersPercentage > 50 && diamondHandsPercentage + paperHandsPercentage === 0 ? 1 : otherHoldersPercentage + diamondHandsPercentage + paperHandsPercentage > 50 && diamondHandsPercentage + paperHandsPercentage > 0 ? 1 : 0} 1 
+                      ${100 + 70 * Math.sin(((diamondHandsPercentage + paperHandsPercentage + otherHoldersPercentage) / 100) * Math.PI * 2)} 
+                      ${100 - 70 * Math.cos(((diamondHandsPercentage + paperHandsPercentage + otherHoldersPercentage) / 100) * Math.PI * 2)} 
+                    Z`}
+                  fill='url(#otherGradient)'
+                  stroke='#18181b'
+                  strokeWidth='1'
+                />
+              )}
+
               {/* Inner circle (hole) */}
               <circle cx='100' cy='100' r='45' fill='#18181b' />
             </svg>
 
-            <div className='flex justify-center gap-8 mt-4'>
+            <div className='flex justify-center gap-6 mt-4 flex-wrap'>
               <div className='flex items-center gap-2'>
                 <div className='w-3 h-3 rounded-full bg-emerald-500'></div>
                 <span className='text-sm text-zinc-200'>Diamond Hands</span>
@@ -701,6 +722,12 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
                 <div className='w-3 h-3 rounded-full bg-red-500'></div>
                 <span className='text-sm text-zinc-200'>Paper Hands</span>
               </div>
+              {otherHoldersPercentage > 0 && (
+                <div className='flex items-center gap-2'>
+                  <div className='w-3 h-3 rounded-full bg-slate-500'></div>{' '}
+                  <span className='text-sm text-zinc-200'>Other Holders</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
