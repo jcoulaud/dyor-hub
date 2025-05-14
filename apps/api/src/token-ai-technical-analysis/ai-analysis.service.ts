@@ -1,6 +1,7 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
+import { ChartAnalysisDto } from './dto/chart-analysis.dto';
 
 const DecodedStorySchema = z.object({
   priceJourney: z
@@ -46,15 +47,6 @@ const ChartWhispererSchema = z
 
 export type ChartWhispererOutput = z.infer<typeof ChartWhispererSchema>;
 
-export interface ChartAnalysisInput {
-  tokenName: string;
-  tokenAddress: string;
-  tokenAge: string; // e.g., "3 weeks", "6 months"
-  numberOfCandles: number;
-  candleType: string; // e.g., "1H", "4H", "1D"
-  ohlcvDataJson: string; // The stringified JSON of OHLCV data
-}
-
 @Injectable()
 export class AiAnalysisService {
   private llm: ChatOpenAI;
@@ -71,7 +63,7 @@ export class AiAnalysisService {
     });
   }
 
-  private buildPrompt(input: ChartAnalysisInput): string {
+  private buildPrompt(input: ChartAnalysisDto): string {
     const {
       tokenName,
       tokenAddress,
@@ -121,7 +113,7 @@ export class AiAnalysisService {
   }
 
   async getChartAnalysis(
-    input: ChartAnalysisInput,
+    input: ChartAnalysisDto,
   ): Promise<ChartWhispererOutput> {
     const prompt = this.buildPrompt(input);
 

@@ -43,6 +43,7 @@ import { SessionModule } from './session/session.module';
 import { SolanaModule } from './solana/solana.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { TippingModule } from './tipping/tipping.module';
+import { TokenAiTechnicalAnalysisModule } from './token-ai-technical-analysis/token-ai-technical-analysis.module';
 import { TokenCallsLeaderboardModule } from './token-calls-leaderboard/tokenCallsLeaderboard.module';
 import { TokenCallsModule } from './token-calls/token-calls.module';
 import { TokenHolderAnalysisModule } from './token-holder-analysis/token-holder-analysis.module';
@@ -102,6 +103,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     TokenHolderAnalysisModule,
     CreditsModule,
     EventsModule,
+    TokenAiTechnicalAnalysisModule,
   ],
   controllers: [AppController],
   providers: [
