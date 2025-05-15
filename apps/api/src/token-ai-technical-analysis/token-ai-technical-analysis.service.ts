@@ -35,6 +35,24 @@ const BIRDEYE_TIMEFRAMES = [
   'alltime',
 ];
 
+// Map timeframes to their approximate duration in seconds
+const TIMEFRAME_DURATIONS = {
+  '30m': 30 * 60,
+  '1h': 60 * 60,
+  '2h': 2 * 60 * 60,
+  '4h': 4 * 60 * 60,
+  '8h': 8 * 60 * 60,
+  '24h': 24 * 60 * 60,
+  '3d': 3 * 24 * 60 * 60,
+  '7d': 7 * 24 * 60 * 60,
+  '14d': 14 * 24 * 60 * 60,
+  '30d': 30 * 24 * 60 * 60,
+  '90d': 90 * 24 * 60 * 60,
+  '180d': 180 * 24 * 60 * 60,
+  '1y': 365 * 24 * 60 * 60,
+  alltime: Infinity,
+};
+
 interface BirdeyeOhlcvParams {
   address: string;
   type: string;
@@ -140,47 +158,74 @@ export class TokenAiTechnicalAnalysisService {
     return Math.max(0, ageInDays);
   }
 
-  // Method to select 5 appropriate timeframes based on date range
+  // Method to select appropriate timeframes based on date range and token age
   private selectOptimalTimeframes(
     timeFromSeconds: number,
     timeToSeconds: number,
+    tokenAgeInDays: number = Infinity,
   ): string[] {
-    // We always want to include 'alltime' as one of the timeframes
-    const result = ['alltime'];
+    // Calculate the duration of the selected date range in seconds
+    const durationSeconds = timeToSeconds - timeFromSeconds;
 
-    // Available timeframes in order from shortest to longest
-    const availableTimeframes = [
-      '30m',
-      '1h',
-      '2h',
-      '4h',
-      '8h',
-      '24h',
-      '3d',
-      '7d',
-      '14d',
-      '30d',
-      '90d',
-      '180d',
-      '1y',
-    ];
+    // Calculate token age in seconds
+    const tokenAgeSeconds = tokenAgeInDays * 24 * 60 * 60;
 
-    // We need to select 4 more timeframes
-    const numNeededTimeframes = 4;
+    // Filter available timeframes based on the selected duration and token age
+    const applicableTimeframes = BIRDEYE_TIMEFRAMES.filter((timeframe) => {
+      const timeframeDuration =
+        TIMEFRAME_DURATIONS[timeframe as keyof typeof TIMEFRAME_DURATIONS];
 
-    // Calculate step size to distribute evenly
-    const step = Math.max(
-      1,
-      Math.floor(availableTimeframes.length / numNeededTimeframes),
-    );
+      // Don't include timeframes that are longer than our date range
+      // We use 1.5x to allow for some overlap while still being meaningful
+      if (
+        timeframe !== 'alltime' &&
+        timeframeDuration > durationSeconds * 1.5
+      ) {
+        return false;
+      }
 
-    // Add evenly distributed timeframes
-    for (let i = 0; i < numNeededTimeframes; i++) {
-      const index = Math.min(i * step, availableTimeframes.length - 1);
-      result.push(availableTimeframes[index]);
+      // Don't include timeframes longer than the token's age
+      if (timeframe !== 'alltime' && timeframeDuration > tokenAgeSeconds) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // If no appropriate timeframes are found or the token is very new, just use the shortest timeframes
+    if (applicableTimeframes.length === 0 || tokenAgeInDays < 1) {
+      // For very new tokens, focus on shortest timeframes
+      return BIRDEYE_TIMEFRAMES.slice(0, 5).filter((tf) => {
+        const tfDuration =
+          TIMEFRAME_DURATIONS[tf as keyof typeof TIMEFRAME_DURATIONS];
+        return tfDuration < Math.max(durationSeconds, 24 * 60 * 60); // At least include timeframes up to 1 day
+      });
     }
 
-    // Ensure the result has exactly 5 unique timeframes
+    // For very short date ranges, we might want to focus on shorter timeframes
+    if (durationSeconds < 24 * 60 * 60) {
+      // Less than 1 day
+      return applicableTimeframes.slice(0, 5); // Take up to 5 shortest timeframes
+    }
+
+    // We want to select 5 well-distributed timeframes
+    const result: string[] = [];
+    const totalTimeframes = applicableTimeframes.length;
+
+    // If we have 5 or fewer, use all of them
+    if (totalTimeframes <= 5) {
+      return applicableTimeframes;
+    }
+
+    // Otherwise, pick 5 evenly distributed timeframes
+    const step = Math.max(1, Math.floor(totalTimeframes / 5));
+
+    for (let i = 0; i < 5; i++) {
+      const index = Math.min(i * step, totalTimeframes - 1);
+      result.push(applicableTimeframes[index]);
+    }
+
+    // Ensure we have unique timeframes and at most 5
     return Array.from(new Set(result)).slice(0, 5);
   }
 
@@ -188,6 +233,7 @@ export class TokenAiTechnicalAnalysisService {
     tokenAddress: string,
     timeFrom: number,
     timeTo: number,
+    tokenAgeInDays: number,
     progress?: (percent: number, stage: string) => void,
   ): Promise<TradeDataByTimeframe[]> {
     const birdeyeApiKey = this.configService.get<string>('BIRDEYE_API_KEY');
@@ -196,8 +242,12 @@ export class TokenAiTechnicalAnalysisService {
       return [];
     }
 
-    // Select optimal timeframes based on date range
-    const selectedTimeframes = this.selectOptimalTimeframes(timeFrom, timeTo);
+    // Select optimal timeframes based on date range and token age
+    const selectedTimeframes = this.selectOptimalTimeframes(
+      timeFrom,
+      timeTo,
+      tokenAgeInDays,
+    );
 
     const tradeDataResults: TradeDataByTimeframe[] = [];
     const totalTimeframes = selectedTimeframes.length;
@@ -344,6 +394,7 @@ export class TokenAiTechnicalAnalysisService {
       tokenAddress,
       clientTimeFrom,
       clientTimeTo,
+      tokenAgeInDays,
       progressCallback,
     );
 

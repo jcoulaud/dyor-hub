@@ -73,8 +73,8 @@ const InsufficientCreditsContent = ({ onClose }: { onClose: () => void }) => (
     </DialogHeader>
     <div className='p-6 space-y-4'>
       <p className='text-zinc-300'>
-        You don&apos;t have enough credits to perform this AI Trading Analysis. Purchase more
-        credits to continue.
+        You don&apos;t have enough credits to perform this analysis. Purchase more credits to
+        continue.
       </p>
       <div className='flex gap-3'>
         <Button
@@ -108,7 +108,7 @@ export function TokenAiTradingAnalysis({
   const [isLoading, setIsLoading] = useState(false);
   const [isCostLoading, setIsCostLoading] = useState(false);
   const [analysisData, setAnalysisData] = useState<AiTradingAnalysisResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
   const [tokenGatedApiError, setTokenGatedApiError] = useState<ApiError | null>(null);
   const [platformTokenGateFailed, setPlatformTokenGateFailed] = useState(false);
   const [calculatedCreditCost, setCalculatedCreditCost] = useState<number | null>(null);
@@ -166,6 +166,7 @@ export function TokenAiTradingAnalysis({
     setAnalysisProgress(null);
     setHasShownCompletionToast(false);
     setIsLoading(false);
+    setIsCostLoading(false);
     errorHandledForSession.current = {};
 
     // Disconnect any active socket
@@ -182,13 +183,6 @@ export function TokenAiTradingAnalysis({
   useEffect(() => {
     if (!isModalOpen) {
       resetState();
-
-      // Reset socket and session for new credit check when reopened
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-      currentAnalysisSessionId.current = null;
     }
   }, [isModalOpen, resetState]);
 
@@ -260,6 +254,7 @@ export function TokenAiTradingAnalysis({
           data.message?.toLowerCase().includes('insufficient credits') ||
           data.error?.toLowerCase().includes('insufficient credits')
         ) {
+          setError(new ApiError(402, 'Insufficient credits for AI Trading Analysis'));
           setShowInsufficientCreditsError(true);
           setShowTryAgainError(false);
           setTryAgainErrorMessage(null);
@@ -354,9 +349,16 @@ export function TokenAiTradingAnalysis({
         setCalculatedCreditCost(costData.creditCost);
       } catch (err) {
         const caughtError = err as ApiError;
-        setError(
-          caughtError.message || 'Failed to fetch credit cost. Please try opening the modal again.',
-        );
+        // Check if this is an insufficient credits error
+        if (
+          caughtError.status === 402 ||
+          caughtError.message?.toLowerCase().includes('insufficient credits')
+        ) {
+          setError(new ApiError(402, 'Insufficient credits for AI Trading Analysis'));
+          setShowInsufficientCreditsError(true);
+        } else {
+          setError(caughtError);
+        }
       } finally {
         setIsCostLoading(false);
       }
@@ -365,7 +367,7 @@ export function TokenAiTradingAnalysis({
 
   const handleSubmitAnalysis = async () => {
     if (!dateRange.from || !dateRange.to) {
-      setError('Please select a valid date range.');
+      setError(new ApiError(400, 'Please select a valid date range.'));
       toast({
         title: 'Date Range Required',
         description: 'Please select a start and end date.',
@@ -374,11 +376,11 @@ export function TokenAiTradingAnalysis({
       return;
     }
     if (!mintAddress) {
-      setError('Token address is missing.');
+      setError(new ApiError(400, 'Token address is missing.'));
       return;
     }
     if (calculatedCreditCost === null && !isCostLoading) {
-      setError('Credit cost not determined. Please re-open the modal.');
+      setError(new ApiError(400, 'Credit cost not determined. Please re-open the modal.'));
       return;
     }
 
@@ -394,7 +396,7 @@ export function TokenAiTradingAnalysis({
     setShowInsufficientCreditsError(false);
     errorHandledForSession.current = {};
 
-    // Force a fresh credit check to ensure we have the latest credit status
+    // When an error occurs during credit check, make sure to set the error state properly
     try {
       await apiTokens.getAiTradingAnalysisCost(mintAddress);
       // If we get here, we should have credits
@@ -402,16 +404,18 @@ export function TokenAiTradingAnalysis({
       const creditError = creditErr as ApiError;
       // Check specifically for insufficient credits error
       if (
-        creditError.status === 403 &&
-        (creditError.message?.toLowerCase().includes('insufficient credits') ||
-          (creditError.data &&
-            typeof creditError.data === 'object' &&
-            'details' in creditError.data &&
-            creditError.data.details &&
-            typeof creditError.data.details === 'object' &&
-            'code' in creditError.data.details &&
-            creditError.data.details.code === 'INSUFFICIENT_CREDITS'))
+        creditError.status === 402 || // Use 402 status as well, like in TokenHolderAnalysisInfo
+        (creditError.status === 403 &&
+          (creditError.message?.toLowerCase().includes('insufficient credits') ||
+            (creditError.data &&
+              typeof creditError.data === 'object' &&
+              'details' in creditError.data &&
+              creditError.data.details &&
+              typeof creditError.data.details === 'object' &&
+              'code' in creditError.data.details &&
+              creditError.data.details.code === 'INSUFFICIENT_CREDITS')))
       ) {
+        setError(new ApiError(402, 'Insufficient credits for AI Trading Analysis')); // Set the proper error format
         setShowInsufficientCreditsError(true);
         setIsLoading(false);
         return;
@@ -469,8 +473,8 @@ export function TokenAiTradingAnalysis({
             'code' in errorData.details &&
             errorData.details.code === 'INSUFFICIENT_CREDITS'))
       ) {
+        setError(new ApiError(402, 'Insufficient credits for AI Trading Analysis'));
         setShowInsufficientCreditsError(true);
-        setError(null);
         toast({
           title: 'Insufficient Credits',
           description: 'Not enough credits for this analysis.',
@@ -550,9 +554,18 @@ export function TokenAiTradingAnalysis({
         <ChevronRight className='w-4 h-4 ml-auto text-zinc-200' />
       </Button>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) {
+            resetState();
+          }
+        }}>
         <DialogContent className='max-w-4xl bg-zinc-950 border-zinc-800 text-zinc-50'>
-          {showInsufficientCreditsError ? (
+          {error?.status === 402 ? (
+            <InsufficientCreditsContent onClose={() => setIsModalOpen(false)} />
+          ) : showInsufficientCreditsError ? (
             <InsufficientCreditsContent onClose={() => setIsModalOpen(false)} />
           ) : (
             <>
@@ -635,10 +648,11 @@ export function TokenAiTradingAnalysis({
                 !analysisData &&
                 !platformTokenGateFailed &&
                 !tokenGatedApiError &&
-                !showTryAgainError && (
+                !showTryAgainError &&
+                error.status !== 402 && (
                   <div className='my-4 p-4 bg-red-900/20 border border-red-700/50 rounded-md text-red-400 flex items-center'>
                     <AlertTriangle className='h-5 w-5 mr-2' />
-                    {error}
+                    {error.message}
                   </div>
                 )}
 
@@ -673,7 +687,13 @@ export function TokenAiTradingAnalysis({
 
               {analysisData && analysisData.analysisOutput && (
                 <div className='mt-4 space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent hover:scrollbar-thumb-zinc-600'>
-                  <h3 className='text-base font-semibold text-zinc-100'>AI Analysis Results:</h3>
+                  <h3 className='text-base font-semibold text-zinc-100'>
+                    AI Analysis Results:{' '}
+                    <span className='text-zinc-400 text-sm font-normal'>
+                      {format(dateRange.from, 'MMM d, yyyy')} -{' '}
+                      {format(dateRange.to, 'MMM d, yyyy')}
+                    </span>
+                  </h3>
 
                   {analysisData.analysisOutput.unfilteredTruth && (
                     <div className='mb-5'>

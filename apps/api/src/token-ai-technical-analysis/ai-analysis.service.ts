@@ -127,6 +127,8 @@ export class AiAnalysisService {
       candleType,
       ohlcvDataJson,
       priceReferencesJson,
+      timeFrom,
+      timeTo,
     } = input;
 
     // Parse OHLCV data to find min, max prices and calculate % gain
@@ -136,16 +138,28 @@ export class AiAnalysisService {
     let lastPrice = 0;
     let priceChangePercent = 0;
     let allTimeHighGainPercent = 0;
+    let firstTimestamp = 0;
+    let lastTimestamp = 0;
+    let maxPriceTimestamp = 0;
+    let minPriceTimestamp = 0;
 
     try {
       const ohlcvData = JSON.parse(ohlcvDataJson);
       if (Array.isArray(ohlcvData) && ohlcvData.length > 0) {
         firstPrice = ohlcvData[0].o;
         lastPrice = ohlcvData[ohlcvData.length - 1].c;
+        firstTimestamp = ohlcvData[0].unixTime;
+        lastTimestamp = ohlcvData[ohlcvData.length - 1].unixTime;
 
         ohlcvData.forEach((candle) => {
-          minPrice = Math.min(minPrice, candle.l);
-          maxPrice = Math.max(maxPrice, candle.h);
+          if (candle.l < minPrice) {
+            minPrice = candle.l;
+            minPriceTimestamp = candle.unixTime;
+          }
+          if (candle.h > maxPrice) {
+            maxPrice = candle.h;
+            maxPriceTimestamp = candle.unixTime;
+          }
         });
 
         priceChangePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
@@ -154,6 +168,22 @@ export class AiAnalysisService {
     } catch (error) {
       this.logger.error(`Error parsing OHLCV data: ${error.message}`);
     }
+
+    // Format dates for better readability
+    const formatDate = (timestamp: number): string => {
+      return new Date(timestamp * 1000).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    };
+
+    const analysisStartDate = formatDate(timeFrom || firstTimestamp);
+    const analysisEndDate = formatDate(timeTo || lastTimestamp);
+    const firstPriceDate = formatDate(firstTimestamp);
+    const lastPriceDate = formatDate(lastTimestamp);
+    const maxPriceDate = formatDate(maxPriceTimestamp);
+    const minPriceDate = formatDate(minPriceTimestamp);
 
     // Parse price references
     let priceReferences: {
@@ -175,10 +205,10 @@ export class AiAnalysisService {
     const priceReferenceSection = priceReferences.length
       ? `\n📅 Price Performance by Time Period:\n` +
         priceReferences
-          .map(
-            (ref) =>
-              `• ${ref.period.charAt(0).toUpperCase() + ref.period.slice(1)}: $${ref.price.toFixed(8)} (${ref.changePercent >= 0 ? '+' : ''}${ref.changePercent.toFixed(2)}% vs current)`,
-          )
+          .map((ref) => {
+            const refDate = formatDate(ref.timestamp);
+            return `• ${ref.period.charAt(0).toUpperCase() + ref.period.slice(1)} (${refDate}): $${ref.price.toFixed(8)} (${ref.changePercent >= 0 ? '+' : ''}${ref.changePercent.toFixed(2)}% vs current)`;
+          })
           .join('\n')
       : '';
 
@@ -331,10 +361,11 @@ export class AiAnalysisService {
 
     const priceAnalysis =
       `\n📊 Price Analysis:\n` +
-      `• Starting price: $${firstPrice.toFixed(8)}\n` +
-      `• Current price: $${lastPrice.toFixed(8)}\n` +
-      `• All-time high: $${maxPrice.toFixed(8)}\n` +
-      `• All-time low: $${minPrice.toFixed(8)}\n` +
+      `• Analysis period: ${analysisStartDate} to ${analysisEndDate}\n` +
+      `• Starting price (${firstPriceDate}): $${firstPrice.toFixed(8)}\n` +
+      `• Current price (${lastPriceDate}): $${lastPrice.toFixed(8)}\n` +
+      `• All-time high (${maxPriceDate}): $${maxPrice.toFixed(8)}\n` +
+      `• All-time low (${minPriceDate}): $${minPrice.toFixed(8)}\n` +
       `• ATH gain: ${allTimeHighGainPercent > 0 ? '+' : ''}${allTimeHighGainPercent.toFixed(2)}%\n` +
       `• Net price change: ${priceChangePercent > 0 ? '+' : ''}${priceChangePercent.toFixed(2)}%`;
 
@@ -355,6 +386,7 @@ export class AiAnalysisService {
       '\n🎯 YOUR TASK:',
       `Analyze ${tokenIdentifier} which has been trading for ${tokenAge}. You'll analyze BOTH price action AND on-chain trading activity.`,
       '\n📈 DATA YOU HAVE:',
+      `• Analysis period from ${analysisStartDate} to ${analysisEndDate}`,
       `• ${numberOfCandles} price candles (${candleType} intervals)`,
       `• Trading activity from ${tradeData.length} different timeframes showing buys/sells and volume`,
       `${priceAnalysis}`,
@@ -369,6 +401,8 @@ export class AiAnalysisService {
       "• Don't use placeholder token name templates - refer to the token by its actual name",
       '\n✅ THINGS TO INCLUDE:',
       '• Always refer to the token by its symbol when available',
+      '• Always include the token symbol (e.g. $TOKEN) in your analysis',
+      '• Always include dates when referencing price movements (e.g., "On May 5, 2023, the price surged to...")',
       '• Specific price levels in $ terms (not just percentages)',
       '• Price changes over multiple timeframes (if data is available)',
       '• Clear explanations of buy vs. sell pressure with actual numbers',
