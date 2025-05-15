@@ -328,6 +328,7 @@ export function TokenAiTradingAnalysis({
 
     // Reset any previous credit-related errors when opening modal
     setShowInsufficientCreditsError(false);
+    setError(null);
 
     setIsModalOpen(true);
 
@@ -347,6 +348,11 @@ export function TokenAiTradingAnalysis({
       try {
         const costData = await apiTokens.getAiTradingAnalysisCost(mintAddress);
         setCalculatedCreditCost(costData.creditCost);
+
+        if (user && typeof user.credits === 'number' && user.credits < costData.creditCost) {
+          setError(new ApiError(402, 'Insufficient credits for AI Trading Analysis'));
+          setShowInsufficientCreditsError(true);
+        }
       } catch (err) {
         const caughtError = err as ApiError;
         // Check if this is an insufficient credits error
