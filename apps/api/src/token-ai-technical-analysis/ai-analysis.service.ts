@@ -117,15 +117,14 @@ export class AiAnalysisService {
   ): Promise<ChartWhispererOutput> {
     const prompt = this.buildPrompt(input);
 
-    console.log('Sending prompt to LLM:', prompt);
-
     try {
       const llmWithSchema = this.llm.withStructuredOutput(ChartWhispererSchema);
       const analysis = await llmWithSchema.invoke(prompt);
       return analysis;
     } catch (error) {
-      console.error('Error getting structured analysis from LLM:', error);
-      throw new Error('Failed to get AI chart analysis.');
+      throw new Error(
+        `Error getting structured analysis from LLM: ${error.message}`,
+      );
     }
   }
 }

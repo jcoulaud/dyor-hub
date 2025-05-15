@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { TokensService } from '../tokens/tokens.service';
 import { AiAnalysisService, ChartWhispererOutput } from './ai-analysis.service';
-import { AiAnalysisRequestDto, Timeframe } from './dto/ai-analysis-request.dto';
+import { AiAnalysisRequestDto } from './dto/ai-analysis-request.dto';
 import { ChartAnalysisDto } from './dto/chart-analysis.dto';
 
 const BIRDEYE_OHLCV_ENDPOINT = 'https://public-api.birdeye.so/defi/ohlcv';
@@ -56,7 +56,6 @@ const BIRDEYE_CANDLE_TYPES = [
   { type: '1D', seconds: 24 * 60 * 60 },
   { type: '3D', seconds: 3 * 24 * 60 * 60 },
   { type: '1W', seconds: 7 * 24 * 60 * 60 },
-  { type: '1M', seconds: 30 * 24 * 60 * 60 },
 ];
 
 export interface OrchestrationResult {
@@ -99,29 +98,31 @@ export class TokenAiTechnicalAnalysisService {
     tokenName: string,
     tokenAgeInDays: number,
   ): Promise<OrchestrationResult> {
-    const { tokenAddress, timeframe } = requestDto;
-    this.logger.log(
-      `Orchestrating AI analysis for token ${tokenAddress}, timeframe ${timeframe}`,
-    );
+    const {
+      tokenAddress,
+      timeFrom: clientTimeFrom,
+      timeTo: clientTimeTo,
+    } = requestDto;
 
-    const { ohlcvType, timeFrom, timeTo } = this.getTimeframeParams(timeframe);
+    if (clientTimeFrom >= clientTimeTo) {
+      throw new BadRequestException('timeFrom must be earlier than timeTo.');
+    }
+
+    const { ohlcvType } = this.determineOhlcvType(clientTimeFrom, clientTimeTo);
+
     let ohlcvItems: BirdeyeOhlcvItem[];
 
     try {
       const birdeyeApiKey = this.configService.get<string>('BIRDEYE_API_KEY');
       if (!birdeyeApiKey) {
-        this.logger.error('BIRDEYE_API_KEY not configured.');
         throw new InternalServerErrorException('Service configuration error.');
       }
       const params: BirdeyeOhlcvParams = {
         address: tokenAddress,
         type: ohlcvType,
-        time_from: timeFrom,
-        time_to: timeTo,
+        time_from: clientTimeFrom,
+        time_to: clientTimeTo,
       };
-      this.logger.debug(
-        `Fetching Birdeye OHLCV data with params: ${JSON.stringify(params)}`,
-      );
 
       const response = await firstValueFrom(
         this.httpService.get<BirdeyeOhlcvResponse>(BIRDEYE_OHLCV_ENDPOINT, {
@@ -131,22 +132,16 @@ export class TokenAiTechnicalAnalysisService {
       );
 
       if (!response.data?.success || !response.data?.data?.items) {
-        this.logger.warn(
-          `Birdeye API call failed or returned no items for ${tokenAddress}.`,
-        );
-        throw new NotFoundException('Could not retrieve OHLCV market data.');
-      }
-      ohlcvItems = response.data.data.items;
-      if (ohlcvItems.length === 0) {
-        this.logger.warn(
-          `Birdeye returned 0 OHLCV items for ${tokenAddress} with params: ${JSON.stringify(params)}`,
-        );
+        ohlcvItems = [];
+        if (!response.data?.success) {
+          throw new NotFoundException(
+            'Could not retrieve OHLCV market data. Birdeye request unsuccessful.',
+          );
+        }
+      } else {
+        ohlcvItems = response.data.data.items;
       }
     } catch (error) {
-      this.logger.error(
-        `Failed to fetch OHLCV data for ${tokenAddress}: ${error.message}`,
-        error.stack,
-      );
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException
@@ -175,53 +170,39 @@ export class TokenAiTechnicalAnalysisService {
       candleType: ohlcvType,
     };
 
-    const analysisOutput = await this.aiAnalysisService.getChartAnalysis(
-      chartAnalysisServiceInput,
-    );
-    return { analysisOutput };
+    try {
+      const analysisOutput = await this.aiAnalysisService.getChartAnalysis(
+        chartAnalysisServiceInput,
+      );
+
+      return { analysisOutput };
+    } catch (error) {
+      throw error;
+    }
   }
 
-  private getTimeframeParams(timeframe: Timeframe): {
+  private determineOhlcvType(
+    timeFromSeconds: number,
+    timeToSeconds: number,
+  ): {
     ohlcvType: string;
-    timeFrom: number;
-    timeTo: number;
   } {
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    let durationSeconds = 0;
-    switch (timeframe) {
-      case '1D':
-        durationSeconds = 1 * 24 * 60 * 60;
-        break;
-      case '1W':
-        durationSeconds = 7 * 24 * 60 * 60;
-        break;
-      case '1M':
-        durationSeconds = 30 * 24 * 60 * 60;
-        break;
-      case '3M':
-        durationSeconds = 90 * 24 * 60 * 60;
-        break;
-      case '6M':
-        durationSeconds = 180 * 24 * 60 * 60;
-        break;
-      case '1Y':
-        durationSeconds = 365 * 24 * 60 * 60;
-        break;
-      default:
-        durationSeconds = 1 * 24 * 60 * 60;
+    const durationSeconds = timeToSeconds - timeFromSeconds;
+    if (durationSeconds <= 0) {
+      throw new BadRequestException('Time range duration must be positive.');
     }
-    const timeFrom = nowSeconds - durationSeconds;
-    let selectedOhlcvType =
-      BIRDEYE_CANDLE_TYPES[BIRDEYE_CANDLE_TYPES.length - 1].type;
-    for (const candle of BIRDEYE_CANDLE_TYPES) {
+
+    for (const candle of [...BIRDEYE_CANDLE_TYPES].sort(
+      (a, b) => a.seconds - b.seconds,
+    )) {
       const numCandles = Math.floor(durationSeconds / candle.seconds);
       if (numCandles <= MAX_BIRDEYE_CANDLES && numCandles > 0) {
-        selectedOhlcvType = candle.type;
+        return { ohlcvType: candle.type };
       }
     }
-    this.logger.debug(
-      `Selected timeframe: ${timeframe}, durationSeconds: ${durationSeconds}, calculated ohlcvType: ${selectedOhlcvType}`,
-    );
-    return { ohlcvType: selectedOhlcvType, timeFrom, timeTo: nowSeconds };
+    const fallbackType =
+      BIRDEYE_CANDLE_TYPES[BIRDEYE_CANDLE_TYPES.length - 1].type;
+
+    return { ohlcvType: fallbackType };
   }
 }

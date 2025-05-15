@@ -81,6 +81,32 @@ interface PriceHistoryResponse {
   items: PriceHistoryItem[];
 }
 
+export type AiTradingAnalysisTimeframe = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y';
+
+export interface AiTradingAnalysisRequestPayload {
+  tokenAddress: string;
+  timeFrom: number; // Unix timestamp in seconds
+  timeTo: number; // Unix timestamp in seconds
+}
+
+export interface AiTradingAnalysisDecodedStory {
+  priceJourney?: string;
+  momentumMeter?: string;
+  battleZones?: string;
+  volumeSignals?: string;
+}
+
+export interface ChartWhispererSchemaForWeb {
+  unfilteredTruth?: string;
+  decodedStory?: AiTradingAnalysisDecodedStory;
+  inferredSentiment?: string;
+  bottomLine?: string;
+}
+
+export interface AiTradingAnalysisResponse {
+  analysisOutput: ChartWhispererSchemaForWeb;
+}
+
 // Use configured API URL for cross-domain requests
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3001';
 
@@ -856,6 +882,44 @@ export const tokens = {
     );
 
     return response;
+  },
+
+  async getHolderAnalysis(
+    mintAddress: string,
+    walletCount: number,
+    sessionId: string,
+  ): Promise<TrackedWalletHolderStats[]> {
+    return api<TrackedWalletHolderStats[]>(
+      `tokens/${mintAddress}/holder-analysis?walletCount=${walletCount}&sessionId=${sessionId}`,
+      {
+        method: 'POST',
+      },
+    );
+  },
+
+  async getAiTradingAnalysis(
+    payload: AiTradingAnalysisRequestPayload,
+  ): Promise<AiTradingAnalysisResponse> {
+    if (!payload.tokenAddress || !payload.timeFrom || !payload.timeTo) {
+      throw new Error('Token address, timeFrom, and timeTo are required for AI trading analysis.');
+    }
+    if (payload.timeFrom >= payload.timeTo) {
+      throw new Error('timeFrom must be earlier than timeTo.');
+    }
+    return api<AiTradingAnalysisResponse>('token-ai-technical-analysis/analyze', {
+      method: 'POST',
+      body: payload,
+    });
+  },
+
+  async getAiTradingAnalysisCost(tokenAddress: string): Promise<{ creditCost: number }> {
+    if (!tokenAddress) {
+      throw new Error('Token address is required to fetch AI trading analysis cost.');
+    }
+    const sanitizedTokenAddress = encodeURIComponent(tokenAddress);
+    return api<{ creditCost: number }>(
+      `token-ai-technical-analysis/cost?tokenAddress=${sanitizedTokenAddress}`,
+    );
   },
 };
 
