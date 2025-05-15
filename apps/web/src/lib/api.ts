@@ -87,20 +87,38 @@ export interface AiTradingAnalysisRequestPayload {
   tokenAddress: string;
   timeFrom: number; // Unix timestamp in seconds
   timeTo: number; // Unix timestamp in seconds
+  sessionId?: string; // Session ID for WebSocket tracking
 }
 
 export interface AiTradingAnalysisDecodedStory {
   priceJourney?: string;
-  momentumMeter?: string;
-  battleZones?: string;
-  volumeSignals?: string;
+  momentum?: string;
+  keyLevels?: string;
+  tradingActivity?: string;
+  buyerSellerDynamics?: string;
+  timeframeAnalysis?: string;
+}
+
+export interface RatingItem {
+  score: number;
+  explanation: string;
+}
+
+export interface TradingAnalysisRatings {
+  priceStrength?: RatingItem;
+  momentum?: RatingItem;
+  buyPressure?: RatingItem;
+  volumeQuality?: RatingItem;
+  overallSentiment?: RatingItem;
 }
 
 export interface ChartWhispererSchemaForWeb {
   unfilteredTruth?: string;
   decodedStory?: AiTradingAnalysisDecodedStory;
-  inferredSentiment?: string;
+  ratings?: TradingAnalysisRatings;
+  marketSentiment?: string;
   bottomLine?: string;
+  tradingOpinion?: string;
 }
 
 export interface AiTradingAnalysisResponse {
@@ -234,7 +252,7 @@ const publicApi = async <T>(endpoint: string, options: ApiOptions = {}): Promise
   const url = `${API_BASE_URL}${apiEndpoint}`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
   try {
     const config: RequestInit = {
@@ -362,7 +380,7 @@ const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> =>
   const url = `${API_BASE_URL}${apiEndpoint}`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
   try {
     const config: RequestInit = {
@@ -897,21 +915,6 @@ export const tokens = {
     );
   },
 
-  async getAiTradingAnalysis(
-    payload: AiTradingAnalysisRequestPayload,
-  ): Promise<AiTradingAnalysisResponse> {
-    if (!payload.tokenAddress || !payload.timeFrom || !payload.timeTo) {
-      throw new Error('Token address, timeFrom, and timeTo are required for AI trading analysis.');
-    }
-    if (payload.timeFrom >= payload.timeTo) {
-      throw new Error('timeFrom must be earlier than timeTo.');
-    }
-    return api<AiTradingAnalysisResponse>('token-ai-technical-analysis/analyze', {
-      method: 'POST',
-      body: payload,
-    });
-  },
-
   async getAiTradingAnalysisCost(tokenAddress: string): Promise<{ creditCost: number }> {
     if (!tokenAddress) {
       throw new Error('Token address is required to fetch AI trading analysis cost.');
@@ -919,6 +922,24 @@ export const tokens = {
     const sanitizedTokenAddress = encodeURIComponent(tokenAddress);
     return api<{ creditCost: number }>(
       `token-ai-technical-analysis/cost?tokenAddress=${sanitizedTokenAddress}`,
+    );
+  },
+
+  async startAiTradingAnalysis(
+    payload: AiTradingAnalysisRequestPayload,
+  ): Promise<{ success: boolean; message: string }> {
+    if (!payload.tokenAddress || !payload.timeFrom || !payload.timeTo) {
+      throw new Error('Token address, timeFrom, and timeTo are required for AI trading analysis.');
+    }
+    if (payload.timeFrom >= payload.timeTo) {
+      throw new Error('timeFrom must be earlier than timeTo.');
+    }
+    return api<{ success: boolean; message: string }>(
+      'token-ai-technical-analysis/start-analysis',
+      {
+        method: 'POST',
+        body: payload,
+      },
     );
   },
 };

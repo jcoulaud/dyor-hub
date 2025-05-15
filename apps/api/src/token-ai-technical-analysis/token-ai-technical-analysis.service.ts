@@ -14,13 +14,55 @@ import { AiAnalysisRequestDto } from './dto/ai-analysis-request.dto';
 import { ChartAnalysisDto } from './dto/chart-analysis.dto';
 
 const BIRDEYE_OHLCV_ENDPOINT = 'https://public-api.birdeye.so/defi/ohlcv';
+const BIRDEYE_TRADES_ENDPOINT =
+  'https://public-api.birdeye.so/defi/v3/all-time/trades/single';
 const MAX_BIRDEYE_CANDLES = 950;
+
+const BIRDEYE_TIMEFRAMES = [
+  '30m',
+  '1h',
+  '2h',
+  '4h',
+  '8h',
+  '24h',
+  '3d',
+  '7d',
+  '14d',
+  '30d',
+  '90d',
+  '180d',
+  '1y',
+  'alltime',
+];
 
 interface BirdeyeOhlcvParams {
   address: string;
   type: string;
   time_from: number;
   time_to: number;
+}
+
+interface BirdeyeTradeParams {
+  address: string;
+  time_frame: string;
+}
+
+interface BirdeyeTradeData {
+  address: string;
+  total_volume: number;
+  total_volume_usd: number;
+  volume_buy_usd: number;
+  volume_sell_usd: number;
+  volume_buy: number;
+  volume_sell: number;
+  total_trade: number;
+  buy: number;
+  sell: number;
+}
+
+interface BirdeyeTradeResponse {
+  data: BirdeyeTradeData[];
+  success: boolean;
 }
 
 interface BirdeyeOhlcvItem {
@@ -40,6 +82,11 @@ interface BirdeyeOhlcvResponse {
     items: BirdeyeOhlcvItem[];
   };
   success: boolean;
+}
+
+interface TradeDataByTimeframe {
+  timeframe: string;
+  data: BirdeyeTradeData;
 }
 
 const BIRDEYE_CANDLE_TYPES = [
@@ -93,10 +140,124 @@ export class TokenAiTechnicalAnalysisService {
     return Math.max(0, ageInDays);
   }
 
+  // Method to select 5 appropriate timeframes based on date range
+  private selectOptimalTimeframes(
+    timeFromSeconds: number,
+    timeToSeconds: number,
+  ): string[] {
+    // Calculate duration in seconds
+    const durationInSeconds = timeToSeconds - timeFromSeconds;
+
+    // Convert to days
+    const durationInDays = durationInSeconds / (60 * 60 * 24);
+
+    // Select timeframes based on duration
+    if (durationInDays <= 1) {
+      // Less than 1 day: focus on short timeframes
+      return ['30m', '1h', '2h', '4h', '24h'];
+    } else if (durationInDays <= 7) {
+      // 1-7 days: mix of short and medium timeframes
+      return ['1h', '4h', '24h', '3d', '7d'];
+    } else if (durationInDays <= 30) {
+      // 7-30 days: medium timeframes
+      return ['4h', '24h', '3d', '7d', '14d'];
+    } else if (durationInDays <= 90) {
+      // 30-90 days: medium-long timeframes
+      return ['24h', '3d', '7d', '14d', '30d'];
+    } else if (durationInDays <= 180) {
+      // 90-180 days: longer timeframes
+      return ['7d', '14d', '30d', '90d', '180d'];
+    } else {
+      // Over 180 days: longest timeframes
+      return ['14d', '30d', '90d', '180d', '1y'];
+    }
+  }
+
+  async fetchTradeData(
+    tokenAddress: string,
+    timeFrom: number,
+    timeTo: number,
+    progress?: (percent: number, stage: string) => void,
+  ): Promise<TradeDataByTimeframe[]> {
+    const birdeyeApiKey = this.configService.get<string>('BIRDEYE_API_KEY');
+    if (!birdeyeApiKey) {
+      this.logger.warn('Missing Birdeye API key for trade data');
+      return [];
+    }
+
+    // Select optimal timeframes based on date range
+    const selectedTimeframes = this.selectOptimalTimeframes(timeFrom, timeTo);
+    this.logger.log(
+      `Selected timeframes for analysis: ${selectedTimeframes.join(', ')}`,
+    );
+
+    const tradeDataResults: TradeDataByTimeframe[] = [];
+    const totalTimeframes = selectedTimeframes.length;
+
+    try {
+      for (let i = 0; i < selectedTimeframes.length; i++) {
+        const timeframe = selectedTimeframes[i];
+
+        // Report progress if callback provided
+        if (progress) {
+          const percentComplete = 15 + Math.round((i / totalTimeframes) * 25); // Progress from 15% to 40%
+          progress(percentComplete, `Fetching ${timeframe} trade data...`);
+        }
+
+        try {
+          const params: BirdeyeTradeParams = {
+            address: tokenAddress,
+            time_frame: timeframe,
+          };
+
+          const response = await firstValueFrom(
+            this.httpService.get<BirdeyeTradeResponse>(
+              BIRDEYE_TRADES_ENDPOINT,
+              {
+                headers: { 'X-API-KEY': birdeyeApiKey },
+                params,
+              },
+            ),
+          );
+
+          if (
+            response.data?.success &&
+            response.data.data &&
+            response.data.data.length > 0
+          ) {
+            tradeDataResults.push({
+              timeframe,
+              data: response.data.data[0],
+            });
+
+            // Add a small delay to avoid rate limiting
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+        } catch (error) {
+          this.logger.warn(
+            `Error fetching ${timeframe} trade data for ${tokenAddress}: ${error.message}`,
+          );
+          // Continue with other timeframes even if one fails
+        }
+      }
+
+      this.logger.log(
+        `Successfully fetched ${tradeDataResults.length} trade datasets for ${tokenAddress}`,
+      );
+      return tradeDataResults;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch trade data for ${tokenAddress}: ${error.message}`,
+      );
+      return [];
+    }
+  }
+
   async prepareAndExecuteAnalysis(
     requestDto: AiAnalysisRequestDto,
     tokenName: string,
     tokenAgeInDays: number,
+    progressCallback?: (percent: number, stage: string) => void,
   ): Promise<OrchestrationResult> {
     const {
       tokenAddress,
@@ -108,11 +269,21 @@ export class TokenAiTechnicalAnalysisService {
       throw new BadRequestException('timeFrom must be earlier than timeTo.');
     }
 
+    // Report initial progress
+    if (progressCallback) {
+      progressCallback(10, 'Determining optimal data resolution...');
+    }
+
     const { ohlcvType } = this.determineOhlcvType(clientTimeFrom, clientTimeTo);
 
-    let ohlcvItems: BirdeyeOhlcvItem[];
+    let ohlcvItems: BirdeyeOhlcvItem[] = [];
 
     try {
+      // Report progress
+      if (progressCallback) {
+        progressCallback(15, 'Fetching price chart data...');
+      }
+
       const birdeyeApiKey = this.configService.get<string>('BIRDEYE_API_KEY');
       if (!birdeyeApiKey) {
         throw new InternalServerErrorException('Service configuration error.');
@@ -132,7 +303,6 @@ export class TokenAiTechnicalAnalysisService {
       );
 
       if (!response.data?.success || !response.data?.data?.items) {
-        ohlcvItems = [];
         if (!response.data?.success) {
           throw new NotFoundException(
             'Could not retrieve OHLCV market data. Birdeye request unsuccessful.',
@@ -152,6 +322,19 @@ export class TokenAiTechnicalAnalysisService {
       );
     }
 
+    // Fetch trade data for various timeframes
+    const tradeData = await this.fetchTradeData(
+      tokenAddress,
+      clientTimeFrom,
+      clientTimeTo,
+      progressCallback,
+    );
+
+    // Report progress before AI analysis
+    if (progressCallback) {
+      progressCallback(45, 'Preparing data for AI analysis...');
+    }
+
     const chartAnalysisServiceInput: ChartAnalysisDto = {
       tokenAddress,
       tokenName,
@@ -168,9 +351,35 @@ export class TokenAiTechnicalAnalysisService {
       ),
       numberOfCandles: ohlcvItems.length,
       candleType: ohlcvType,
+      timeFrom: clientTimeFrom,
+      timeTo: clientTimeTo,
+      tradeDataJson: JSON.stringify(tradeData),
     };
 
     try {
+      // Report progress for AI analysis
+      if (progressCallback) {
+        progressCallback(50, 'Running AI analysis...');
+      }
+
+      // Add some artificial delay stages to show progress during AI processing
+      if (progressCallback) {
+        setTimeout(
+          () => progressCallback(60, 'Analyzing price patterns...'),
+          2000,
+        );
+        setTimeout(
+          () => progressCallback(70, 'Evaluating volume trends...'),
+          5000,
+        );
+        setTimeout(
+          () =>
+            progressCallback(80, 'Identifying key support/resistance zones...'),
+          8000,
+        );
+        setTimeout(() => progressCallback(90, 'Compiling insights...'), 12000);
+      }
+
       const analysisOutput = await this.aiAnalysisService.getChartAnalysis(
         chartAnalysisServiceInput,
       );

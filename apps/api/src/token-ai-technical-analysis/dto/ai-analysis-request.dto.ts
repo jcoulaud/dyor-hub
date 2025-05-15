@@ -2,6 +2,7 @@ import {
   IsInt,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsPositive,
   IsString,
   Min,
@@ -25,4 +26,8 @@ export class AiAnalysisRequestDto {
   @Min(1)
   @ValidateIf((o) => o.timeFrom < o.timeTo)
   timeTo: number;
+
+  @IsString()
+  @IsOptional()
+  sessionId?: string;
 }

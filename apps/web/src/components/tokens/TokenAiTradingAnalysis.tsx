@@ -11,17 +11,47 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
 import { RangeSlider } from '@/components/ui/RangeSlider';
 import { useToast } from '@/hooks/use-toast';
-import type { AiTradingAnalysisRequestPayload, AiTradingAnalysisResponse } from '@/lib/api';
-import { ApiError, tokens as apiTokens } from '@/lib/api';
+import type {
+  AiTradingAnalysisRequestPayload,
+  AiTradingAnalysisResponse,
+  ChartWhispererSchemaForWeb,
+} from '@/lib/api';
+import { API_BASE_URL, ApiError, tokens as apiTokens } from '@/lib/api';
 import { DYORHUB_SYMBOL, MIN_TOKEN_HOLDING_FOR_AI_TA } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { TokenGatedErrorData } from '@dyor-hub/types';
 import { format, max as maxDateUtil, min as minDateUtil, startOfDay } from 'date-fns';
-import { AlertTriangle, ChevronRight, History, Info, Loader2, Lock, Sparkles } from 'lucide-react';
+import {
+  AlertTriangle,
+  BarChart4,
+  Calendar,
+  ChevronRight,
+  DollarSign,
+  History,
+  Info,
+  LineChart,
+  Loader2,
+  Lock,
+  Sparkles,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import io, { Socket } from 'socket.io-client';
+
+interface TradingAnalysisProgressEvent {
+  status: 'analyzing' | 'complete' | 'error' | 'queued';
+  message?: string;
+  error?: string;
+  analysisData?: ChartWhispererSchemaForWeb;
+  progress?: number; // 0-100 percentage
+  stage?: string; // e.g., 'Fetching price data', 'Analyzing patterns', 'Generating insights'
+  sessionId?: string;
+}
 
 interface TokenAiTradingAnalysisProps {
   mintAddress: string;
@@ -33,7 +63,7 @@ interface TokenAiTradingAnalysisProps {
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
-const InsufficientCreditsContentForAi = ({ onClose }: { onClose: () => void }) => (
+const InsufficientCreditsContent = ({ onClose }: { onClose: () => void }) => (
   <>
     <DialogHeader className='pb-2'>
       <DialogTitle className='text-zinc-100 flex items-center gap-2'>
@@ -41,20 +71,20 @@ const InsufficientCreditsContentForAi = ({ onClose }: { onClose: () => void }) =
         Insufficient Credits
       </DialogTitle>
     </DialogHeader>
-    <div className='p-6 pt-2 space-y-4'>
-      <p className='text-zinc-300 text-sm'>
+    <div className='p-6 space-y-4'>
+      <p className='text-zinc-300'>
         You don&apos;t have enough credits to perform this AI Trading Analysis. Purchase more
         credits to continue.
       </p>
-      <div className='flex gap-3 pt-2'>
+      <div className='flex gap-3'>
         <Button
-          className='flex-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-100 border-zinc-600'
+          className='flex-1 bg-zinc-800 hover:bg-zinc-700'
           variant='outline'
           onClick={onClose}>
           Cancel
         </Button>
         <Button
-          className='flex-1 bg-primary-500 hover:bg-primary-600 text-white' // Use primary color for main action
+          className='flex-1 bg-teal-500 hover:bg-teal-600'
           onClick={() => {
             onClose();
             window.location.href = '/account/credits';
@@ -73,7 +103,7 @@ export function TokenAiTradingAnalysis({
   className,
 }: TokenAiTradingAnalysisProps) {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useAuthContext();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuthContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCostLoading, setIsCostLoading] = useState(false);
@@ -85,6 +115,16 @@ export function TokenAiTradingAnalysis({
   const [showInsufficientCreditsError, setShowInsufficientCreditsError] = useState(false);
   const [showTryAgainError, setShowTryAgainError] = useState(false);
   const [tryAgainErrorMessage, setTryAgainErrorMessage] = useState<string | null>(null);
+
+  const socketRef = useRef<Socket | null>(null);
+  const currentAnalysisSessionId = useRef<string | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState<TradingAnalysisProgressEvent | null>(
+    null,
+  );
+  const [hasShownCompletionToast, setHasShownCompletionToast] = useState(false);
+
+  // Keep track of if we've handled an error for the current session
+  const errorHandledForSession = useRef<Record<string, boolean>>({});
 
   // Determine actual min and max dates for the slider
   const actualMaxDate = useMemo(() => startOfDay(new Date()), []);
@@ -113,23 +153,132 @@ export function TokenAiTradingAnalysis({
     return { from: fromInitial, to: toInitial };
   });
 
+  const resetState = useCallback(() => {
+    setError(null);
+    setTokenGatedApiError(null);
+    setPlatformTokenGateFailed(false);
+    setAnalysisData(null);
+    setCalculatedCreditCost(null);
+    setShowInsufficientCreditsError(false);
+    setShowTryAgainError(false);
+    setTryAgainErrorMessage(null);
+    setDateRange({ from: actualMinDate, to: actualMaxDate });
+    setAnalysisProgress(null);
+    setHasShownCompletionToast(false);
+    errorHandledForSession.current = {};
+  }, [actualMinDate, actualMaxDate]);
+
   useEffect(() => {
     if (!isModalOpen) {
-      setError(null);
-      setTokenGatedApiError(null);
-      setPlatformTokenGateFailed(false);
-      setAnalysisData(null);
-      setCalculatedCreditCost(null);
-      setShowInsufficientCreditsError(false);
-      setShowTryAgainError(false);
-      setTryAgainErrorMessage(null);
-      setDateRange({ from: actualMinDate, to: actualMaxDate });
+      resetState();
     }
-  }, [isModalOpen, actualMinDate, actualMaxDate]);
+  }, [isModalOpen, resetState]);
 
   useEffect(() => {
     setDateRange({ from: actualMinDate, to: actualMaxDate });
   }, [actualMinDate, actualMaxDate]);
+
+  // WebSocket setup
+  useEffect(() => {
+    // Only connect when dialog is open and user is authenticated
+    if (!isModalOpen || !isAuthenticated || !user?.id) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
+
+    // If already connected, skip
+    if (socketRef.current?.connected) {
+      return;
+    }
+
+    // Clean up existing socket if needed
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
+    // Connect to WebSocket
+    const socketUrl = `${API_BASE_URL}/analysis`;
+    const socket = io(socketUrl, {
+      withCredentials: true,
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+    });
+
+    socketRef.current = socket;
+
+    // Handle socket events
+    socket.on('trading_analysis_progress', (data: TradingAnalysisProgressEvent) => {
+      // Verify session matches if we have an active session
+      if (
+        currentAnalysisSessionId.current &&
+        data.sessionId &&
+        data.sessionId !== currentAnalysisSessionId.current
+      ) {
+        return; // Ignore events from other sessions
+      }
+
+      // Handle error state only once per session
+      if (data.status === 'error' && data.sessionId) {
+        // If we've already handled an error for this session, ignore
+        if (errorHandledForSession.current[data.sessionId]) {
+          return;
+        }
+
+        // Mark this session as having an error handled
+        errorHandledForSession.current[data.sessionId] = true;
+
+        // Clear loading state
+        setIsLoading(false);
+
+        // Check for insufficient credits error
+        if (
+          data.message?.toLowerCase().includes('insufficient credits') ||
+          data.error?.toLowerCase().includes('insufficient credits')
+        ) {
+          setShowInsufficientCreditsError(true);
+          return;
+        }
+
+        // Handle other errors
+        setTryAgainErrorMessage(data.message || 'Analysis failed');
+        setShowTryAgainError(true);
+
+        toast({
+          title: 'Analysis Failed',
+          description: data.message || data.error || 'Could not complete AI analysis.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setAnalysisProgress(data);
+
+      // Handle completion
+      if (data.status === 'complete' && data.analysisData && !hasShownCompletionToast) {
+        setHasShownCompletionToast(true);
+        setAnalysisData({ analysisOutput: data.analysisData });
+        setIsLoading(false);
+        toast({
+          title: 'Analysis Complete',
+          description: 'AI trading insights are ready.',
+        });
+      }
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [isModalOpen, isAuthenticated, user?.id, toast, hasShownCompletionToast]);
 
   const handleSliderChange = (newTimestamps: readonly number[]) => {
     if (newTimestamps.length === 2) {
@@ -203,25 +352,42 @@ export function TokenAiTradingAnalysis({
       return;
     }
 
+    // Clear all previous errors and states
     setIsLoading(true);
     setError(null);
     setTokenGatedApiError(null);
     setAnalysisData(null);
+    setAnalysisProgress(null);
+    setHasShownCompletionToast(false);
+    setShowTryAgainError(false);
+    setTryAgainErrorMessage(null);
+    setShowInsufficientCreditsError(false);
+    errorHandledForSession.current = {};
 
     const timeFromInSeconds = Math.floor(dateRange.from.getTime() / 1000);
     const timeToInSeconds = Math.floor(dateRange.to.getTime() / 1000);
+
+    // Generate new session ID for this analysis
+    const newSessionId = Math.random().toString(36).substring(2, 15);
+    currentAnalysisSessionId.current = newSessionId;
 
     try {
       const payload: AiTradingAnalysisRequestPayload = {
         tokenAddress: mintAddress,
         timeFrom: timeFromInSeconds,
         timeTo: timeToInSeconds,
+        sessionId: newSessionId,
       };
-      const result = await apiTokens.getAiTradingAnalysis(payload);
-      setAnalysisData(result);
-      toast({
-        title: 'Analysis Complete',
-        description: 'AI trading insights are ready.',
+
+      // Start the analysis, but don't wait for it to complete
+      await apiTokens.startAiTradingAnalysis(payload);
+
+      // Update progress UI
+      setAnalysisProgress({
+        status: 'analyzing',
+        message: 'Initiating analysis...',
+        progress: 5,
+        sessionId: newSessionId,
       });
     } catch (err) {
       const caughtError = err as ApiError;
@@ -233,8 +399,10 @@ export function TokenAiTradingAnalysis({
           }
         | undefined;
 
+      setIsLoading(false);
       setShowTryAgainError(false);
       setTryAgainErrorMessage(null);
+      setAnalysisProgress(null);
 
       if (caughtError.status === 403 && errorData?.details?.isTokenGatedError) {
         setTokenGatedApiError(caughtError);
@@ -256,10 +424,13 @@ export function TokenAiTradingAnalysis({
         });
       } else {
         const specificMessage =
-          caughtError.message?.includes('OpenAI API error') ||
-          caughtError.message?.includes('Error getting structured analysis from LLM')
-            ? 'The AI analysis failed. Your credits have not been deducted. Please try again.'
-            : 'An error occurred while performing the AI analysis. Your credits have not been deducted. Please try again.';
+          caughtError.message?.includes('timeout') ||
+          caughtError.message?.includes('Request timeout')
+            ? 'The analysis is taking longer than expected. This could be due to the complexity of the data or server load. Your credits have not been deducted. Please try again.'
+            : caughtError.message?.includes('OpenAI API error') ||
+                caughtError.message?.includes('Error getting structured analysis from LLM')
+              ? 'The AI analysis failed. Your credits have not been deducted. Please try again.'
+              : 'An error occurred while performing the AI analysis. Your credits have not been deducted. Please try again.';
 
         setTryAgainErrorMessage(specificMessage);
         setShowTryAgainError(true);
@@ -274,7 +445,9 @@ export function TokenAiTradingAnalysis({
         });
       }
     } finally {
-      setIsLoading(false);
+      if (!socketRef.current?.connected) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -306,9 +479,10 @@ export function TokenAiTradingAnalysis({
 
   return (
     <div className={className}>
-      <div className='mb-2'>
-        <p className='text-sm font-medium text-zinc-300'>AI Technical Analysis</p>
-      </div>
+      <h3 className='text-sm font-medium text-zinc-400 flex items-center gap-2 mb-2'>
+        <Sparkles className='w-4 h-4 text-teal-400' />
+        AI Technical Analysis
+      </h3>
       <Button
         onClick={handleOpenModal}
         variant='outline'
@@ -323,14 +497,14 @@ export function TokenAiTradingAnalysis({
       </Button>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className='sm:max-w-lg bg-zinc-900 border-zinc-700 text-zinc-50'>
+        <DialogContent className='max-w-4xl bg-zinc-950 border-zinc-800 text-zinc-50'>
           {showInsufficientCreditsError ? (
-            <InsufficientCreditsContentForAi onClose={() => setIsModalOpen(false)} />
+            <InsufficientCreditsContent onClose={() => setIsModalOpen(false)} />
           ) : (
             <>
-              <DialogHeader>
-                <DialogTitle className='flex items-center'>
-                  <Sparkles className='w-5 h-5 mr-2 text-primary-400' />
+              <DialogHeader className='pb-2'>
+                <DialogTitle className='text-zinc-100 flex items-center'>
+                  <Sparkles className='w-5 h-5 mr-2 text-teal-400' />
                   AI Powered Trading Analysis
                 </DialogTitle>
                 {/* Show description only in the initial form state */}
@@ -340,14 +514,14 @@ export function TokenAiTradingAnalysis({
                   !tokenGatedApiError &&
                   !error &&
                   !showTryAgainError && (
-                    <DialogDescription>
+                    <DialogDescription className='text-sm text-zinc-400 pt-1'>
                       Select the date range for the analysis. The AI will analyze price action,
                       momentum, and key support/resistance zones.
                     </DialogDescription>
                   )}
                 {/* Show description for the results state */}
                 {analysisData && analysisData.analysisOutput && !showTryAgainError && (
-                  <DialogDescription>
+                  <DialogDescription className='text-sm text-zinc-400 pt-1'>
                     Here is your AI-powered trading analysis. Review the insights below.
                   </DialogDescription>
                 )}
@@ -415,79 +589,234 @@ export function TokenAiTradingAnalysis({
                 )}
 
               {isLoading && !analysisData && (
-                <div className='flex flex-col items-center justify-center h-40'>
-                  <Loader2 className='h-12 w-12 animate-spin text-teal-400' />
-                  <p className='mt-4 text-zinc-300'>Conjuring insights from the digital ether...</p>
+                <div className='flex flex-col items-center justify-center py-8'>
+                  {analysisProgress ? (
+                    <div className='w-full max-w-md space-y-4'>
+                      <div className='flex items-center justify-between mb-2'>
+                        <span className='text-zinc-300 font-medium'>
+                          {analysisProgress.stage || 'Analyzing token data...'}
+                        </span>
+                        <span className='text-zinc-400 text-sm'>
+                          {analysisProgress.progress
+                            ? `${Math.round(analysisProgress.progress)}%`
+                            : ''}
+                        </span>
+                      </div>
+
+                      <Progress
+                        value={analysisProgress.progress || 0}
+                        className='h-1.5 bg-zinc-800'
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <Loader2 className='h-12 w-12 animate-spin text-teal-400' />
+                      <p className='mt-4 text-zinc-300'>Analyzing token data, please wait...</p>
+                    </>
+                  )}
                 </div>
               )}
 
               {analysisData && analysisData.analysisOutput && (
                 <div className='mt-4 space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto pr-2 custom-scrollbar'>
-                  <h3 className='text-lg font-semibold text-zinc-100'>AI Analysis Results:</h3>
+                  <h3 className='text-base font-semibold text-zinc-100'>AI Analysis Results:</h3>
+
                   {analysisData.analysisOutput.unfilteredTruth && (
-                    <div className='p-3 rounded-md bg-zinc-800/70'>
-                      <h4 className='font-medium text-zinc-200 mb-1'>Summary:</h4>
+                    <div className='mb-5'>
+                      <h4 className='text-sm font-medium text-zinc-200 mb-1.5 text-teal-400 border-b border-zinc-800 pb-1'>
+                        Summary
+                      </h4>
                       <p className='text-sm text-zinc-300 whitespace-pre-wrap'>
                         {analysisData.analysisOutput.unfilteredTruth}
                       </p>
                     </div>
                   )}
+
                   {analysisData.analysisOutput.decodedStory && (
-                    <div className='space-y-3'>
+                    <div className='space-y-4'>
                       {analysisData.analysisOutput.decodedStory.priceJourney && (
-                        <div className='p-3 rounded-md bg-zinc-800/70'>
-                          <h4 className='font-medium text-zinc-200 mb-1'>Price Journey:</h4>
-                          <p className='text-sm text-zinc-300 whitespace-pre-wrap'>
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <LineChart className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Price Journey</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
                             {analysisData.analysisOutput.decodedStory.priceJourney}
                           </p>
                         </div>
                       )}
-                      {analysisData.analysisOutput.decodedStory.momentumMeter && (
-                        <div className='p-3 rounded-md bg-zinc-800/70'>
-                          <h4 className='font-medium text-zinc-200 mb-1'>Momentum Meter:</h4>
-                          <p className='text-sm text-zinc-300 whitespace-pre-wrap'>
-                            {analysisData.analysisOutput.decodedStory.momentumMeter}
+
+                      {analysisData.analysisOutput.decodedStory.momentum && (
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <TrendingUp className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Momentum</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                            {analysisData.analysisOutput.decodedStory.momentum}
                           </p>
                         </div>
                       )}
-                      {analysisData.analysisOutput.decodedStory.battleZones && (
-                        <div className='p-3 rounded-md bg-zinc-800/70'>
-                          <h4 className='font-medium text-zinc-200 mb-1'>Battle Zones:</h4>
-                          <p className='text-sm text-zinc-300 whitespace-pre-wrap'>
-                            {analysisData.analysisOutput.decodedStory.battleZones}
+
+                      {analysisData.analysisOutput.decodedStory.keyLevels && (
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <Users className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Key Price Levels</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                            {analysisData.analysisOutput.decodedStory.keyLevels}
                           </p>
                         </div>
                       )}
-                      {analysisData.analysisOutput.decodedStory.volumeSignals && (
-                        <div className='p-3 rounded-md bg-zinc-800/70'>
-                          <h4 className='font-medium text-zinc-200 mb-1'>Volume Signals:</h4>
-                          <p className='text-sm text-zinc-300 whitespace-pre-wrap'>
-                            {analysisData.analysisOutput.decodedStory.volumeSignals}
+
+                      {analysisData.analysisOutput.decodedStory.tradingActivity && (
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <BarChart4 className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Trading Activity</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                            {analysisData.analysisOutput.decodedStory.tradingActivity}
+                          </p>
+                        </div>
+                      )}
+
+                      {analysisData.analysisOutput.decodedStory.buyerSellerDynamics && (
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <History className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Buyer vs Seller Dynamics</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                            {analysisData.analysisOutput.decodedStory.buyerSellerDynamics}
+                          </p>
+                        </div>
+                      )}
+
+                      {analysisData.analysisOutput.decodedStory.timeframeAnalysis && (
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <Calendar className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Timeframe Analysis</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                            {analysisData.analysisOutput.decodedStory.timeframeAnalysis}
                           </p>
                         </div>
                       )}
                     </div>
                   )}
-                  {analysisData.analysisOutput.inferredSentiment && (
-                    <div className='p-3 rounded-md bg-zinc-800/70'>
-                      <h4 className='font-medium text-zinc-200 mb-1'>Inferred Sentiment:</h4>
-                      <p className='text-sm text-zinc-300 whitespace-pre-wrap'>
-                        {analysisData.analysisOutput.inferredSentiment}
+
+                  {analysisData.analysisOutput.ratings && (
+                    <div className='mt-4 pt-2 border-t border-zinc-800'>
+                      <h4 className='text-sm font-medium text-zinc-200 mb-3 flex items-center'>
+                        <Sparkles className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                        <span className='text-teal-400'>Trading Metrics (1-10)</span>
+                      </h4>
+
+                      <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 px-3 text-sm'>
+                        {analysisData.analysisOutput.ratings.priceStrength && (
+                          <div className='bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/30'>
+                            <div className='flex justify-between items-center mb-1'>
+                              <span className='text-zinc-300'>Price Strength</span>
+                              <span className='text-lg font-bold text-teal-400'>
+                                {analysisData.analysisOutput.ratings.priceStrength.score}/10
+                              </span>
+                            </div>
+                            <p className='text-xs text-zinc-400'>
+                              {analysisData.analysisOutput.ratings.priceStrength.explanation}
+                            </p>
+                          </div>
+                        )}
+
+                        {analysisData.analysisOutput.ratings.momentum && (
+                          <div className='bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/30'>
+                            <div className='flex justify-between items-center mb-1'>
+                              <span className='text-zinc-300'>Momentum</span>
+                              <span className='text-lg font-bold text-teal-400'>
+                                {analysisData.analysisOutput.ratings.momentum.score}/10
+                              </span>
+                            </div>
+                            <p className='text-xs text-zinc-400'>
+                              {analysisData.analysisOutput.ratings.momentum.explanation}
+                            </p>
+                          </div>
+                        )}
+
+                        {analysisData.analysisOutput.ratings.buyPressure && (
+                          <div className='bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/30'>
+                            <div className='flex justify-between items-center mb-1'>
+                              <span className='text-zinc-300'>Buy Pressure</span>
+                              <span className='text-lg font-bold text-teal-400'>
+                                {analysisData.analysisOutput.ratings.buyPressure.score}/10
+                              </span>
+                            </div>
+                            <p className='text-xs text-zinc-400'>
+                              {analysisData.analysisOutput.ratings.buyPressure.explanation}
+                            </p>
+                          </div>
+                        )}
+
+                        {analysisData.analysisOutput.ratings.volumeQuality && (
+                          <div className='bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/30'>
+                            <div className='flex justify-between items-center mb-1'>
+                              <span className='text-zinc-300'>Volume Quality</span>
+                              <span className='text-lg font-bold text-teal-400'>
+                                {analysisData.analysisOutput.ratings.volumeQuality.score}/10
+                              </span>
+                            </div>
+                            <p className='text-xs text-zinc-400'>
+                              {analysisData.analysisOutput.ratings.volumeQuality.explanation}
+                            </p>
+                          </div>
+                        )}
+
+                        {analysisData.analysisOutput.ratings.overallSentiment && (
+                          <div className='bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/30 sm:col-span-2'>
+                            <div className='flex justify-between items-center mb-1'>
+                              <span className='text-zinc-300'>Overall Sentiment</span>
+                              <span className='text-lg font-bold text-teal-400'>
+                                {analysisData.analysisOutput.ratings.overallSentiment.score}/10
+                              </span>
+                            </div>
+                            <p className='text-xs text-zinc-400'>
+                              {analysisData.analysisOutput.ratings.overallSentiment.explanation}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {analysisData.analysisOutput.marketSentiment && (
+                    <div className='mb-3 mt-4'>
+                      <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                        <Users className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                        <span className='text-teal-400'>Market Sentiment</span>
+                      </h4>
+                      <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                        {analysisData.analysisOutput.marketSentiment}
                       </p>
                     </div>
                   )}
+
                   {analysisData.analysisOutput.bottomLine && (
-                    <div className='p-3 rounded-md bg-zinc-800/70'>
-                      <h4 className='font-medium text-zinc-200 mb-1'>Bottom Line:</h4>
-                      <p className='text-sm text-zinc-300 whitespace-pre-wrap'>
+                    <div className='mt-4 pt-2 border-t border-zinc-800'>
+                      <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                        <DollarSign className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                        <span className='text-teal-400'>Bottom Line</span>
+                      </h4>
+                      <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
                         {analysisData.analysisOutput.bottomLine}
                       </p>
                     </div>
                   )}
+
                   {/* Add a disclaimer for the AI analysis results */}
-                  <div className='mt-3 pt-3 border-t border-zinc-700 text-xs text-zinc-500'>
+                  <div className='mt-4 pt-3 border-t border-zinc-800 text-xs text-zinc-500'>
                     <Info
-                      size={14}
+                      size={12}
                       className='inline-block mr-1.5 relative -top-px text-zinc-400'
                     />
                     AI-generated analysis is for informational purposes only and not financial
@@ -507,7 +836,7 @@ export function TokenAiTradingAnalysis({
                     <div>
                       <label
                         htmlFor='date-range-slider'
-                        className='block text-sm font-medium text-zinc-300 mb-1'>
+                        className='block text-sm font-medium text-zinc-300 mb-2'>
                         Date Range:{' '}
                         <span className='font-normal text-zinc-400'>{formattedDateRangeLabel}</span>
                       </label>
@@ -539,7 +868,7 @@ export function TokenAiTradingAnalysis({
                         return <RangeSlider key={sliderKey} {...sliderRenderProps} />;
                       })()}
                     </div>
-                    <div className='text-xs text-zinc-500 p-2 bg-zinc-800/30 rounded-md border border-zinc-700/30 flex items-start'>
+                    <div className='text-xs text-zinc-500 p-3 bg-zinc-800/40 rounded-md border border-zinc-700/30 flex items-start'>
                       <Info size={16} className='mr-2 mt-0.5 shrink-0 text-teal-500' />
                       <span>
                         The AI will analyze chart data for the selected period. Analysis quality
@@ -550,16 +879,20 @@ export function TokenAiTradingAnalysis({
                 )}
 
               <DialogFooter className='mt-6 sm:justify-between'>
-                <DialogClose asChild>
-                  <Button variant='outline' className='border-zinc-600 hover:bg-zinc-700'>
-                    Cancel
-                  </Button>
-                </DialogClose>
+                {!analysisData && (
+                  <DialogClose asChild>
+                    <Button
+                      variant='outline'
+                      className='bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-200'>
+                      Cancel
+                    </Button>
+                  </DialogClose>
+                )}
 
                 {(() => {
                   if (showInsufficientCreditsError) {
                     return (
-                      <Button asChild className='bg-primary-500 hover:bg-primary-600 text-white'>
+                      <Button asChild className='bg-teal-500 hover:bg-teal-600 text-white ml-auto'>
                         <Link href='/account/credits'>Top Up Credits</Link>
                       </Button>
                     );
@@ -569,7 +902,7 @@ export function TokenAiTradingAnalysis({
                       <Button
                         onClick={handleSubmitAnalysis}
                         disabled={isLoading}
-                        className='bg-amber-500 hover:bg-amber-600 text-white'>
+                        className='bg-teal-500 hover:bg-teal-600 text-white ml-auto'>
                         {isLoading ? (
                           <Loader2 className='h-4 w-4 animate-spin mr-2' />
                         ) : (
@@ -590,7 +923,7 @@ export function TokenAiTradingAnalysis({
                           !dateRange.from ||
                           !dateRange.to
                         }
-                        className='bg-teal-600 hover:bg-teal-700 text-white'>
+                        className='bg-teal-500 hover:bg-teal-600 text-white ml-auto'>
                         {isLoading || isCostLoading ? (
                           <Loader2 className='h-4 w-4 animate-spin mr-2' />
                         ) : (
@@ -606,6 +939,15 @@ export function TokenAiTradingAnalysis({
                   }
                   return null;
                 })()}
+
+                {analysisData && (
+                  <DialogClose asChild>
+                    <Button className='bg-teal-500 hover:bg-teal-600 text-white ml-auto'>
+                      <Sparkles className='h-4 w-4 mr-2' />
+                      Done
+                    </Button>
+                  </DialogClose>
+                )}
               </DialogFooter>
             </>
           )}

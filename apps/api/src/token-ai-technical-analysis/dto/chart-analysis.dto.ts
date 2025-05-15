@@ -1,4 +1,10 @@
-import { IsJSON, IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import {
+  IsJSON,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class ChartAnalysisDto {
   @IsString()
@@ -24,4 +30,16 @@ export class ChartAnalysisDto {
   @IsJSON()
   @IsNotEmpty()
   ohlcvDataJson: string;
+
+  @IsNumber()
+  @IsOptional()
+  timeFrom?: number; // Unix timestamp in seconds
+
+  @IsNumber()
+  @IsOptional()
+  timeTo?: number; // Unix timestamp in seconds
+
+  @IsJSON()
+  @IsOptional()
+  tradeDataJson?: string;
 }
