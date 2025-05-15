@@ -34,3 +34,9 @@ export interface UpdateCreditPackageDto {
   solPrice?: number;
   isActive?: boolean;
 }
+
+export interface BonusTier {
+  minTokenHold: number;
+  bonusPercentage: number; // e.g., 0.10 for 10%
+  label: string; // e.g., "10% DYORHODLER Bonus"
+}

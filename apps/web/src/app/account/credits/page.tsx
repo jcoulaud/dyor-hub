@@ -10,13 +10,14 @@ import { credits } from '@/lib/api';
 import { DYORHUB_MARKETING_ADDRESS } from '@/lib/constants';
 import { formatDateTime } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
-import type { CreditPackage, CreditTransaction } from '@dyor-hub/types';
+import type { BonusTier, CreditPackage, CreditTransaction } from '@dyor-hub/types';
 import { CreditTransactionType } from '@dyor-hub/types';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import {
   AlertCircle,
+  BadgeCheck,
   CheckCircle,
   Coins,
   ExternalLink,
@@ -26,6 +27,7 @@ import {
   Minus,
   Plus,
   Send,
+  Star,
   WalletCards,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -59,6 +61,12 @@ export default function CreditsPage() {
   const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(null);
   const [purchaseStep, setPurchaseStep] = useState<PurchaseStep>('input');
   const [error, setError] = useState<string | null>(null);
+  const [dyorHubBalance, setDyorHubBalance] = useState<number | null>(null);
+  const [isDyorHubBalanceLoading, setIsDyorHubBalanceLoading] = useState(false);
+  const [applicableBonus, setApplicableBonus] = useState<BonusTier | null>(null);
+  const [isBonusInfoLoading, setIsBonusInfoLoading] = useState(false);
+  const [allBonusTiers, setAllBonusTiers] = useState<BonusTier[]>([]);
+  const [isAllBonusTiersLoading, setIsAllBonusTiersLoading] = useState(false);
 
   const loadBalance = useCallback(async () => {
     setIsBalanceLoading(true);
@@ -119,13 +127,68 @@ export default function CreditsPage() {
     [toast],
   );
 
+  const loadDyorHubBalance = useCallback(async () => {
+    if (!publicKey) return;
+    setIsDyorHubBalanceLoading(true);
+    try {
+      const data = await credits.getDyorHubBalance();
+      setDyorHubBalance(data.balance);
+    } catch {
+      setDyorHubBalance(null);
+    } finally {
+      setIsDyorHubBalanceLoading(false);
+    }
+  }, [publicKey]);
+
+  const loadBonusInfo = useCallback(async () => {
+    if (!user || !connected) return;
+    setIsBonusInfoLoading(true);
+    try {
+      const bonus = await credits.getBonusInfo();
+      setApplicableBonus(bonus);
+    } catch {
+      setApplicableBonus(null);
+    } finally {
+      setIsBonusInfoLoading(false);
+    }
+  }, [user, connected]);
+
+  const loadAllBonusTiers = useCallback(async () => {
+    if (!user) return;
+    setIsAllBonusTiersLoading(true);
+    try {
+      const tiers = await credits.getAllBonusTiers();
+      setAllBonusTiers(tiers);
+    } catch {
+      toast({
+        title: 'Error Fetching Bonus Tiers',
+        description: 'Could not load all available bonus tiers.',
+        variant: 'destructive',
+      });
+      setAllBonusTiers([]);
+    } finally {
+      setIsAllBonusTiersLoading(false);
+    }
+  }, [user, toast]);
+
   useEffect(() => {
     if (user) {
       loadBalance();
       loadPackages();
       loadHistory(1);
+      loadAllBonusTiers();
     }
-  }, [user, loadBalance, loadPackages, loadHistory]);
+  }, [user, loadBalance, loadPackages, loadHistory, loadAllBonusTiers]);
+
+  useEffect(() => {
+    if (connected && publicKey && user) {
+      loadDyorHubBalance();
+      loadBonusInfo();
+    } else {
+      setDyorHubBalance(null);
+      setApplicableBonus(null);
+    }
+  }, [connected, publicKey, user, loadDyorHubBalance, loadBonusInfo]);
 
   const handlePurchase = async (pkg: CreditPackage) => {
     if (!connected || !publicKey) {
@@ -220,6 +283,7 @@ export default function CreditsPage() {
         setBalance(updatedUser.credits);
         setPurchaseStep('success');
         loadHistory(1);
+        loadBalance();
       } catch {
         setError(
           'Your transaction was successful, but we had trouble updating your credits. ' +
@@ -279,8 +343,82 @@ export default function CreditsPage() {
         <h1 className='text-2xl font-bold tracking-tight'>Credits</h1>
         <p className='text-muted-foreground'>
           Purchase and manage your credits for platform features.
+          {(isDyorHubBalanceLoading || isBonusInfoLoading || isAllBonusTiersLoading) &&
+            publicKey && (
+              <span className='text-xs ml-2 animate-pulse'>(Checking $DYORHUB status...)</span>
+            )}
         </p>
       </div>
+
+      {/* Bonus Tiers Section */}
+      {(isAllBonusTiersLoading || allBonusTiers.length > 0) && (
+        <div className='rounded-xl border border-border/60 bg-background shadow-sm overflow-hidden'>
+          <div className='p-2 border-b border-border/60 bg-muted/30 flex items-center justify-between'>
+            <div className='flex items-center gap-2'>
+              <div className='w-6 h-6 rounded-full bg-black flex items-center justify-center border border-amber-500/50'>
+                <Star className='h-3 w-3 text-amber-500' />
+              </div>
+              <h2 className='text-sm font-semibold'>$DYORHUB Bonus Tiers</h2>
+            </div>
+            {dyorHubBalance !== null && !isDyorHubBalanceLoading && (
+              <span className='text-xs text-muted-foreground'>
+                Your balance:{' '}
+                <span className='font-medium text-amber-500'>
+                  {dyorHubBalance.toLocaleString()}
+                </span>{' '}
+                $DYORHUB
+              </span>
+            )}
+          </div>
+          <div className='px-3 py-2'>
+            {isAllBonusTiersLoading ? (
+              <div className='flex items-center gap-2 justify-around'>
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className='h-8 w-24 rounded-md' />
+                ))}
+              </div>
+            ) : (
+              <div className='flex items-center justify-around gap-1 flex-wrap'>
+                {allBonusTiers
+                  .sort((a, b) => a.minTokenHold - b.minTokenHold)
+                  .map((tier) => {
+                    const isActive = applicableBonus?.label === tier.label;
+                    const isEligible =
+                      dyorHubBalance !== null && dyorHubBalance >= tier.minTokenHold;
+
+                    return (
+                      <div
+                        key={tier.label}
+                        className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-md text-xs transition-all duration-200
+                        ${
+                          isActive
+                            ? 'bg-green-500/10 border border-green-500/50'
+                            : isEligible
+                              ? 'bg-amber-500/10 border border-amber-500/20'
+                              : 'bg-muted/30 border border-border/40 opacity-70'
+                        }`}>
+                        <div className='flex items-center gap-1'>
+                          <div
+                            className={`w-4 h-4 rounded-full flex items-center justify-center font-semibold text-[10px]
+                            ${isActive ? 'bg-green-500 text-white' : 'bg-black border border-amber-500/50 text-amber-500'}`}>
+                            {tier.bonusPercentage * 100}
+                          </div>
+                          <span className={`${isActive ? 'text-green-500' : ''} font-medium`}>
+                            {tier.label.replace(' DYORHODLER Bonus', '')}
+                          </span>
+                          {isActive && <BadgeCheck className='h-3 w-3 text-green-500' />}
+                        </div>
+                        <span className='text-[9px] text-muted-foreground'>
+                          {tier.minTokenHold.toLocaleString()} $DYORHUB
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className='rounded-xl border border-border/60 bg-background shadow-sm overflow-hidden'>
         <div className='p-6 border-b border-border/60 bg-muted/30'>
@@ -324,38 +462,74 @@ export default function CreditsPage() {
             </div>
           ) : packages.length > 0 ? (
             <div className='space-y-4'>
-              {packages.map((pkg) => (
-                <div
-                  key={pkg.id}
-                  className='flex items-center justify-between p-4 bg-card/50 border border-border/60 rounded-lg hover:border-amber-500/50 transition-all duration-200 group'>
-                  <div className='space-y-1'>
-                    <p className='font-medium'>{pkg.name}</p>
-                    <p className='text-2xl font-bold text-amber-500'>
-                      {pkg.credits.toLocaleString()}{' '}
-                      <span className='text-base font-normal text-muted-foreground'>Credits</span>
-                    </p>
-                  </div>
-                  <div className='text-right'>
-                    <p className='text-sm text-muted-foreground mb-2'>{pkg.solPrice} SOL</p>
-                    <Button
-                      onClick={() => handlePurchase(pkg)}
-                      disabled={selectedPackage !== null}
-                      size='sm'
-                      className='bg-black hover:bg-zinc-900 text-amber-500 border border-amber-700 hover:border-amber-500'>
-                      {selectedPackage?.id === pkg.id ? (
-                        <>
-                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                          {purchaseStep === 'sending' ? 'Sending...' : 'Confirming...'}
-                        </>
+              {packages.map((pkg) => {
+                let bonusCredits = 0;
+                let totalCredits = pkg.credits;
+                if (applicableBonus) {
+                  bonusCredits = Math.floor(pkg.credits * applicableBonus.bonusPercentage);
+                  totalCredits = pkg.credits + bonusCredits;
+                }
+
+                return (
+                  <div
+                    key={pkg.id}
+                    className='flex items-center justify-between p-4 bg-card/50 border border-border/60 rounded-lg hover:border-amber-500/50 transition-all duration-200 group relative'>
+                    <div className='space-y-1.5'>
+                      <div className='flex items-center gap-2'>
+                        <p className='font-medium'>{pkg.name}</p>
+                        {applicableBonus && (
+                          <div className='bg-green-500/10 text-green-500 text-[10px] font-medium px-2 py-0.5 rounded-md border border-green-500/20'>
+                            +{applicableBonus.bonusPercentage * 100}%
+                          </div>
+                        )}
+                      </div>
+
+                      {bonusCredits > 0 ? (
+                        <div className='flex items-center gap-2'>
+                          <span className='text-[28px] font-bold text-amber-500'>
+                            {pkg.credits}
+                          </span>
+                          <span className='text-sm text-muted-foreground'>Base</span>
+                          <span className='text-sm font-medium'>+</span>
+                          <span className='text-[28px] font-bold text-green-500'>
+                            {bonusCredits}
+                          </span>
+                          <span className='text-sm text-muted-foreground'>Bonus</span>
+                          <span className='text-sm font-medium'>=</span>
+                          <span className='text-[28px] font-bold text-white'>{totalCredits}</span>
+                          <span className='text-sm text-muted-foreground'>Total</span>
+                        </div>
                       ) : (
-                        <>
-                          <Send className='mr-2 h-4 w-4' /> Purchase
-                        </>
+                        <div className='flex items-center gap-2'>
+                          <span className='text-[28px] font-bold text-amber-500'>
+                            {pkg.credits}
+                          </span>
+                          <span className='text-sm text-muted-foreground'>Base</span>
+                        </div>
                       )}
-                    </Button>
+                    </div>
+                    <div className='text-right'>
+                      <p className='text-sm text-muted-foreground mb-2'>{pkg.solPrice} SOL</p>
+                      <Button
+                        onClick={() => handlePurchase(pkg)}
+                        disabled={selectedPackage !== null}
+                        size='sm'
+                        className='bg-black hover:bg-zinc-900 text-amber-500 border border-amber-700 hover:border-amber-500'>
+                        {selectedPackage?.id === pkg.id ? (
+                          <>
+                            <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                            {purchaseStep === 'sending' ? 'Sending...' : 'Confirming...'}
+                          </>
+                        ) : (
+                          <>
+                            <Send className='mr-2 h-4 w-4' /> Purchase
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className='text-center text-muted-foreground py-8'>
@@ -365,7 +539,7 @@ export default function CreditsPage() {
         </div>
       </div>
 
-      {/* Transaction History */}
+      {/* Transaction History Section */}
       <div className='rounded-xl border border-border/60 bg-background shadow-sm overflow-hidden'>
         <div className='p-4 border-b border-border/60 bg-muted/30'>
           <div className='flex items-center gap-3'>
@@ -495,11 +669,35 @@ export default function CreditsPage() {
                 </div>
               </div>
               <p className='font-medium text-lg'>Purchase Successful!</p>
-              <div className='mt-4 bg-card/50 border border-border/60 rounded-lg p-4 w-[90%] max-w-[240px]'>
-                <div className='flex items-center justify-between mb-2'>
-                  <span className='text-muted-foreground text-sm'>Credits:</span>
+              <div className='mt-4 bg-card/50 border border-border/60 rounded-lg p-4 w-[90%] max-w-[280px]'>
+                <div className='flex items-center justify-between mb-1.5'>
+                  <span className='text-muted-foreground text-sm'>Package:</span>
+                  <span className='font-medium'>{selectedPackage?.name}</span>
+                </div>
+                <div className='flex items-center justify-between mb-1.5'>
+                  <span className='text-muted-foreground text-sm'>Base Credits:</span>
                   <span className='font-medium'>{selectedPackage?.credits.toLocaleString()}</span>
                 </div>
+                {(() => {
+                  let bonusCredits = 0;
+                  if (selectedPackage && applicableBonus) {
+                    bonusCredits = Math.floor(
+                      selectedPackage.credits * applicableBonus.bonusPercentage,
+                    );
+                  }
+                  if (bonusCredits > 0) {
+                    return (
+                      <div className='flex items-center justify-between mb-1.5'>
+                        <span className='text-muted-foreground text-sm'>Bonus Credits:</span>
+                        <span className='font-medium text-green-500'>
+                          +{bonusCredits.toLocaleString()}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+                <div className='border-t border-border/40 my-2'></div>
                 <div className='flex items-center justify-between'>
                   <span className='text-muted-foreground text-sm'>Cost:</span>
                   <span className='font-medium'>{selectedPackage?.solPrice} SOL</span>
