@@ -8,6 +8,7 @@ import { TokenCallsSection } from '@/components/token-calls/token-page/TokenCall
 import { EmbedButtonDialog } from '@/components/token/EmbedButtonDialog';
 import { TokenBundlesSection } from '@/components/tokens/bundles/TokenBundlesSection';
 import { EarlyBuyersInfo } from '@/components/tokens/EarlyBuyersInfo';
+import { TokenAiTradingAnalysis } from '@/components/tokens/TokenAiTradingAnalysis';
 import { TokenExternalLinks } from '@/components/tokens/TokenExternalLinks';
 import { TokenHolderAnalysisInfo } from '@/components/tokens/TokenHolderAnalysisInfo';
 import { TokenImage } from '@/components/tokens/TokenImage';
@@ -918,7 +919,20 @@ export default function Page({ params, commentId }: PageProps) {
                   </CardHeader>
                   <CardContent className='relative pt-4 pb-6 space-y-4'>
                     <EarlyBuyersInfo mintAddress={mintAddress} />
-                    <TokenHolderAnalysisInfo mintAddress={mintAddress} />
+                    {isHeaderLoaded && tokenData && (
+                      <>
+                        <TokenHolderAnalysisInfo mintAddress={mintAddress} className='w-full' />
+                        {(() => {
+                          return (
+                            <TokenAiTradingAnalysis
+                              mintAddress={mintAddress}
+                              tokenCreationTime={tokenData?.creationTime}
+                              className='w-full'
+                            />
+                          );
+                        })()}
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </div>

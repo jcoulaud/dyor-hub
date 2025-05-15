@@ -12,6 +12,7 @@ import { parse } from 'cookie';
 import { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { JwtPayload } from '../auth/interfaces/auth.types';
+import { ChartWhispererOutput } from '../token-ai-technical-analysis/ai-analysis.service';
 
 const corsOptions = {
   origin: process.env.CLIENT_URL || true,
@@ -32,6 +33,16 @@ export interface AnalysisProgressEvent {
   sessionId?: string;
 }
 
+export interface TradingAnalysisProgressEvent {
+  status: 'analyzing' | 'complete' | 'error' | 'queued';
+  message?: string;
+  error?: string;
+  analysisData?: ChartWhispererOutput;
+  progress?: number; // 0-100 percentage
+  stage?: string; // e.g., 'Fetching price data', 'Analyzing patterns', 'Generating insights'
+  sessionId?: string;
+}
+
 @WebSocketGateway({
   namespace: '/analysis',
   cors: corsOptions,
@@ -45,6 +56,8 @@ export class EventsGateway
   private readonly logger = new Logger(EventsGateway.name);
   private clients: Map<string, string> = new Map();
   private lastProgressByUser: Map<string, AnalysisProgressEvent> = new Map();
+  private lastTradingAnalysisByUser: Map<string, TradingAnalysisProgressEvent> =
+    new Map();
 
   constructor(private readonly authService: AuthService) {}
 
@@ -109,6 +122,11 @@ export class EventsGateway
       if (lastProgress) {
         client.emit('analysis_progress', lastProgress);
       }
+
+      const lastTradingAnalysis = this.lastTradingAnalysisByUser.get(userId);
+      if (lastTradingAnalysis) {
+        client.emit('trading_analysis_progress', lastTradingAnalysis);
+      }
     } catch (error) {
       this.logger.error(
         `WebSocket Authentication failed for socket ${client.id}: ${error.message || error}`,
@@ -136,6 +154,25 @@ export class EventsGateway
           const currentProgress = this.lastProgressByUser.get(userId);
           if (currentProgress === progress) {
             this.lastProgressByUser.delete(userId);
+          }
+        }, 90000);
+      }
+    }
+  }
+
+  sendTradingAnalysisProgress(
+    userId: string,
+    progress: TradingAnalysisProgressEvent,
+  ): void {
+    if (userId) {
+      this.lastTradingAnalysisByUser.set(userId, progress);
+      this.server.to(userId).emit('trading_analysis_progress', progress);
+
+      if (progress.status === 'complete' || progress.status === 'error') {
+        setTimeout(() => {
+          const currentProgress = this.lastTradingAnalysisByUser.get(userId);
+          if (currentProgress === progress) {
+            this.lastTradingAnalysisByUser.delete(userId);
           }
         }, 90000);
       }
