@@ -1,4 +1,7 @@
-import { CreditTransactionType as DyorHubCreditTransactionType } from '@dyor-hub/types';
+import {
+  BonusTier,
+  CreditTransactionType as DyorHubCreditTransactionType,
+} from '@dyor-hub/types';
 import {
   BadRequestException,
   Injectable,
@@ -9,13 +12,35 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Connection, ParsedTransactionWithMeta } from '@solana/web3.js';
 import { Repository } from 'typeorm';
-import { DYORHUB_MARKETING_ADDRESS } from '../common/constants';
+import {
+  DYORHUB_CONTRACT_ADDRESS,
+  DYORHUB_MARKETING_ADDRESS,
+} from '../common/constants';
 import { UserEntity } from '../entities/user.entity';
 import { SolanaRpcService } from '../solana/solana-rpc.service';
+import { WalletsService } from '../wallets/wallets.service';
 import { CreateCreditPackageDto } from './dto/create-credit-package.dto';
 import { UpdateCreditPackageDto } from './dto/update-credit-package.dto';
 import { CreditPackage } from './entities/credit-package.entity';
 import { CreditTransaction } from './entities/credit-transaction.entity';
+
+const BONUS_TIERS: BonusTier[] = [
+  {
+    minTokenHold: 5000000,
+    bonusPercentage: 0.2,
+    label: 'Whale Tier (20% Bonus)',
+  },
+  {
+    minTokenHold: 500000,
+    bonusPercentage: 0.1,
+    label: 'Shark Tier (10% Bonus)',
+  },
+  {
+    minTokenHold: 10000,
+    bonusPercentage: 0.05,
+    label: 'Dolphin Tier (5% Bonus)',
+  },
+];
 
 @Injectable()
 export class CreditsService {
@@ -29,7 +54,62 @@ export class CreditsService {
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     private readonly solanaRpcService: SolanaRpcService,
+    private readonly walletsService: WalletsService,
   ) {}
+
+  private getApplicableBonus(tokenBalance: number | null): BonusTier | null {
+    if (tokenBalance === null || tokenBalance === undefined) {
+      return null;
+    }
+    for (const tier of BONUS_TIERS) {
+      if (tokenBalance >= tier.minTokenHold) {
+        return tier;
+      }
+    }
+    return null;
+  }
+
+  async getBonusInfo(userId: string): Promise<BonusTier | null> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const primaryWallet =
+      await this.walletsService.getUserPrimaryWallet(userId);
+    if (!primaryWallet) {
+      return null;
+    }
+
+    try {
+      const balance = await this.walletsService.getSplTokenBalance(
+        primaryWallet.address,
+        DYORHUB_CONTRACT_ADDRESS,
+      );
+
+      let numericBalance: number;
+      if (typeof balance === 'bigint') {
+        numericBalance = Number(balance);
+      } else if (typeof balance === 'string') {
+        numericBalance = parseFloat(balance);
+        if (isNaN(numericBalance)) {
+          numericBalance = 0;
+        }
+      } else if (typeof balance === 'number') {
+        numericBalance = balance;
+      } else {
+        numericBalance = 0;
+      }
+
+      return this.getApplicableBonus(numericBalance);
+    } catch {
+      return null;
+    }
+  }
+
+  async getAllBonusTiers(): Promise<BonusTier[]> {
+    return BONUS_TIERS;
+  }
 
   async getAvailablePackages(): Promise<CreditPackage[]> {
     return this.creditPackageRepository.find({
@@ -49,7 +129,6 @@ export class CreditsService {
     await queryRunner.startTransaction();
 
     try {
-      // 1. Find package within the transaction
       const creditPackage = await queryRunner.manager.findOneBy(CreditPackage, {
         id: packageId,
         isActive: true,
@@ -58,7 +137,6 @@ export class CreditsService {
         throw new NotFoundException('Active credit package not found.');
       }
 
-      // 2. Verify Solana transaction
       const connection = this.solanaRpcService.getConnection();
       const txDetails = await this.verifySolPurchaseTransaction(
         connection,
@@ -67,7 +145,6 @@ export class CreditsService {
         DYORHUB_MARKETING_ADDRESS,
       );
 
-      // Check if tx is valid and doesn't have errors
       if (!txDetails || txDetails.meta?.err) {
         this.logger.error(
           `SOL Purchase Transaction verification failed or tx has error for ${solanaTransactionId}`,
@@ -78,24 +155,19 @@ export class CreditsService {
         );
       }
 
-      // 3. Check if transaction already processed
       const existingTransaction = await queryRunner.manager.findOneBy(
         CreditTransaction,
-        {
-          solanaTransactionId,
-        },
+        { solanaTransactionId },
       );
       if (existingTransaction) {
         this.logger.warn(
           `Credit purchase with signature ${solanaTransactionId} already recorded.`,
         );
-
         throw new BadRequestException(
           `Transaction ${solanaTransactionId} already processed.`,
         );
       }
 
-      // 4. Find user and update credits within the transaction
       const user = await queryRunner.manager.findOneBy(UserEntity, {
         id: userId,
       });
@@ -103,16 +175,58 @@ export class CreditsService {
         throw new NotFoundException('User not found.');
       }
 
-      user.credits += creditPackage.credits;
+      let bonusCredits = 0;
+      let transactionDetails = `Purchased ${creditPackage.name}`;
+
+      const primaryWallet =
+        await this.walletsService.getUserPrimaryWallet(userId);
+      let applicableBonus: BonusTier | null = null;
+      if (primaryWallet) {
+        try {
+          const balance = await this.walletsService.getSplTokenBalance(
+            primaryWallet.address,
+            DYORHUB_CONTRACT_ADDRESS,
+          );
+
+          let numericBalance: number;
+          if (typeof balance === 'bigint') {
+            numericBalance = Number(balance);
+          } else if (typeof balance === 'string') {
+            numericBalance = parseFloat(balance);
+            if (isNaN(numericBalance)) {
+              numericBalance = 0;
+            }
+          } else if (typeof balance === 'number') {
+            numericBalance = balance;
+          } else {
+            numericBalance = 0;
+          }
+
+          applicableBonus = this.getApplicableBonus(numericBalance);
+        } catch (error) {
+          this.logger.error(
+            `purchaseCredits: Error during token balance processing for bonus for user ${userId}, wallet ${primaryWallet.address}: ${error.message}`,
+          );
+        }
+      }
+
+      if (applicableBonus) {
+        bonusCredits = Math.floor(
+          creditPackage.credits * applicableBonus.bonusPercentage,
+        );
+
+        transactionDetails += ` (+${bonusCredits} Bonus Credits - ${applicableBonus.label})`;
+      }
+
+      user.credits += creditPackage.credits + bonusCredits;
       await queryRunner.manager.save(UserEntity, user);
 
-      // 5. Record transaction within the database transaction
       const transaction = queryRunner.manager.create(CreditTransaction, {
         userId,
         type: DyorHubCreditTransactionType.PURCHASE,
-        amount: creditPackage.credits,
+        amount: creditPackage.credits + bonusCredits,
         solanaTransactionId,
-        details: `Purchased ${creditPackage.name}`,
+        details: transactionDetails,
       });
       await queryRunner.manager.save(CreditTransaction, transaction);
 

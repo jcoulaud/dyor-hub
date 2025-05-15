@@ -5,6 +5,7 @@ import {
   BadgeFormValues,
   BadgeSummary,
   Badge as BadgeType,
+  BonusTier,
   Comment,
   CreateCommentDto,
   CreateCreditPackageDto,
@@ -2341,32 +2342,30 @@ export const credits = {
     return api(`/credits/history?${searchParams.toString()}`);
   },
 
-  // --- Admin Credit Package Functions Nested ---
+  getDyorHubBalance: async (): Promise<{ balance: number }> => {
+    return api<{ balance: number }>('/credits/dyorhub-balance');
+  },
+  getBonusInfo: async (): Promise<BonusTier | null> => {
+    return api<BonusTier | null>('/credits/bonus-info');
+  },
+  getAllBonusTiers: async (): Promise<BonusTier[]> => {
+    // New function
+    return api<BonusTier[]>('/credits/bonus-tiers');
+  },
+
   admin: {
     findAllPackages: async (includeInactive: boolean = false): Promise<CreditPackage[]> => {
       const query = includeInactive ? '?includeInactive=true' : '';
       return api(`/credits/packages/admin${query}`);
     },
-
     createPackage: async (data: CreateCreditPackageDto): Promise<CreditPackage> => {
-      return api('/credits/packages/admin', {
-        method: 'POST',
-        body: data,
-      });
+      return api('/credits/packages/admin', { method: 'POST', body: data });
     },
-
     updatePackage: async (id: string, data: UpdateCreditPackageDto): Promise<CreditPackage> => {
-      return api(`/credits/packages/admin/${id}`, {
-        method: 'PUT',
-        body: data,
-      });
+      return api(`/credits/packages/admin/${id}`, { method: 'PUT', body: data });
     },
-
     deletePackage: async (id: string): Promise<void> => {
-      return api(`/credits/packages/admin/${id}`, {
-        method: 'DELETE',
-      });
+      return api(`/credits/packages/admin/${id}`, { method: 'DELETE' });
     },
   },
-  // --- End Admin Functions ---
 };

@@ -1,4 +1,5 @@
 import {
+  BonusTier,
   CreditPackage,
   CreditTransaction,
   PaginatedResult,
@@ -72,8 +73,8 @@ export class CreditsController {
   async getBalance(
     @CurrentUser() user: UserEntity,
   ): Promise<{ credits: number }> {
-    const balance = await this.creditsService.getUserBalance(user.id);
-    return { credits: balance };
+    const credits = await this.creditsService.getUserBalance(user.id);
+    return { credits };
   }
 
   @Get('history')
@@ -144,5 +145,19 @@ export class CreditsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deletePackage(@Param('id') id: string): Promise<void> {
     return this.creditsService.deletePackage(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('bonus-info')
+  async getBonusInfo(
+    @CurrentUser() user: UserEntity,
+  ): Promise<BonusTier | null> {
+    return this.creditsService.getBonusInfo(user.id);
+  }
+
+  @Get('bonus-tiers')
+  @UseGuards(JwtAuthGuard)
+  async getAllBonusTiers(): Promise<BonusTier[]> {
+    return this.creditsService.getAllBonusTiers();
   }
 }
