@@ -198,9 +198,6 @@ export class TokenAiTechnicalAnalysisService {
 
     // Select optimal timeframes based on date range
     const selectedTimeframes = this.selectOptimalTimeframes(timeFrom, timeTo);
-    this.logger.log(
-      `Selected timeframes for analysis: ${selectedTimeframes.join(', ')}`,
-    );
 
     const tradeDataResults: TradeDataByTimeframe[] = [];
     const totalTimeframes = selectedTimeframes.length;
@@ -252,9 +249,6 @@ export class TokenAiTechnicalAnalysisService {
         }
       }
 
-      this.logger.log(
-        `Successfully fetched ${tradeDataResults.length} trade datasets for ${tokenAddress}`,
-      );
       return tradeDataResults;
     } catch (error) {
       this.logger.error(

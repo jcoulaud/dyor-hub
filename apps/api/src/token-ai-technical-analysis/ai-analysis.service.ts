@@ -405,9 +405,6 @@ export class AiAnalysisService {
     if (input.tradeDataJson) {
       try {
         tradeData = JSON.parse(input.tradeDataJson);
-        this.logger.log(
-          `Using provided trade data with ${tradeData.length} timeframes`,
-        );
       } catch (error) {
         this.logger.error(`Error parsing tradeDataJson: ${error.message}`);
       }
