@@ -12,6 +12,10 @@ export class ChartAnalysisDto {
   tokenName: string;
 
   @IsString()
+  @IsOptional()
+  tokenSymbol: string;
+
+  @IsString()
   @IsNotEmpty()
   tokenAddress: string;
 
@@ -42,4 +46,8 @@ export class ChartAnalysisDto {
   @IsJSON()
   @IsOptional()
   tradeDataJson?: string;
+
+  @IsJSON()
+  @IsOptional()
+  priceReferencesJson?: string;
 }

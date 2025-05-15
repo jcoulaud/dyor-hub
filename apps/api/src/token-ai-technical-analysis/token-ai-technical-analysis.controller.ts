@@ -60,6 +60,23 @@ export class TokenAiTechnicalAnalysisController {
 
     const creditCost = this.calculateAiTaCreditCost();
 
+    // Also check if the user has enough credits
+    const userBalance = await this.creditsService.getUserBalance(user.id);
+    if (userBalance < creditCost) {
+      this.logger.warn(
+        `User ${user.id} has insufficient credits for AI Trading Analysis. Required: ${creditCost}, Balance: ${userBalance}`,
+      );
+
+      throw new ForbiddenException({
+        message: 'Insufficient credits for AI Trading Analysis.',
+        details: {
+          code: 'INSUFFICIENT_CREDITS',
+          required: creditCost,
+          available: userBalance,
+        },
+      });
+    }
+
     return { creditCost };
   }
 
@@ -98,15 +115,41 @@ export class TokenAiTechnicalAnalysisController {
 
     const creditCost = this.calculateAiTaCreditCost();
 
-    // Thoroughly check credit balance before starting
-    try {
-      const userBalance = await this.creditsService.getUserBalance(user.id);
-      if (userBalance < creditCost) {
-        this.logger.warn(
-          `User ${user.id} has insufficient credits for AI Trading Analysis. Required: ${creditCost}, Balance: ${userBalance}`,
-        );
+    // Check credit balance first
+    const userBalance = await this.creditsService.getUserBalance(user.id);
+    if (userBalance < creditCost) {
+      this.logger.warn(
+        `User ${user.id} has insufficient credits for AI Trading Analysis. Required: ${creditCost}, Balance: ${userBalance}`,
+      );
 
-        // Send a WebSocket message about insufficient credits
+      // Send a WebSocket message about insufficient credits
+      this.eventsGateway.sendTradingAnalysisProgress(user.id, {
+        status: 'error',
+        message:
+          'Insufficient credits. Please purchase more credits to use this feature.',
+        error: 'Insufficient credits',
+        sessionId,
+      });
+
+      throw new ForbiddenException({
+        message: 'Insufficient credits for AI Trading Analysis.',
+        details: {
+          code: 'INSUFFICIENT_CREDITS',
+        },
+      });
+    }
+
+    // Try to reserve credits
+    try {
+      await this.creditsService.checkAndReserveCredits(user.id, creditCost);
+    } catch (error) {
+      this.logger.error(
+        `Failed to reserve credits for user ${user.id}: ${error.message}`,
+        error.stack,
+      );
+
+      // Handle insufficient credits specifically
+      if (error.message && error.message.includes('insufficient')) {
         this.eventsGateway.sendTradingAnalysisProgress(user.id, {
           status: 'error',
           message:
@@ -115,24 +158,15 @@ export class TokenAiTechnicalAnalysisController {
           sessionId,
         });
 
-        throw new ForbiddenException(
-          'Insufficient credits for AI Trading Analysis.',
-        );
+        throw new ForbiddenException({
+          message: 'Insufficient credits for AI Trading Analysis.',
+          details: {
+            code: 'INSUFFICIENT_CREDITS',
+          },
+        });
       }
 
-      // Check and reserve credits first
-      await this.creditsService.checkAndReserveCredits(user.id, creditCost);
-    } catch (error) {
-      if (error instanceof ForbiddenException) {
-        throw error;
-      }
-
-      this.logger.error(
-        `Failed to reserve credits for user ${user.id}: ${error.message}`,
-        error.stack,
-      );
-
-      // Send a WebSocket notification about the error
+      // Send a WebSocket notification about other errors
       this.eventsGateway.sendTradingAnalysisProgress(user.id, {
         status: 'error',
         message: 'Failed to reserve credits. Please try again later.',
@@ -168,10 +202,10 @@ export class TokenAiTechnicalAnalysisController {
         error.stack,
       );
 
-      // Send a WebSocket notification about the error
+      // Send a WebSocket notification about the error - with a user-friendly message
       const errorMessage =
-        error.message === 'Insufficient credits.' ||
-        error.message === 'Insufficient credits for analysis.'
+        error.message?.includes('insufficient credits') ||
+        error.message?.includes('Insufficient credits')
           ? 'Insufficient credits. Please purchase more credits and try again.'
           : 'Analysis failed due to an unexpected error. Your credits have not been deducted.';
 

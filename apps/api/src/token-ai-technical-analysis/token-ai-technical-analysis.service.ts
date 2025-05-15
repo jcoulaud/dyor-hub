@@ -145,32 +145,43 @@ export class TokenAiTechnicalAnalysisService {
     timeFromSeconds: number,
     timeToSeconds: number,
   ): string[] {
-    // Calculate duration in seconds
-    const durationInSeconds = timeToSeconds - timeFromSeconds;
+    // We always want to include 'alltime' as one of the timeframes
+    const result = ['alltime'];
 
-    // Convert to days
-    const durationInDays = durationInSeconds / (60 * 60 * 24);
+    // Available timeframes in order from shortest to longest
+    const availableTimeframes = [
+      '30m',
+      '1h',
+      '2h',
+      '4h',
+      '8h',
+      '24h',
+      '3d',
+      '7d',
+      '14d',
+      '30d',
+      '90d',
+      '180d',
+      '1y',
+    ];
 
-    // Select timeframes based on duration
-    if (durationInDays <= 1) {
-      // Less than 1 day: focus on short timeframes
-      return ['30m', '1h', '2h', '4h', '24h'];
-    } else if (durationInDays <= 7) {
-      // 1-7 days: mix of short and medium timeframes
-      return ['1h', '4h', '24h', '3d', '7d'];
-    } else if (durationInDays <= 30) {
-      // 7-30 days: medium timeframes
-      return ['4h', '24h', '3d', '7d', '14d'];
-    } else if (durationInDays <= 90) {
-      // 30-90 days: medium-long timeframes
-      return ['24h', '3d', '7d', '14d', '30d'];
-    } else if (durationInDays <= 180) {
-      // 90-180 days: longer timeframes
-      return ['7d', '14d', '30d', '90d', '180d'];
-    } else {
-      // Over 180 days: longest timeframes
-      return ['14d', '30d', '90d', '180d', '1y'];
+    // We need to select 4 more timeframes
+    const numNeededTimeframes = 4;
+
+    // Calculate step size to distribute evenly
+    const step = Math.max(
+      1,
+      Math.floor(availableTimeframes.length / numNeededTimeframes),
+    );
+
+    // Add evenly distributed timeframes
+    for (let i = 0; i < numNeededTimeframes; i++) {
+      const index = Math.min(i * step, availableTimeframes.length - 1);
+      result.push(availableTimeframes[index]);
     }
+
+    // Ensure the result has exactly 5 unique timeframes
+    return Array.from(new Set(result)).slice(0, 5);
   }
 
   async fetchTradeData(
@@ -274,6 +285,10 @@ export class TokenAiTechnicalAnalysisService {
       progressCallback(10, 'Determining optimal data resolution...');
     }
 
+    // Fetch complete token data to get the symbol
+    const tokenData = await this.tokensService.getTokenData(tokenAddress);
+    const tokenSymbol = tokenData?.symbol || '';
+
     const { ohlcvType } = this.determineOhlcvType(clientTimeFrom, clientTimeTo);
 
     let ohlcvItems: BirdeyeOhlcvItem[] = [];
@@ -322,6 +337,14 @@ export class TokenAiTechnicalAnalysisService {
       );
     }
 
+    // Generate price references for different time periods
+    const priceReferences = this.generatePriceReferences(
+      ohlcvItems,
+      clientTimeFrom,
+      clientTimeTo,
+      tokenAgeInDays,
+    );
+
     // Fetch trade data for various timeframes
     const tradeData = await this.fetchTradeData(
       tokenAddress,
@@ -338,6 +361,7 @@ export class TokenAiTechnicalAnalysisService {
     const chartAnalysisServiceInput: ChartAnalysisDto = {
       tokenAddress,
       tokenName,
+      tokenSymbol,
       tokenAge: `${tokenAgeInDays.toFixed(0)} days`,
       ohlcvDataJson: JSON.stringify(
         ohlcvItems.map((item) => ({
@@ -354,6 +378,7 @@ export class TokenAiTechnicalAnalysisService {
       timeFrom: clientTimeFrom,
       timeTo: clientTimeTo,
       tradeDataJson: JSON.stringify(tradeData),
+      priceReferencesJson: JSON.stringify(priceReferences),
     };
 
     try {
@@ -413,5 +438,117 @@ export class TokenAiTechnicalAnalysisService {
       BIRDEYE_CANDLE_TYPES[BIRDEYE_CANDLE_TYPES.length - 1].type;
 
     return { ohlcvType: fallbackType };
+  }
+
+  // Helper method to generate price references for different time periods
+  private generatePriceReferences(
+    ohlcvItems: BirdeyeOhlcvItem[],
+    timeFrom: number,
+    timeTo: number,
+    tokenAgeInDays: number,
+  ): {
+    period: string;
+    price: number;
+    timestamp: number;
+    changePercent: number;
+  }[] {
+    if (!ohlcvItems || ohlcvItems.length === 0) return [];
+
+    // Sort items by timestamp (oldest first)
+    const sortedItems = [...ohlcvItems].sort((a, b) => a.unixTime - b.unixTime);
+
+    // Get current price (last candle's close price)
+    const currentPrice = sortedItems[sortedItems.length - 1].c;
+    const currentTime = sortedItems[sortedItems.length - 1].unixTime;
+
+    // Get launch price (first candle's open price)
+    const launchPrice = sortedItems[0].o;
+    const launchTime = sortedItems[0].unixTime;
+
+    const result = [
+      {
+        period: 'launch',
+        price: launchPrice,
+        timestamp: launchTime,
+        changePercent: ((currentPrice - launchPrice) / launchPrice) * 100,
+      },
+    ];
+
+    // Calculate the range we're looking at (in days)
+    const rangeDays = (timeTo - timeFrom) / (24 * 60 * 60);
+
+    // Prepare periods to look for
+    const periodsToFind = [];
+
+    // Always add ATH
+    const ath = sortedItems.reduce(
+      (max, item) => (item.h > max.h ? item : max),
+      sortedItems[0],
+    );
+    result.push({
+      period: 'ATH',
+      price: ath.h,
+      timestamp: ath.unixTime,
+      changePercent: ((currentPrice - ath.h) / ath.h) * 100,
+    });
+
+    // Always add ATL
+    const atl = sortedItems.reduce(
+      (min, item) => (item.l < min.l ? item : min),
+      sortedItems[0],
+    );
+    result.push({
+      period: 'ATL',
+      price: atl.l,
+      timestamp: atl.unixTime,
+      changePercent: ((currentPrice - atl.l) / atl.l) * 100,
+    });
+
+    // Add time-based references based on the range
+    if (rangeDays >= 1) {
+      periodsToFind.push({ period: '1 day ago', seconds: 24 * 60 * 60 });
+    }
+
+    if (rangeDays >= 7) {
+      periodsToFind.push({ period: '1 week ago', seconds: 7 * 24 * 60 * 60 });
+    }
+
+    if (rangeDays >= 30) {
+      periodsToFind.push({ period: '1 month ago', seconds: 30 * 24 * 60 * 60 });
+    }
+
+    if (rangeDays >= 90) {
+      periodsToFind.push({
+        period: '3 months ago',
+        seconds: 90 * 24 * 60 * 60,
+      });
+    }
+
+    // Don't try to look further back than the token's age
+    const tokenAgeSeconds = tokenAgeInDays * 24 * 60 * 60;
+
+    // Find prices for each period
+    for (const period of periodsToFind) {
+      if (period.seconds > tokenAgeSeconds) continue;
+
+      const targetTime = currentTime - period.seconds;
+
+      // Find the closest candle to the target time
+      const closestItem = sortedItems.reduce((closest, item) => {
+        return Math.abs(item.unixTime - targetTime) <
+          Math.abs(closest.unixTime - targetTime)
+          ? item
+          : closest;
+      }, sortedItems[0]);
+
+      result.push({
+        period: period.period,
+        price: closestItem.c,
+        timestamp: closestItem.unixTime,
+        changePercent: ((currentPrice - closestItem.c) / closestItem.c) * 100,
+      });
+    }
+
+    return result;
   }
 }

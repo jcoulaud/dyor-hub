@@ -165,12 +165,30 @@ export function TokenAiTradingAnalysis({
     setDateRange({ from: actualMinDate, to: actualMaxDate });
     setAnalysisProgress(null);
     setHasShownCompletionToast(false);
+    setIsLoading(false);
     errorHandledForSession.current = {};
+
+    // Disconnect any active socket
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
+    // Clear current session ID
+    currentAnalysisSessionId.current = null;
   }, [actualMinDate, actualMaxDate]);
 
+  // Reset state when modal closes
   useEffect(() => {
     if (!isModalOpen) {
       resetState();
+
+      // Reset socket and session for new credit check when reopened
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      currentAnalysisSessionId.current = null;
     }
   }, [isModalOpen, resetState]);
 
@@ -243,12 +261,16 @@ export function TokenAiTradingAnalysis({
           data.error?.toLowerCase().includes('insufficient credits')
         ) {
           setShowInsufficientCreditsError(true);
+          setShowTryAgainError(false);
+          setTryAgainErrorMessage(null);
+          setAnalysisProgress(null);
           return;
         }
 
         // Handle other errors
         setTryAgainErrorMessage(data.message || 'Analysis failed');
         setShowTryAgainError(true);
+        setShowInsufficientCreditsError(false);
 
         toast({
           title: 'Analysis Failed',
@@ -308,6 +330,10 @@ export function TokenAiTradingAnalysis({
       });
       return;
     }
+
+    // Reset any previous credit-related errors when opening modal
+    setShowInsufficientCreditsError(false);
+
     setIsModalOpen(true);
 
     if (isAuthenticated) {
@@ -318,7 +344,11 @@ export function TokenAiTradingAnalysis({
         setPlatformTokenGateFailed(true);
         return;
       }
+
+      // Always reset credit cost and fetch fresh data when opening modal
+      setCalculatedCreditCost(null);
       setIsCostLoading(true);
+
       try {
         const costData = await apiTokens.getAiTradingAnalysisCost(mintAddress);
         setCalculatedCreditCost(costData.creditCost);
@@ -363,6 +393,30 @@ export function TokenAiTradingAnalysis({
     setTryAgainErrorMessage(null);
     setShowInsufficientCreditsError(false);
     errorHandledForSession.current = {};
+
+    // Force a fresh credit check to ensure we have the latest credit status
+    try {
+      await apiTokens.getAiTradingAnalysisCost(mintAddress);
+      // If we get here, we should have credits
+    } catch (creditErr) {
+      const creditError = creditErr as ApiError;
+      // Check specifically for insufficient credits error
+      if (
+        creditError.status === 403 &&
+        (creditError.message?.toLowerCase().includes('insufficient credits') ||
+          (creditError.data &&
+            typeof creditError.data === 'object' &&
+            'details' in creditError.data &&
+            creditError.data.details &&
+            typeof creditError.data.details === 'object' &&
+            'code' in creditError.data.details &&
+            creditError.data.details.code === 'INSUFFICIENT_CREDITS'))
+      ) {
+        setShowInsufficientCreditsError(true);
+        setIsLoading(false);
+        return;
+      }
+    }
 
     const timeFromInSeconds = Math.floor(dateRange.from.getTime() / 1000);
     const timeToInSeconds = Math.floor(dateRange.to.getTime() / 1000);
@@ -618,7 +672,7 @@ export function TokenAiTradingAnalysis({
               )}
 
               {analysisData && analysisData.analysisOutput && (
-                <div className='mt-4 space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto pr-2 custom-scrollbar'>
+                <div className='mt-4 space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent hover:scrollbar-thumb-zinc-600'>
                   <h3 className='text-base font-semibold text-zinc-100'>AI Analysis Results:</h3>
 
                   {analysisData.analysisOutput.unfilteredTruth && (
@@ -632,84 +686,8 @@ export function TokenAiTradingAnalysis({
                     </div>
                   )}
 
-                  {analysisData.analysisOutput.decodedStory && (
-                    <div className='space-y-4'>
-                      {analysisData.analysisOutput.decodedStory.priceJourney && (
-                        <div className='mb-3'>
-                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
-                            <LineChart className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
-                            <span className='text-teal-400'>Price Journey</span>
-                          </h4>
-                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
-                            {analysisData.analysisOutput.decodedStory.priceJourney}
-                          </p>
-                        </div>
-                      )}
-
-                      {analysisData.analysisOutput.decodedStory.momentum && (
-                        <div className='mb-3'>
-                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
-                            <TrendingUp className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
-                            <span className='text-teal-400'>Momentum</span>
-                          </h4>
-                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
-                            {analysisData.analysisOutput.decodedStory.momentum}
-                          </p>
-                        </div>
-                      )}
-
-                      {analysisData.analysisOutput.decodedStory.keyLevels && (
-                        <div className='mb-3'>
-                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
-                            <Users className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
-                            <span className='text-teal-400'>Key Price Levels</span>
-                          </h4>
-                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
-                            {analysisData.analysisOutput.decodedStory.keyLevels}
-                          </p>
-                        </div>
-                      )}
-
-                      {analysisData.analysisOutput.decodedStory.tradingActivity && (
-                        <div className='mb-3'>
-                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
-                            <BarChart4 className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
-                            <span className='text-teal-400'>Trading Activity</span>
-                          </h4>
-                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
-                            {analysisData.analysisOutput.decodedStory.tradingActivity}
-                          </p>
-                        </div>
-                      )}
-
-                      {analysisData.analysisOutput.decodedStory.buyerSellerDynamics && (
-                        <div className='mb-3'>
-                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
-                            <History className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
-                            <span className='text-teal-400'>Buyer vs Seller Dynamics</span>
-                          </h4>
-                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
-                            {analysisData.analysisOutput.decodedStory.buyerSellerDynamics}
-                          </p>
-                        </div>
-                      )}
-
-                      {analysisData.analysisOutput.decodedStory.timeframeAnalysis && (
-                        <div className='mb-3'>
-                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
-                            <Calendar className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
-                            <span className='text-teal-400'>Timeframe Analysis</span>
-                          </h4>
-                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
-                            {analysisData.analysisOutput.decodedStory.timeframeAnalysis}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                   {analysisData.analysisOutput.ratings && (
-                    <div className='mt-4 pt-2 border-t border-zinc-800'>
+                    <div className='mb-4 pt-2 border-t border-zinc-800'>
                       <h4 className='text-sm font-medium text-zinc-200 mb-3 flex items-center'>
                         <Sparkles className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
                         <span className='text-teal-400'>Trading Metrics (1-10)</span>
@@ -789,6 +767,82 @@ export function TokenAiTradingAnalysis({
                     </div>
                   )}
 
+                  {analysisData.analysisOutput.decodedStory && (
+                    <div className='space-y-4'>
+                      {analysisData.analysisOutput.decodedStory.priceJourney && (
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <LineChart className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Price Journey</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                            {analysisData.analysisOutput.decodedStory.priceJourney}
+                          </p>
+                        </div>
+                      )}
+
+                      {analysisData.analysisOutput.decodedStory.momentum && (
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <TrendingUp className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Momentum</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                            {analysisData.analysisOutput.decodedStory.momentum}
+                          </p>
+                        </div>
+                      )}
+
+                      {analysisData.analysisOutput.decodedStory.keyLevels && (
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <Users className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Key Price Levels</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                            {analysisData.analysisOutput.decodedStory.keyLevels}
+                          </p>
+                        </div>
+                      )}
+
+                      {analysisData.analysisOutput.decodedStory.tradingActivity && (
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <BarChart4 className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Trading Activity</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                            {analysisData.analysisOutput.decodedStory.tradingActivity}
+                          </p>
+                        </div>
+                      )}
+
+                      {analysisData.analysisOutput.decodedStory.buyerSellerDynamics && (
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <History className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Buyer vs Seller Dynamics</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                            {analysisData.analysisOutput.decodedStory.buyerSellerDynamics}
+                          </p>
+                        </div>
+                      )}
+
+                      {analysisData.analysisOutput.decodedStory.timeframeAnalysis && (
+                        <div className='mb-3'>
+                          <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
+                            <Calendar className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                            <span className='text-teal-400'>Timeframe Analysis</span>
+                          </h4>
+                          <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
+                            {analysisData.analysisOutput.decodedStory.timeframeAnalysis}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {analysisData.analysisOutput.marketSentiment && (
                     <div className='mb-3 mt-4'>
                       <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
@@ -859,12 +913,7 @@ export function TokenAiTradingAnalysis({
                           disabled: isLoading || isCostLoading,
                           'aria-label': 'Date range slider for AI analysis',
                         };
-                        console.log(
-                          '[TokenAiTradingAnalysis] Rendering RangeSlider with key:',
-                          sliderKey,
-                          'and props:',
-                          sliderRenderProps,
-                        );
+
                         return <RangeSlider key={sliderKey} {...sliderRenderProps} />;
                       })()}
                     </div>
@@ -879,7 +928,7 @@ export function TokenAiTradingAnalysis({
                 )}
 
               <DialogFooter className='mt-6 sm:justify-between'>
-                {!analysisData && (
+                {!analysisData ? (
                   <DialogClose asChild>
                     <Button
                       variant='outline'
@@ -887,13 +936,13 @@ export function TokenAiTradingAnalysis({
                       Cancel
                     </Button>
                   </DialogClose>
-                )}
+                ) : null}
 
                 {(() => {
                   if (showInsufficientCreditsError) {
                     return (
                       <Button asChild className='bg-teal-500 hover:bg-teal-600 text-white ml-auto'>
-                        <Link href='/account/credits'>Top Up Credits</Link>
+                        <Link href='/account/credits'>Get Credits</Link>
                       </Button>
                     );
                   }

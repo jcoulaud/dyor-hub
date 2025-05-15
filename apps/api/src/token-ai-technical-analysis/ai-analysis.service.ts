@@ -120,11 +120,13 @@ export class AiAnalysisService {
   ): string {
     const {
       tokenName,
+      tokenSymbol,
       tokenAddress,
       tokenAge,
       numberOfCandles,
       candleType,
       ohlcvDataJson,
+      priceReferencesJson,
     } = input;
 
     // Parse OHLCV data to find min, max prices and calculate % gain
@@ -153,6 +155,33 @@ export class AiAnalysisService {
       this.logger.error(`Error parsing OHLCV data: ${error.message}`);
     }
 
+    // Parse price references
+    let priceReferences: {
+      period: string;
+      price: number;
+      timestamp: number;
+      changePercent: number;
+    }[] = [];
+
+    try {
+      if (priceReferencesJson) {
+        priceReferences = JSON.parse(priceReferencesJson);
+      }
+    } catch (error) {
+      this.logger.error(`Error parsing price references: ${error.message}`);
+    }
+
+    // Build price reference section
+    const priceReferenceSection = priceReferences.length
+      ? `\n📅 Price Performance by Time Period:\n` +
+        priceReferences
+          .map(
+            (ref) =>
+              `• ${ref.period.charAt(0).toUpperCase() + ref.period.slice(1)}: $${ref.price.toFixed(8)} (${ref.changePercent >= 0 ? '+' : ''}${ref.changePercent.toFixed(2)}% vs current)`,
+          )
+          .join('\n')
+      : '';
+
     // Calculate trading statistics across timeframes
     let buySellRatio = 'unknown';
     let totalBuyVolume = 0;
@@ -161,8 +190,64 @@ export class AiAnalysisService {
     let totalSellCount = 0;
     let buyPercentage = 0;
     let sellPercentage = 0;
+    let avgBuySize = 0;
+    let avgSellSize = 0;
+    let volumeRatioTrend = 'stable';
 
     if (tradeData.length > 0) {
+      // Get buy/sell ratios for different timeframes to determine trend
+      const timeframeRatios = tradeData.map((td) => {
+        if (td.data.volume_sell_usd > 0) {
+          return {
+            timeframe: td.timeframe,
+            ratio: td.data.volume_buy_usd / td.data.volume_sell_usd,
+          };
+        }
+        return { timeframe: td.timeframe, ratio: 1 };
+      });
+
+      // Sort timeframes from most recent to oldest (assuming they're in order like 24h, 3d, 7d, etc.)
+      const sortedRatios = [...timeframeRatios].sort((a, b) => {
+        const timeframeOrder = {
+          '30m': 1,
+          '1h': 2,
+          '2h': 3,
+          '4h': 4,
+          '8h': 5,
+          '24h': 6,
+          '3d': 7,
+          '7d': 8,
+        };
+        return (
+          (timeframeOrder[a.timeframe] || 99) -
+          (timeframeOrder[b.timeframe] || 99)
+        );
+      });
+
+      // Compare recent vs older ratios to determine trend
+      if (sortedRatios.length >= 2) {
+        const recentRatios = sortedRatios.slice(
+          0,
+          Math.ceil(sortedRatios.length / 2),
+        );
+        const olderRatios = sortedRatios.slice(
+          Math.ceil(sortedRatios.length / 2),
+        );
+
+        const avgRecentRatio =
+          recentRatios.reduce((sum, item) => sum + item.ratio, 0) /
+          recentRatios.length;
+        const avgOlderRatio =
+          olderRatios.reduce((sum, item) => sum + item.ratio, 0) /
+          olderRatios.length;
+
+        if (avgRecentRatio > avgOlderRatio * 1.2) {
+          volumeRatioTrend = 'improving';
+        } else if (avgRecentRatio < avgOlderRatio * 0.8) {
+          volumeRatioTrend = 'deteriorating';
+        }
+      }
+
       tradeData.forEach((td) => {
         totalBuyVolume += td.data.volume_buy_usd;
         totalSellVolume += td.data.volume_sell_usd;
@@ -179,6 +264,9 @@ export class AiAnalysisService {
         buyPercentage = (totalBuyCount / totalTrades) * 100;
         sellPercentage = (totalSellCount / totalTrades) * 100;
       }
+
+      avgBuySize = totalBuyCount > 0 ? totalBuyVolume / totalBuyCount : 0;
+      avgSellSize = totalSellCount > 0 ? totalSellVolume / totalSellCount : 0;
     }
 
     // Create a summary of timeframe data
@@ -204,12 +292,24 @@ export class AiAnalysisService {
         const volumeRatio =
           sellVolumeUsd > 0 ? buyVolumeUsd / sellVolumeUsd : 0;
 
+        // Calculate average transaction sizes
+        const avgBuyTxSize = buyCount > 0 ? buyVolumeUsd / buyCount : 0;
+        const avgSellTxSize = sellCount > 0 ? sellVolumeUsd / sellCount : 0;
+
+        // Determine transaction size imbalance
+        const txSizeImbalance =
+          avgBuyTxSize > 0 && avgSellTxSize > 0
+            ? `${avgBuyTxSize > avgSellTxSize ? 'Buyers' : 'Sellers'} making ${Math.abs(avgBuyTxSize / avgSellTxSize - 1).toFixed(2)}x larger trades`
+            : 'No size comparison available';
+
         return `${timeframe} timeframe: 
 • ${totalCount} trades (${buyCount} buys/${sellCount} sells, ${buyPct.toFixed(1)}%/${sellPct.toFixed(1)}%)
 • $${totalVolumeUsd.toLocaleString()} total volume 
 • Buy volume: $${buyVolumeUsd.toLocaleString()} (${buyVolumePct.toFixed(1)}%)
 • Sell volume: $${sellVolumeUsd.toLocaleString()} (${sellVolumePct.toFixed(1)}%)
-• Buy/Sell ratio: ${volumeRatio.toFixed(2)} (>1 means more buying pressure)`;
+• Buy/Sell ratio: ${volumeRatio.toFixed(2)} (>1 means more buying pressure)
+• Avg buy size: $${avgBuyTxSize.toFixed(2)} | Avg sell size: $${avgSellTxSize.toFixed(2)}
+• ${txSizeImbalance}`;
       })
       .join('\n\n');
 
@@ -218,11 +318,13 @@ export class AiAnalysisService {
         ? `\n🔍 Trade Data Analysis:\n` +
           `• Trade data from ${tradeData.length} timeframes: ${tradeData.map((td) => td.timeframe).join(', ')}\n` +
           `• Overall buy/sell ratio: ${buySellRatio} (higher = more buying pressure)\n` +
+          `• Buy/sell ratio trend: ${volumeRatioTrend} (comparing recent vs. older timeframes)\n` +
           `• Trade composition: ${totalBuyCount.toLocaleString()} buys (${buyPercentage.toFixed(1)}%) vs ${totalSellCount.toLocaleString()} sells (${sellPercentage.toFixed(1)}%)\n` +
           `• Buy volume: $${totalBuyVolume.toLocaleString()} (${((totalBuyVolume / (totalBuyVolume + totalSellVolume)) * 100).toFixed(1)}% of total)\n` +
           `• Sell volume: $${totalSellVolume.toLocaleString()} (${((totalSellVolume / (totalBuyVolume + totalSellVolume)) * 100).toFixed(1)}% of total)\n` +
-          `• Average buy size: $${(totalBuyVolume / totalBuyCount).toFixed(2)}\n` +
-          `• Average sell size: $${(totalSellVolume / totalSellCount).toFixed(2)}\n` +
+          `• Average buy size: $${avgBuySize.toFixed(2)}\n` +
+          `• Average sell size: $${avgSellSize.toFixed(2)}\n` +
+          `• Size comparison: ${avgBuySize > avgSellSize ? 'Buyers' : 'Sellers'} making ${Math.abs(avgBuySize / avgSellSize - 1).toFixed(2)}x larger trades on average\n` +
           `• Volume imbalance: ${totalBuyVolume > totalSellVolume ? `$${(totalBuyVolume - totalSellVolume).toLocaleString()} more buying` : `$${(totalSellVolume - totalBuyVolume).toLocaleString()} more selling`}\n\n` +
           `⏱️ Breakdown by timeframe:\n${timeframeBreakdown}`
         : '';
@@ -236,6 +338,11 @@ export class AiAnalysisService {
       `• ATH gain: ${allTimeHighGainPercent > 0 ? '+' : ''}${allTimeHighGainPercent.toFixed(2)}%\n` +
       `• Net price change: ${priceChangePercent > 0 ? '+' : ''}${priceChangePercent.toFixed(2)}%`;
 
+    // Prepare token identifier - include symbol if available
+    const tokenIdentifier = tokenSymbol
+      ? `${tokenName} ($${tokenSymbol})`
+      : `${tokenName} ($${tokenAddress.substring(0, 4)}...)`;
+
     const promptParts = [
       'Act as "SolanaPulse" - your job is to analyze Solana memecoin trading patterns and translate complex data into actionable insights.',
       '\n👋 YOUR STYLE:',
@@ -246,18 +353,24 @@ export class AiAnalysisService {
       '• Always include $ figures and % changes to make things concrete',
       '• Compare patterns across different timeframes when relevant',
       '\n🎯 YOUR TASK:',
-      `Analyze ${tokenName} ($${tokenAddress.substring(0, 4)}...) which has been trading for ${tokenAge}. You'll analyze BOTH price action AND on-chain trading activity.`,
+      `Analyze ${tokenIdentifier} which has been trading for ${tokenAge}. You'll analyze BOTH price action AND on-chain trading activity.`,
       '\n📈 DATA YOU HAVE:',
       `• ${numberOfCandles} price candles (${candleType} intervals)`,
       `• Trading activity from ${tradeData.length} different timeframes showing buys/sells and volume`,
       `${priceAnalysis}`,
+      `${priceReferenceSection}`,
       `${tradeDataSummary}`,
       '\n🚫 THINGS TO AVOID:',
       "• Don't make definite price predictions (but you can suggest potential scenarios)",
       '• Don\'t give specific financial advice like "you should buy/sell"',
       "• Don't use technical jargon without explaining it",
+      "• Don't invent or make up fictional project names (e.g., 'Armstrong, Rohan, and Bode Token')",
+      "• Don't refer to the token with made-up names - use only the actual token name",
+      "• Don't use placeholder token name templates - refer to the token by its actual name",
       '\n✅ THINGS TO INCLUDE:',
+      '• Always refer to the token by its symbol when available',
       '• Specific price levels in $ terms (not just percentages)',
+      '• Price changes over multiple timeframes (if data is available)',
       '• Clear explanations of buy vs. sell pressure with actual numbers',
       '• What different timeframes show about trading patterns',
       '• Analysis of dollar volume imbalance across timeframes (not just transaction count)',
@@ -268,13 +381,14 @@ export class AiAnalysisService {
       '• Your opinion on if this token looks interesting or not',
       '\n🔍 YOUR ANALYSIS MUST INCLUDE:',
       '1. A brutally honest one-liner about the current situation',
-      '2. Detailed breakdown of price movements with $ figures',
+      '2. Detailed breakdown of price movements with $ figures and multiple timeframe comparisons',
       '3. Analysis of momentum based on BOTH price action AND trading activity',
       '4. Key support/resistance levels with exact $ values',
       '5. Trading patterns across different timeframes',
-      '6. Buy vs sell pressure dynamics with specifics',
-      '7. Numerical ratings (1-10, integers only) for key metrics with brief explanations',
-      '8. An opinionated take on current trading outlook (with appropriate disclaimers)',
+      '6. Buy vs sell pressure dynamics with specifics about volume and trade sizes',
+      '7. What the transaction size comparison suggests about market participants (whales vs retail)',
+      '8. Numerical ratings (1-10, integers only) for key metrics with brief explanations',
+      '9. An opinionated take on current trading outlook (with appropriate disclaimers)',
       '\n⚠️ DISCLAIMER:',
       'Make sure to include this disclaimer with your trading opinion: "This analysis is based purely on historical data and market patterns. It is not financial advice. Always do your own research (DYOR) and consider your risk tolerance before trading."',
     ];
