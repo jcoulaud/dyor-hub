@@ -7,6 +7,7 @@ import {
 } from '@dyor-hub/types';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -25,6 +26,7 @@ import { UserEntity } from '../entities/user.entity';
 import { TokensService } from '../tokens/tokens.service';
 import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
+import { TokenCallVerificationService } from './token-call-verification.service';
 
 export interface TokenCallFilters {
   username?: string;
@@ -48,6 +50,7 @@ export class TokenCallsService {
     private readonly tokensService: TokensService,
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
+    private readonly tokenCallVerificationService: TokenCallVerificationService,
   ) {}
 
   async create(
@@ -643,6 +646,74 @@ export class TokenCallsService {
       );
       throw new InternalServerErrorException(
         'Could not calculate user statistics.',
+      );
+    }
+  }
+
+  async manuallyVerifyTokenCall(
+    tokenCallId: string,
+    requestingUserId: string,
+  ): Promise<TokenCallEntity> {
+    const tokenCall = await this.tokenCallRepository.findOne({
+      where: { id: tokenCallId },
+      relations: ['user'],
+    });
+
+    if (!tokenCall) {
+      throw new NotFoundException(
+        `Token call with ID ${tokenCallId} not found.`,
+      );
+    }
+
+    if (tokenCall.userId !== requestingUserId) {
+      throw new ForbiddenException(
+        'You are not authorized to verify this token call.',
+      );
+    }
+
+    if (tokenCall.status !== TokenCallStatus.PENDING) {
+      throw new BadRequestException(
+        'This token call is not pending and cannot be manually verified.',
+      );
+    }
+
+    try {
+      const callToVerify = await this.tokenCallRepository.findOneByOrFail({
+        id: tokenCallId,
+      });
+      await this.tokenCallVerificationService.verifySingleCall(callToVerify);
+
+      const updatedTokenCall = await this.tokenCallRepository.findOne({
+        where: { id: tokenCallId },
+        relations: [
+          'user',
+          'token',
+          'explanationComment',
+          'explanationComment.user',
+        ],
+      });
+
+      if (!updatedTokenCall) {
+        throw new InternalServerErrorException(
+          'Failed to refetch token call after manual verification.',
+        );
+      }
+
+      return updatedTokenCall;
+    } catch (error) {
+      this.logger.error(
+        `Error during manual verification of token call ${tokenCallId} by user ${requestingUserId}: ${error.message}`,
+        error.stack,
+      );
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        `An error occurred while manually verifying the token call: ${error.message}`,
       );
     }
   }

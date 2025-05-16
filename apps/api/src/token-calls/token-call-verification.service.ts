@@ -74,8 +74,7 @@ export class TokenCallVerificationService {
     }
   }
 
-  private async verifySingleCall(call: TokenCallEntity): Promise<void> {
-    this.logger.log(`Verifying call ${call.id} for token ${call.tokenId}...`);
+  async verifySingleCall(call: TokenCallEntity): Promise<void> {
     let priceHistory: { items: Array<{ unixTime: number; value: number }> };
 
     // Determine Adaptive Resolution
@@ -165,19 +164,20 @@ export class TokenCallVerificationService {
       }
     }
 
-    // 3. Determine Outcome and Update Call Entity
+    // 3. Update common fields first
     call.peakPriceDuringPeriod = peakPriceDuringPeriod;
     call.finalPriceAtTargetDate = finalPriceAtTargetDate;
     call.verificationTimestamp = new Date();
 
-    if (
-      peakPriceDuringPeriod >= targetPriceNum &&
-      targetHitTimestamp !== null
-    ) {
+    const isTargetDatePassed = new Date() >= call.targetDate;
+    const targetMet = targetHitTimestamp !== null; // Simpler check: if targetHitTimestamp is set, target was met
+
+    let triggerPostVerificationActions = false;
+
+    if (targetMet) {
       call.status = TokenCallStatus.VERIFIED_SUCCESS;
       call.targetHitTimestamp = targetHitTimestamp;
 
-      // Calculate timeToHitRatio
       const callDurationMs =
         call.targetDate.getTime() - call.callTimestamp.getTime();
       const timeToHitMs =
@@ -186,89 +186,101 @@ export class TokenCallVerificationService {
       if (callDurationMs > 0) {
         call.timeToHitRatio = Math.max(0, timeToHitMs) / callDurationMs;
       } else {
-        call.timeToHitRatio = timeToHitMs > 0 ? 1 : 0; // Edge case: immediate hit or zero duration
+        call.timeToHitRatio = timeToHitMs > 0 ? 1 : 0;
       }
+      triggerPostVerificationActions = true;
     } else {
-      call.status = TokenCallStatus.VERIFIED_FAIL;
-      call.targetHitTimestamp = null;
-      call.timeToHitRatio = null;
-    }
-
-    // 4. Update Streak Information
-    try {
-      await this.updateUserTokenCallStreak(
-        call.userId,
-        call.status,
-        call.verificationTimestamp,
-      );
-    } catch (streakError) {
-      this.logger.error(
-        `Failed to update token call streak for user ${call.userId} after call ${call.id}:`,
-        streakError,
-      );
-    }
-
-    // 5. Save Updated Call
-    await this.tokenCallRepository.save(call);
-    this.logger.debug(`Saved verification results for call ${call.id}`);
-
-    // 6. Send Notification using generic service
-    try {
-      const token = await this.tokensService.getTokenData(call.tokenId);
-
-      const notificationType = NotificationType.TOKEN_CALL_VERIFIED;
-      const status =
-        call.status === TokenCallStatus.VERIFIED_SUCCESS ? 'success' : 'fail';
-      let message = '';
-
-      const tokenDisplay = token?.symbol || call.tokenId;
-      const targetPriceFormatted = call.targetPrice.toLocaleString(undefined, {
-        maximumFractionDigits: 8,
-      });
-
-      if (status === 'success') {
-        message = `✅ Your call for $${tokenDisplay} reached its target price of $${targetPriceFormatted}!`;
+      // Target NOT met
+      if (isTargetDatePassed) {
+        call.status = TokenCallStatus.VERIFIED_FAIL;
+        call.targetHitTimestamp = null;
+        call.timeToHitRatio = null;
+        triggerPostVerificationActions = true;
       } else {
-        message = `❌ Your call for $${tokenDisplay} did not reach its target price of $${targetPriceFormatted}.`;
+        // Manual verification before target date & target NOT met:
+        // Status remains PENDING. Only priceHistoryUrl, peakPrice, finalPrice, verificationTimestamp are updated.
+        // triggerPostVerificationActions remains false
+      }
+    }
+
+    // 4. Save Updated Call
+    await this.tokenCallRepository.save(call);
+
+    // 5. Conditionally run post-verification actions (streak, notification, badges)
+    if (triggerPostVerificationActions) {
+      try {
+        await this.updateUserTokenCallStreak(
+          call.userId,
+          call.status,
+          call.verificationTimestamp,
+        );
+      } catch (streakError) {
+        this.logger.error(
+          `Failed to update token call streak for user ${call.userId} after call ${call.id}:`,
+          streakError,
+        );
       }
 
-      const metadata = {
-        callId: call.id,
-        tokenId: call.tokenId,
-        tokenSymbol: token?.symbol,
-        tokenName: token?.name,
-        status: status,
-        targetPrice: call.targetPrice,
-        finalPrice: call.finalPriceAtTargetDate,
-        peakPriceDuringPeriod: call.peakPriceDuringPeriod,
-        targetHitTimestamp: call.targetHitTimestamp?.toISOString() || null,
-        timeToHitRatio: call.timeToHitRatio,
-      };
-
-      await this.notificationService.createNotification(
-        call.userId,
-        notificationType,
-        message,
-        call.id,
-        'token_call',
-        metadata,
-      );
-    } catch (notificationError) {
-      this.logger.error(
-        `Failed to create notification for verified call ${call.id} for user ${call.userId}:`,
-        notificationError,
-      );
-    }
-
-    // 7. Check for Badges on Success
-    if (call.status === TokenCallStatus.VERIFIED_SUCCESS) {
       try {
-        await this.badgeService.checkTokenCallSuccessBadges(call.userId, call);
-      } catch (badgeError) {
-        this.logger.error(
-          `Error checking badges for call ${call.id}:`,
-          badgeError,
+        const token = await this.tokensService.getTokenData(call.tokenId);
+        const notificationType = NotificationType.TOKEN_CALL_VERIFIED;
+        const statusLabel =
+          call.status === TokenCallStatus.VERIFIED_SUCCESS ? 'success' : 'fail';
+        let message = '';
+        const tokenDisplay = token?.symbol || call.tokenId;
+        const targetPriceFormatted = call.targetPrice.toLocaleString(
+          undefined,
+          {
+            maximumFractionDigits: 8,
+          },
         );
+
+        if (statusLabel === 'success') {
+          message = `✅ Your call for $${tokenDisplay} reached its target price of $${targetPriceFormatted}!`;
+        } else {
+          message = `❌ Your call for $${tokenDisplay} did not reach its target price of $${targetPriceFormatted}.`;
+        }
+
+        const metadata = {
+          callId: call.id,
+          tokenId: call.tokenId,
+          tokenSymbol: token?.symbol,
+          tokenName: token?.name,
+          status: statusLabel,
+          targetPrice: call.targetPrice,
+          finalPrice: call.finalPriceAtTargetDate,
+          peakPriceDuringPeriod: call.peakPriceDuringPeriod,
+          targetHitTimestamp: call.targetHitTimestamp?.toISOString() || null,
+          timeToHitRatio: call.timeToHitRatio,
+        };
+
+        await this.notificationService.createNotification(
+          call.userId,
+          notificationType,
+          message,
+          call.id,
+          'token_call',
+          metadata,
+        );
+      } catch (notificationError) {
+        this.logger.error(
+          `Failed to create notification for verified call ${call.id} for user ${call.userId}:`,
+          notificationError,
+        );
+      }
+
+      if (call.status === TokenCallStatus.VERIFIED_SUCCESS) {
+        try {
+          await this.badgeService.checkTokenCallSuccessBadges(
+            call.userId,
+            call,
+          );
+        } catch (badgeError) {
+          this.logger.error(
+            `Error checking badges for call ${call.id}:`,
+            badgeError,
+          );
+        }
       }
     }
   }
