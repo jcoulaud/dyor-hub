@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { dev, users } from '@/lib/api';
+import { dev } from '@/lib/api';
 import { useState } from 'react';
 
 export default function DevAdminPage() {
@@ -56,7 +56,7 @@ export default function DevAdminPage() {
     }
 
     try {
-      const result = await users.admin.addCreditsToAllUsers(numCredits);
+      const result = await dev.admin.addCreditsToAllUsers(numCredits);
       const message = `Successfully added ${numCredits} credits to ${result.affected} users.`;
       setAddCreditsResult(message);
       toast({

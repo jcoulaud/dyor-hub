@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
 import {
   BadgeEntity,
   CommentEntity,
@@ -34,6 +35,7 @@ import { StreakAdminService } from './services/streak-admin.service';
       TokenCallEntity,
       CommentEntity,
       TokenEntity,
+      CreditTransaction,
     ]),
     EventEmitterModule.forRoot(),
     AuthModule,

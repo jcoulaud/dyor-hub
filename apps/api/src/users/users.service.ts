@@ -1,5 +1,4 @@
 import {
-  CreditTransactionType,
   defaultUserPreferences,
   UserPreferences,
   UserSearchResult,
@@ -8,7 +7,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, ILike, IsNull, Not, Repository } from 'typeorm';
-import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
 import { UserReputationEntity } from '../entities/user-reputation.entity';
@@ -60,43 +58,6 @@ export class UsersService {
     private readonly entityManager: EntityManager,
   ) {
     this.isProduction = this.configService.get('NODE_ENV') === 'production';
-  }
-
-  async addCreditsToAllUsers(
-    creditsToAdd: number,
-  ): Promise<{ affected: number; transactionsCreated: number }> {
-    let affectedCount = 0;
-    let transactionsCount = 0;
-
-    await this.entityManager.transaction(async (transactionalEntityManager) => {
-      const users = await transactionalEntityManager.find(UserEntity);
-      affectedCount = users.length;
-
-      for (const user of users) {
-        user.credits = (user.credits || 0) + creditsToAdd;
-        await transactionalEntityManager.save(UserEntity, user);
-
-        const newTransaction = transactionalEntityManager.create(
-          CreditTransaction,
-          {
-            userId: user.id,
-            type: CreditTransactionType.PURCHASE,
-            amount: creditsToAdd,
-            details: 'User Airdrop: 5 credits sent to everyone on the platform',
-          },
-        );
-        await transactionalEntityManager.save(
-          CreditTransaction,
-          newTransaction,
-        );
-        transactionsCount++;
-      }
-    });
-
-    this.logger.log(
-      `Added ${creditsToAdd} credits to ${affectedCount} users and created ${transactionsCount} transactions.`,
-    );
-    return { affected: affectedCount, transactionsCreated: transactionsCount };
   }
 
   async findByUsername(username: string): Promise<UserEntity | null> {

@@ -204,12 +204,10 @@ const isPublicUserRoute = (endpoint: string): boolean => {
   // These endpoints should never be treated as public:
   // 1. Follow-related endpoints require authentication
   // 2. User's own profile endpoints require authentication
-  // 3. Admin user endpoints require authentication
   if (
     normalizedEndpoint.includes('/follow') ||
     normalizedEndpoint === 'users/follow-status' ||
-    normalizedEndpoint.startsWith('users/me/') ||
-    normalizedEndpoint.startsWith('users/admin/')
+    normalizedEndpoint.startsWith('users/me/')
   ) {
     return false;
   }
@@ -1234,12 +1232,6 @@ export const users = {
         throw error;
       }
     },
-    addCreditsToAllUsers: async (credits: number): Promise<{ affected: number }> => {
-      return api<{ affected: number }>('users/admin/add-credits-to-all', {
-        method: 'POST',
-        body: { credits },
-      });
-    },
   },
 
   getFollowers: async (userId: string, page: number = 1, limit: number = 20) => {
@@ -2263,6 +2255,17 @@ export const dev = {
         throw new ApiError(500, 'Failed to initiate token security info backfill');
       }
     },
+    addCreditsToAllUsers: async (
+      credits: number,
+    ): Promise<{ affected: number; transactionsCreated: number }> => {
+      return api<{ affected: number; transactionsCreated: number }>(
+        'admin/dev/add-credits-to-all',
+        {
+          method: 'POST',
+          body: { credits },
+        },
+      );
+    }, // Added the new method here
   },
 };
 

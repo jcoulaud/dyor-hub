@@ -1,8 +1,10 @@
 import {
+  Body,
   Controller,
   HttpCode,
   HttpStatus,
   Inject,
+  InternalServerErrorException,
   Logger,
   Post,
   UseGuards,
@@ -19,6 +21,36 @@ export class DevAdminController {
   constructor(
     @Inject(DevAdminService) private readonly devAdminService: DevAdminService,
   ) {}
+
+  @Post('add-credits-to-all')
+  @HttpCode(HttpStatus.OK)
+  async addCreditsToAllUsers(
+    @Body() body: { credits: number },
+  ): Promise<{ affected: number; transactionsCreated: number }> {
+    this.logger.log(
+      `Received request to add ${body.credits} credits to all users.`,
+    );
+    if (typeof body.credits !== 'number' || body.credits <= 0) {
+      throw new InternalServerErrorException(
+        'Invalid credits amount provided.',
+      );
+    }
+    try {
+      const result = await this.devAdminService.addCreditsToAllUsers(
+        body.credits,
+      );
+      this.logger.log(
+        `Successfully added ${body.credits} credits to ${result.affected} users. Transactions created: ${result.transactionsCreated}`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Failed to add credits to all users: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
 
   @Post('backfill-security')
   @HttpCode(HttpStatus.OK)
