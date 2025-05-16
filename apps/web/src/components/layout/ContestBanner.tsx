@@ -1,0 +1,62 @@
+'use client';
+
+import { X } from 'lucide-react';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+
+export function ContestBanner() {
+  const [isVisible, setIsVisible] = useState(true);
+  const [bannerText, setBannerText] = useState('');
+  const [bannerLinkText, setBannerLinkText] = useState('Learn more');
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem('contestBannerDismissed');
+    if (dismissed === 'true') {
+      setIsVisible(false);
+      return;
+    }
+
+    const contestStartDate = new Date(Date.UTC(2025, 4, 19, 0, 1, 0)); // Month is 0-indexed (4 = May)
+    const contestEndDate = new Date(Date.UTC(2025, 4, 25, 23, 59, 0)); // Month is 0-indexed (4 = May)
+    const now = new Date();
+
+    if (now < contestStartDate) {
+      setBannerText(
+        '🏆 Token Call Contest is coming soon! Get ready to win SOL. Contest starts May 19th.',
+      );
+    } else if (now >= contestStartDate && now <= contestEndDate) {
+      setBannerText('🏆 Token Call Contest is now live! Win up to 1 SOL for accurate predictions.');
+    } else {
+      setBannerText(
+        '🏆 Token Call Contest has ended. Congratulations to all participants! Winners will be reviewed and announced this week.',
+      );
+      setBannerLinkText('Check FAQ for details');
+    }
+  }, []);
+
+  const hideBanner = () => {
+    setIsVisible(false);
+    localStorage.setItem('contestBannerDismissed', 'true');
+  };
+
+  if (!isVisible || !bannerText) return null;
+
+  return (
+    <div className='w-full bg-indigo-600 text-white py-2 px-4 text-center relative'>
+      <div className='container mx-auto'>
+        <p className='text-sm font-medium'>
+          {bannerText}{' '}
+          <Link href='/faq?tab=contest' className='underline font-bold hover:text-indigo-100'>
+            {bannerLinkText}
+          </Link>
+        </p>
+        <button
+          onClick={hideBanner}
+          className='absolute top-1/2 right-4 transform -translate-y-1/2 text-white hover:text-indigo-100 cursor-pointer'
+          aria-label='Dismiss banner'>
+          <X className='h-4 w-4' />
+        </button>
+      </div>
+    </div>
+  );
+}
