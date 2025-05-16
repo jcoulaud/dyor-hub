@@ -21,6 +21,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../admin/admin.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { UserResponseDto } from '../auth/dto/user-response.dto';
@@ -285,5 +287,17 @@ export class UsersController {
         'Failed to retrieve user statistics.',
       );
     }
+  }
+
+  @Post('admin/add-credits-to-all')
+  @UseGuards(AuthGuard, AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  async addCreditsToAllUsers(
+    @Body() body: { credits: number },
+  ): Promise<{ affected: number }> {
+    if (typeof body.credits !== 'number' || body.credits <= 0) {
+      throw new InternalServerErrorException('Invalid credits amount');
+    }
+    return this.usersService.addCreditsToAllUsers(body.credits);
   }
 }

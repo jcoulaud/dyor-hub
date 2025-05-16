@@ -1,8 +1,10 @@
+import { CreditTransactionType } from '@dyor-hub/types';
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
 import { UserEntity } from '../entities/user.entity';
 import { GamificationEvent } from '../gamification/services/activity-hooks.service';
 import { AuthConfigService } from './config/auth.config';
@@ -18,6 +20,8 @@ export class AuthService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(CreditTransaction)
+    private readonly creditTransactionRepository: Repository<CreditTransaction>,
     private readonly jwtService: JwtService,
     private readonly authConfigService: AuthConfigService,
     private readonly eventEmitter: EventEmitter2,
@@ -44,8 +48,17 @@ export class AuthService {
         username,
         displayName: safeDisplayName,
         avatarUrl: profileImageUrl,
+        credits: 5,
       });
       await this.userRepository.save(user);
+
+      const newCreditTransaction = this.creditTransactionRepository.create({
+        userId: user.id,
+        type: CreditTransactionType.PURCHASE,
+        amount: 5,
+        details: 'Welcome bonus: 5 credits upon signup',
+      });
+      await this.creditTransactionRepository.save(newCreditTransaction);
     } else {
       let needsSave = false;
       if (user.displayName !== safeDisplayName) {

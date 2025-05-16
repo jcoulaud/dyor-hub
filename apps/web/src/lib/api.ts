@@ -204,10 +204,12 @@ const isPublicUserRoute = (endpoint: string): boolean => {
   // These endpoints should never be treated as public:
   // 1. Follow-related endpoints require authentication
   // 2. User's own profile endpoints require authentication
+  // 3. Admin user endpoints require authentication
   if (
     normalizedEndpoint.includes('/follow') ||
     normalizedEndpoint === 'users/follow-status' ||
-    normalizedEndpoint.startsWith('users/me/')
+    normalizedEndpoint.startsWith('users/me/') ||
+    normalizedEndpoint.startsWith('users/admin/')
   ) {
     return false;
   }
@@ -1231,6 +1233,12 @@ export const users = {
         console.error(`Error fetching paginated users:`, error);
         throw error;
       }
+    },
+    addCreditsToAllUsers: async (credits: number): Promise<{ affected: number }> => {
+      return api<{ affected: number }>('users/admin/add-credits-to-all', {
+        method: 'POST',
+        body: { credits },
+      });
     },
   },
 

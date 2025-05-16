@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
 import { UserEntity } from '../entities/user.entity';
 import { GamificationModule } from '../gamification/gamification.module';
 import { ReferralModule } from '../referral/referral.module';
@@ -33,7 +34,7 @@ import { TwitterStrategy } from './twitter.strategy';
       }),
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([UserEntity]),
+    TypeOrmModule.forFeature([UserEntity, CreditTransaction]),
     forwardRef(() => GamificationModule),
     UsersModule,
     ReferralModule,
