@@ -80,12 +80,50 @@ export default function TokenCallDetailPage() {
   const [tokenCall, setTokenCall] = useState<TokenCall | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [nextVerificationTimeMs, setNextVerificationTimeMs] = useState<number | null>(null);
   const [displayMode, setDisplayMode] = useState<'price' | 'mcap'>('mcap');
   const [priceHistory, setPriceHistory] = useState<{
     items: { unixTime: number; value: number }[];
   } | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+
+  useEffect(() => {
+    if (!callId) return;
+
+    const cooldownKey = `manualVerifyCooldownEnd_${callId}`;
+    const storedCooldownEnd = localStorage.getItem(cooldownKey);
+
+    if (storedCooldownEnd) {
+      const cooldownEndTime = parseInt(storedCooldownEnd, 10);
+      if (Date.now() < cooldownEndTime) {
+        setNextVerificationTimeMs(cooldownEndTime);
+      } else {
+        // Cooldown has passed, remove from storage
+        localStorage.removeItem(cooldownKey);
+        setNextVerificationTimeMs(null);
+      }
+    }
+  }, [callId]);
+
+  useEffect(() => {
+    let timerId: NodeJS.Timeout | null = null;
+    if (nextVerificationTimeMs && Date.now() < nextVerificationTimeMs) {
+      timerId = setTimeout(() => {
+        setNextVerificationTimeMs(null);
+        if (callId) {
+          localStorage.removeItem(`manualVerifyCooldownEnd_${callId}`);
+        }
+      }, nextVerificationTimeMs - Date.now());
+    }
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [nextVerificationTimeMs, callId]);
 
   useEffect(() => {
     const fetchTokenCallData = async () => {
@@ -224,6 +262,74 @@ export default function TokenCallDetailPage() {
     });
   };
 
+  const handleManualVerify = async () => {
+    if (!tokenCall || !callId) return;
+
+    if (nextVerificationTimeMs && Date.now() < nextVerificationTimeMs) {
+      const minutesRemaining = Math.ceil((nextVerificationTimeMs - Date.now()) / (60 * 1000));
+      toast({
+        title: 'Hold Up!',
+        description: `You're trying that too often. Please wait ${minutesRemaining} more minutes before trying again.`,
+        variant: 'default',
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerificationError(null);
+    try {
+      const updatedTokenCall = await tokenCalls.manualVerify(callId);
+      setTokenCall(updatedTokenCall);
+
+      if (updatedTokenCall.status === TokenCallStatus.PENDING) {
+        // Check if peakPriceDuringPeriod is available and less than target,
+        // implying manual check didn't result in success.
+        const peakPrice =
+          typeof updatedTokenCall.peakPriceDuringPeriod === 'number'
+            ? updatedTokenCall.peakPriceDuringPeriod
+            : -1;
+        if (peakPrice < updatedTokenCall.targetPrice) {
+          toast({
+            title: 'Price Data Updated',
+            description: 'Target not yet reached. Your prediction is still active.',
+            variant: 'default',
+          });
+        } else {
+          toast({
+            title: 'Verification Processed',
+            description: `The call status is ${updatedTokenCall.status}. Price data updated.`,
+            variant: 'default',
+          });
+        }
+      } else if (updatedTokenCall.status === TokenCallStatus.VERIFIED_SUCCESS) {
+        toast({
+          title: 'Verification Success!',
+          description: 'Congratulations! Your token call hit the target.',
+          variant: 'default',
+        });
+      } else {
+        toast({
+          title: 'Verification Processed',
+          description: `The call status is now ${updatedTokenCall.status}.`,
+          variant: 'default',
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to start verification.';
+      setVerificationError(errorMessage);
+      toast({
+        title: 'Verification Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsVerifying(false);
+      const newCooldownEndTime = Date.now() + ONE_HOUR_MS;
+      setNextVerificationTimeMs(newCooldownEndTime);
+      localStorage.setItem(`manualVerifyCooldownEnd_${callId}`, newCooldownEndTime.toString());
+    }
+  };
+
   if (isLoading) {
     return <TokenCallSkeleton />;
   }
@@ -235,6 +341,11 @@ export default function TokenCallDetailPage() {
   const user = tokenCall.user;
   const token = tokenCall.token;
   const status = tokenCall.status;
+
+  const shouldIncludeTargetInDomain =
+    status === TokenCallStatus.PENDING ||
+    status === TokenCallStatus.VERIFIED_SUCCESS ||
+    status === TokenCallStatus.VERIFIED_FAIL;
 
   return (
     <div className='container mx-auto px-4 py-6 max-w-5xl'>
@@ -267,6 +378,25 @@ export default function TokenCallDetailPage() {
                   className='h-8 gap-1.5 px-3 cursor-pointer bg-zinc-800/70 hover:bg-zinc-800 border border-zinc-700/40 rounded-md'
                 />
               )}
+              {isAuthenticated &&
+                loggedInUser?.id === tokenCall.user?.id &&
+                tokenCall.status === TokenCallStatus.PENDING && (
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    className='h-8 gap-1.5 px-3 cursor-pointer bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/40 rounded-md'
+                    onClick={handleManualVerify}
+                    disabled={isVerifying}>
+                    {isVerifying ? (
+                      <>
+                        <Clock className='h-4 w-4 animate-spin mr-1' />
+                        Verifying...
+                      </>
+                    ) : (
+                      'Verify My Call'
+                    )}
+                  </Button>
+                )}
               <Button
                 variant='ghost'
                 size='sm'
@@ -304,6 +434,11 @@ export default function TokenCallDetailPage() {
 
           <CardContent className='p-5 pt-0'>
             {/* Main content */}
+            {verificationError && (
+              <div className='mb-4 p-3 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 text-sm'>
+                <strong>Verification Error:</strong> {verificationError}
+              </div>
+            )}
             <div className='grid grid-cols-1 md:grid-cols-12 gap-4'>
               {/* Left column: Token and Chart, chart bottom-aligned */}
               <div className='md:col-span-7 flex flex-col h-full'>
@@ -366,18 +501,48 @@ export default function TokenCallDetailPage() {
                       <div className='bg-zinc-800/10' style={{ height: '285px' }}>
                         <ResponsiveContainer width='100%' height='100%'>
                           <LineChart
-                            data={priceHistory.items.map((item) => {
-                              // Calculate market cap if needed
-                              const price = item.value;
-                              const mcap = tokenCall.referenceSupply
-                                ? price * parseFloat(String(tokenCall.referenceSupply))
-                                : null;
-                              return {
-                                time: item.unixTime * 1000,
-                                price,
-                                mcap,
-                              };
-                            })}
+                            data={(() => {
+                              const historicalPoints = priceHistory.items.map((item) => {
+                                const price = item.value;
+                                const mcap = tokenCall.referenceSupply
+                                  ? price * parseFloat(String(tokenCall.referenceSupply))
+                                  : null;
+                                return {
+                                  time: item.unixTime * 1000,
+                                  price: price as number | undefined,
+                                  mcap: mcap as number | null | undefined,
+                                  projected: undefined as number | undefined,
+                                };
+                              });
+
+                              if (
+                                tokenCall.status === TokenCallStatus.PENDING &&
+                                historicalPoints.length > 0 &&
+                                callDetails?.targetDate
+                              ) {
+                                const chartDataWithProjection = [...historicalPoints];
+
+                                const lastHistPoint =
+                                  chartDataWithProjection[chartDataWithProjection.length - 1];
+                                lastHistPoint.projected =
+                                  (displayMode === 'mcap'
+                                    ? lastHistPoint.mcap
+                                    : lastHistPoint.price) ?? undefined;
+
+                                chartDataWithProjection.push({
+                                  time: callDetails.targetDate.getTime(),
+                                  price: undefined,
+                                  mcap: undefined,
+                                  projected:
+                                    (displayMode === 'mcap' && callDetails?.targetMcap
+                                      ? callDetails.targetMcap
+                                      : parseFloat(String(tokenCall.targetPrice))) ?? undefined,
+                                });
+                                return chartDataWithProjection;
+                              }
+
+                              return historicalPoints;
+                            })()}
                             margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
                             <CartesianGrid
                               stroke='#666'
@@ -438,8 +603,7 @@ export default function TokenCallDetailPage() {
                                 (dataMin: number) =>
                                   Math.min(
                                     dataMin * 0.95,
-                                    status === TokenCallStatus.PENDING ||
-                                      status === TokenCallStatus.VERIFIED_SUCCESS
+                                    shouldIncludeTargetInDomain
                                       ? displayMode === 'mcap' && callDetails?.targetMcap
                                         ? callDetails.targetMcap * 0.95
                                         : parseFloat(String(tokenCall.targetPrice)) * 0.95
@@ -448,8 +612,7 @@ export default function TokenCallDetailPage() {
                                 (dataMax: number) =>
                                   Math.max(
                                     dataMax * 1.05,
-                                    status === TokenCallStatus.PENDING ||
-                                      status === TokenCallStatus.VERIFIED_SUCCESS
+                                    shouldIncludeTargetInDomain
                                       ? displayMode === 'mcap' && callDetails?.targetMcap
                                         ? callDetails.targetMcap * 1.05
                                         : parseFloat(String(tokenCall.targetPrice)) * 1.05
@@ -518,37 +681,58 @@ export default function TokenCallDetailPage() {
                               animationDuration={1200}
                               animationEasing='ease-out'
                             />
+                            {/* Projected Line for PENDING calls with history */}
+                            {tokenCall.status === TokenCallStatus.PENDING &&
+                              priceHistory &&
+                              priceHistory.items.length > 0 && (
+                                <Line
+                                  type='linear'
+                                  dataKey='projected'
+                                  stroke='#a0a0a0'
+                                  strokeWidth={1.5}
+                                  strokeDasharray='4 4'
+                                  dot={false}
+                                  activeDot={false}
+                                  connectNulls={false}
+                                  animationDuration={800}
+                                />
+                              )}
                             {/* Target reference line */}
                             {(status === TokenCallStatus.PENDING ||
                               status === TokenCallStatus.VERIFIED_SUCCESS ||
-                              status === TokenCallStatus.VERIFIED_FAIL) && (
-                              <ReferenceLine
-                                y={
+                              status === TokenCallStatus.VERIFIED_FAIL) &&
+                              (() => {
+                                const targetYValue =
                                   displayMode === 'mcap' && callDetails?.targetMcap
                                     ? callDetails.targetMcap
-                                    : parseFloat(String(tokenCall.targetPrice))
-                                }
-                                stroke={
-                                  status === TokenCallStatus.VERIFIED_FAIL ? '#ef4444' : '#22c55e'
-                                }
-                                strokeDasharray='3 3'
-                                strokeWidth={1.5}
-                                isFront={true}
-                                ifOverflow='extendDomain'
-                                label={{
-                                  value: 'Target',
-                                  position: 'insideRight',
-                                  offset: 2,
-                                  dy: -10,
-                                  fill:
-                                    status === TokenCallStatus.VERIFIED_FAIL
-                                      ? '#ef4444'
-                                      : '#22c55e',
-                                  fontSize: 11,
-                                  fontWeight: 500,
-                                }}
-                              />
-                            )}
+                                    : parseFloat(String(tokenCall.targetPrice));
+                                return (
+                                  <ReferenceLine
+                                    y={targetYValue}
+                                    stroke={
+                                      status === TokenCallStatus.VERIFIED_FAIL
+                                        ? '#ef4444'
+                                        : '#22c55e'
+                                    }
+                                    strokeDasharray='3 3'
+                                    strokeWidth={1.5}
+                                    isFront={true}
+                                    ifOverflow='extendDomain'
+                                    label={{
+                                      value: 'Target',
+                                      position: 'insideRight',
+                                      offset: 2,
+                                      dy: -10,
+                                      fill:
+                                        status === TokenCallStatus.VERIFIED_FAIL
+                                          ? '#ef4444'
+                                          : '#22c55e',
+                                      fontSize: 11,
+                                      fontWeight: 500,
+                                    }}
+                                  />
+                                );
+                              })()}
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
@@ -567,6 +751,7 @@ export default function TokenCallDetailPage() {
                             : parseFloat(String(tokenCall.targetPrice))
                         }
                         displayMode={displayMode}
+                        status={status}
                       />
                     )}
                   </div>
@@ -919,12 +1104,14 @@ function PendingPredictionChart({
   referenceValue,
   targetValue,
   displayMode,
+  status,
 }: {
   referenceDate: Date;
   targetDate: Date;
   referenceValue: number;
   targetValue: number;
   displayMode: 'price' | 'mcap';
+  status: TokenCallStatus;
 }) {
   const data = [
     { time: referenceDate.getTime(), value: referenceValue, label: 'Reference' },
@@ -1016,7 +1203,7 @@ function PendingPredictionChart({
           {/* Target reference line */}
           <ReferenceLine
             y={targetValue}
-            stroke={'#22c55e'}
+            stroke={status === TokenCallStatus.VERIFIED_FAIL ? '#ef4444' : '#22c55e'}
             strokeDasharray='3 3'
             strokeWidth={1.5}
             isFront={true}
@@ -1026,7 +1213,7 @@ function PendingPredictionChart({
               position: 'insideRight',
               offset: 2,
               dy: -10,
-              fill: '#22c55e',
+              fill: status === TokenCallStatus.VERIFIED_FAIL ? '#ef4444' : '#22c55e',
               fontSize: 11,
               fontWeight: 500,
             }}

@@ -429,22 +429,22 @@ export default function TokenCallsExplorerPage() {
                   <TabsList className='bg-zinc-800/50 grid grid-cols-4 p-1 h-10'>
                     <TabsTrigger
                       value='all'
-                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/20 data-[state=active]:to-amber-900/30 hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
+                      className='data-[state=active]:bg-indigo-600/20 data-[state=active]:text-indigo-200 data-[state=active]:shadow-sm hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
                       All Calls
                     </TabsTrigger>
                     <TabsTrigger
                       value='pending'
-                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-600/20 data-[state=active]:to-yellow-900/30 hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
+                      className='data-[state=active]:bg-blue-600/20 data-[state=active]:text-blue-200 data-[state=active]:shadow-sm hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
                       Pending
                     </TabsTrigger>
                     <TabsTrigger
                       value='success'
-                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600/20 data-[state=active]:to-green-900/30 hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
+                      className='data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-200 data-[state=active]:shadow-sm hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
                       Successful
                     </TabsTrigger>
                     <TabsTrigger
                       value='failed'
-                      className='data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-600/20 data-[state=active]:to-red-900/30 hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
+                      className='data-[state=active]:bg-rose-600/20 data-[state=active]:text-rose-200 data-[state=active]:shadow-sm hover:bg-zinc-700/40 transition-colors text-[11px] xs:text-xs sm:text-sm h-full'>
                       Failed
                     </TabsTrigger>
                   </TabsList>
@@ -482,13 +482,13 @@ export default function TokenCallsExplorerPage() {
                       {/* Market Cap first */}
                       <TabsTrigger
                         value='mcap'
-                        className='text-xs h-full rounded px-3 transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/20 data-[state=active]:to-amber-900/30 hover:bg-zinc-700/40 text-zinc-400 data-[state=active]:text-zinc-100 font-medium'>
+                        className='text-xs h-full rounded px-3 transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-indigo-600/20 data-[state=active]:text-indigo-200 hover:bg-zinc-700/40 text-zinc-400 font-medium'>
                         Market Cap
                       </TabsTrigger>
                       {/* Price second */}
                       <TabsTrigger
                         value='price'
-                        className='text-xs h-full rounded px-3 transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600/20 data-[state=active]:to-amber-900/30 hover:bg-zinc-700/40 text-zinc-400 data-[state=active]:text-zinc-100 font-medium'>
+                        className='text-xs h-full rounded px-3 transition-all duration-300 data-[state=active]:shadow-md data-[state=active]:bg-indigo-600/20 data-[state=active]:text-indigo-200 hover:bg-zinc-700/40 text-zinc-400 font-medium'>
                         Price
                       </TabsTrigger>
                     </TabsList>

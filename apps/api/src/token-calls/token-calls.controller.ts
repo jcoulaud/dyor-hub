@@ -150,6 +150,30 @@ export class TokenCallsController {
     }
   }
 
+  @Post(':callId/manual-verify')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async manuallyVerifyTokenCall(
+    @Param('callId', ParseUUIDPipe) callId: string,
+    @CurrentUser() user: UserEntity,
+  ): Promise<TokenCallResponseDto> {
+    if (!user) {
+      this.logger.error(
+        'User object not found after auth guard in manual-verify. Auth configuration issue?',
+      );
+      throw new InternalServerErrorException(
+        'Authentication error: User object missing.',
+      );
+    }
+    const updatedCall = await this.tokenCallsService.manuallyVerifyTokenCall(
+      callId,
+      user.id,
+    );
+    return plainToInstance(TokenCallResponseDto, updatedCall, {
+      excludeExtraneousValues: true,
+    });
+  }
+
   @Get(':callId/price-history')
   async getPriceHistory(@Param('callId') callId: string, @Res() res: Response) {
     try {

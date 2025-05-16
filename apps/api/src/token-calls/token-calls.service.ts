@@ -7,6 +7,7 @@ import {
 } from '@dyor-hub/types';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -25,6 +26,7 @@ import { UserEntity } from '../entities/user.entity';
 import { TokensService } from '../tokens/tokens.service';
 import { UserTokenCallStatsDto } from '../users/dto/user-token-call-stats.dto';
 import { CreateTokenCallDto } from './dto/create-token-call.dto';
+import { TokenCallVerificationService } from './token-call-verification.service';
 
 export interface TokenCallFilters {
   username?: string;
@@ -48,14 +50,19 @@ export class TokenCallsService {
     private readonly tokensService: TokensService,
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
+    private readonly tokenCallVerificationService: TokenCallVerificationService,
   ) {}
 
   async create(
     createTokenCallDto: CreateTokenCallDto,
     userId: string,
   ): Promise<{ tokenCall: TokenCallEntity; comment: CommentResponseDto }> {
-    const { tokenMintAddress, targetPrice, targetDate, explanation } =
-      createTokenCallDto;
+    const {
+      tokenMintAddress,
+      targetPrice,
+      targetDate: userSuppliedTargetDate,
+      explanation,
+    } = createTokenCallDto;
 
     if (!explanation || explanation.trim().length < 10) {
       throw new BadRequestException(
@@ -63,11 +70,37 @@ export class TokenCallsService {
       );
     }
 
-    if (!targetDate || !isFuture(targetDate)) {
-      throw new BadRequestException('Target date must be in the future.');
+    const callTimestamp = new Date();
+
+    if (!userSuppliedTargetDate) {
+      throw new BadRequestException('Target date must be provided.');
     }
 
-    // 1. Validate token exists
+    let finalTargetDate: Date;
+
+    if (
+      userSuppliedTargetDate.getHours() === 0 &&
+      userSuppliedTargetDate.getMinutes() === 0 &&
+      userSuppliedTargetDate.getSeconds() === 0 &&
+      userSuppliedTargetDate.getMilliseconds() === 0
+    ) {
+      finalTargetDate = new Date(userSuppliedTargetDate);
+      finalTargetDate.setHours(
+        callTimestamp.getHours(),
+        callTimestamp.getMinutes(),
+        callTimestamp.getSeconds(),
+        callTimestamp.getMilliseconds(),
+      );
+    } else {
+      finalTargetDate = userSuppliedTargetDate;
+    }
+
+    if (!isFuture(finalTargetDate)) {
+      throw new BadRequestException(
+        'Target date and time must be in the future.',
+      );
+    }
+
     let tokenData: Awaited<ReturnType<TokensService['getTokenData']>>;
     let overviewData: Awaited<ReturnType<TokensService['fetchTokenOverview']>>;
     try {
@@ -111,16 +144,12 @@ export class TokenCallsService {
       );
     }
 
-    // 3. Basic Validation: Target price vs fetched current price
     if (targetPrice <= referencePrice) {
       throw new BadRequestException(
         `Target price ($${targetPrice}) must be higher than the reference price ($${referencePrice}) at the time of submission.`,
       );
     }
 
-    const callTimestamp = new Date();
-
-    // 5. Create TokenCall and Explanation Comment within a Transaction
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -137,13 +166,12 @@ export class TokenCallsService {
         referencePrice: referencePrice,
         referenceSupply: referenceSupply,
         targetPrice,
-        targetDate,
+        targetDate: finalTargetDate,
         status: TokenCallStatus.PENDING,
       });
 
       savedCall = await queryRunner.manager.save(TokenCallEntity, newCall);
 
-      // Create the explanation comment
       const explanationComment = queryRunner.manager.create(CommentEntity, {
         userId,
         tokenMintAddress: tokenMintAddress,
@@ -181,7 +209,6 @@ export class TokenCallsService {
         where: { id: userId },
       });
 
-      // Find user followers and prepare notifications
       const followers = await queryRunner.manager.find(UserFollows, {
         where: {
           followedId: savedCall.userId,
@@ -275,9 +302,6 @@ export class TokenCallsService {
       .getMany();
   }
 
-  /**
-   * Finds all public token calls with filtering and sorting
-   */
   async findAllPublic(
     pagination: { page: number; limit: number },
     filters: TokenCallFilters = {},
@@ -336,7 +360,6 @@ export class TokenCallsService {
         parameters.statuses = validStatuses;
       }
     } else {
-      // Exclude tokens with ERROR status if no status filter is explicitly provided
       whereConditions.push('call.status != :excludedStatus');
       parameters.excludedStatus = TokenCallStatus.ERROR;
     }
@@ -452,9 +475,6 @@ export class TokenCallsService {
     }
   }
 
-  /**
-   * Finds a single token call by its ID.
-   */
   async findOneById(callId: string): Promise<TokenCallEntity> {
     try {
       const call = await this.tokenCallRepository.findOne({
@@ -512,22 +532,17 @@ export class TokenCallsService {
     }
   }
 
-  /**
-   * Calculates performance statistics for a user's token calls.
-   */
   async calculateUserStats(userId: string): Promise<UserTokenCallStatsDto> {
     this.logger.log(`Calculating token call stats for user ${userId}`);
 
     try {
-      // First, get the total count of ALL calls (including pending ones)
       const allCalls = await this.tokenCallRepository.count({
         where: {
           userId: userId,
-          status: Not(TokenCallStatus.ERROR), // Exclude ERROR status
+          status: Not(TokenCallStatus.ERROR),
         },
       });
 
-      // Fetch all VERIFIED calls for the user (for calculating success metrics)
       const verifiedCalls = await this.tokenCallRepository.find({
         where: {
           userId: userId,
@@ -564,7 +579,6 @@ export class TokenCallsService {
       let totalMarketCapAtCallTime = 0;
       let callsWithMarketCapAtCallTime = 0;
 
-      // Calculate average market cap at call time over ALL verified calls
       for (const call of verifiedCalls) {
         if (
           call.referencePrice > 0 &&
@@ -577,7 +591,6 @@ export class TokenCallsService {
         }
       }
 
-      // Calculate averages for successful calls
       for (const call of successfulCalls) {
         const refPrice = call.referencePrice;
         const targetPrice = call.targetPrice;
@@ -590,7 +603,6 @@ export class TokenCallsService {
           multiplier = peakPrice / refPrice;
         }
 
-        // Accumulate only if data is valid
         if (
           call.timeToHitRatio !== null &&
           isFinite(gainPercent) &&
@@ -620,7 +632,6 @@ export class TokenCallsService {
           ? totalMultiplier / successfulCallsWithValidData
           : null;
 
-      // Calculate average MCAP at call time
       const averageMarketCapAtCallTime =
         callsWithMarketCapAtCallTime > 0
           ? totalMarketCapAtCallTime / callsWithMarketCapAtCallTime
@@ -643,6 +654,74 @@ export class TokenCallsService {
       );
       throw new InternalServerErrorException(
         'Could not calculate user statistics.',
+      );
+    }
+  }
+
+  async manuallyVerifyTokenCall(
+    tokenCallId: string,
+    requestingUserId: string,
+  ): Promise<TokenCallEntity> {
+    const tokenCall = await this.tokenCallRepository.findOne({
+      where: { id: tokenCallId },
+      relations: ['user'],
+    });
+
+    if (!tokenCall) {
+      throw new NotFoundException(
+        `Token call with ID ${tokenCallId} not found.`,
+      );
+    }
+
+    if (tokenCall.userId !== requestingUserId) {
+      throw new ForbiddenException(
+        'You are not authorized to verify this token call.',
+      );
+    }
+
+    if (tokenCall.status !== TokenCallStatus.PENDING) {
+      throw new BadRequestException(
+        'This token call is not pending and cannot be manually verified.',
+      );
+    }
+
+    try {
+      const callToVerify = await this.tokenCallRepository.findOneByOrFail({
+        id: tokenCallId,
+      });
+      await this.tokenCallVerificationService.verifySingleCall(callToVerify);
+
+      const updatedTokenCall = await this.tokenCallRepository.findOne({
+        where: { id: tokenCallId },
+        relations: [
+          'user',
+          'token',
+          'explanationComment',
+          'explanationComment.user',
+        ],
+      });
+
+      if (!updatedTokenCall) {
+        throw new InternalServerErrorException(
+          'Failed to refetch token call after manual verification.',
+        );
+      }
+
+      return updatedTokenCall;
+    } catch (error) {
+      this.logger.error(
+        `Error during manual verification of token call ${tokenCallId} by user ${requestingUserId}: ${error.message}`,
+        error.stack,
+      );
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        `An error occurred while manually verifying the token call: ${error.message}`,
       );
     }
   }

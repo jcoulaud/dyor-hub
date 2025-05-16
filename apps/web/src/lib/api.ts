@@ -2171,6 +2171,23 @@ export const tokenCalls = {
       throw error;
     }
   },
+
+  async getPriceHistory(callId: string): Promise<PriceHistoryResponse | null> {
+    try {
+      return await api<PriceHistoryResponse>(`token-calls/${callId}/price-history`);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  async manualVerify(callId: string): Promise<TokenCall> {
+    return api<TokenCall>(`token-calls/${callId}/manual-verify`, {
+      method: 'POST',
+    });
+  },
 };
 
 export const tokenCallsLeaderboard = {
