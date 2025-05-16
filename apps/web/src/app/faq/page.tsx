@@ -193,8 +193,18 @@ const FAQPage = () => {
           <ul className='list-disc pl-5 space-y-1'>
             <li>Be following the official @DYORhub Twitter account.</li>
             <li>
+              Retweet our official contest announcement:{' '}
+              <a
+                href='https://x.com/dyorhub/status/1923437091414823379'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-indigo-400 hover:text-indigo-300 underline'>
+                https://x.com/dyorhub/status/1923437091414823379
+              </a>
+            </li>
+            <li>
               Have shared their contest prediction on Twitter during the Contest Period using DYOR
-              Hub&apos;s share feature or by tagging @DYORhub with #DYORContestMay2025.
+              Hub&apos;s share feature or by tagging @DYORhub with #DYORContest.
             </li>
           </ul>
           <p className='mt-2 text-sm text-gray-500 italic'>
