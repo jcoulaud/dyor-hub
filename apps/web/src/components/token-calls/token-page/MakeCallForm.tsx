@@ -411,8 +411,8 @@ export function MakeCallForm({
     const payload: CreateTokenCallInput = {
       tokenMintAddress: tokenId,
       targetPrice: targetPriceValue,
-      targetDate: selectedDate,
-      explanation: explanation.trim() || getDefaultExplanation(),
+      targetDate: selectedDate.toISOString(),
+      explanationComment: explanation.trim() || getDefaultExplanation(),
       isContestEntry: isContestEntry && isContestPeriodActive,
     };
 
