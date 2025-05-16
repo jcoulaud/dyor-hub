@@ -32,7 +32,6 @@ import {
   Copy,
   Diamond,
   DollarSign,
-  LineChart,
   Loader2,
   Lock,
   TrendingUp,
@@ -1371,14 +1370,16 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
     <Button
       onClick={handleButtonClick}
       variant='outline'
-      size='sm'
-      disabled={dialogOpen && isLoading}
-      className='w-full bg-zinc-900/60 border-zinc-700/50 hover:bg-zinc-800/80 text-zinc-200 flex items-center justify-between'>
+      size='lg'
+      disabled={isLoading}
+      className='w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-teal-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg'>
       <div className='flex items-center'>
-        <LineChart className='w-4 h-4 mr-2 text-zinc-200' />
-        <span className='font-medium'>View Diamond Hands Analysis</span>
+        <div className='w-8 h-8 rounded-full bg-teal-700 flex items-center justify-center mr-3'>
+          <Diamond className='w-5 h-5 text-teal-100' />
+        </div>
+        <span className='font-semibold'>Diamond Hands Analysis</span>
       </div>
-      <ChevronRight className='w-4 h-4 ml-auto' />
+      <ChevronRight className='w-5 h-5 text-teal-400' />
     </Button>
   );
 
@@ -1611,11 +1612,7 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
   };
 
   return (
-    <div className={cn('space-y-3', className)}>
-      <h3 className='text-sm font-medium text-zinc-400 flex items-center gap-2'>
-        <LineChart className='w-4 h-4 text-teal-400' />
-        Diamond Hands Analysis
-      </h3>
+    <div className={cn(className)}>
       {renderInitialButton()}
       <Dialog
         open={dialogOpen}

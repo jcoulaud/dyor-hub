@@ -215,14 +215,16 @@ export const EarlyBuyersInfo = ({ mintAddress, className }: EarlyBuyersInfoProps
     <Button
       onClick={handleButtonClick}
       variant='outline'
-      size='sm'
+      size='lg'
       disabled={dialogOpen && isLoading}
-      className='w-full bg-zinc-900/60 border-zinc-700/50 hover:bg-zinc-800/80 text-zinc-200 flex items-center justify-between'>
+      className='w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-purple-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg'>
       <div className='flex items-center'>
-        <TableIcon className='w-4 h-4 mr-2 text-zinc-200' />
-        View Early Buyers Analysis
+        <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
+          <TableIcon className='w-5 h-5 text-purple-100' />
+        </div>
+        <span className='font-semibold'>Early Buyers Analysis</span>
       </div>
-      <ChevronRight className='w-4 h-4 ml-auto' />
+      <ChevronRight className='w-5 h-5 text-purple-400' />
     </Button>
   );
 
@@ -307,13 +309,7 @@ export const EarlyBuyersInfo = ({ mintAddress, className }: EarlyBuyersInfoProps
 
   return (
     <>
-      <div className={cn('space-y-3', className)}>
-        <h3 className='text-sm font-medium text-zinc-400 flex items-center gap-2'>
-          <Users className='w-4 h-4 text-purple-400' />
-          Early Buyers Analysis
-        </h3>
-        {renderInitialButton()}
-      </div>
+      <div className={cn(className)}>{renderInitialButton()}</div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className='max-w-xl bg-zinc-900/95 border-zinc-700'>

@@ -40,7 +40,6 @@ import {
   Copy,
   ExternalLink,
   Eye,
-  History,
   MessageSquare,
   Search,
   Shield,
@@ -735,6 +734,26 @@ export default function Page({ params, commentId }: PageProps) {
           </Card>
         </div>
 
+        {/* Trading Analysis Buttons */}
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-5 my-6'>
+          {isLoading || !isHeaderLoaded ? (
+            <>
+              <Skeleton className='h-14 w-full rounded-lg' />
+              <Skeleton className='h-14 w-full rounded-lg' />
+              <Skeleton className='h-14 w-full rounded-lg' />
+            </>
+          ) : tokenData ? (
+            <>
+              <TokenAiTradingAnalysis
+                mintAddress={mintAddress}
+                tokenCreationTime={tokenData?.creationTime}
+              />
+              <TokenHolderAnalysisInfo mintAddress={mintAddress} />
+              <EarlyBuyersInfo mintAddress={mintAddress} />
+            </>
+          ) : null}
+        </div>
+
         {/* Main three-column layout */}
         <div className='grid grid-cols-1 xxs:grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 xl:grid-cols-12 gap-4 sm:gap-6 xl:gap-8'>
           {/* Left column - Token data & Early Buyers */}
@@ -900,42 +919,6 @@ export default function Page({ params, commentId }: PageProps) {
                   )}
                 </CardContent>
               </Card>
-
-              {/* Trading Analysis Section */}
-              <div className='relative mt-4 sm:mt-6 xl:mt-8'>
-                <div className='absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
-                <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
-                  <div className='absolute inset-0 bg-gradient-to-br from-purple-600/5 to-indigo-800/5 opacity-0 transition-opacity duration-300' />
-                  <CardHeader className='pb-2 relative'>
-                    <div className='flex items-center'>
-                      <div className='h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center mr-4 group-hover:bg-purple-500/20 transition-colors duration-300'>
-                        <History className='h-5 w-5 text-purple-400' />
-                      </div>
-                      <CardTitle className='text-xl font-semibold text-white'>
-                        Trading Analysis
-                      </CardTitle>
-                    </div>
-                    <div className='w-full h-0.5 bg-gradient-to-r from-purple-500/20 to-transparent mt-3'></div>
-                  </CardHeader>
-                  <CardContent className='relative pt-4 pb-6 space-y-4'>
-                    <EarlyBuyersInfo mintAddress={mintAddress} />
-                    {isHeaderLoaded && tokenData && (
-                      <>
-                        <TokenHolderAnalysisInfo mintAddress={mintAddress} className='w-full' />
-                        {(() => {
-                          return (
-                            <TokenAiTradingAnalysis
-                              mintAddress={mintAddress}
-                              tokenCreationTime={tokenData?.creationTime}
-                              className='w-full'
-                            />
-                          );
-                        })()}
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
 
               <div className='mt-4 sm:mt-6 xl:mt-8'>
                 {tokenData && <TokenBundlesSection mintAddress={mintAddress} />}

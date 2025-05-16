@@ -543,21 +543,19 @@ export function TokenAiTradingAnalysis({
 
   return (
     <div className={className}>
-      <h3 className='text-sm font-medium text-zinc-400 flex items-center gap-2 mb-2'>
-        <Sparkles className='w-4 h-4 text-teal-400' />
-        AI Technical Analysis
-      </h3>
       <Button
         onClick={handleOpenModal}
         variant='outline'
-        size='sm'
+        size='lg'
         disabled={authLoading}
-        className='w-full bg-zinc-900/60 border-zinc-700/50 hover:bg-zinc-800/80 text-zinc-200 flex items-center justify-between'>
+        className='w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-blue-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg'>
         <div className='flex items-center'>
-          <Sparkles className='w-4 h-4 mr-2 text-zinc-200' />
-          <span className='font-medium'>View AI Trading Analysis</span>
+          <div className='w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center mr-3'>
+            <Sparkles className='w-5 h-5 text-blue-100' />
+          </div>
+          <span className='font-semibold'>AI Trading Analysis</span>
         </div>
-        <ChevronRight className='w-4 h-4 ml-auto text-zinc-200' />
+        <ChevronRight className='w-5 h-5 text-blue-400' />
       </Button>
 
       <Dialog
