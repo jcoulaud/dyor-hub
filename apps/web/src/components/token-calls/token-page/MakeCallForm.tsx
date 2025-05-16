@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -21,7 +22,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError, tokenCalls, tokens } from '@/lib/api';
 import { cn, formatPrice } from '@/lib/utils';
@@ -37,6 +37,7 @@ import {
   format,
   isFuture,
   isValid,
+  isWithinInterval,
 } from 'date-fns';
 import { motion } from 'framer-motion';
 import { BarChart, Calendar, LineChart, Loader2, Percent, TrendingUp } from 'lucide-react';
@@ -58,6 +59,10 @@ const TIMEFRAME_OPTIONS: Record<string, string> = {
   '6M': '6 Months',
   '1y': '1 Year',
 };
+
+// Define contest period constants (UTC)
+const CONTEST_START_DATE_UTC = new Date(Date.UTC(2025, 4, 19, 0, 1, 0)); // May 19, 2025, 00:01 UTC
+const CONTEST_END_DATE_UTC = new Date(Date.UTC(2025, 4, 25, 23, 59, 0)); // May 25, 2025, 23:59 UTC
 
 const getDateFromTimeframe = (timeframe: string): Date => {
   const now = new Date();
@@ -142,6 +147,7 @@ export function MakeCallForm({
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string>('');
+  const [isContestEntry, setIsContestEntry] = useState(false);
   const isPriceInvalid = !currentTokenPrice || currentTokenPrice <= 0;
   const [isCheckingPrice, setIsCheckingPrice] = useState(false);
   const [confirmationDialog, setConfirmationDialog] = useState<ConfirmationDialogState>({
@@ -153,6 +159,13 @@ export function MakeCallForm({
     displayMode: 'marketcap',
     onConfirm: () => {},
   });
+
+  const isContestPeriodActive = useMemo(() => {
+    const now = new Date();
+    // Convert current local time to UTC for comparison with UTC contest dates
+    const nowUtc = new Date(now.valueOf() + now.getTimezoneOffset() * 60000);
+    return isWithinInterval(nowUtc, { start: CONTEST_START_DATE_UTC, end: CONTEST_END_DATE_UTC });
+  }, []);
 
   const initialReferencePrice = useMemo(() => currentTokenPrice, [currentTokenPrice]);
 
@@ -339,7 +352,6 @@ export function MakeCallForm({
     }
 
     if (displayMode === 'marketcap' && predictionType === 'price') {
-      // For direct market cap entry, calculate equivalent token price
       const inputNum = parseFloat(inputValue);
       if (!isNaN(inputNum) && tokenMarketCap > 0 && initialReferencePrice > 0) {
         const rawValue = (inputNum / tokenMarketCap) * initialReferencePrice;
@@ -399,8 +411,9 @@ export function MakeCallForm({
     const payload: CreateTokenCallInput = {
       tokenMintAddress: tokenId,
       targetPrice: targetPriceValue,
-      targetDate: selectedDate,
-      explanation: explanation.trim() || getDefaultExplanation(),
+      targetDate: selectedDate.toISOString(),
+      explanationComment: explanation.trim() || getDefaultExplanation(),
+      isContestEntry: isContestEntry && isContestPeriodActive,
     };
 
     try {
@@ -422,6 +435,10 @@ export function MakeCallForm({
         toastMessage = `Your call for ${tokenSymbol} to reach $${formatPrice(displayTarget)} by ${format(selectedDate, 'PPP')} has been recorded.`;
       }
 
+      if (payload.isContestEntry) {
+        toastMessage += ' Your contest entry has been submitted!';
+      }
+
       toast({
         title: 'Prediction Submitted!',
         description: toastMessage,
@@ -435,6 +452,7 @@ export function MakeCallForm({
       setDisplayMode('marketcap');
       setFormError(null);
       setExplanation('');
+      setIsContestEntry(false);
       onCallCreated?.();
       onClose?.();
 
@@ -475,6 +493,8 @@ export function MakeCallForm({
     explanation,
     onAddComment,
     getDefaultExplanation,
+    isContestEntry,
+    isContestPeriodActive,
   ]);
 
   const handleSubmit = useCallback(
@@ -942,23 +962,6 @@ export function MakeCallForm({
         )}
       </div>
 
-      {/* Explanation Textarea */}
-      <div className='space-y-2'>
-        <Label htmlFor='explanation'>
-          Explanation <span className='text-zinc-400'>(Optional)</span>
-        </Label>
-        <Textarea
-          id='explanation'
-          value={explanation}
-          onChange={(e) => {
-            setExplanation(e.target.value);
-          }}
-          placeholder={'Why do you think the price will reach this target?'}
-          className={cn()}
-          disabled={isLoading || isCheckingPrice}
-        />
-      </div>
-
       {/* Error Display */}
       {formError && (
         <div className='bg-red-900/20 p-2 rounded-md border border-red-800/50 text-sm text-red-400'>
@@ -969,6 +972,29 @@ export function MakeCallForm({
       {!isAuthenticated && (
         <div className='bg-amber-900/20 p-2 rounded-md border border-amber-800/50 text-xs text-amber-400 text-center'>
           Please log in to make a prediction
+        </div>
+      )}
+
+      {/* Contest Entry Checkbox - Moved and Styled */}
+      {isContestPeriodActive && (
+        <div className='p-3 my-4 rounded-md bg-zinc-800 border border-zinc-700'>
+          <div className='flex items-center space-x-2'>
+            <Checkbox
+              id='contest-entry-checkbox'
+              checked={isContestEntry}
+              onCheckedChange={(checked) => setIsContestEntry(Boolean(checked))}
+              className='border-gray-500 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white h-5 w-5'
+            />
+            <Label
+              htmlFor='contest-entry-checkbox'
+              className='text-sm font-medium text-gray-200 cursor-pointer'>
+              Enter this call into the current Trading Contest!
+            </Label>
+          </div>
+          <p className='text-xs text-zinc-400 mt-1.5 ml-7'>
+            Ensure your prediction meets all contest criteria (token age, MC, liquidity, target date
+            within contest).
+          </p>
         </div>
       )}
 

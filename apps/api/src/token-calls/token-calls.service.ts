@@ -15,8 +15,15 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
-import { isFuture } from 'date-fns';
-import { DataSource, In, Not, Repository } from 'typeorm';
+import {
+  addDays,
+  differenceInDays,
+  isFuture,
+  isWithinInterval,
+  startOfDay,
+} from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
+import { Between, DataSource, In, Not, Repository } from 'typeorm';
 import { CommentResponseDto } from '../comments/dto/comment-response.dto';
 import { CommentEntity } from '../entities/comment.entity';
 import { TokenCallEntity } from '../entities/token-call.entity';
@@ -44,6 +51,14 @@ export interface TokenCallFilters {
 export class TokenCallsService {
   private readonly logger = new Logger(TokenCallsService.name);
 
+  // Define contest period constants (UTC)
+  private readonly CONTEST_START_DATE_UTC = new Date(
+    Date.UTC(2025, 4, 19, 0, 1, 0),
+  );
+  private readonly CONTEST_END_DATE_UTC = new Date(
+    Date.UTC(2025, 4, 25, 23, 59, 0),
+  );
+
   constructor(
     @InjectRepository(TokenCallEntity)
     private readonly tokenCallRepository: Repository<TokenCallEntity>,
@@ -62,15 +77,56 @@ export class TokenCallsService {
       targetPrice,
       targetDate: userSuppliedTargetDate,
       explanation,
+      isContestEntry,
     } = createTokenCallDto;
+
+    const callTimestamp = new Date();
+    const callTimestampUtc = toZonedTime(callTimestamp, 'UTC');
+
+    if (isContestEntry) {
+      if (
+        !isWithinInterval(callTimestampUtc, {
+          start: this.CONTEST_START_DATE_UTC,
+          end: this.CONTEST_END_DATE_UTC,
+        })
+      ) {
+        throw new BadRequestException(
+          'The token call contest is not currently active or has ended.',
+        );
+      }
+      const userTargetDateUtc = toZonedTime(userSuppliedTargetDate, 'UTC');
+      if (
+        !isWithinInterval(userTargetDateUtc, {
+          start: this.CONTEST_START_DATE_UTC,
+          end: this.CONTEST_END_DATE_UTC,
+        })
+      ) {
+        throw new BadRequestException(
+          'For contest entries, the predicted target hit date must be within the contest period.',
+        );
+      }
+      const existingContestEntry = await this.tokenCallRepository.findOne({
+        where: {
+          userId,
+          isContestEntry: true,
+          createdAt: Between(
+            this.CONTEST_START_DATE_UTC,
+            this.CONTEST_END_DATE_UTC,
+          ),
+        },
+      });
+      if (existingContestEntry) {
+        throw new BadRequestException(
+          'You have already submitted an entry for this contest period.',
+        );
+      }
+    }
 
     if (!explanation || explanation.trim().length < 10) {
       throw new BadRequestException(
         'Explanation must be provided and be at least 10 characters long.',
       );
     }
-
-    const callTimestamp = new Date();
 
     if (!userSuppliedTargetDate) {
       throw new BadRequestException('Target date must be provided.');
@@ -103,6 +159,7 @@ export class TokenCallsService {
 
     let tokenData: Awaited<ReturnType<TokensService['getTokenData']>>;
     let overviewData: Awaited<ReturnType<TokensService['fetchTokenOverview']>>;
+
     try {
       tokenData = await this.tokensService.getTokenData(
         tokenMintAddress,
@@ -110,10 +167,28 @@ export class TokenCallsService {
       );
       overviewData =
         await this.tokensService.fetchTokenOverview(tokenMintAddress);
+
+      if (isContestEntry) {
+        if (!tokenData?.creationTime) {
+          throw new BadRequestException(
+            'Could not retrieve token creation time for contest validation from token data.',
+          );
+        }
+      }
+      if (!overviewData?.price) {
+        throw new InternalServerErrorException(
+          `Could not establish reference price for ${tokenMintAddress}.`,
+        );
+      }
     } catch (error) {
-      if (error instanceof NotFoundException) throw error;
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof InternalServerErrorException
+      )
+        throw error;
       this.logger.error(
-        `Failed initial token fetch for ${tokenMintAddress}: ${error.message}`,
+        `Failed token data fetch for ${tokenMintAddress}: ${error.message}`,
       );
       throw new InternalServerErrorException(
         `Could not fetch necessary data for token ${tokenMintAddress}.`,
@@ -122,32 +197,48 @@ export class TokenCallsService {
 
     const tokenSymbol = tokenData?.symbol ?? 'Token';
 
-    let referencePrice: number | null = null;
-    let referenceSupply: number | null = null;
-    if (
-      overviewData &&
-      typeof overviewData.price === 'number' &&
-      overviewData.price > 0
-    ) {
-      referencePrice = overviewData.price;
-      referenceSupply =
-        overviewData.circulatingSupply ?? overviewData.totalSupply ?? null;
-      if (typeof referenceSupply !== 'number' || referenceSupply <= 0) {
-        referenceSupply = null;
-      }
-    } else {
-      this.logger.error(
-        `Invalid or missing overview data/price for ${tokenMintAddress}`,
-      );
-      throw new InternalServerErrorException(
-        `Could not establish reference price for ${tokenMintAddress}.`,
+    const referencePrice = overviewData.price;
+    const referenceSupply =
+      overviewData.circulatingSupply ?? overviewData.totalSupply ?? null;
+    if (targetPrice <= referencePrice) {
+      throw new BadRequestException(
+        `Target price ($${targetPrice.toLocaleString()}) must be higher than the reference price ($${referencePrice.toLocaleString()}) at the time of submission.`,
       );
     }
 
-    if (targetPrice <= referencePrice) {
-      throw new BadRequestException(
-        `Target price ($${targetPrice}) must be higher than the reference price ($${referencePrice}) at the time of submission.`,
+    if (isContestEntry && tokenData?.creationTime) {
+      const tokenCreationTimestamp = Math.floor(
+        tokenData.creationTime.getTime() / 1000,
       );
+      const tokenCreationDateUtc = toZonedTime(
+        new Date(tokenCreationTimestamp * 1000),
+        'UTC',
+      );
+      const sevenDaysAgo = startOfDay(addDays(callTimestampUtc, -7));
+
+      if (tokenCreationDateUtc > sevenDaysAgo) {
+        const daysOld = differenceInDays(
+          startOfDay(callTimestampUtc),
+          startOfDay(tokenCreationDateUtc),
+        );
+        throw new BadRequestException(
+          `Token must be at least 7 days old for contest entry. This token is approximately ${daysOld} day(s) old.`,
+        );
+      }
+
+      const marketCap = overviewData?.marketCap ?? 0;
+      if (marketCap < 100000) {
+        throw new BadRequestException(
+          `Token market cap must be at least $100,000 for contest entry. Current MC: $${marketCap.toLocaleString()}.`,
+        );
+      }
+
+      const liquidity = overviewData?.liquidity ?? 0;
+      if (liquidity < 10000) {
+        throw new BadRequestException(
+          `Token liquidity must be at least $10,000 for contest entry. Current liquidity: $${liquidity.toLocaleString()}.`,
+        );
+      }
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -168,6 +259,7 @@ export class TokenCallsService {
         targetPrice,
         targetDate: finalTargetDate,
         status: TokenCallStatus.PENDING,
+        isContestEntry: !!isContestEntry,
       });
 
       savedCall = await queryRunner.manager.save(TokenCallEntity, newCall);
@@ -444,6 +536,7 @@ export class TokenCallsService {
         priceHistoryUrl: call.priceHistoryUrl,
         createdAt: call.createdAt.toISOString(),
         updatedAt: call.updatedAt.toISOString(),
+        isContestEntry: call.isContestEntry,
         user: call.user
           ? {
               id: call.user.id,

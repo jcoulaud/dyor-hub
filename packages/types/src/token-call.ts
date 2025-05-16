@@ -14,6 +14,7 @@ export interface CreateTokenCallInput {
   targetPrice: number;
   targetDate: Date;
   explanation: string;
+  isContestEntry?: boolean;
 }
 
 export interface TokenCall {
@@ -33,6 +34,7 @@ export interface TokenCall {
   timeToHitRatio?: number | null;
   createdAt: string;
   updatedAt: string;
+  isContestEntry: boolean;
   user?: UserMinimum;
   token?: TokenMinimum;
   priceHistoryUrl?: string | null;
