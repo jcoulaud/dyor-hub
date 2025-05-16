@@ -342,6 +342,11 @@ export default function TokenCallDetailPage() {
   const token = tokenCall.token;
   const status = tokenCall.status;
 
+  const shouldIncludeTargetInDomain =
+    status === TokenCallStatus.PENDING ||
+    status === TokenCallStatus.VERIFIED_SUCCESS ||
+    status === TokenCallStatus.VERIFIED_FAIL;
+
   return (
     <div className='container mx-auto px-4 py-6 max-w-5xl'>
       {/* Background elements */}
@@ -598,8 +603,7 @@ export default function TokenCallDetailPage() {
                                 (dataMin: number) =>
                                   Math.min(
                                     dataMin * 0.95,
-                                    status === TokenCallStatus.PENDING ||
-                                      status === TokenCallStatus.VERIFIED_SUCCESS
+                                    shouldIncludeTargetInDomain
                                       ? displayMode === 'mcap' && callDetails?.targetMcap
                                         ? callDetails.targetMcap * 0.95
                                         : parseFloat(String(tokenCall.targetPrice)) * 0.95
@@ -608,8 +612,7 @@ export default function TokenCallDetailPage() {
                                 (dataMax: number) =>
                                   Math.max(
                                     dataMax * 1.05,
-                                    status === TokenCallStatus.PENDING ||
-                                      status === TokenCallStatus.VERIFIED_SUCCESS
+                                    shouldIncludeTargetInDomain
                                       ? displayMode === 'mcap' && callDetails?.targetMcap
                                         ? callDetails.targetMcap * 1.05
                                         : parseFloat(String(tokenCall.targetPrice)) * 1.05
@@ -697,34 +700,39 @@ export default function TokenCallDetailPage() {
                             {/* Target reference line */}
                             {(status === TokenCallStatus.PENDING ||
                               status === TokenCallStatus.VERIFIED_SUCCESS ||
-                              status === TokenCallStatus.VERIFIED_FAIL) && (
-                              <ReferenceLine
-                                y={
+                              status === TokenCallStatus.VERIFIED_FAIL) &&
+                              (() => {
+                                const targetYValue =
                                   displayMode === 'mcap' && callDetails?.targetMcap
                                     ? callDetails.targetMcap
-                                    : parseFloat(String(tokenCall.targetPrice))
-                                }
-                                stroke={
-                                  status === TokenCallStatus.VERIFIED_FAIL ? '#ef4444' : '#22c55e'
-                                }
-                                strokeDasharray='3 3'
-                                strokeWidth={1.5}
-                                isFront={true}
-                                ifOverflow='extendDomain'
-                                label={{
-                                  value: 'Target',
-                                  position: 'insideRight',
-                                  offset: 2,
-                                  dy: -10,
-                                  fill:
-                                    status === TokenCallStatus.VERIFIED_FAIL
-                                      ? '#ef4444'
-                                      : '#22c55e',
-                                  fontSize: 11,
-                                  fontWeight: 500,
-                                }}
-                              />
-                            )}
+                                    : parseFloat(String(tokenCall.targetPrice));
+                                return (
+                                  <ReferenceLine
+                                    y={targetYValue}
+                                    stroke={
+                                      status === TokenCallStatus.VERIFIED_FAIL
+                                        ? '#ef4444'
+                                        : '#22c55e'
+                                    }
+                                    strokeDasharray='3 3'
+                                    strokeWidth={1.5}
+                                    isFront={true}
+                                    ifOverflow='extendDomain'
+                                    label={{
+                                      value: 'Target',
+                                      position: 'insideRight',
+                                      offset: 2,
+                                      dy: -10,
+                                      fill:
+                                        status === TokenCallStatus.VERIFIED_FAIL
+                                          ? '#ef4444'
+                                          : '#22c55e',
+                                      fontSize: 11,
+                                      fontWeight: 500,
+                                    }}
+                                  />
+                                );
+                              })()}
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
@@ -743,6 +751,7 @@ export default function TokenCallDetailPage() {
                             : parseFloat(String(tokenCall.targetPrice))
                         }
                         displayMode={displayMode}
+                        status={status}
                       />
                     )}
                   </div>
@@ -1095,12 +1104,14 @@ function PendingPredictionChart({
   referenceValue,
   targetValue,
   displayMode,
+  status,
 }: {
   referenceDate: Date;
   targetDate: Date;
   referenceValue: number;
   targetValue: number;
   displayMode: 'price' | 'mcap';
+  status: TokenCallStatus;
 }) {
   const data = [
     { time: referenceDate.getTime(), value: referenceValue, label: 'Reference' },
@@ -1192,7 +1203,7 @@ function PendingPredictionChart({
           {/* Target reference line */}
           <ReferenceLine
             y={targetValue}
-            stroke={'#22c55e'}
+            stroke={status === TokenCallStatus.VERIFIED_FAIL ? '#ef4444' : '#22c55e'}
             strokeDasharray='3 3'
             strokeWidth={1.5}
             isFront={true}
@@ -1202,7 +1213,7 @@ function PendingPredictionChart({
               position: 'insideRight',
               offset: 2,
               dy: -10,
-              fill: '#22c55e',
+              fill: status === TokenCallStatus.VERIFIED_FAIL ? '#ef4444' : '#22c55e',
               fontSize: 11,
               fontWeight: 500,
             }}
