@@ -191,7 +191,17 @@ const FAQPage = () => {
         <div>
           <p className='mb-2'>To be eligible for prizes, winners must:</p>
           <ul className='list-disc pl-5 space-y-1'>
-            <li>Be following the official @DYORhub Twitter account.</li>
+            <li>
+              Be following the official{' '}
+              <a
+                href='https://x.com/dyorhub'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-indigo-400 hover:text-indigo-300 underline'>
+                @DYORhub
+              </a>{' '}
+              Twitter account.
+            </li>
             <li>
               Retweet our official contest announcement:{' '}
               <a
@@ -204,7 +214,15 @@ const FAQPage = () => {
             </li>
             <li>
               Have shared their contest prediction on Twitter during the Contest Period using DYOR
-              Hub&apos;s share feature or by tagging @DYORhub with #DYORContest.
+              Hub&apos;s share feature or by tagging{' '}
+              <a
+                href='https://x.com/dyorhub'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-indigo-400 hover:text-indigo-300 underline'>
+                @DYORhub
+              </a>{' '}
+              with #DYORContest.
             </li>
           </ul>
           <p className='mt-2 text-sm text-gray-500 italic'>
@@ -229,8 +247,15 @@ const FAQPage = () => {
             </li>
           </ul>
           <p className='mt-2 text-sm'>
-            Prizes will be distributed to the primary, verified Solana wallet address associated
-            with the winner&apos;s DYOR Hub account.
+            Prizes will be distributed to the{' '}
+            <a
+              href='https://dyorhub.xyz/account/wallet'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='text-indigo-400 hover:text-indigo-300 underline'>
+              primary, verified Solana wallet
+            </a>{' '}
+            address associated with the winner&apos;s DYOR Hub account.
           </p>
         </div>
       ),
