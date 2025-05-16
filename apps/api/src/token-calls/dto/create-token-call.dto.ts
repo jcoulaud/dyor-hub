@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsDate,
   IsNotEmpty,
   IsNumber,
@@ -34,4 +35,8 @@ export class CreateTokenCallDto {
   })
   @IsNotEmpty()
   explanation: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isContestEntry?: boolean;
 }

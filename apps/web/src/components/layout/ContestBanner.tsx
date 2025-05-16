@@ -4,6 +4,10 @@ import { X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
+// Define contest period constants (UTC)
+const CONTEST_START_DATE_UTC = new Date(Date.UTC(2025, 4, 19, 0, 1, 0)); // May 19, 2025, 00:01 UTC
+const CONTEST_END_DATE_UTC = new Date(Date.UTC(2025, 4, 25, 23, 59, 0)); // May 25, 2025, 23:59 UTC
+
 export function ContestBanner() {
   const [isVisible, setIsVisible] = useState(true);
   const [bannerText, setBannerText] = useState('');
@@ -16,15 +20,13 @@ export function ContestBanner() {
       return;
     }
 
-    const contestStartDate = new Date(Date.UTC(2025, 4, 19, 0, 1, 0)); // Month is 0-indexed (4 = May)
-    const contestEndDate = new Date(Date.UTC(2025, 4, 25, 23, 59, 0)); // Month is 0-indexed (4 = May)
     const now = new Date();
 
-    if (now < contestStartDate) {
+    if (now < CONTEST_START_DATE_UTC) {
       setBannerText(
         '🏆 Token Call Contest is coming soon! Get ready to win SOL. Contest starts May 19th.',
       );
-    } else if (now >= contestStartDate && now <= contestEndDate) {
+    } else if (now >= CONTEST_START_DATE_UTC && now <= CONTEST_END_DATE_UTC) {
       setBannerText('🏆 Token Call Contest is now live! Win up to 1 SOL for accurate predictions.');
     } else {
       setBannerText(

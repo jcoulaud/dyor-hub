@@ -134,4 +134,7 @@ export class TokenCallEntity {
   })
   @JoinColumn({ name: 'explanation_comment_id' })
   explanationComment: CommentEntity | null;
+
+  @Column({ type: 'boolean', default: false })
+  isContestEntry: boolean;
 }
