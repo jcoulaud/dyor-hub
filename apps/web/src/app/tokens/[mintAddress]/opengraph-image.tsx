@@ -1,4 +1,4 @@
-import { tokens } from '@/lib/api';
+import { comments, tokenCalls, tokens } from '@/lib/api';
 import { formatLargeNumber } from '@/lib/utils';
 import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
@@ -50,6 +50,12 @@ const formatPrice = (value: number) => {
   }).format(value);
 };
 
+// Function to truncate text with ellipsis
+const truncateText = (text: string, maxLength: number): string => {
+  if (!text || text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + '...';
+};
+
 export default async function Image({ params }: { params: { mintAddress: string } }) {
   const { mintAddress } = params;
 
@@ -63,12 +69,17 @@ export default async function Image({ params }: { params: { mintAddress: string 
   let volume24h: number | null = null;
   let holders: number | null = null;
   let verifiedCreator = false;
+  let commentCount = 0;
+  let tokenCallsCount = 0;
 
   try {
-    const [tokenResult, tokenStatsResult] = await Promise.allSettled([
-      tokens.getByMintAddress(mintAddress),
-      tokens.getTokenStats(mintAddress),
-    ]);
+    const [tokenResult, tokenStatsResult, commentResult, tokenCallsResult] =
+      await Promise.allSettled([
+        tokens.getByMintAddress(mintAddress),
+        tokens.getTokenStats(mintAddress),
+        comments.list(mintAddress, 1, 1),
+        tokenCalls.list({ tokenId: mintAddress }, { page: 1, limit: 1 }),
+      ]);
 
     if (tokenResult.status === 'fulfilled' && tokenResult.value) {
       const tokenData = tokenResult.value;
@@ -86,6 +97,14 @@ export default async function Image({ params }: { params: { mintAddress: string 
       volume24h = statsData.volume24h || null;
       holders = statsData.holders || null;
     }
+
+    if (commentResult.status === 'fulfilled' && commentResult.value) {
+      commentCount = commentResult.value.meta.total || 0;
+    }
+
+    if (tokenCallsResult.status === 'fulfilled' && tokenCallsResult.value) {
+      tokenCallsCount = tokenCallsResult.value.total || 0;
+    }
   } catch {
     // Continue with default values set above
   }
@@ -100,6 +119,11 @@ export default async function Image({ params }: { params: { mintAddress: string 
   const marketCapDisplay = marketCap !== null ? `$${formatLargeNumber(marketCap)}` : 'N/A';
   const volumeDisplay = volume24h !== null ? `$${formatLargeNumber(volume24h)}` : 'N/A';
   const holdersDisplay = holders !== null ? holders.toLocaleString() : 'N/A';
+  const commentCountDisplay = commentCount.toLocaleString();
+  const tokenCallsCountDisplay = tokenCallsCount.toLocaleString();
+
+  // Truncate description to prevent overflow
+  const truncatedDescription = truncateText(tokenDescription, 160);
 
   return new ImageResponse(
     (
@@ -113,197 +137,306 @@ export default async function Image({ params }: { params: { mintAddress: string 
           backgroundImage:
             'radial-gradient(circle at 25px 25px, #333 2%, transparent 0%), radial-gradient(circle at 75px 75px, #333 2%, transparent 0%)',
           backgroundSize: '100px 100px',
-          padding: 40,
+          padding: 0,
           fontFamily:
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
         }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
-          {logoSrc ? (
-            <img
-              src={logoSrc as unknown as string}
-              width={120}
-              height={40}
-              style={{ objectFit: 'contain', marginRight: 20 }}
-              alt='DYOR hub Logo'
-            />
-          ) : (
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                width: 120,
-                height: 40,
-              }}>
-              <span style={{ display: 'flex', color: '#ffffff', fontSize: 24, fontWeight: 'bold' }}>
-                DYOR hub
-              </span>
-            </div>
-          )}
-          <span style={{ display: 'flex', color: '#ffffff', fontSize: 28, fontWeight: 'bold' }}>
-            Token Overview
-          </span>
-        </div>
-
-        {/* Main content area with backdrop */}
+        {/* Header Bar */}
         <div
           style={{
             display: 'flex',
-            flexDirection: 'column',
-            borderRadius: 16,
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            padding: 32,
-            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '16px 40px',
+            backgroundColor: '#1e293b', // Darker blue background
+            borderBottom: '1px solid rgba(59, 130, 246, 0.3)',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
           }}>
-          {/* Token header with symbol and image */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-            {tokenImageSrc ? (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            {logoSrc ? (
               <img
-                src={tokenImageSrc}
-                width={80}
-                height={80}
-                style={{ borderRadius: '50%', marginRight: 20 }}
-                alt={tokenName}
+                src={logoSrc as unknown as string}
+                width={100}
+                height={33}
+                style={{ objectFit: 'contain', marginRight: 16 }}
+                alt='DYOR hub Logo'
               />
             ) : (
               <div
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
                   justifyContent: 'center',
-                  width: 80,
-                  height: 80,
-                  borderRadius: '50%',
-                  backgroundColor: '#3b82f6',
-                  marginRight: 20,
+                  alignItems: 'center',
+                  width: 100,
+                  height: 33,
                 }}>
-                <span style={{ display: 'flex', color: 'white', fontSize: 32, fontWeight: 'bold' }}>
-                  {tokenSymbol.charAt(0).toUpperCase()}
+                <span
+                  style={{ display: 'flex', color: '#ffffff', fontSize: 20, fontWeight: 'bold' }}>
+                  DYOR hub
                 </span>
               </div>
             )}
+            <span style={{ display: 'flex', color: '#ffffff', fontSize: 24, fontWeight: 'bold' }}>
+              Token Overview
+            </span>
+          </div>
+        </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span
-                  style={{
-                    display: 'flex',
-                    color: '#3b82f6',
-                    fontSize: 42,
-                    fontWeight: 'bold',
-                    marginRight: 12,
-                  }}>
-                  ${tokenSymbol}
-                </span>
-                {verifiedCreator && (
-                  <span
+        {/* Content Container */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+            padding: '32px 40px 30px',
+            justifyContent: 'flex-start',
+          }}>
+          {/* Token Information Section */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              marginBottom: 30, // Reduced spacing before button
+            }}>
+            {/* Top section with token info and market cap */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: 20,
+                alignItems: 'flex-start',
+              }}>
+              {/* Left side - token info */}
+              <div style={{ display: 'flex', maxWidth: '75%' }}>
+                {/* Token image */}
+                {tokenImageSrc ? (
+                  <img
+                    src={tokenImageSrc}
+                    width={80}
+                    height={80}
+                    style={{ borderRadius: '50%', marginRight: 20, flexShrink: 0 }}
+                    alt={tokenName}
+                  />
+                ) : (
+                  <div
                     style={{
                       display: 'flex',
-                      backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                      borderRadius: 8,
-                      padding: '4px 12px',
-                      color: '#22c55e',
-                      fontSize: 16,
-                      fontWeight: 'bold',
-                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 80,
+                      height: 80,
+                      borderRadius: '50%',
+                      backgroundColor: '#3b82f6',
+                      marginRight: 20,
+                      flexShrink: 0,
                     }}>
-                    Verified
-                  </span>
+                    <span
+                      style={{ display: 'flex', color: 'white', fontSize: 32, fontWeight: 'bold' }}>
+                      {tokenSymbol.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
                 )}
+
+                {/* Token details */}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span
+                      style={{
+                        display: 'flex',
+                        color: '#3b82f6',
+                        fontSize: 42,
+                        fontWeight: 'bold',
+                        marginRight: 12,
+                      }}>
+                      ${tokenSymbol}
+                    </span>
+                    {verifiedCreator && (
+                      <span
+                        style={{
+                          display: 'flex',
+                          backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                          borderRadius: 8,
+                          padding: '4px 12px',
+                          color: '#22c55e',
+                          fontSize: 16,
+                          fontWeight: 'bold',
+                          border: '1px solid rgba(34, 197, 94, 0.3)',
+                        }}>
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ display: 'flex', color: '#ffffff', fontSize: 24, marginTop: 4 }}>
+                    {tokenName}
+                  </span>
+                </div>
               </div>
-              <span style={{ display: 'flex', color: '#ffffff', fontSize: 24, marginTop: 4 }}>
-                {tokenName}
+
+              {/* Right side - market cap */}
+              {marketCap !== null && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    flexShrink: 0,
+                  }}>
+                  <span style={{ display: 'flex', color: '#9ca3af', fontSize: 18 }}>
+                    Market Cap
+                  </span>
+                  <span
+                    style={{ display: 'flex', color: '#ffffff', fontSize: 32, fontWeight: 'bold' }}>
+                    {marketCapDisplay}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Description */}
+            <div
+              style={{
+                display: 'flex',
+                marginBottom: 24,
+                minHeight: 60,
+                maxHeight: 80,
+                overflow: 'hidden',
+              }}>
+              <span
+                style={{
+                  display: 'flex',
+                  color: '#ffffff',
+                  fontSize: 18,
+                  lineHeight: 1.4,
+                  opacity: 0.9,
+                }}>
+                {truncatedDescription}
               </span>
             </div>
 
-            {marketCap !== null && (
+            {/* Stats Row 1 - Price and Volume */}
+            <div style={{ display: 'flex', marginBottom: 16 }}>
               <div
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  marginLeft: 'auto',
-                  alignItems: 'flex-end',
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: 12,
+                  padding: 20,
+                  marginRight: 16,
+                  flex: 1,
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
                 }}>
-                <span style={{ display: 'flex', color: '#ffffff', fontSize: 18 }}>Market Cap</span>
+                <span style={{ display: 'flex', color: '#9ca3af', fontSize: 16, marginBottom: 6 }}>
+                  Price
+                </span>
                 <span
-                  style={{ display: 'flex', color: '#ffffff', fontSize: 32, fontWeight: 'bold' }}>
-                  {marketCapDisplay}
+                  style={{ display: 'flex', color: '#ffffff', fontSize: 24, fontWeight: 'bold' }}>
+                  {priceDisplay}
                 </span>
               </div>
-            )}
-          </div>
 
-          {/* Description */}
-          <div style={{ display: 'flex', marginBottom: 36 }}>
-            <span style={{ display: 'flex', color: '#ffffff', fontSize: 20, lineHeight: 1.4 }}>
-              {tokenDescription}
-            </span>
-          </div>
-
-          {/* Stats row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                borderRadius: 12,
-                padding: 16,
-                flex: 1,
-                marginRight: 16,
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-              }}>
-              <span style={{ display: 'flex', color: '#9ca3af', fontSize: 16, marginBottom: 4 }}>
-                Price
-              </span>
-              <span style={{ display: 'flex', color: '#ffffff', fontSize: 22, fontWeight: 'bold' }}>
-                {priceDisplay}
-              </span>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: 12,
+                  padding: 20,
+                  flex: 1,
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                }}>
+                <span style={{ display: 'flex', color: '#9ca3af', fontSize: 16, marginBottom: 6 }}>
+                  24h Volume
+                </span>
+                <span
+                  style={{ display: 'flex', color: '#ffffff', fontSize: 24, fontWeight: 'bold' }}>
+                  {volumeDisplay}
+                </span>
+              </div>
             </div>
 
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                borderRadius: 12,
-                padding: 16,
-                flex: 1,
-                marginRight: 16,
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-              }}>
-              <span style={{ display: 'flex', color: '#9ca3af', fontSize: 16, marginBottom: 4 }}>
-                24h Volume
-              </span>
-              <span style={{ display: 'flex', color: '#ffffff', fontSize: 22, fontWeight: 'bold' }}>
-                {volumeDisplay}
-              </span>
-            </div>
+            {/* Stats Row 2 - Holders, Comments, Token Calls */}
+            <div style={{ display: 'flex' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: 12,
+                  padding: 20,
+                  marginRight: 16,
+                  flex: 1,
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                }}>
+                <span style={{ display: 'flex', color: '#9ca3af', fontSize: 16, marginBottom: 6 }}>
+                  Holders
+                </span>
+                <span
+                  style={{ display: 'flex', color: '#ffffff', fontSize: 24, fontWeight: 'bold' }}>
+                  {holdersDisplay}
+                </span>
+              </div>
 
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                borderRadius: 12,
-                padding: 16,
-                flex: 1,
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-              }}>
-              <span style={{ display: 'flex', color: '#9ca3af', fontSize: 16, marginBottom: 4 }}>
-                Holders
-              </span>
-              <span style={{ display: 'flex', color: '#ffffff', fontSize: 22, fontWeight: 'bold' }}>
-                {holdersDisplay}
-              </span>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: 12,
+                  padding: 20,
+                  marginRight: 16,
+                  flex: 1,
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                }}>
+                <span style={{ display: 'flex', color: '#9ca3af', fontSize: 16, marginBottom: 6 }}>
+                  Comments
+                </span>
+                <span
+                  style={{ display: 'flex', color: '#ffffff', fontSize: 24, fontWeight: 'bold' }}>
+                  {commentCountDisplay}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: 12,
+                  padding: 20,
+                  flex: 1,
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                }}>
+                <span style={{ display: 'flex', color: '#9ca3af', fontSize: 16, marginBottom: 6 }}>
+                  Token Calls
+                </span>
+                <span
+                  style={{ display: 'flex', color: '#ffffff', fontSize: 24, fontWeight: 'bold' }}>
+                  {tokenCallsCountDisplay}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Footer */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto' }}>
-            <span style={{ display: 'flex', color: '#6b7280', fontSize: 16 }}>
+          {/* Button - Centered */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: '#3b82f6',
+              borderRadius: 8,
+              padding: '10px 24px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              alignSelf: 'center',
+            }}>
+            <span
+              style={{
+                display: 'flex',
+                color: 'white',
+                fontSize: 18,
+                fontWeight: 'bold',
+              }}>
               Visit DYOR hub for more insights →
             </span>
           </div>
