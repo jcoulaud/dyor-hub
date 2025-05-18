@@ -9,7 +9,7 @@ import {
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, MoreThanOrEqual, Repository } from 'typeorm';
+import { In, IsNull, MoreThanOrEqual, Not, Repository } from 'typeorm';
 import {
   BadgeCategory,
   BadgeEntity,
@@ -944,6 +944,99 @@ export class BadgeService {
           } catch {
             return { progress: 0, currentValue: 0 };
           }
+        }
+        case BadgeRequirement.SUCCESSFUL_TOKEN_CALL_COUNT:
+          currentValue = await this.tokenCallRepository.count({
+            where: {
+              userId,
+              status: TokenCallStatus.VERIFIED_SUCCESS,
+            },
+          });
+          break;
+        case BadgeRequirement.VERIFIED_TOKEN_CALL_COUNT:
+          currentValue = await this.tokenCallRepository.count({
+            where: {
+              userId,
+              status: In([
+                TokenCallStatus.VERIFIED_SUCCESS,
+                TokenCallStatus.VERIFIED_FAIL,
+              ]),
+            },
+          });
+          break;
+        case BadgeRequirement.TOKEN_CALL_ACCURACY_RATE: {
+          const counts = await this.tokenCallRepository
+            .createQueryBuilder('call')
+            .select('COUNT(call.id)', 'totalVerified')
+            .addSelect(
+              `SUM(CASE WHEN call.status = '${TokenCallStatus.VERIFIED_SUCCESS}' THEN 1 ELSE 0 END)`,
+              'totalSuccess',
+            )
+            .where('call.userId = :userId', { userId })
+            .andWhere('call.status IN (:...statuses)', {
+              statuses: [
+                TokenCallStatus.VERIFIED_SUCCESS,
+                TokenCallStatus.VERIFIED_FAIL,
+              ],
+            })
+            .getRawOne();
+
+          const totalVerified = parseInt(counts?.totalVerified || '0', 10);
+          const totalSuccess = parseInt(counts?.totalSuccess || '0', 10);
+
+          if (totalVerified > 0) {
+            currentValue = Math.round((totalSuccess / totalVerified) * 100);
+          } else {
+            currentValue = 0;
+          }
+          break;
+        }
+        case BadgeRequirement.TOKEN_CALL_MOONSHOT_X: {
+          const calls = await this.tokenCallRepository.find({
+            where: {
+              userId,
+              status: TokenCallStatus.VERIFIED_SUCCESS,
+              referencePrice: Not(IsNull()),
+              targetPrice: Not(IsNull()),
+            },
+            select: ['referencePrice', 'targetPrice'],
+          });
+          let maxMultiplier = 0;
+          for (const call of calls) {
+            if (
+              call.referencePrice &&
+              call.referencePrice > 0 &&
+              call.targetPrice
+            ) {
+              const multiplier = call.targetPrice / call.referencePrice;
+              if (multiplier > maxMultiplier) {
+                maxMultiplier = multiplier;
+              }
+            }
+          }
+          currentValue = Math.floor(maxMultiplier);
+          break;
+        }
+        case BadgeRequirement.TOKEN_CALL_SUCCESS_STREAK: {
+          const streak = await this.userTokenCallStreakRepository.findOne({
+            where: { userId },
+            select: ['longestSuccessStreak'],
+          });
+          currentValue = streak ? streak.longestSuccessStreak : 0;
+          break;
+        }
+        case BadgeRequirement.COMMENTS_RECEIVED_COUNT: {
+          const result = await this.commentRepository
+            .createQueryBuilder('reply')
+            .select('COUNT(reply.id)', 'replyCount')
+            .where(
+              'reply.parentId IN (SELECT c.id FROM comments c WHERE c.user_id = :userId)',
+              { userId },
+            )
+            .getRawOne();
+          currentValue =
+            result && result.replyCount ? parseInt(result.replyCount, 10) : 0;
+          break;
         }
         default:
           return { progress: 0, currentValue: 0 };

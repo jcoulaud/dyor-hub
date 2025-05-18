@@ -221,8 +221,17 @@ export default function BadgesPage() {
               {Object.entries(requirementGroups).map(([requirement, requirementBadges]) => {
                 const requirementEnum = requirement as BadgeRequirement;
                 const earnedInGroup = requirementBadges.filter((b) => b.isAchieved).length;
+                const totalInGroup = requirementBadges.length;
                 const nextUnearned = requirementBadges.find((b) => !b.isAchieved);
                 const description = getDescriptionForRequirement(requirementEnum);
+
+                let lastAchievedInGroup: AvailableBadge | undefined = undefined;
+                if (earnedInGroup === totalInGroup && totalInGroup > 0) {
+                  // Sort by threshold descending to get the "highest" badge
+                  lastAchievedInGroup = [...requirementBadges]
+                    .filter((b) => b.isAchieved)
+                    .sort((a, b) => (b.thresholdValue || 0) - (a.thresholdValue || 0))[0];
+                }
 
                 return (
                   <section
@@ -310,8 +319,8 @@ export default function BadgesPage() {
                         </div>
                       </div>
 
-                      {/* Next milestone info */}
-                      {nextUnearned && (
+                      {/* Next milestone info or Last Achieved Info */}
+                      {nextUnearned ? (
                         <div className='bg-muted/30 p-3 rounded-lg flex items-center justify-between text-sm'>
                           <div>
                             <p className='text-muted-foreground text-xs mb-0.5'>Next milestone</p>
@@ -327,7 +336,29 @@ export default function BadgesPage() {
                             <Progress value={nextUnearned.progress} className='h-1.5 w-16 mt-1' />
                           </div>
                         </div>
-                      )}
+                      ) : lastAchievedInGroup ? (
+                        <div className='bg-green-500/10 p-3 rounded-lg flex items-center justify-between text-sm border border-green-500/30'>
+                          <div>
+                            <p className='text-green-600 dark:text-green-400 text-xs mb-0.5'>
+                              Category Complete!
+                            </p>
+                            <p className='font-medium'>{lastAchievedInGroup.name}</p>
+                            <p className='text-muted-foreground text-xs mt-0.5'>
+                              {lastAchievedInGroup.description}
+                            </p>
+                          </div>
+                          <div className='text-right'>
+                            <p className='font-semibold text-lg text-green-600 dark:text-green-400'>
+                              {lastAchievedInGroup.thresholdValue}/
+                              {lastAchievedInGroup.thresholdValue}
+                            </p>
+                            <Progress
+                              value={100}
+                              className='h-1.5 w-16 mt-1 [&>div]:bg-green-500'
+                            />
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </section>
                 );
