@@ -412,13 +412,13 @@ export function NotificationBell() {
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.2 }}
                   className={cn(
-                    'flex items-start gap-3 px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors',
-                    notification.isRead ? 'bg-opacity-50' : 'bg-zinc-800/10',
+                    'flex items-start gap-3 px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-700/50 transition-colors',
+                    notification.isRead ? '' : 'bg-zinc-800',
                   )}>
                   <div
                     className={cn(
                       'flex-1 overflow-hidden',
-                      notification.isRead ? 'opacity-70' : '',
+                      notification.isRead ? 'opacity-60' : '',
                     )}>
                     <Link
                       href={getNotificationLink(notification)}
@@ -431,7 +431,7 @@ export function NotificationBell() {
                       <p
                         className={cn(
                           'text-xs leading-snug mb-0.5 group-hover:text-sky-300 transition-colors',
-                          notification.isRead ? 'text-zinc-400' : 'text-zinc-200 font-medium',
+                          notification.isRead ? 'text-zinc-400' : 'text-white font-medium',
                         )}>
                         {sanitizeHtml(notification.message)}
                       </p>
