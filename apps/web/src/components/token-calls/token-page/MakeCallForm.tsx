@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError, tokenCalls, tokens } from '@/lib/api';
 import { cn, formatPrice } from '@/lib/utils';
@@ -960,6 +961,25 @@ export function MakeCallForm({
             <span>{format(selectedDate, 'MMMM d, yyyy')}</span>
           </div>
         )}
+      </div>
+
+      {/* Explanation Textarea */}
+      <div className='space-y-2'>
+        <Label htmlFor='explanation' className='text-sm font-medium text-zinc-300'>
+          Explanation <span className='text-zinc-400'>(Optional)</span>
+        </Label>
+        <Textarea
+          id='explanation'
+          value={explanation}
+          onChange={(e) => {
+            setExplanation(e.target.value);
+          }}
+          placeholder={'Why do you think the price will reach this target?'}
+          className={cn(
+            'bg-zinc-900 border-zinc-800 focus:border-blue-500 min-h-[80px] placeholder:text-zinc-500',
+          )}
+          disabled={isLoading || isCheckingPrice || isPriceInvalid}
+        />
       </div>
 
       {/* Error Display */}
