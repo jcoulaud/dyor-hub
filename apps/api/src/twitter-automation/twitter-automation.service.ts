@@ -58,9 +58,6 @@ export class TwitterAutomationService {
     };
 
     try {
-      this.logger.log(
-        `Fetching trending tokens from Birdeye. Url: ${url}, Params: ${JSON.stringify(params)}`,
-      );
       const response = await firstValueFrom(
         this.httpService.get<BirdeyeTokenListResponseDto>(url, {
           params,
@@ -74,9 +71,6 @@ export class TwitterAutomationService {
         response.data.data &&
         response.data.data.items
       ) {
-        this.logger.log(
-          `Successfully fetched ${response.data.data.items.length} tokens.`,
-        );
         return response.data.data.items;
       } else {
         this.logger.warn(
@@ -136,9 +130,6 @@ export class TwitterAutomationService {
             new Date(listingTimeMs),
             { addSuffix: true },
           );
-          this.logger.log(
-            `Using recent_listing_time for ${token.symbol} (${token.address}): ${humanReadableAge}`,
-          );
         } else {
           this.logger.warn(
             `recent_listing_time not available for ${token.symbol} (${token.address}). Falling back to getTokenAgeInDays.`,
@@ -195,9 +186,6 @@ export class TwitterAutomationService {
       ageInDays,
       humanReadableAge,
     } = selectedTokenAnalytics;
-    this.logger.log(
-      `Selected token for analysis: ${tokenName} (${selectedToken.symbol}), Address: ${selectedToken.address}, Age: ${humanReadableAge} (${ageInDays.toFixed(2)} days)`,
-    );
 
     const now = Math.floor(Date.now() / 1000);
     const timeTo = now;
@@ -211,10 +199,6 @@ export class TwitterAutomationService {
     };
 
     try {
-      this.logger.log(
-        `Requesting AI analysis for ${tokenName} via TokenAiTechnicalAnalysisService...`,
-      );
-
       const analysisResultObj: OrchestrationResult =
         await this.tokenAiTechnicalAnalysisService.prepareAndExecuteAnalysis(
           analysisRequestDto,
@@ -231,23 +215,16 @@ export class TwitterAutomationService {
       }
       const analysisOutput: ChartWhispererOutput =
         analysisResultObj.analysisOutput;
-      this.logger.log(
-        `AI Analysis received for ${tokenName}: ${analysisOutput.bottomLine}`,
-      );
 
       const twitterPostText = this.formatTwitterPost(
         selectedToken,
         analysisOutput,
         humanReadableAge,
       );
-      this.logger.log(`Formatted Twitter post: ${twitterPostText}`);
 
       const tweetId = await this.twitterService.postTweet(twitterPostText);
 
       if (tweetId) {
-        this.logger.log(
-          `Successfully posted tweet with ID: ${tweetId} for token ${selectedToken.address}`,
-        );
         await this.tweetRepository.save(
           this.tweetRepository.create({
             tweetId: tweetId,
@@ -260,9 +237,6 @@ export class TwitterAutomationService {
               tokenAgeHuman: humanReadableAge,
             },
           }),
-        );
-        this.logger.log(
-          `Tweet for token ${selectedToken.address} (Tweet ID: ${tweetId}) recorded in the database.`,
         );
       } else {
         this.logger.error(
@@ -288,18 +262,17 @@ export class TwitterAutomationService {
     const dyorHubTokenLink = `https://dyorhub.xyz/tokens/${token.address}`;
 
     let post = `📢 Daily AI Trading Analysis from DYOR Hub 📢\n\n`;
-    post += `Token: ${token.name} ($${token.symbol})\n`;
+    post += `Token (trending): ${token.name} ($${token.symbol})\n`;
+    post += `CA: ${token.address}\n`;
     post += `Age: ${tokenAge}\n`;
     post += `View on DYOR Hub: ${dyorHubTokenLink}\n\n`;
-    post += `--- Summary ---ikopter
-`; // Using an emoji as a separator, can be changed
+
+    post += `--- Summary ---\n\n`;
     post += `🔑 Key Takeaway: ${analysis.bottomLine}\n`;
     post += `📊 Market Sentiment: ${analysis.marketSentiment}\n`;
-    post += `🗣️ Unfiltered Truth: ${analysis.unfilteredTruth}\n
-`;
+    post += `🗣️ Unfiltered Truth: ${analysis.unfilteredTruth}\n\n`;
 
-    post += `--- Detailed Analysis ---ikopter
-`;
+    post += `--- Detailed Analysis ---\n\n`;
     if (analysis.decodedStory) {
       if (analysis.decodedStory.priceJourney) {
         post += `📈 Price Journey: ${analysis.decodedStory.priceJourney}\n\n`;
@@ -322,8 +295,7 @@ export class TwitterAutomationService {
     }
 
     if (analysis.ratings) {
-      post += `--- Ratings (1-10) ---ikopter
-`;
+      post += `--- Ratings (1-10) ---\n\n`;
       if (analysis.ratings.priceStrength) {
         post += `💪 Price Strength: ${analysis.ratings.priceStrength.score}/10 (${analysis.ratings.priceStrength.explanation})\n`;
       }
@@ -343,12 +315,11 @@ export class TwitterAutomationService {
     }
 
     if (analysis.tradingOpinion) {
-      post += `--- Trading Opinion ---ikopter
-`;
+      post += `--- Trading Opinion ---\n\n`;
       post += `${analysis.tradingOpinion}\n\n`;
     }
 
-    post += `#${token.symbol} #Crypto #Solana #TradingAnalysis #AI #DYORHub #DYOR`;
+    post += `#${token.symbol} #Solana #TradingAnalysis #DYORHub #DYOR`;
 
     return post;
   }
