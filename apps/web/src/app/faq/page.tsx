@@ -222,7 +222,7 @@ const FAQPage = () => {
                 className='text-indigo-400 hover:text-indigo-300 underline'>
                 @DYORhub
               </a>{' '}
-              with #DYORContest.
+              with #DYORHubContest.
             </li>
           </ul>
           <p className='mt-2 text-sm text-gray-500 italic'>
