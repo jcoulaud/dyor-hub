@@ -12,6 +12,7 @@ export * from './token-sentiment.entity';
 export * from './token-watchlist-folder-item.entity';
 export * from './token-watchlist.entity';
 export * from './token.entity';
+export * from './tweet.entity';
 export * from './twitter-username-history.entity';
 export * from './user-activity.entity';
 export * from './user-badge.entity';
