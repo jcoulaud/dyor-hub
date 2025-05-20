@@ -718,16 +718,16 @@ export function TokenAiTradingAnalysis({
                       </h4>
 
                       <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 px-3 text-sm'>
-                        {analysisData.analysisOutput.ratings.priceStrength && (
+                        {analysisData.analysisOutput.ratings.marketcapStrength && (
                           <div className='bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/30'>
                             <div className='flex justify-between items-center mb-1'>
-                              <span className='text-zinc-300'>Price Strength</span>
+                              <span className='text-zinc-300'>Marketcap Strength</span>
                               <span className='text-lg font-bold text-teal-400'>
-                                {analysisData.analysisOutput.ratings.priceStrength.score}/10
+                                {analysisData.analysisOutput.ratings.marketcapStrength.score}/10
                               </span>
                             </div>
                             <p className='text-xs text-zinc-400'>
-                              {analysisData.analysisOutput.ratings.priceStrength.explanation}
+                              {analysisData.analysisOutput.ratings.marketcapStrength.explanation}
                             </p>
                           </div>
                         )}
@@ -793,14 +793,14 @@ export function TokenAiTradingAnalysis({
 
                   {analysisData.analysisOutput.decodedStory && (
                     <div className='space-y-4'>
-                      {analysisData.analysisOutput.decodedStory.priceJourney && (
+                      {analysisData.analysisOutput.decodedStory.marketcapJourney && (
                         <div className='mb-3'>
                           <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
                             <LineChart className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
-                            <span className='text-teal-400'>Price Journey</span>
+                            <span className='text-teal-400'>Marketcap Journey</span>
                           </h4>
                           <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
-                            {analysisData.analysisOutput.decodedStory.priceJourney}
+                            {analysisData.analysisOutput.decodedStory.marketcapJourney}
                           </p>
                         </div>
                       )}
@@ -821,7 +821,7 @@ export function TokenAiTradingAnalysis({
                         <div className='mb-3'>
                           <h4 className='text-sm font-medium text-zinc-200 mb-1.5 flex items-center'>
                             <Users className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
-                            <span className='text-teal-400'>Key Price Levels</span>
+                            <span className='text-teal-400'>Key Marketcap Levels</span>
                           </h4>
                           <p className='text-sm text-zinc-300 whitespace-pre-wrap pl-5'>
                             {analysisData.analysisOutput.decodedStory.keyLevels}

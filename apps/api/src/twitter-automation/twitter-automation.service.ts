@@ -274,8 +274,8 @@ export class TwitterAutomationService {
 
     post += `--- Detailed Analysis ---\n\n`;
     if (analysis.decodedStory) {
-      if (analysis.decodedStory.priceJourney) {
-        post += `📈 Price Journey: ${analysis.decodedStory.priceJourney}\n\n`;
+      if (analysis.decodedStory.marketcapJourney) {
+        post += `📈 Marketcap Journey: ${analysis.decodedStory.marketcapJourney}\n\n`;
       }
       if (analysis.decodedStory.momentum) {
         post += `💨 Momentum: ${analysis.decodedStory.momentum}\n\n`;
@@ -296,8 +296,8 @@ export class TwitterAutomationService {
 
     if (analysis.ratings) {
       post += `--- Ratings (1-10) ---\n\n`;
-      if (analysis.ratings.priceStrength) {
-        post += `💪 Price Strength: ${analysis.ratings.priceStrength.score}/10 (${analysis.ratings.priceStrength.explanation})\n`;
+      if (analysis.ratings.marketcapStrength) {
+        post += `💪 Marketcap Strength: ${analysis.ratings.marketcapStrength.score}/10 (${analysis.ratings.marketcapStrength.explanation})\n`;
       }
       if (analysis.ratings.momentum) {
         post += `💨 Momentum: ${analysis.ratings.momentum.score}/10 (${analysis.ratings.momentum.explanation})\n`;

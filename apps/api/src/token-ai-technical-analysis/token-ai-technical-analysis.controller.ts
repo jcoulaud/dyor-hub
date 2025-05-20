@@ -89,7 +89,7 @@ export class TokenAiTechnicalAnalysisController {
     @Body() aiAnalysisRequestDto: AiAnalysisRequestDto,
     @CurrentUser() user: UserEntity,
   ): Promise<{ success: boolean; message: string }> {
-    const { tokenAddress, timeFrom, timeTo, sessionId } = aiAnalysisRequestDto;
+    const { tokenAddress, sessionId } = aiAnalysisRequestDto;
 
     if (!sessionId) {
       throw new BadRequestException(
@@ -262,6 +262,12 @@ export class TokenAiTechnicalAnalysisController {
       // Initial progress update
       progressCallback(5, 'Starting analysis...');
 
+      // Fetch token overview to get marketcap
+      const { tokenAddress } = requestDto;
+      const tokenOverview =
+        await this.tokensService.fetchTokenOverview(tokenAddress);
+      const marketCap = tokenOverview?.marketCap || 0;
+
       // Perform the actual analysis with detailed progress reporting
       const analysisResult =
         await this.tokenAiTechnicalAnalysisService.prepareAndExecuteAnalysis(
@@ -269,10 +275,11 @@ export class TokenAiTechnicalAnalysisController {
           tokenName,
           tokenAgeInDays,
           progressCallback,
+          marketCap,
         );
 
       // Deduct credits after successful analysis
-      const { tokenAddress, timeFrom, timeTo } = requestDto;
+      const { timeFrom, timeTo } = requestDto;
       const detailsString = `AI Trading Analysis for ${tokenName} (${tokenAddress}) from ${new Date(
         timeFrom * 1000,
       ).toISOString()} to ${new Date(timeTo * 1000).toISOString()}`;
@@ -334,7 +341,7 @@ export class TokenAiTechnicalAnalysisController {
     @Body() aiAnalysisRequestDto: AiAnalysisRequestDto,
     @CurrentUser() user: UserEntity,
   ): Promise<any> {
-    const { tokenAddress, timeFrom, timeTo } = aiAnalysisRequestDto;
+    const { tokenAddress } = aiAnalysisRequestDto;
 
     const token = await this.tokensService.getTokenData(tokenAddress);
     if (!token || !token.name || !token.creationTime) {
@@ -350,6 +357,11 @@ export class TokenAiTechnicalAnalysisController {
       0,
       Math.floor(tokenAgeInMilliseconds / (1000 * 60 * 60 * 24)),
     );
+
+    // Fetch token overview to get marketcap
+    const tokenOverview =
+      await this.tokensService.fetchTokenOverview(tokenAddress);
+    const marketCap = tokenOverview?.marketCap || 0;
 
     const creditCost = this.calculateAiTaCreditCost();
 
@@ -388,10 +400,13 @@ export class TokenAiTechnicalAnalysisController {
           aiAnalysisRequestDto,
           tokenName,
           tokenAgeInDays,
+          undefined,
+          marketCap,
         );
 
       // Deduct credits only after successful analysis
       try {
+        const { timeFrom, timeTo } = aiAnalysisRequestDto;
         const detailsString = `AI Trading Analysis for ${tokenName} (${tokenAddress}) from ${new Date(
           timeFrom * 1000,
         ).toISOString()} to ${new Date(timeTo * 1000).toISOString()}`;

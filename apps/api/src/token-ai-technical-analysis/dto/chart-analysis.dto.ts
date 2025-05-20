@@ -50,4 +50,8 @@ export class ChartAnalysisDto {
   @IsJSON()
   @IsOptional()
   priceReferencesJson?: string;
+
+  @IsNumber()
+  @IsOptional()
+  marketCap?: number;
 }
