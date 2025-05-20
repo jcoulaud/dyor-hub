@@ -21,10 +21,6 @@ import {
 
 const enableTwitterPostCron = process.env.NODE_ENV === 'production';
 
-const twitterPostCronExpressionToUse = enableTwitterPostCron
-  ? CronExpression.EVERY_DAY_AT_6PM
-  : '0 0 0 31 2 ?'; // Cron for Feb 31st, which never occurs
-
 @Injectable()
 export class TwitterAutomationService {
   private readonly logger = new Logger(TwitterAutomationService.name);
@@ -99,11 +95,14 @@ export class TwitterAutomationService {
     }
   }
 
-  @Cron(twitterPostCronExpressionToUse, { timeZone: 'UTC' })
+  @Cron(CronExpression.EVERY_DAY_AT_6PM, {
+    timeZone: 'UTC',
+    disabled: !enableTwitterPostCron,
+  })
   async handleDailyTwitterPost() {
     if (!enableTwitterPostCron) {
       this.logger.warn(
-        'Daily Twitter post job is configured with a never-run schedule for this environment (NODE_ENV: %s). Execution is skipped. If this method was triggered, it might be due to manual invocation or scheduler misconfiguration with the "never-run" pattern.',
+        'Daily Twitter post job is disabled for this environment (NODE_ENV: %s). Execution should have been skipped by decorator.',
         process.env.NODE_ENV,
       );
       return;
