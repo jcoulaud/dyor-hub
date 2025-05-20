@@ -1340,18 +1340,6 @@ export const users = {
     }
   },
 
-  getMyDyorhubBalance: async (): Promise<{ balance: number }> => {
-    try {
-      const endpoint = 'wallets/me/dyorhub-balance';
-      const data = await api<{ balance: number }>(endpoint);
-      return data;
-    } catch (error) {
-      console.error('[getMyDyorhubBalance] Error fetching balance:', error);
-
-      return { balance: 0 };
-    }
-  },
-
   search: async (query: string, limit: number = 10): Promise<UserSearchResult[]> => {
     try {
       const params = new URLSearchParams();
@@ -1364,6 +1352,10 @@ export const users = {
       console.error(`Error searching users with query "${query}":`, error);
       return [];
     }
+  },
+
+  async getMyDyorhubBalance(): Promise<{ balance: number }> {
+    return api<{ balance: number }>('users/me/platform-token-balance');
   },
 };
 

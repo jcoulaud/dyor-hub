@@ -21,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { tokenCalls, tokens, watchlist } from '@/lib/api';
+import { tokenCalls, tokens, users, watchlist } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import {
@@ -95,7 +95,7 @@ export default function Page({ params, commentId }: PageProps) {
   const { mintAddress } = use(params);
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuthContext();
+  const { user, isAuthenticated, isLoading } = useAuthContext();
   const commentIdFromProps =
     commentId || (pathname && pathname.includes('/comments/'))
       ? pathname?.split('/comments/')[1]?.split('/')[0]
@@ -105,12 +105,12 @@ export default function Page({ params, commentId }: PageProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [tokenData, setTokenData] = useState<TokenWithWatchlistStatus | null>(null);
   const [tokenStatsData, setTokenStatsData] = useState<TokenStatsType | null>(null);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [isHeaderLoaded, setIsHeaderLoaded] = useState(false);
   const [sentimentData, setSentimentData] = useState<TokenSentimentStats | null>(null);
   const [isVoting, setIsVoting] = useState(false);
   const [userCalls, setUserCalls] = useState<TokenCall[]>([]);
   const [isLoadingUserCalls, setIsLoadingUserCalls] = useState<boolean>(true);
-  const [isLoading, setIsLoading] = useState(true);
   const [tokenHistoryData, setTokenHistoryData] = useState<TwitterUsernameHistoryEntity | null>(
     null,
   );
@@ -118,6 +118,7 @@ export default function Page({ params, commentId }: PageProps) {
   const [showEmbedDialog, setShowEmbedDialog] = useState(false);
   const commentSectionRef = useRef<CommentSectionHandle>(null);
   const [isVerifyingCreator, setIsVerifyingCreator] = useState(false);
+  const [userDyorHubBalance, setUserDyorHubBalance] = useState<number | undefined>(undefined);
 
   const { toast } = useToast();
 
@@ -244,7 +245,7 @@ export default function Page({ params, commentId }: PageProps) {
   useEffect(() => {
     let isMounted = true;
     const fetchData = async () => {
-      setIsLoading(true);
+      setIsPageLoading(true);
       setIsHeaderLoaded(false);
       setIsLoadingUserCalls(true);
       setUserCalls([]);
@@ -314,7 +315,9 @@ export default function Page({ params, commentId }: PageProps) {
         }
       } catch {
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) {
+          setIsPageLoading(false);
+        }
       }
     };
 
@@ -322,7 +325,7 @@ export default function Page({ params, commentId }: PageProps) {
     return () => {
       isMounted = false;
     };
-  }, [mintAddress, user?.id, isAuthenticated, isAuthLoading]);
+  }, [mintAddress, user?.id, isAuthenticated, isLoading]);
 
   useEffect(() => {
     const fetchSentimentData = async () => {
@@ -338,6 +341,22 @@ export default function Page({ params, commentId }: PageProps) {
 
     fetchSentimentData();
   }, [mintAddress, tokenData]);
+
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      users
+        .getMyDyorhubBalance()
+        .then((data) => {
+          setUserDyorHubBalance(data.balance);
+        })
+        .catch((err) => {
+          console.error('Error fetching user DYORHUB balance:', err);
+          setUserDyorHubBalance(undefined);
+        });
+    } else {
+      setUserDyorHubBalance(undefined);
+    }
+  }, [isAuthenticated, user?.id]);
 
   const currentPrice = tokenStatsData?.price ?? 0;
   const isPriceValid = currentPrice > 0;
@@ -440,7 +459,7 @@ export default function Page({ params, commentId }: PageProps) {
           <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-300'></div>
           <Card className='relative w-full border-0 bg-black/60 backdrop-blur-md shadow-xl rounded-xl overflow-hidden'>
             <CardContent className='p-4 relative'>
-              {isLoading || !isHeaderLoaded ? (
+              {isPageLoading || !isHeaderLoaded ? (
                 <div className='flex items-start gap-4'>
                   <Skeleton className='w-16 h-16 rounded-full' />
                   <div className='flex-1 min-w-0'>
@@ -736,7 +755,7 @@ export default function Page({ params, commentId }: PageProps) {
 
         {/* Trading Analysis Buttons */}
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-5 my-6'>
-          {isLoading || !isHeaderLoaded ? (
+          {isPageLoading || !isHeaderLoaded ? (
             <>
               <Skeleton className='h-14 w-full rounded-lg' />
               <Skeleton className='h-14 w-full rounded-lg' />
@@ -747,6 +766,7 @@ export default function Page({ params, commentId }: PageProps) {
               <TokenAiTradingAnalysis
                 mintAddress={mintAddress}
                 tokenCreationTime={tokenData?.creationTime}
+                userPlatformTokenBalance={userDyorHubBalance}
               />
               <TokenHolderAnalysisInfo mintAddress={mintAddress} />
               <EarlyBuyersInfo mintAddress={mintAddress} />
@@ -783,7 +803,7 @@ export default function Page({ params, commentId }: PageProps) {
                   <div className='w-full h-0.5 bg-gradient-to-r from-blue-500/20 to-transparent'></div>
                 </CardHeader>
                 <CardContent className='relative pt-0'>
-                  {isLoading || !isHeaderLoaded ? (
+                  {isPageLoading || !isHeaderLoaded ? (
                     <div className='space-y-6 py-4'>
                       <div className='space-y-3'>
                         <Skeleton className='h-5 w-24' />

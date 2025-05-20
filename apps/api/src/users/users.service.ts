@@ -7,11 +7,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, ILike, IsNull, Not, Repository } from 'typeorm';
+import { DYORHUB_CONTRACT_ADDRESS } from '../common/constants';
 import { CommentVoteEntity } from '../entities/comment-vote.entity';
 import { CommentEntity } from '../entities/comment.entity';
 import { UserReputationEntity } from '../entities/user-reputation.entity';
 import { UserStreakEntity } from '../entities/user-streak.entity';
 import { UserEntity } from '../entities/user.entity';
+import { WalletsService } from '../wallets/wallets.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserActivityDto } from './dto/user-activity.dto';
 import { UserStatsDto } from './dto/user-stats.dto';
@@ -56,6 +58,7 @@ export class UsersService {
     private readonly userStreakRepository: Repository<UserStreakEntity>,
     private readonly configService: ConfigService,
     private readonly entityManager: EntityManager,
+    private readonly walletsService: WalletsService,
   ) {
     this.isProduction = this.configService.get('NODE_ENV') === 'production';
   }
@@ -93,6 +96,33 @@ export class UsersService {
     } catch (error) {
       this.logger.error(`Error finding user with username ${username}:`, error);
       throw error;
+    }
+  }
+
+  async getUserPlatformTokenBalance(
+    userId: string,
+  ): Promise<{ balance: number }> {
+    try {
+      const primaryWallet =
+        await this.walletsService.getUserPrimaryWallet(userId);
+      if (!primaryWallet || !primaryWallet.isVerified) {
+        this.logger.debug(
+          `User ${userId} has no primary verified wallet for platform token balance check.`,
+        );
+        return { balance: 0 };
+      }
+
+      const balance = await this.walletsService.getSplTokenBalance(
+        primaryWallet.address,
+        DYORHUB_CONTRACT_ADDRESS,
+      );
+      return { balance };
+    } catch (error) {
+      this.logger.error(
+        `Error fetching platform token balance for user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      return { balance: 0 };
     }
   }
 

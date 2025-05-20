@@ -27,6 +27,7 @@ import { UserResponseDto } from '../auth/dto/user-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
 import { UserFollows } from '../entities';
+import { UserEntity } from '../entities/user.entity';
 import { UpdateFollowPreferencesDto } from '../follows/dto/update-follow-preferences.dto';
 import { FollowsService } from '../follows/follows.service';
 import { TokenCallsService } from '../token-calls/token-calls.service';
@@ -86,6 +87,32 @@ export class UsersController {
       user.id,
       updatePreferencesDto.preferences,
     );
+  }
+
+  // @UseGuards(JwtAuthGuard)
+  // @Get('me')
+  // async getMyProfile(
+  //   @CurrentUser() user: UserEntity,
+  // ): Promise<UserResponseDto> {
+  //   const fullUser = await this.usersService.findById(user.id);
+  //   if (!fullUser) {
+  //     throw new NotFoundException('User not found.');
+  //   }
+  //   return UserResponseDto.fromEntity(fullUser);
+  // }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/platform-token-balance')
+  async getMyPlatformTokenBalance(
+    @CurrentUser() currentUser: UserEntity,
+  ): Promise<{ balance: number }> {
+    if (!currentUser?.id) {
+      this.logger.warn(
+        'getMyPlatformTokenBalance called without authenticated user.',
+      );
+      throw new NotFoundException('User not found for platform token balance.');
+    }
+    return this.usersService.getUserPlatformTokenBalance(currentUser.id);
   }
 
   @UseGuards(JwtAuthGuard)
