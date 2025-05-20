@@ -261,24 +261,24 @@ export class TwitterAutomationService {
   ): string {
     const dyorHubTokenLink = `https://dyorhub.xyz/tokens/${token.address}`;
 
-    let post = `📢 Daily AI Trading Analysis from DYOR Hub 📢\n\n`;
+    let post = `📢 Daily automatic AI Trading Analysis from DYOR Hub 📢\n\n`;
     post += `Token (trending): ${token.name} ($${token.symbol})\n`;
     post += `CA: ${token.address}\n`;
     post += `Age: ${tokenAge}\n`;
     post += `View on DYOR Hub: ${dyorHubTokenLink}\n\n`;
 
-    post += `--- Summary ---\n\n`;
-    post += `🔑 Key Takeaway: ${analysis.bottomLine}\n`;
-    post += `📊 Market Sentiment: ${analysis.marketSentiment}\n`;
+    post += `--- SUMMARY ---\n\n`;
+    post += `🔑 Key Takeaway: ${analysis.bottomLine}\n\n`;
+    post += `📊 Market Sentiment: ${analysis.marketSentiment}\n\n`;
     post += `🗣️ Unfiltered Truth: ${analysis.unfilteredTruth}\n\n`;
 
-    post += `--- Detailed Analysis ---\n\n`;
+    post += `--- DETAILED ANALYSIS ---\n\n`;
     if (analysis.decodedStory) {
       if (analysis.decodedStory.marketcapJourney) {
         post += `📈 Marketcap Journey: ${analysis.decodedStory.marketcapJourney}\n\n`;
       }
       if (analysis.decodedStory.momentum) {
-        post += `💨 Momentum: ${analysis.decodedStory.momentum}\n\n`;
+        post += `⚡ Momentum: ${analysis.decodedStory.momentum}\n\n`;
       }
       if (analysis.decodedStory.keyLevels) {
         post += `📉 Key Levels (Support/Resistance): ${analysis.decodedStory.keyLevels}\n\n`;
@@ -295,18 +295,18 @@ export class TwitterAutomationService {
     }
 
     if (analysis.ratings) {
-      post += `--- Ratings (1-10) ---\n\n`;
+      post += `--- RATINGS (1-10) ---\n\n`;
       if (analysis.ratings.marketcapStrength) {
-        post += `💪 Marketcap Strength: ${analysis.ratings.marketcapStrength.score}/10 (${analysis.ratings.marketcapStrength.explanation})\n`;
+        post += `💪 Marketcap Strength: ${analysis.ratings.marketcapStrength.score}/10 (${analysis.ratings.marketcapStrength.explanation})\n\n`;
       }
       if (analysis.ratings.momentum) {
-        post += `💨 Momentum: ${analysis.ratings.momentum.score}/10 (${analysis.ratings.momentum.explanation})\n`;
+        post += `⚡ Momentum: ${analysis.ratings.momentum.score}/10 (${analysis.ratings.momentum.explanation})\n\n`;
       }
       if (analysis.ratings.buyPressure) {
-        post += `📈 Buy Pressure: ${analysis.ratings.buyPressure.score}/10 (${analysis.ratings.buyPressure.explanation})\n`;
+        post += `📈 Buy Pressure: ${analysis.ratings.buyPressure.score}/10 (${analysis.ratings.buyPressure.explanation})\n\n`;
       }
       if (analysis.ratings.volumeQuality) {
-        post += `💧 Volume Quality: ${analysis.ratings.volumeQuality.score}/10 (${analysis.ratings.volumeQuality.explanation})\n`;
+        post += `💧 Volume Quality: ${analysis.ratings.volumeQuality.score}/10 (${analysis.ratings.volumeQuality.explanation})\n\n`;
       }
       if (analysis.ratings.overallSentiment) {
         post += `💬 Overall Sentiment: ${analysis.ratings.overallSentiment.score}/10 (${analysis.ratings.overallSentiment.explanation})\n`;
@@ -315,11 +315,11 @@ export class TwitterAutomationService {
     }
 
     if (analysis.tradingOpinion) {
-      post += `--- Trading Opinion ---\n\n`;
+      post += `--- TRADING OPINION ---\n\n`;
       post += `${analysis.tradingOpinion}\n\n`;
     }
 
-    post += `#${token.symbol} #Solana #TradingAnalysis #DYORHub #DYOR`;
+    post += `#${token.symbol} #DYORHub #DYOR`;
 
     return post;
   }
