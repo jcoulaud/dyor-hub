@@ -19,6 +19,12 @@ import {
   BirdeyeTokenListResponseDto,
 } from './dto/birdeye-token.dto';
 
+const enableTwitterPostCron = process.env.NODE_ENV === 'production';
+
+const twitterPostCronExpressionToUse = enableTwitterPostCron
+  ? CronExpression.EVERY_DAY_AT_6PM
+  : '0 0 0 31 2 ?'; // Cron for Feb 31st, which never occurs
+
 @Injectable()
 export class TwitterAutomationService {
   private readonly logger = new Logger(TwitterAutomationService.name);
@@ -93,8 +99,15 @@ export class TwitterAutomationService {
     }
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_6PM, { timeZone: 'UTC' })
+  @Cron(twitterPostCronExpressionToUse, { timeZone: 'UTC' })
   async handleDailyTwitterPost() {
+    if (!enableTwitterPostCron) {
+      this.logger.warn(
+        'Daily Twitter post job is configured with a never-run schedule for this environment (NODE_ENV: %s). Execution is skipped. If this method was triggered, it might be due to manual invocation or scheduler misconfiguration with the "never-run" pattern.',
+        process.env.NODE_ENV,
+      );
+      return;
+    }
     this.logger.log('Starting daily Twitter post job...');
 
     const trendingTokens = await this.getTrendingTokens();
