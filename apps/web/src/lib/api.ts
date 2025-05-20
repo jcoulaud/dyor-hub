@@ -92,7 +92,7 @@ export interface AiTradingAnalysisRequestPayload {
 }
 
 export interface AiTradingAnalysisDecodedStory {
-  priceJourney?: string;
+  marketcapJourney?: string;
   momentum?: string;
   keyLevels?: string;
   tradingActivity?: string;
@@ -106,7 +106,7 @@ export interface RatingItem {
 }
 
 export interface TradingAnalysisRatings {
-  priceStrength?: RatingItem;
+  marketcapStrength?: RatingItem;
   momentum?: RatingItem;
   buyPressure?: RatingItem;
   volumeQuality?: RatingItem;

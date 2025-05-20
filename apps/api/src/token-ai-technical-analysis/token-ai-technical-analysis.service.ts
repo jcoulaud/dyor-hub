@@ -313,6 +313,7 @@ export class TokenAiTechnicalAnalysisService {
     tokenName: string,
     tokenAgeInDays: number,
     progressCallback?: (percent: number, stage: string) => void,
+    marketCap?: number,
   ): Promise<OrchestrationResult> {
     const {
       tokenAddress,
@@ -424,6 +425,7 @@ export class TokenAiTechnicalAnalysisService {
       timeTo: clientTimeTo,
       tradeDataJson: JSON.stringify(tradeData),
       priceReferencesJson: JSON.stringify(priceReferences),
+      marketCap,
     };
 
     try {

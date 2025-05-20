@@ -9,19 +9,19 @@ const RatingSchema = z.object({
 });
 
 const DecodedStorySchema = z.object({
-  priceJourney: z
+  marketcapJourney: z
     .string()
     .describe(
-      'Brief description of the key price movements with exact $ figures and % changes.',
+      'Brief description of the key marketcap movements with exact $ figures and % changes.',
     ),
   momentum: z
     .string()
     .describe(
-      'Analysis of current price momentum including trading activity and volume patterns.',
+      'Analysis of current marketcap momentum including trading activity and volume patterns.',
     ),
   keyLevels: z
     .string()
-    .describe('Important support/resistance price zones with $ values.'),
+    .describe('Important support/resistance marketcap zones with $ values.'),
   tradingActivity: z
     .string()
     .describe(
@@ -40,7 +40,9 @@ const DecodedStorySchema = z.object({
 });
 
 const RatingsSchema = z.object({
-  priceStrength: RatingSchema.describe('Rating for current price strength'),
+  marketcapStrength: RatingSchema.describe(
+    'Rating for current marketcap strength',
+  ),
   momentum: RatingSchema.describe('Rating for momentum'),
   buyPressure: RatingSchema.describe('Rating for buying pressure'),
   volumeQuality: RatingSchema.describe('Rating for volume quality'),
@@ -54,7 +56,7 @@ const ChartWhispererSchema = z
     unfilteredTruth: z
       .string()
       .describe(
-        'A direct, no-BS sentence summarizing the current price action in casual language.',
+        'A direct, no-BS sentence summarizing the current marketcap action in casual language.',
       ),
     decodedStory: DecodedStorySchema.describe(
       'Detailed analysis sections written in casual, direct language.',
@@ -64,7 +66,9 @@ const ChartWhispererSchema = z
     ),
     marketSentiment: z
       .string()
-      .describe('The overall mood based on price action and trading patterns.'),
+      .describe(
+        'The overall mood based on marketcap action and trading patterns.',
+      ),
     bottomLine: z
       .string()
       .describe(
@@ -129,41 +133,88 @@ export class AiAnalysisService {
       priceReferencesJson,
       timeFrom,
       timeTo,
+      marketCap,
     } = input;
 
-    // Parse OHLCV data to find min, max prices and calculate % gain
-    let minPrice = Infinity;
-    let maxPrice = 0;
-    let firstPrice = 0;
-    let lastPrice = 0;
-    let priceChangePercent = 0;
+    // Parse OHLCV data to find min, max marketcaps and calculate % gain
+    let minMarketcap = Infinity;
+    let maxMarketcap = 0;
+    let firstMarketcap = 0;
+    let lastMarketcap = 0;
+    let marketcapChangePercent = 0;
     let allTimeHighGainPercent = 0;
     let firstTimestamp = 0;
     let lastTimestamp = 0;
-    let maxPriceTimestamp = 0;
-    let minPriceTimestamp = 0;
+    let maxMarketcapTimestamp = 0;
+    let minMarketcapTimestamp = 0;
+    let ohlcvParsedData: any[] = [];
 
     try {
-      const ohlcvData = JSON.parse(ohlcvDataJson);
-      if (Array.isArray(ohlcvData) && ohlcvData.length > 0) {
-        firstPrice = ohlcvData[0].o;
-        lastPrice = ohlcvData[ohlcvData.length - 1].c;
-        firstTimestamp = ohlcvData[0].unixTime;
-        lastTimestamp = ohlcvData[ohlcvData.length - 1].unixTime;
+      ohlcvParsedData = JSON.parse(ohlcvDataJson);
+      if (Array.isArray(ohlcvParsedData) && ohlcvParsedData.length > 0) {
+        // If we have a current marketcap value, use it and calculate historical values
+        // using relative price changes
+        if (marketCap && marketCap > 0) {
+          lastMarketcap = marketCap;
+          const lastPrice = ohlcvParsedData[ohlcvParsedData.length - 1].c;
+          firstTimestamp = ohlcvParsedData[0].unixTime;
+          lastTimestamp = ohlcvParsedData[ohlcvParsedData.length - 1].unixTime;
 
-        ohlcvData.forEach((candle) => {
-          if (candle.l < minPrice) {
-            minPrice = candle.l;
-            minPriceTimestamp = candle.unixTime;
-          }
-          if (candle.h > maxPrice) {
-            maxPrice = candle.h;
-            maxPriceTimestamp = candle.unixTime;
-          }
-        });
+          // Calculate first marketcap based on price ratio
+          const firstPrice = ohlcvParsedData[0].o;
+          firstMarketcap = marketCap * (firstPrice / lastPrice);
 
-        priceChangePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
-        allTimeHighGainPercent = ((maxPrice - firstPrice) / firstPrice) * 100;
+          let lowestPrice = Infinity;
+          let highestPrice = 0;
+
+          ohlcvParsedData.forEach((candle) => {
+            if (candle.l < lowestPrice) {
+              lowestPrice = candle.l;
+              minMarketcapTimestamp = candle.unixTime;
+            }
+            if (candle.h > highestPrice) {
+              highestPrice = candle.h;
+              maxMarketcapTimestamp = candle.unixTime;
+            }
+          });
+
+          // Calculate min and max marketcap based on price ratios
+          minMarketcap = marketCap * (lowestPrice / lastPrice);
+          maxMarketcap = marketCap * (highestPrice / lastPrice);
+
+          marketcapChangePercent =
+            ((lastMarketcap - firstMarketcap) / firstMarketcap) * 100;
+          allTimeHighGainPercent =
+            ((maxMarketcap - firstMarketcap) / firstMarketcap) * 100;
+        } else {
+          // Fallback to using price data if marketcap is not available
+          const firstPrice = ohlcvParsedData[0].o;
+          const lastPrice = ohlcvParsedData[ohlcvParsedData.length - 1].c;
+          firstTimestamp = ohlcvParsedData[0].unixTime;
+          lastTimestamp = ohlcvParsedData[ohlcvParsedData.length - 1].unixTime;
+
+          // Use arbitrary base value for marketcap visualization
+          const baseValue = 1000000;
+          lastMarketcap = baseValue;
+          firstMarketcap = baseValue * (firstPrice / lastPrice);
+
+          ohlcvParsedData.forEach((candle) => {
+            // Calculate min and max marketcap directly from candle low and high values
+            if (candle.l < minMarketcap) {
+              minMarketcap = baseValue * (candle.l / lastPrice);
+              minMarketcapTimestamp = candle.unixTime;
+            }
+            if (candle.h > maxMarketcap) {
+              maxMarketcap = baseValue * (candle.h / lastPrice);
+              maxMarketcapTimestamp = candle.unixTime;
+            }
+          });
+
+          marketcapChangePercent =
+            ((lastMarketcap - firstMarketcap) / firstMarketcap) * 100;
+          allTimeHighGainPercent =
+            ((maxMarketcap - firstMarketcap) / firstMarketcap) * 100;
+        }
       }
     } catch (error) {
       this.logger.error(`Error parsing OHLCV data: ${error.message}`);
@@ -180,13 +231,13 @@ export class AiAnalysisService {
 
     const analysisStartDate = formatDate(timeFrom || firstTimestamp);
     const analysisEndDate = formatDate(timeTo || lastTimestamp);
-    const firstPriceDate = formatDate(firstTimestamp);
-    const lastPriceDate = formatDate(lastTimestamp);
-    const maxPriceDate = formatDate(maxPriceTimestamp);
-    const minPriceDate = formatDate(minPriceTimestamp);
+    const firstMarketcapDate = formatDate(firstTimestamp);
+    const lastMarketcapDate = formatDate(lastTimestamp);
+    const maxMarketcapDate = formatDate(maxMarketcapTimestamp);
+    const minMarketcapDate = formatDate(minMarketcapTimestamp);
 
-    // Parse price references
-    let priceReferences: {
+    // Parse marketcap references
+    let marketcapReferences: {
       period: string;
       price: number;
       timestamp: number;
@@ -195,19 +246,31 @@ export class AiAnalysisService {
 
     try {
       if (priceReferencesJson) {
-        priceReferences = JSON.parse(priceReferencesJson);
+        marketcapReferences = JSON.parse(priceReferencesJson);
       }
     } catch (error) {
-      this.logger.error(`Error parsing price references: ${error.message}`);
+      this.logger.error(`Error parsing marketcap references: ${error.message}`);
     }
 
-    // Build price reference section
-    const priceReferenceSection = priceReferences.length
-      ? `\n📅 Price Performance by Time Period:\n` +
-        priceReferences
+    // Build marketcap reference section
+    const marketcapReferenceSection = marketcapReferences.length
+      ? `\n📅 Marketcap Performance by Time Period:\n` +
+        marketcapReferences
           .map((ref) => {
             const refDate = formatDate(ref.timestamp);
-            return `• ${ref.period.charAt(0).toUpperCase() + ref.period.slice(1)} (${refDate}): $${ref.price.toFixed(8)} (${ref.changePercent >= 0 ? '+' : ''}${ref.changePercent.toFixed(2)}% vs current)`;
+            // Convert price reference to marketcap reference if we have current marketcap
+            let refMarketcap = ref.price;
+            if (
+              marketCap &&
+              marketCap > 0 &&
+              ohlcvParsedData &&
+              ohlcvParsedData.length > 0
+            ) {
+              const lastPrice = ohlcvParsedData[ohlcvParsedData.length - 1].c;
+              refMarketcap = marketCap * (ref.price / lastPrice);
+            }
+
+            return `• ${ref.period.charAt(0).toUpperCase() + ref.period.slice(1)} (${refDate}): $${Math.round(refMarketcap).toLocaleString()} (${ref.changePercent >= 0 ? '+' : ''}${ref.changePercent.toFixed(2)}% vs current)`;
           })
           .join('\n')
       : '';
@@ -359,15 +422,21 @@ export class AiAnalysisService {
           `⏱️ Breakdown by timeframe:\n${timeframeBreakdown}`
         : '';
 
-    const priceAnalysis =
-      `\n📊 Price Analysis:\n` +
+    // Format marketcap information
+    const marketCapInfo = marketCap
+      ? `• Market Cap: $${marketCap.toLocaleString()}\n`
+      : '';
+
+    const marketcapAnalysis =
+      `\n📊 Marketcap Analysis:\n` +
       `• Analysis period: ${analysisStartDate} to ${analysisEndDate}\n` +
-      `• Starting price (${firstPriceDate}): $${firstPrice.toFixed(8)}\n` +
-      `• Current price (${lastPriceDate}): $${lastPrice.toFixed(8)}\n` +
-      `• All-time high (${maxPriceDate}): $${maxPrice.toFixed(8)}\n` +
-      `• All-time low (${minPriceDate}): $${minPrice.toFixed(8)}\n` +
+      `• Starting marketcap (${firstMarketcapDate}): $${Math.round(firstMarketcap).toLocaleString()}\n` +
+      `• Current marketcap (${lastMarketcapDate}): $${Math.round(lastMarketcap).toLocaleString()}\n` +
+      `• All-time high (${maxMarketcapDate}): $${Math.round(maxMarketcap).toLocaleString()}\n` +
+      `• All-time low (${minMarketcapDate}): $${Math.round(minMarketcap).toLocaleString()}\n` +
       `• ATH gain: ${allTimeHighGainPercent > 0 ? '+' : ''}${allTimeHighGainPercent.toFixed(2)}%\n` +
-      `• Net price change: ${priceChangePercent > 0 ? '+' : ''}${priceChangePercent.toFixed(2)}%`;
+      `• Net marketcap change: ${marketcapChangePercent > 0 ? '+' : ''}${marketcapChangePercent.toFixed(2)}%\n` +
+      marketCapInfo;
 
     // Prepare token identifier - include symbol if available
     const tokenIdentifier = tokenSymbol
@@ -384,16 +453,16 @@ export class AiAnalysisService {
       '• Always include $ figures and % changes to make things concrete',
       '• Compare patterns across different timeframes when relevant',
       '\n🎯 YOUR TASK:',
-      `Analyze ${tokenIdentifier} which has been trading for ${tokenAge}. You'll analyze BOTH price action AND on-chain trading activity.`,
+      `Analyze ${tokenIdentifier} which has been trading for ${tokenAge}. You'll analyze BOTH marketcap action AND on-chain trading activity.`,
       '\n📈 DATA YOU HAVE:',
       `• Analysis period from ${analysisStartDate} to ${analysisEndDate}`,
-      `• ${numberOfCandles} price candles (${candleType} intervals)`,
+      `• ${numberOfCandles} chart candles (${candleType} intervals)`,
       `• Trading activity from ${tradeData.length} different timeframes showing buys/sells and volume`,
-      `${priceAnalysis}`,
-      `${priceReferenceSection}`,
+      `${marketcapAnalysis}`,
+      `${marketcapReferenceSection}`,
       `${tradeDataSummary}`,
       '\n🚫 THINGS TO AVOID:',
-      "• Don't make definite price predictions (but you can suggest potential scenarios)",
+      "• Don't make definite marketcap predictions (but you can suggest potential scenarios)",
       '• Don\'t give specific financial advice like "you should buy/sell"',
       "• Don't use technical jargon without explaining it",
       "• Don't invent or make up fictional project names (e.g., 'Armstrong, Rohan, and Bode Token')",
@@ -402,9 +471,9 @@ export class AiAnalysisService {
       '\n✅ THINGS TO INCLUDE:',
       '• Always refer to the token by its symbol when available',
       '• Always include the token symbol (e.g. $TOKEN) in your analysis',
-      '• Always include dates when referencing price movements (e.g., "On May 5, 2023, the price surged to...")',
-      '• Specific price levels in $ terms (not just percentages)',
-      '• Price changes over multiple timeframes (if data is available)',
+      '• Always include dates when referencing marketcap movements (e.g., "On May 5, 2023, the marketcap surged to...")',
+      '• Specific marketcap levels in $ terms (not just percentages)',
+      '• Marketcap changes over multiple timeframes (if data is available)',
       '• Clear explanations of buy vs. sell pressure with actual numbers',
       '• What different timeframes show about trading patterns',
       '• Analysis of dollar volume imbalance across timeframes (not just transaction count)',
@@ -415,8 +484,8 @@ export class AiAnalysisService {
       '• Your opinion on if this token looks interesting or not',
       '\n🔍 YOUR ANALYSIS MUST INCLUDE:',
       '1. A brutally honest one-liner about the current situation',
-      '2. Detailed breakdown of price movements with $ figures and multiple timeframe comparisons',
-      '3. Analysis of momentum based on BOTH price action AND trading activity',
+      '2. Detailed breakdown of marketcap movements with $ figures and multiple timeframe comparisons',
+      '3. Analysis of momentum based on BOTH marketcap action AND trading activity',
       '4. Key support/resistance levels with exact $ values',
       '5. Trading patterns across different timeframes',
       '6. Buy vs sell pressure dynamics with specifics about volume and trade sizes',
