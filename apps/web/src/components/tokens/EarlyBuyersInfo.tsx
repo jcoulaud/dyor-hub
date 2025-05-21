@@ -35,7 +35,7 @@ import {
   Loader2,
   Users,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 
 interface EarlyBuyersInfoProps {
   mintAddress: string;
@@ -249,222 +249,130 @@ export const EarlyBuyersInfo = ({
   className,
   userPlatformTokenBalance,
 }: EarlyBuyersInfoProps) => {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [earlyBuyerData, setEarlyBuyerData] = useState<EarlyBuyerInfo | null>(null);
+  const { isAuthenticated, user, checkAuth, isLoading: authLoading } = useAuthContext();
+  const [earlyBuyerInfo, setEarlyBuyerInfo] = useState<EarlyBuyerInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<ApiError | null>(null);
-  const [isFreeTier, setIsFreeTier] = useState(false);
-  const [calculatedCreditCost, setCalculatedCreditCost] = useState<number | null>(null);
-  const [isCostLoading, setIsCostLoading] = useState(false);
-  const [showInsufficientCreditsError, setShowInsufficientCreditsError] = useState(false);
-
+  const [error, setError] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [errorData, setErrorData] = useState<TokenGatedErrorData | null>(null);
   const { toast } = useToast();
-  const { isAuthenticated, isLoading: authLoading, checkAuth } = useAuthContext();
 
-  const displayCreditCost = isFreeTier
-    ? 'Free'
-    : calculatedCreditCost !== null
-      ? `${calculatedCreditCost} Credits`
-      : isCostLoading
-        ? '...'
-        : 'Not available';
-
-  const resetDialogState = useCallback(() => {
-    setError(null);
-    setEarlyBuyerData(null);
-    setShowInsufficientCreditsError(false);
-    setIsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    if (!dialogOpen) {
-      const timer = setTimeout(() => {
-        resetDialogState();
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [dialogOpen, resetDialogState]);
-
-  const fetchCreditCost = useCallback(async () => {
-    if (!mintAddress || !isAuthenticated) return;
-
-    setIsCostLoading(true);
-    try {
-      try {
-        const costResponse = await apiTokens.getEarlyBuyerInfoCost(mintAddress);
-        if (costResponse?.cost !== undefined) {
-          setCalculatedCreditCost(costResponse.cost);
-          return;
-        }
-      } catch {
-        // do nothing
-      }
-
-      setCalculatedCreditCost(1);
-    } catch {
-      setCalculatedCreditCost(1);
-    } finally {
-      setIsCostLoading(false);
-    }
-  }, [mintAddress, isAuthenticated]);
-
-  useEffect(() => {
-    if (!isAuthenticated || authLoading) {
-      setIsFreeTier(false);
-      setCalculatedCreditCost(null);
-      return;
-    }
-
-    const eligibleForFreeTier =
-      typeof userPlatformTokenBalance === 'number' &&
-      userPlatformTokenBalance >= MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS;
-
-    if (eligibleForFreeTier) {
-      setIsFreeTier(true);
-      setCalculatedCreditCost(0);
-    } else {
-      setIsFreeTier(false);
-      fetchCreditCost();
-    }
-  }, [isAuthenticated, authLoading, userPlatformTokenBalance, fetchCreditCost]);
+  const isTokenHolder =
+    isAuthenticated &&
+    userPlatformTokenBalance !== undefined &&
+    userPlatformTokenBalance >= MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS;
 
   const fetchData = async (attemptUseCredits = false) => {
-    if (!mintAddress) {
-      setIsLoading(false);
+    if (!isAuthenticated || !user) {
+      setError('You must be logged in to view Early Buyers Analysis');
+      toast({
+        title: 'Authentication Required',
+        description: 'You must be logged in to view Early Buyers Analysis',
+        variant: 'destructive',
+      });
       return;
-    }
-
-    if (!isAuthenticated) {
-      try {
-        await checkAuth(true);
-      } catch {
-        toast({
-          title: 'Authentication Error',
-          description: 'Please refresh the page and try again.',
-          variant: 'destructive',
-        });
-        setError(
-          new ApiError(401, 'Authentication required. Please refresh the page and try again.'),
-        );
-        setIsLoading(false);
-        return;
-      }
     }
 
     setIsLoading(true);
     setError(null);
+    setErrorData(null);
 
     try {
       const data = await apiTokens.getEarlyBuyerInfo(mintAddress, attemptUseCredits);
-      setEarlyBuyerData(data);
-
-      if (!data || data.earlyBuyers.length === 0) {
-      }
+      setEarlyBuyerInfo(data);
     } catch (err) {
       const caughtError = err as ApiError;
       console.error('Failed to fetch early buyers:', caughtError);
 
       if (caughtError.status === 401) {
-        try {
-          await checkAuth(true);
-          if (isAuthenticated) {
-            toast({
-              title: 'Session Error',
-              description:
-                'Your session needs to be refreshed. Please try again or reload the page.',
-              variant: 'destructive',
-            });
-          } else {
-            toast({
-              title: 'Authentication Required',
-              description: 'Please log in to access this feature.',
-              variant: 'destructive',
-            });
-          }
-        } catch (authErr) {
-          console.error('Failed to refresh auth during error handling:', authErr);
-        }
-
-        setError(
-          new ApiError(401, 'Authentication required. Please refresh the page and try again.'),
-        );
+        await checkAuth(true);
+        toast({
+          title: 'Authentication Error',
+          description: 'Your session may have expired. Please log in again.',
+          variant: 'destructive',
+        });
+        setError('Authentication required. Please log in again.');
       } else if (caughtError.status === 402) {
-        setShowInsufficientCreditsError(true);
-        setError(new ApiError(402, 'Insufficient credits for Early Buyers Analysis.'));
+        setErrorData({
+          message: caughtError.message || 'Insufficient credits for Early Buyers Analysis.',
+          requiredCredits: 1,
+          isTokenGated: true,
+        });
+        setError(caughtError.message || 'Insufficient credits for Early Buyers Analysis.');
       } else if ((caughtError.data as TokenGatedErrorData)?.isTokenGated) {
-        setError(caughtError);
+        setErrorData(caughtError.data as TokenGatedErrorData);
+        setError(caughtError.message || 'An error occurred.');
       } else {
-        setError(caughtError);
+        setError(caughtError.message || 'An error occurred.');
         toast({
           variant: 'destructive',
           title: 'Analysis Failed',
           description: caughtError.message || 'Could not fetch early buyer information.',
         });
       }
-      setEarlyBuyerData(null);
+      setEarlyBuyerInfo(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleStartAnalysis = async () => {
+  const handleOpenDialog = async () => {
     if (!isAuthenticated) {
-      if (authLoading) {
-        toast({
-          title: 'Please Wait',
-          description: 'Checking authentication status...',
-        });
-        return;
-      }
-
-      try {
-        await checkAuth(true);
-        if (!isAuthenticated) {
-          toast({
-            title: 'Authentication Required',
-            description: 'Please log in to start the analysis.',
-            variant: 'destructive',
-          });
-          return;
-        }
-      } catch {
+      await checkAuth(true);
+      if (!isAuthenticated) {
         toast({
           title: 'Authentication Required',
-          description: 'Please log in to start the analysis.',
+          description: 'Please log in to view Early Buyers Analysis.',
           variant: 'destructive',
         });
         return;
       }
     }
-
+    setEarlyBuyerInfo(null);
     setError(null);
-    setShowInsufficientCreditsError(false);
+    setErrorData(null);
+    setIsLoading(false);
+    setIsDialogOpen(true);
+  };
 
-    if (!isFreeTier && calculatedCreditCost === null) {
-      try {
-        await fetchCreditCost();
-      } catch {
-        toast({
-          title: 'Error',
-          description: 'Could not determine analysis cost. Please try again.',
-          variant: 'destructive',
-        });
-        return;
-      }
+  const handleConfirmAnalysis = async () => {
+    if (!isAuthenticated || !user) {
+      toast({
+        title: 'Authentication Error',
+        description: 'Please log in again.',
+        variant: 'destructive',
+      });
+      return;
     }
 
-    if (isFreeTier) {
+    if (isTokenHolder) {
       fetchData(false);
     } else {
       fetchData(true);
     }
   };
 
-  if (!isAuthenticated && !authLoading) {
+  const handleDialogClose = () => {
+    setIsDialogOpen(false);
+    setEarlyBuyerInfo(null);
+    setError(null);
+    setErrorData(null);
+  };
+
+  const handleDialogChange = (open: boolean) => {
+    if (!open) {
+      handleDialogClose();
+    }
+    setIsDialogOpen(open);
+  };
+
+  if (!isAuthenticated && error && errorData?.message?.includes('Please log in')) {
     return (
       <div className={cn('rounded-lg border border-zinc-700/80 p-4 bg-zinc-900/50', className)}>
         <TokenGatedMessage
-          error={new ApiError(401, 'Please log in to view Early Buyers Analysis.')}
+          error={
+            new ApiError(401, errorData?.message || 'Please log in to view Early Buyers Analysis.')
+          }
           featureName='Early Buyers Analysis'
         />
       </div>
@@ -473,41 +381,66 @@ export const EarlyBuyersInfo = ({
 
   return (
     <div className={className}>
-      <Button
-        onClick={() => setDialogOpen(true)}
-        variant='outline'
-        size='lg'
-        disabled={authLoading}
-        className='w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-purple-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg'>
-        <div className='flex items-center'>
-          <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
-            <Users className='w-5 h-5 text-purple-100' />
-          </div>
-          <span className='font-semibold'>Early Buyers Analysis</span>
-        </div>
-        <ChevronRight className='w-5 h-5 text-purple-400' />
-      </Button>
+      <TooltipProvider>
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={handleOpenDialog}
+              variant='outline'
+              size='lg'
+              className={cn(
+                'w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-purple-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg',
+                className,
+              )}
+              disabled={isLoading || authLoading}>
+              {isLoading || authLoading ? (
+                <>
+                  <div className='flex items-center'>
+                    <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
+                      <Loader2 className='w-5 h-5 text-purple-100 animate-spin' />
+                    </div>
+                    <span className='font-semibold'>
+                      {authLoading ? 'Authenticating...' : 'Analyzing...'}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className='flex items-center'>
+                    <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
+                      <Users className='w-5 h-5 text-purple-100' />
+                    </div>
+                    <span className='font-semibold'>Early Buyers Analysis</span>
+                  </div>
+                  <ChevronRight className='w-5 h-5 text-purple-400' />
+                </>
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent
+            side='top'
+            align='center'
+            className='bg-zinc-800 text-zinc-200 border-zinc-700 shadow-lg text-xs px-3 py-1.5 rounded-md'>
+            <p>
+              Analyze the wallets that bought this token early.
+              <br />
+              {isTokenHolder
+                ? `Free for ${DYORHUB_SYMBOL} token holders.`
+                : 'Costs 1 credit per analysis.'}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
-      <Dialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          if (open && !dialogOpen) {
-            checkAuth(true);
-            setError(null);
-            setShowInsufficientCreditsError(false);
-          }
-          setDialogOpen(open);
-        }}>
+      <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
         <DialogContent className='max-w-4xl bg-zinc-900/95 border-zinc-700/50 backdrop-blur-md text-zinc-50 data-[state=open]:animate-contentShow'>
-          {showInsufficientCreditsError ? (
+          {errorData?.requiredCredits ? (
             <InsufficientCreditsContent
-              onClose={() => {
-                setShowInsufficientCreditsError(false);
-              }}
-              requiredCredits={calculatedCreditCost || 0}
+              onClose={handleDialogClose}
+              requiredCredits={errorData.requiredCredits}
             />
-          ) : earlyBuyerData ? (
-            <EarlyBuyersDialogDisplay earlyBuyerInfo={earlyBuyerData} isLoading={isLoading} />
+          ) : earlyBuyerInfo ? (
+            <EarlyBuyersDialogDisplay earlyBuyerInfo={earlyBuyerInfo} isLoading={isLoading} />
           ) : (
             <>
               <DialogHeader className='pb-2'>
@@ -519,7 +452,7 @@ export const EarlyBuyersInfo = ({
                   <DialogDescription className='text-sm text-zinc-400 pt-1'>
                     Discover who bought the token early. This can provide insights into potential
                     whales or informed traders.
-                    {authLoading ? (
+                    {isLoading ? (
                       <span className='block mt-2 text-zinc-400 text-sm'>
                         <Loader2 className='h-4 w-4 animate-spin inline mr-1.5' />
                         Loading user data...
@@ -529,7 +462,7 @@ export const EarlyBuyersInfo = ({
                         <Info size={16} className='inline shrink-0 mr-1' />
                         {`Log in and hold ${formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS, DYORHUB_SYMBOL)} for free analysis.`}
                       </div>
-                    ) : isFreeTier ? (
+                    ) : isTokenHolder ? (
                       <div className='text-emerald-400 flex items-center gap-1 mt-2 text-sm'>
                         <Info size={16} className='inline shrink-0 mr-1' />
                         {`This analysis is FREE for you! (You hold ${formatTokenAmount.format(userPlatformTokenBalance)}/${formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS)} required ${DYORHUB_SYMBOL})`}
@@ -549,25 +482,25 @@ export const EarlyBuyersInfo = ({
                 )}
               </DialogHeader>
 
-              {error && !showInsufficientCreditsError && (
+              {error && !errorData && (
                 <div className='my-4 p-4 bg-red-900/20 border border-red-700/50 rounded-md text-red-400 flex items-center'>
                   <AlertTriangle className='h-5 w-5 mr-2' />
-                  {error.message || 'An error occurred.'}
+                  {error}
                 </div>
               )}
 
-              {isLoading && !earlyBuyerData && (
+              {isLoading && !earlyBuyerInfo && (
                 <div className='flex flex-col items-center justify-center py-8'>
                   <Loader2 className='h-12 w-12 animate-spin text-purple-400' />
                   <p className='mt-4 text-zinc-300'>Analyzing early buyers, please wait...</p>
                 </div>
               )}
 
-              {!isLoading && !earlyBuyerData && (
+              {!isLoading && !earlyBuyerInfo && (
                 <DialogFooter className='mt-6'>
                   <Button
-                    onClick={handleStartAnalysis}
-                    disabled={authLoading || isLoading || !isAuthenticated}
+                    onClick={handleConfirmAnalysis}
+                    disabled={isLoading || authLoading || !isAuthenticated}
                     className='bg-purple-600 hover:bg-purple-700 text-white ml-auto'>
                     {isLoading ? (
                       <Loader2 className='h-4 w-4 animate-spin mr-2' />
@@ -576,9 +509,9 @@ export const EarlyBuyersInfo = ({
                     )}
                     {isLoading
                       ? 'Analyzing...'
-                      : isFreeTier
+                      : isTokenHolder
                         ? 'Analyze (Free)'
-                        : `Analyze (${displayCreditCost})`}
+                        : 'Analyze (1 Credit)'}
                   </Button>
                 </DialogFooter>
               )}

@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { API_BASE_URL, ApiError, tokens as apiTokens } from '@/lib/api';
-import { MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS } from '@/lib/constants';
+import { DYORHUB_SYMBOL, MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { TokenPurchaseInfo, TrackedWalletHolderStats } from '@dyor-hub/types';
@@ -974,14 +974,14 @@ export function TokenHolderAnalysisInfo({
   className,
   userPlatformTokenBalance,
 }: TokenHolderAnalysisInfoProps) {
-  const { user } = useAuthContext();
+  const { user, isAuthenticated, checkAuth } = useAuthContext();
+  const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [analysisData, setAnalysisData] = useState<TrackedWalletHolderStats[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [selectedWalletCount, setSelectedWalletCount] = useState<10 | 20 | 50 | null>(null);
   const [creditCosts, setCreditCosts] = useState<Record<string, number>>({});
-  const { toast } = useToast();
   const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [hasShownCompletionToast, setHasShownCompletionToast] = useState(false);
@@ -994,6 +994,22 @@ export function TokenHolderAnalysisInfo({
   const [showInsufficientCreditsError, setShowInsufficientCreditsError] = useState<boolean>(false);
 
   const minHoldingForFree = MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS;
+
+  const ANALYTICS_FEATURE_NAME = 'Diamond Hands Analysis';
+
+  const getCreditCostSummary = () => {
+    if (isFreeTier === true) {
+      return 'Free';
+    }
+    if (isCostFetching) {
+      return '...';
+    }
+    const costFor10 = creditCosts['10'];
+    if (costFor10 !== undefined) {
+      return `${costFor10} Credits for Top 10`;
+    }
+    return 'Cost varies';
+  };
 
   const resetState = useCallback(() => {
     setError(null);
@@ -1343,24 +1359,70 @@ export function TokenHolderAnalysisInfo({
     };
   }, [user?.id, dialogOpen, mintAddress, toast, hasShownCompletionToast]);
 
-  const handleButtonClick = useCallback(() => {
+  const handleOpenDialog = async () => {
+    if (!isAuthenticated) {
+      await checkAuth(true);
+      if (!isAuthenticated) {
+        toast({
+          title: 'Authentication Required',
+          description: `You must be logged in to view ${ANALYTICS_FEATURE_NAME}.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
     setDialogOpen(true);
-  }, []);
+  };
 
   const renderInitialButton = () => (
-    <Button
-      onClick={handleButtonClick}
-      variant='outline'
-      size='lg'
-      className='w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-teal-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg'>
-      <div className='flex items-center'>
-        <div className='w-8 h-8 rounded-full bg-teal-700 flex items-center justify-center mr-3'>
-          <Diamond className='w-5 h-5 text-teal-100' />
-        </div>
-        <span className='font-semibold'>Diamond Hands Analysis</span>
-      </div>
-      <ChevronRight className='w-5 h-5 text-teal-400' />
-    </Button>
+    <TooltipProvider>
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <Button
+            onClick={handleOpenDialog}
+            variant='outline'
+            size='lg'
+            className={cn(
+              'w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-teal-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg',
+              className,
+            )}
+            disabled={
+              isLoading ||
+              (socketRef.current?.connected &&
+                analysisProgress !== null &&
+                analysisProgress.status !== 'complete')
+            }>
+            <div className='flex items-center'>
+              <div className='w-8 h-8 rounded-full bg-teal-700 flex items-center justify-center mr-3'>
+                <Diamond className='w-5 h-5 text-teal-100' />
+              </div>
+              <span className='font-semibold'>{ANALYTICS_FEATURE_NAME}</span>
+            </div>
+            {(isLoading ||
+              (socketRef.current?.connected &&
+                analysisProgress !== null &&
+                analysisProgress.status !== 'complete')) &&
+            analysisProgress?.status !== 'error' ? (
+              <Loader2 className='w-5 h-5 text-teal-400 animate-spin' />
+            ) : (
+              <ChevronRight className='w-5 h-5 text-teal-400' />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent
+          side='top'
+          align='center'
+          className='bg-zinc-800 text-zinc-200 border-zinc-700 shadow-lg text-xs px-3 py-1.5 rounded-md'>
+          <p>
+            Deep dive into top holders activity for this token.
+            <br />
+            {isFreeTier === null || isFreeTier
+              ? `Free for ${MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS} ${DYORHUB_SYMBOL} token holders.`
+              : getCreditCostSummary()}
+          </p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 
   const renderWalletCountSelection = () => (
