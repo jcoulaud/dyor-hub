@@ -1,5 +1,12 @@
 'use client';
 
+const formatTokenAmount = {
+  format: (amount: number | null | undefined, symbol?: string) => {
+    if (amount === undefined || amount === null) return 'N/A';
+    return `${amount.toLocaleString()} ${symbol || ''}`.trim();
+  },
+};
+
 import { TokenGatedMessage } from '@/components/common/TokenGatedMessage';
 import { Button } from '@/components/ui/button';
 import {
@@ -665,7 +672,7 @@ export function TokenAiTradingAnalysis({
 
           setIsModalOpen(open);
         }}>
-        <DialogContent className='max-w-4xl bg-zinc-950 border-zinc-800 text-zinc-50'>
+        <DialogContent className='max-w-4xl bg-zinc-900/95 border-zinc-700/50 backdrop-blur-md text-zinc-50 data-[state=open]:animate-contentShow'>
           {error?.status === 402 && hasModalBeenOpenLongEnough ? (
             <InsufficientCreditsContent onClose={() => setIsModalOpen(false)} />
           ) : showInsufficientCreditsError && hasModalBeenOpenLongEnough ? (
@@ -687,31 +694,41 @@ export function TokenAiTradingAnalysis({
                     <DialogDescription className='text-sm text-zinc-400 pt-1'>
                       The AI will analyze trading metrics, price patterns, volume trends, market
                       sentiment, and key support/resistance zones.
-                      {isAuthenticated && typeof userPlatformTokenBalance === 'number' ? (
+                      {isAuthenticated &&
+                      userPlatformTokenBalance !== undefined &&
+                      userPlatformTokenBalance !== null ? (
                         isFreeTier ? (
-                          <span className='block mt-1 text-teal-400 font-medium'>
+                          <p className='text-sm text-emerald-400 mt-1'>
+                            <Info size={16} className='inline mr-1' />
                             This analysis is FREE for you! (You hold{' '}
-                            {userPlatformTokenBalance.toLocaleString()} {DYORHUB_SYMBOL} of{' '}
-                            {MIN_TOKEN_HOLDING_FOR_AI_TA.toLocaleString()} required)
-                          </span>
+                            {formatTokenAmount.format(userPlatformTokenBalance)}/
+                            {formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_AI_TA)} required
+                            $DYORHUB)
+                          </p>
                         ) : (
-                          <span className='block mt-1 text-sky-400 font-medium'>
-                            <Info className='w-3.5 h-3.5 inline mr-1.5 relative -top-px' />
-                            Hold {MIN_TOKEN_HOLDING_FOR_AI_TA.toLocaleString()} {DYORHUB_SYMBOL}{' '}
-                            tokens for free access.
-                          </span>
+                          <div className='text-amber-400 flex items-center gap-1 mt-1 text-sm'>
+                            <Info size={16} className='inline' /> Hold{' '}
+                            {formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_AI_TA, DYORHUB_SYMBOL)}{' '}
+                            for free analysis. Your balance:{' '}
+                            {formatTokenAmount.format(userPlatformTokenBalance, DYORHUB_SYMBOL)}.
+                          </div>
                         )
                       ) : isAuthenticated && typeof userPlatformTokenBalance === 'undefined' ? (
-                        <span className='block mt-1 text-zinc-400'>Loading token balance...</span>
+                        <span className='block mt-1 text-zinc-400 text-sm'>
+                          Loading token balance...
+                        </span>
                       ) : isAuthenticated ? (
-                        <span className='block mt-1 text-zinc-300'>
-                          Hold {MIN_TOKEN_HOLDING_FOR_AI_TA.toLocaleString()} {DYORHUB_SYMBOL}{' '}
-                          tokens for free access.
-                        </span>
+                        <div className='text-amber-400 flex items-center gap-1 mt-1 text-sm'>
+                          <Info size={16} className='inline' /> Hold{' '}
+                          {formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_AI_TA, DYORHUB_SYMBOL)}{' '}
+                          for free analysis.
+                        </div>
                       ) : (
-                        <span className='block mt-1 text-zinc-400'>
-                          Log in to check for free access.
-                        </span>
+                        <div className='text-amber-400 flex items-center gap-1 mt-1 text-sm'>
+                          <Info size={16} className='inline' /> Log in and hold{' '}
+                          {formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_AI_TA, DYORHUB_SYMBOL)}{' '}
+                          for free analysis.
+                        </div>
                       )}
                     </DialogDescription>
                   )}

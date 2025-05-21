@@ -768,7 +768,10 @@ export default function Page({ params, commentId }: PageProps) {
                 tokenCreationTime={tokenData?.creationTime}
                 userPlatformTokenBalance={userDyorHubBalance}
               />
-              <TokenHolderAnalysisInfo mintAddress={mintAddress} />
+              <TokenHolderAnalysisInfo
+                mintAddress={mintAddress}
+                userPlatformTokenBalance={userDyorHubBalance}
+              />
               <EarlyBuyersInfo mintAddress={mintAddress} />
             </>
           ) : null}

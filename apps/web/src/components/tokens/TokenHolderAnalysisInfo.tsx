@@ -1,5 +1,12 @@
 'use client';
 
+const formatTokenAmount = {
+  format: (amount: number | null | undefined, symbol?: string) => {
+    if (amount === undefined || amount === null) return 'N/A';
+    return `${amount.toLocaleString()} ${symbol || ''}`.trim();
+  },
+};
+
 import { TokenGatedMessage } from '@/components/common/TokenGatedMessage';
 import { SolscanButton } from '@/components/SolscanButton';
 import { Button } from '@/components/ui/button';
@@ -16,13 +23,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { API_BASE_URL, ApiError, tokens as apiTokens } from '@/lib/api';
+import { MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
-import type {
-  TokenGatedErrorData,
-  TokenPurchaseInfo,
-  TrackedWalletHolderStats,
-} from '@dyor-hub/types';
+import type { TokenPurchaseInfo, TrackedWalletHolderStats } from '@dyor-hub/types';
 import {
   AlertTriangle,
   BarChart4,
@@ -32,8 +36,8 @@ import {
   Copy,
   Diamond,
   DollarSign,
+  Info,
   Loader2,
-  Lock,
   TrendingUp,
   Users,
   Wallet,
@@ -77,6 +81,7 @@ const formatCurrency = (value: number): string => {
 interface TokenHolderAnalysisInfoProps {
   mintAddress: string;
   className?: string;
+  userPlatformTokenBalance: number | null | undefined;
 }
 
 const getWalletActivityLevel = (stats: TrackedWalletHolderStats): 'high' | 'medium' | 'low' => {
@@ -86,10 +91,8 @@ const getWalletActivityLevel = (stats: TrackedWalletHolderStats): 'high' | 'medi
   );
 
   if (stats.currentHoldingDurationSeconds && stats.currentHoldingDurationSeconds > 2592000) {
-    // 30 days
     return purchaseCount > 5 ? 'high' : 'medium';
   } else if (stats.currentHoldingDurationSeconds && stats.currentHoldingDurationSeconds > 604800) {
-    // 7 days
     return purchaseCount > 3 ? 'medium' : 'low';
   }
   return 'low';
@@ -114,7 +117,6 @@ const StyledProgress = ({
   return <Progress value={value} className={cn('h-1.5', getColor(), className)} />;
 };
 
-// Component to display wallet purchase history as a timeline
 const WalletPurchaseTimeline = ({
   stats,
   showGraph = true,
@@ -124,16 +126,13 @@ const WalletPurchaseTimeline = ({
 }) => {
   const allPurchases = useMemo(() => {
     const purchases: (TokenPurchaseInfo & { roundId: number; txHash?: string })[] = [];
-
     stats.purchaseRounds.forEach((round) => {
-      // Add transaction hash if available (from BirdeyeTokenTradeV3Item)
       const firstPurchase = {
         ...round.firstPurchaseInRound,
         roundId: round.roundId,
         txHash: (round.firstPurchaseInRound as unknown as { txHash?: string })?.txHash || undefined,
       };
       purchases.push(firstPurchase);
-
       round.subsequentPurchasesInRound.forEach((purchase) => {
         const subsequentPurchase = {
           ...purchase,
@@ -143,14 +142,11 @@ const WalletPurchaseTimeline = ({
         purchases.push(subsequentPurchase);
       });
     });
-
     return purchases.sort((a, b) => a.timestamp - b.timestamp);
   }, [stats]);
 
-  // Create a dataset suitable for a line chart showing token accumulation over time
   const tokenAccumulationData = useMemo(() => {
     if (allPurchases.length === 0) return [];
-
     let runningTotal = 0;
     return allPurchases.map((purchase) => {
       runningTotal += purchase.tokenAmountUi;
@@ -174,7 +170,7 @@ const WalletPurchaseTimeline = ({
           <ResponsiveContainer width='100%' height='100%'>
             <AreaChart data={tokenAccumulationData}>
               <defs>
-                <linearGradient id='tokenGradient' x1='0' y1='0' x2='0' y2='1'>
+                <linearGradient id='tokenGradientHolder' x1='0' y1='0' x2='0' y2='1'>
                   <stop offset='5%' stopColor='#10b981' stopOpacity={0.8} />
                   <stop offset='95%' stopColor='#10b981' stopOpacity={0.1} />
                 </linearGradient>
@@ -185,7 +181,7 @@ const WalletPurchaseTimeline = ({
                   if (props.active && props.payload && props.payload.length) {
                     const data = props.payload[0].payload;
                     return (
-                      <div className='bg-zinc-800/90 px-3 py-2 rounded-lg border border-zinc-700/50 shadow-lg backdrop-blur-sm'>
+                      <div className='bg-zinc-800/90 px-3 py-2 rounded-lg border border-zinc-700/70 shadow-lg backdrop-blur-sm'>
                         <p className='text-xs text-zinc-400'>{data.timeFormatted}</p>
                         <p className='text-sm font-medium text-white'>
                           {data.tokens.toLocaleString()} tokens
@@ -201,13 +197,12 @@ const WalletPurchaseTimeline = ({
                 dataKey='tokens'
                 stroke='#10b981'
                 fillOpacity={1}
-                fill='url(#tokenGradient)'
+                fill='url(#tokenGradientHolder)'
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       )}
-
       {!showGraph && (
         <div className='max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 pr-2 space-y-2'>
           {allPurchases.map((purchase, index) => (
@@ -262,7 +257,6 @@ const WalletPurchaseTimeline = ({
   );
 };
 
-// Card component for displaying individual wallet statistics
 const WalletStatCard = ({ stats }: { stats: TrackedWalletHolderStats }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const { toast } = useToast();
@@ -272,22 +266,25 @@ const WalletStatCard = ({ stats }: { stats: TrackedWalletHolderStats }) => {
     navigator.clipboard.writeText(text).then(() => {
       toast({
         title: 'Address Copied',
-        description: `${text.substring(0, 6)}...${text.substring(text.length - 4)} copied to clipboard`,
+        description: `${text.substring(0, 6)}...${text.substring(
+          text.length - 4,
+        )} copied to clipboard`,
       });
     });
   };
 
-  const formattedAddress = `${stats.walletAddress.substring(0, 6)}...${stats.walletAddress.substring(stats.walletAddress.length - 4)}`;
+  const formattedAddress = `${stats.walletAddress.substring(
+    0,
+    6,
+  )}...${stats.walletAddress.substring(stats.walletAddress.length - 4)}`;
   const overallAvgBuyMarketCap =
     stats.overallAverageBuyPriceUsd * (stats.analyzedTokenTotalSupply || 0);
 
-  // Calculate overall statistics
   const totalInvested = stats.purchaseRounds.reduce((sum, round) => sum + round.totalUsdSpent, 0);
   const totalPnl =
     typeof stats.overallRealizedPnlUsd === 'number' ? stats.overallRealizedPnlUsd : 0;
   const pnlPercentage = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
 
-  // Calculate unrealized PNL (current value - remaining investment)
   const totalSpent = stats.purchaseRounds.reduce((sum, round) => sum + round.totalUsdSpent, 0);
   const totalSold = typeof stats.totalUsdValueOfSales === 'number' ? stats.totalUsdValueOfSales : 0;
   const currentValue = stats.currentBalanceUi * stats.overallAverageBuyPriceUsd;
@@ -414,7 +411,7 @@ const WalletStatCard = ({ stats }: { stats: TrackedWalletHolderStats }) => {
                     <Calendar className='w-3.5 h-3.5 text-zinc-400' />
                     <span className='text-xs text-zinc-400'>First Purchase</span>
                   </div>
-                  <span className='text-xs text-zinc-500'>
+                  <span className='text-xs text-zinc-500 ml-auto'>
                     {formatTimestamp(stats.firstEverPurchase.timestamp)}
                   </span>
                 </div>
@@ -498,55 +495,51 @@ const WalletStatCard = ({ stats }: { stats: TrackedWalletHolderStats }) => {
   );
 };
 
-// Component to display statistics overview for all analyzed wallets
 const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderStats[] }) => {
-  // Calculate aggregated stats
   const stats = useMemo(() => {
     const diamondHands = analysisData.filter(
       (wallet) =>
-        wallet.currentHoldingDurationSeconds && wallet.currentHoldingDurationSeconds > 604800, // 7+ days
+        wallet.currentHoldingDurationSeconds && wallet.currentHoldingDurationSeconds > 604800,
     ).length;
 
     const paperhands = analysisData.filter(
       (wallet) => wallet.lastSellOffTimestamp !== undefined,
     ).length;
 
-    // Find the earliest buyer among all analyzed wallets
     const earliestPurchaseTime = Math.min(
       ...analysisData
         .filter((wallet) => wallet.firstEverPurchase !== null)
         .map((wallet) => wallet.firstEverPurchase?.timestamp || Infinity),
     );
 
-    // Average holding time
     const avgHoldingTime =
       analysisData
         .filter((wallet) => wallet.currentHoldingDurationSeconds !== undefined)
         .reduce((sum, wallet) => sum + (wallet.currentHoldingDurationSeconds || 0), 0) /
       analysisData.filter((wallet) => wallet.currentHoldingDurationSeconds !== undefined).length;
 
-    // Total profit/loss across all wallets
     const totalPnl = analysisData.reduce(
       (sum, wallet) => sum + (wallet.overallRealizedPnlUsd || 0),
       0,
     );
 
-    // Total unrealized profit/loss
     const totalUnrealizedPnl = analysisData.reduce((sum, wallet) => {
-      const totalSpent = wallet.purchaseRounds.reduce((acc, round) => acc + round.totalUsdSpent, 0);
-      const totalSold =
+      const totalSpentForWallet = wallet.purchaseRounds.reduce(
+        (acc, round) => acc + round.totalUsdSpent,
+        0,
+      );
+      const totalSoldForWallet =
         typeof wallet.totalUsdValueOfSales === 'number' ? wallet.totalUsdValueOfSales : 0;
-      const currentValue = wallet.currentBalanceUi * wallet.overallAverageBuyPriceUsd;
-      const unrealizedPnl = currentValue - (totalSpent - totalSold);
-      return sum + unrealizedPnl;
+      const currentValueForWallet = wallet.currentBalanceUi * wallet.overallAverageBuyPriceUsd;
+      const unrealizedPnlForWallet =
+        currentValueForWallet - (totalSpentForWallet - totalSoldForWallet);
+      return sum + (isNaN(unrealizedPnlForWallet) ? 0 : unrealizedPnlForWallet);
     }, 0);
 
-    // Average buying price
     const avgBuyPrice =
       analysisData.reduce((sum, wallet) => sum + wallet.overallAverageBuyPriceUsd, 0) /
       analysisData.length;
 
-    // Average market cap at purchase time
     const avgMarketCap = avgBuyPrice * (analysisData[0]?.analyzedTokenTotalSupply || 0);
 
     return {
@@ -562,7 +555,6 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
     };
   }, [analysisData]);
 
-  // Calculate percentages for the pie chart (for visual display only)
   const diamondHandsPercentage = Math.round((stats.diamondHands / stats.totalWallets) * 100) || 0;
   const paperHandsPercentage = Math.round((stats.paperhands / stats.totalWallets) * 100) || 0;
   const otherHoldersPercentage = Math.max(0, 100 - diamondHandsPercentage - paperHandsPercentage);
@@ -604,32 +596,30 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
           <div className='flex flex-col items-center w-full'>
             <svg width='200' height='180' viewBox='0 0 200 200'>
               <defs>
-                <linearGradient id='diamondGradient' x1='0' y1='0' x2='0' y2='1'>
+                <linearGradient id='diamondGradientOverview' x1='0' y1='0' x2='0' y2='1'>
                   <stop offset='0%' stopColor='#10b981' stopOpacity='0.8' />
                   <stop offset='100%' stopColor='#10b981' stopOpacity='0.95' />
                 </linearGradient>
-                <linearGradient id='paperGradient' x1='0' y1='0' x2='0' y2='1'>
+                <linearGradient id='paperGradientOverview' x1='0' y1='0' x2='0' y2='1'>
                   <stop offset='0%' stopColor='#ef4444' stopOpacity='0.8' />
                   <stop offset='100%' stopColor='#ef4444' stopOpacity='0.95' />
                 </linearGradient>
-                <linearGradient id='otherGradient' x1='0' y1='0' x2='0' y2='1'>
+                <linearGradient id='otherGradientOverview' x1='0' y1='0' x2='0' y2='1'>
                   <stop offset='0%' stopColor='#64748b' stopOpacity='0.7' />
                   <stop offset='100%' stopColor='#64748b' stopOpacity='0.85' />
                 </linearGradient>
               </defs>
 
-              {/* Full circle background - only show if there's any data */}
               {stats.totalWallets > 0 && (
                 <circle cx='100' cy='100' r='70' fill='#27272a' stroke='none' />
               )}
 
-              {/* Diamond Hands portion */}
               {diamondHandsPercentage === 100 && (
                 <circle
                   cx='100'
                   cy='100'
                   r='70'
-                  fill='url(#diamondGradient)'
+                  fill='url(#diamondGradientOverview)'
                   stroke='#18181b'
                   strokeWidth='1'
                 />
@@ -643,19 +633,18 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
                     ${100 + 70 * Math.sin((diamondHandsPercentage / 100) * Math.PI * 2)} 
                     ${100 - 70 * Math.cos((diamondHandsPercentage / 100) * Math.PI * 2)} 
                     Z`}
-                  fill='url(#diamondGradient)'
+                  fill='url(#diamondGradientOverview)'
                   stroke='#18181b'
                   strokeWidth='1'
                 />
               )}
 
-              {/* Paper Hands portion */}
               {paperHandsPercentage === 100 && (
                 <circle
                   cx='100'
                   cy='100'
                   r='70'
-                  fill='url(#paperGradient)'
+                  fill='url(#paperGradientOverview)'
                   stroke='#18181b'
                   strokeWidth='1'
                 />
@@ -671,7 +660,7 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
                     ${100 + 70 * Math.sin((paperHandsPercentage / 100) * Math.PI * 2)} 
                     ${100 - 70 * Math.cos((paperHandsPercentage / 100) * Math.PI * 2)} 
                     Z`}
-                    fill='url(#paperGradient)'
+                    fill='url(#paperGradientOverview)'
                     stroke='#18181b'
                     strokeWidth='1'
                   />
@@ -686,13 +675,12 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
                       ${100 + 70 * Math.sin(((diamondHandsPercentage + paperHandsPercentage) / 100) * Math.PI * 2)} 
                       ${100 - 70 * Math.cos(((diamondHandsPercentage + paperHandsPercentage) / 100) * Math.PI * 2)} 
                     Z`}
-                  fill='url(#paperGradient)'
+                  fill='url(#paperGradientOverview)'
                   stroke='#18181b'
                   strokeWidth='1'
                 />
               )}
 
-              {/* Other Holders portion */}
               {otherHoldersPercentage > 0 && (
                 <path
                   d={`M 100 100 
@@ -702,13 +690,11 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
                       ${100 + 70 * Math.sin(2 * Math.PI)} 
                       ${100 - 70 * Math.cos(2 * Math.PI)} 
                     Z`}
-                  fill='url(#otherGradient)'
+                  fill='url(#otherGradientOverview)'
                   stroke='#18181b'
                   strokeWidth='1'
                 />
               )}
-
-              {/* Inner circle (hole) */}
               <circle cx='100' cy='100' r='45' fill='#18181b' />
             </svg>
 
@@ -784,65 +770,82 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
   );
 };
 
+interface WalletOptionCardProps {
+  walletCount: number;
+  creditCost?: number;
+  isSelected: boolean;
+  onClick: () => void;
+  isLoading: boolean;
+  isFree?: boolean;
+  isCostLoadingForOption?: boolean;
+}
+
 const WalletOptionCard = ({
   walletCount,
   creditCost,
   isSelected,
   onClick,
   isLoading,
-}: {
-  walletCount: number;
-  creditCost: number;
-  isSelected: boolean;
-  onClick: () => void;
-  isLoading: boolean;
-}) => (
+  isFree,
+  isCostLoadingForOption,
+}: WalletOptionCardProps) => (
   <button
     onClick={onClick}
-    disabled={isLoading}
+    disabled={isLoading || isCostLoadingForOption}
     className={cn(
       'transition-all duration-200',
-      'bg-zinc-900/50 backdrop-blur-sm rounded-lg',
-      'hover:bg-zinc-800/50 relative group',
-      'border border-transparent hover:border-zinc-700/50',
-      'flex-1',
-      isSelected && 'bg-zinc-800/50 border-teal-500/50',
-      isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
-      !isLoading && 'hover:bg-zinc-800/50',
+      'bg-zinc-800/90 backdrop-blur-sm rounded-lg',
+      'hover:bg-zinc-700/90 relative group',
+      'border border-zinc-700/70',
+      'flex-1 py-3',
+      isSelected && 'bg-zinc-700/90 border-teal-500 ring-1 ring-teal-500',
+      isLoading || isCostLoadingForOption ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+      !(isLoading || isCostLoadingForOption) && 'hover:bg-zinc-700/90 hover:border-zinc-600/80',
     )}>
-    <div className='p-4 space-y-2'>
+    <div className='p-1 space-y-1.5'>
       <div className='flex items-center justify-center gap-2'>
         <Users className='w-4 h-4 text-teal-400' />
-        <div className='flex items-baseline gap-1.5'>
-          <span className='text-xl font-semibold text-zinc-100'>{walletCount}</span>
+        <div className='flex items-baseline gap-1'>
+          <span className='text-lg font-semibold text-zinc-100'>{walletCount}</span>
           <span className='text-xs text-zinc-400'>wallets</span>
         </div>
       </div>
-      <div className='flex items-center justify-center'>
-        {isLoading ? (
+      <div className='flex items-center justify-center h-5'>
+        {isCostLoadingForOption ? (
           <Loader2 className='w-4 h-4 animate-spin text-zinc-400' />
-        ) : (
-          <div className='flex items-baseline gap-1.5'>
-            <span className='text-base font-medium text-zinc-100'>{creditCost}</span>
+        ) : isFree ? (
+          <span className='text-sm font-medium text-emerald-400'>Free</span>
+        ) : creditCost !== undefined ? (
+          <div className='flex items-baseline gap-1'>
+            <span className='text-sm font-medium text-zinc-100'>{creditCost}</span>
             <span className='text-xs text-zinc-400'>credits</span>
           </div>
+        ) : (
+          <span className='text-sm font-medium text-zinc-500'>...</span>
         )}
       </div>
     </div>
-    {isSelected && <div className='absolute inset-0 ring-1 ring-teal-500/50 rounded-lg' />}
     <div
       className={cn(
         'absolute inset-0 rounded-lg transition-opacity duration-200',
         'bg-gradient-to-r from-teal-500/5 to-transparent opacity-0',
         'group-hover:opacity-100',
-        isSelected && 'opacity-100',
-        isLoading && 'pointer-events-none',
+        isSelected && 'opacity-100 from-teal-500/10',
+        (isLoading || isCostLoadingForOption) && 'pointer-events-none opacity-0',
       )}
     />
   </button>
 );
 
-const InsufficientCreditsContent = ({ onClose }: { onClose: () => void }) => (
+const InsufficientCreditsContent = ({
+  onClose,
+  requiredCredits,
+  currentCredits,
+}: {
+  onClose: () => void;
+  requiredCredits?: number;
+  currentCredits?: number;
+}) => (
   <>
     <DialogHeader className='pb-2'>
       <DialogTitle className='text-zinc-100 flex items-center gap-2'>
@@ -852,8 +855,13 @@ const InsufficientCreditsContent = ({ onClose }: { onClose: () => void }) => (
     </DialogHeader>
     <div className='p-6 space-y-4'>
       <p className='text-zinc-300'>
-        You don&apos;t have enough credits to perform this analysis. Purchase more credits to
-        continue.
+        You don&apos;t have enough credits to perform this analysis.
+        {requiredCredits !== undefined && currentCredits !== undefined && (
+          <span className='block mt-1'>
+            (Required: {requiredCredits}, Your balance: {currentCredits})
+          </span>
+        )}
+        Purchase more credits to continue.
       </p>
       <div className='flex gap-3'>
         <Button
@@ -925,23 +933,25 @@ const HolderAnalysisDialogContent = ({
       <div
         className='overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent hover:scrollbar-thumb-zinc-600 flex-1 mt-2'
         style={{ maxHeight: '70vh' }}>
-        {analysisData.length > 0 ? (
-          activeView === 'overview' ? (
-            <div className='px-1 pb-4'>
+        <Tabs
+          value={activeView}
+          onValueChange={(value) => setActiveView(value as 'overview' | 'wallets')}>
+          <TabsContent value='overview' className='px-1 pb-4'>
+            {analysisData.length > 0 ? (
               <AnalysisOverview analysisData={analysisData} />
-            </div>
-          ) : (
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4 px-1 pb-4'>
-              {analysisData.map((stats) => (
-                <WalletStatCard key={stats.walletAddress} stats={stats} />
-              ))}
-            </div>
-          )
-        ) : (
-          <div className='py-12 text-center'>
-            <p className='text-zinc-400'>No holder analysis data available.</p>
-          </div>
-        )}
+            ) : (
+              <div className='py-12 text-center'>
+                <p className='text-zinc-400'>No holder analysis data available.</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value='wallets' className='grid grid-cols-1 md:grid-cols-2 gap-4 px-1 pb-4'>
+            {analysisData.map((stats) => (
+              <WalletStatCard key={stats.walletAddress} stats={stats} />
+            ))}
+          </TabsContent>
+        </Tabs>
       </div>
     </>
   );
@@ -959,7 +969,11 @@ interface AnalysisProgress {
   sessionId?: string;
 }
 
-export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderAnalysisInfoProps) {
+export function TokenHolderAnalysisInfo({
+  mintAddress,
+  className,
+  userPlatformTokenBalance,
+}: TokenHolderAnalysisInfoProps) {
   const { user } = useAuthContext();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [analysisData, setAnalysisData] = useState<TrackedWalletHolderStats[] | null>(null);
@@ -974,7 +988,12 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
   const prevMintAddressRef = useRef<string>(mintAddress);
   const currentAnalysisSessionId = useRef<string | null>(null);
   const socketCreationTime = useRef<number>(0);
-  const analysisRequestTime = useRef<number>(0);
+
+  const [isFreeTier, setIsFreeTier] = useState<boolean | null>(null);
+  const [isCostFetching, setIsCostFetching] = useState<boolean>(false);
+  const [showInsufficientCreditsError, setShowInsufficientCreditsError] = useState<boolean>(false);
+
+  const minHoldingForFree = MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS;
 
   const resetState = useCallback(() => {
     setError(null);
@@ -985,7 +1004,9 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
     setAnalysisProgress(null);
     setHasShownCompletionToast(false);
     currentAnalysisSessionId.current = null;
-
+    setIsFreeTier(null);
+    setIsCostFetching(false);
+    setShowInsufficientCreditsError(false);
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
@@ -994,14 +1015,30 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
 
   const handleCloseDialog = useCallback(() => {
     setDialogOpen(false);
-    resetState();
-  }, [resetState]);
-
-  const handleWalletCountSelect = useCallback((count: 10 | 20 | 50) => {
-    setSelectedWalletCount(count);
   }, []);
 
-  // Completely clear analysis data when token changes
+  useEffect(() => {
+    if (!dialogOpen) {
+      resetState();
+    }
+  }, [dialogOpen, resetState]);
+
+  const handleWalletCountSelect = useCallback(
+    (count: 10 | 20 | 50) => {
+      setSelectedWalletCount(count);
+      if (isFreeTier === false && user && creditCosts[count] !== undefined) {
+        if (user.credits < creditCosts[count]) {
+          setShowInsufficientCreditsError(true);
+        } else {
+          setShowInsufficientCreditsError(false);
+        }
+      } else if (isFreeTier === true) {
+        setShowInsufficientCreditsError(false);
+      }
+    },
+    [isFreeTier, user, creditCosts],
+  );
+
   useEffect(() => {
     if (prevMintAddressRef.current !== mintAddress) {
       resetState();
@@ -1009,75 +1046,152 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
     }
   }, [mintAddress, resetState]);
 
+  const fetchCreditCostsInternal = useCallback(async () => {
+    if (isFreeTier === true) {
+      setIsCostFetching(false);
+      setCreditCosts({});
+      return;
+    }
+    setIsCostFetching(true);
+    setShowInsufficientCreditsError(false);
+    try {
+      const costs: Record<string, number> = {};
+      const walletCountsToFetch = [10, 20, 50] as const;
+      await Promise.all(
+        walletCountsToFetch.map(async (count) => {
+          const response = await apiTokens.getTokenHolderAnalysisCost(mintAddress, count);
+          costs[count] = response.creditCost;
+        }),
+      );
+      setCreditCosts(costs);
+      if (user && selectedWalletCount && costs[selectedWalletCount] !== undefined) {
+        if (user.credits < costs[selectedWalletCount]) {
+          setShowInsufficientCreditsError(true);
+        }
+      }
+    } catch (err) {
+      let apiErr: ApiError;
+      if (err instanceof ApiError) {
+        apiErr = err;
+      } else {
+        apiErr = new ApiError(500, 'Failed to fetch credit costs.');
+      }
+      setError(apiErr);
+      if (apiErr.status !== 403) {
+        toast({
+          variant: 'destructive',
+          title: `Error ${apiErr.status || ''}`,
+          description: apiErr.message || 'Failed to fetch credit costs.',
+        });
+      }
+      setCreditCosts({});
+    } finally {
+      setIsCostFetching(false);
+    }
+  }, [mintAddress, user, toast, isFreeTier]);
+
+  useEffect(() => {
+    if (dialogOpen) {
+      setIsLoading(true);
+      setIsFreeTier(null);
+      setShowInsufficientCreditsError(false);
+      setCreditCosts({});
+
+      if (user && userPlatformTokenBalance !== undefined && userPlatformTokenBalance !== null) {
+        if (userPlatformTokenBalance >= minHoldingForFree) {
+          setIsFreeTier(true);
+          setIsLoading(false);
+        } else {
+          setIsFreeTier(false);
+          fetchCreditCostsInternal().finally(() => setIsLoading(false));
+        }
+      } else if (
+        user &&
+        (userPlatformTokenBalance === undefined || userPlatformTokenBalance === null)
+      ) {
+      } else {
+        setIsFreeTier(false);
+        fetchCreditCostsInternal().finally(() => setIsLoading(false));
+      }
+    }
+  }, [dialogOpen, user, userPlatformTokenBalance, minHoldingForFree, fetchCreditCostsInternal]);
+
+  const getApiErrorMessage = (apiError: ApiError): string | undefined => {
+    if (
+      apiError.data &&
+      typeof apiError.data === 'object' &&
+      'message' in apiError.data &&
+      typeof apiError.data.message === 'string'
+    ) {
+      return apiError.data.message;
+    }
+    return undefined;
+  };
+
   const handleStartAnalysis = useCallback(async () => {
     if (!selectedWalletCount) return;
-
-    // Generate a new session ID for this analysis request
-    const newSessionId = Math.random().toString(36).substring(2, 15);
-    currentAnalysisSessionId.current = newSessionId;
-
-    // First check if we have enough credits
-    try {
-      const cost = creditCosts[selectedWalletCount];
-      if (!cost) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Could not determine credit cost. Please try again.',
-        });
-        return;
-      }
-
-      // Verify we have enough credits before starting
-      await apiTokens.getTokenHolderAnalysisCost(mintAddress, selectedWalletCount);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.status === 402) {
-          // Insufficient credits
-          setError(new ApiError(402, 'Insufficient credits'));
-        } else if (err.status === 403) {
-          // Token gated
-          setError(err);
-        } else {
-          console.error('Failed to check credits/access:', err);
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description:
-              err.message || 'Failed to verify credit balance or access. Please try again.',
-          });
-        }
-      } else {
-        console.error('Unexpected error during credit/access check:', err);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'An unexpected error occurred while verifying credits. Please try again.',
-        });
-      }
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: 'You must be logged in to start an analysis.',
+      });
       return;
     }
 
-    setIsLoading(true);
+    if (isFreeTier === null && !isCostFetching) {
+      toast({
+        variant: 'default',
+        title: 'Please wait',
+        description: 'Checking analysis eligibility...',
+      });
+      return;
+    }
+
+    const newSessionId = Math.random().toString(36).substring(2, 15);
+    console.log('Starting analysis with session ID:', newSessionId);
+    currentAnalysisSessionId.current = newSessionId;
     setError(null);
-    // Clear previous analysis data and progress when starting a new one
+
+    if (isFreeTier === false) {
+      const cost = creditCosts[selectedWalletCount];
+      if (cost === undefined) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Credit cost not available. Please try again.',
+        });
+        fetchCreditCostsInternal();
+        return;
+      }
+      if (user.credits < cost) {
+        setShowInsufficientCreditsError(true);
+        return;
+      }
+    }
+
+    setIsLoading(true);
     setAnalysisData(null);
     setAnalysisProgress({
-      // Set initial progress state
       currentWallet: 0,
       totalWallets: selectedWalletCount,
       status: 'analyzing',
       message: 'Initializing analysis...',
+      sessionId: newSessionId,
     });
     setHasShownCompletionToast(false);
 
     try {
-      // Record the time of the analysis request
-      analysisRequestTime.current = Date.now();
+      console.log('Sending analysis request to API:', {
+        mintAddress,
+        walletCount: selectedWalletCount,
+        sessionId: newSessionId,
+      });
 
-      // Ensure newSessionId is passed to the backend API call
       await apiTokens.getTokenHolderAnalysis(mintAddress, selectedWalletCount, newSessionId);
+      console.log('Analysis request successful');
     } catch (err) {
+      console.error('Analysis request error:', err);
       let apiError: ApiError;
       if (err instanceof ApiError) {
         apiError = err;
@@ -1086,135 +1200,85 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
       } else {
         apiError = new ApiError(500, 'An unexpected error occurred.');
       }
-
       setError(apiError);
-
       setAnalysisProgress((prev) => ({
-        ...(prev || { currentWallet: 0, totalWallets: selectedWalletCount, status: 'error' }),
+        ...(prev || {
+          currentWallet: 0,
+          totalWallets: selectedWalletCount,
+          status: 'error',
+          sessionId: newSessionId,
+        }),
         status: 'error',
         message: apiError.message || 'Failed to start analysis.',
         error: apiError.message,
       }));
-
-      if (apiError.status !== 403 && apiError.message !== 'Insufficient credits') {
-        const errorData = apiError.data as Partial<TokenGatedErrorData> | string | undefined;
-        const messageFromServer =
-          typeof errorData === 'object' && errorData?.message
-            ? errorData.message
-            : typeof errorData === 'string'
-              ? errorData
-              : apiError.message;
+      if (apiError.status !== 402 && apiError.status !== 403) {
         toast({
           variant: 'destructive',
           title: `Error ${apiError.status || ''}`,
-          description: messageFromServer || 'An error occurred while initiating holder analysis.',
+          description:
+            getApiErrorMessage(apiError) || apiError.message || 'Failed to start analysis.',
         });
       }
       setAnalysisData(null);
     } finally {
-      setIsLoading(false);
+      if (analysisProgress?.status !== 'analyzing') {
+        setIsLoading(false);
+      }
     }
-  }, [mintAddress, selectedWalletCount, toast, creditCosts]);
+  }, [
+    mintAddress,
+    selectedWalletCount,
+    toast,
+    creditCosts,
+    isFreeTier,
+    user,
+    isCostFetching,
+    fetchCreditCostsInternal,
+    analysisProgress?.status,
+  ]);
 
   useEffect(() => {
-    // When the dialog closes or user changes, clean up the connection
     if (!user?.id || !dialogOpen) {
       if (socketRef.current) {
-        console.log('Closing WS connection due to dialog close or user change.');
         socketRef.current.disconnect();
         socketRef.current = null;
       }
       return;
     }
 
-    // If the dialog is opening with a new mintAddress, we need to clear previous state
-    if (dialogOpen && mintAddress) {
-      setAnalysisData(null);
-    }
-
-    // If socket exists and is connected, do nothing.
-    if (socketRef.current?.connected) {
-      console.log('WS already connected and active.');
-      return;
-    }
-
-    // If socketRef.current exists but is not connected, clean it up before creating a new one.
     if (socketRef.current) {
-      console.log('Cleaning up existing, non-connected socket instance.');
       socketRef.current.disconnect();
+      socketRef.current = null;
     }
 
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 5;
-
-    // --- Determine WebSocket URL ---
     const socketUrlToConnect = `${API_BASE_URL}/analysis`;
     const socket = io(socketUrlToConnect, {
       withCredentials: true,
-      transports: ['websocket'],
       reconnection: true,
-      reconnectionAttempts: maxReconnectAttempts,
+      reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       timeout: 20000,
     });
+
     socketRef.current = socket;
-    // --- Determine WebSocket URL ---
-
-    socketRef.current.on('connect', () => {
-      reconnectAttempts = 0;
-    });
-
-    socketRef.current.on('connect_error', (error) => {
-      console.error('WebSocket Connection Error:', error);
-      reconnectAttempts++;
-
-      if (reconnectAttempts >= maxReconnectAttempts) {
-        // Update analysisProgress to reflect connection failure if analysis was in progress
-        setAnalysisProgress((prev) => {
-          if (prev && prev.status === 'analyzing') {
-            return {
-              ...prev,
-              status: 'error',
-              message: 'Connection to analysis service lost and could not be re-established.',
-              error: 'WebSocket connection failed after multiple attempts.',
-            };
-          }
-          return prev;
-        });
-
-        toast({
-          variant: 'destructive',
-          title: 'Connection Error',
-          description:
-            'Failed to connect to analysis service after multiple attempts. Please refresh and try again.',
-        });
-      }
-    });
-
-    socketRef.current.on('disconnect', (reason) => {
-      if (reason === 'io server disconnect' || reason === 'transport close') {
-        setAnalysisProgress((prev) => {
-          if (prev && prev.status === 'analyzing') {
-            return {
-              ...prev,
-              message: 'Connection temporarily lost. Attempting to reconnect...',
-            };
-          }
-          return prev;
-        });
-      }
-    });
-
-    // Store the current token address when setting up the handler
-    const tokenForHandler = mintAddress;
-
-    // Record time of socket creation to ignore stale responses
     socketCreationTime.current = Date.now();
 
-    socketRef.current.on('analysis_progress', (data: AnalysisProgress) => {
-      // Validate Session ID first
+    const tokenForHandler = mintAddress;
+
+    const handleAnalysisProgress = (data: AnalysisProgress) => {
+      const eventTimestamp = Date.now();
+
+      const isMintAddressMismatch = tokenForHandler !== mintAddress;
+      const isSocketGone = !socketRef.current;
+      const isDialogClosed = !dialogOpen;
+      const isStaleMessage = eventTimestamp < socketCreationTime.current;
+
+      if (isMintAddressMismatch || isSocketGone || isDialogClosed || isStaleMessage) {
+        return;
+      }
+
       if (currentAnalysisSessionId.current) {
-        // Session is active, expect matching sessionId
         if (data.sessionId && data.sessionId !== currentAnalysisSessionId.current) {
           return;
         }
@@ -1224,154 +1288,70 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
         }
       }
 
-      const eventTimestamp = Date.now();
-      if (
-        tokenForHandler !== mintAddress ||
-        !socketRef.current ||
-        !dialogOpen ||
-        eventTimestamp < socketCreationTime.current
-      ) {
-        return;
-      }
-
-      let currentMessage = data.message;
-
-      if (data.message === 'No trades found for this wallet.') {
-        data.tradesFound = 0;
-        if (data.currentWallet && data.totalWallets) {
-          currentMessage = `Wallet ${data.currentWallet}/${data.totalWallets}: Fetching trades`;
-        } else if (data.currentWalletAddress) {
-          currentMessage = `Wallet ${data.currentWalletAddress}: Fetching trades`;
-        } else {
-          currentMessage = 'Fetching trades';
-        }
-      }
-
-      if (currentMessage && currentMessage.includes('batch') && data.tradesFound !== undefined) {
-        data.message = currentMessage.replace(
-          /batch \d+\/\d+/,
-          `${data.tradesFound} transactions analyzed`,
-        );
-      } else if (
-        data.tradesFound !== undefined &&
-        !currentMessage?.includes('transactions analyzed') &&
-        !currentMessage?.includes('transactions found')
-      ) {
-        const base = currentMessage
-          ? currentMessage
-          : data.currentWallet && data.totalWallets
-            ? `Wallet ${data.currentWallet}/${data.totalWallets}: Fetching trades`
-            : 'Fetching trades';
-        data.message = `${base} (${data.tradesFound} transactions analyzed)`;
-      } else {
-        data.message = currentMessage;
-      }
-
       setAnalysisProgress(data);
-
-      if (data.status === 'error') {
-        setError(new ApiError(500, data.message || 'Analysis failed'));
-        toast({
-          variant: 'destructive',
-          title: 'Analysis Error',
-          description: data.message || data.error || 'Analysis failed during processing.',
-        });
-        setAnalysisData(null);
-      } else if (data.status === 'complete') {
-        if (currentAnalysisSessionId.current) {
-          if (data.sessionId && data.sessionId !== currentAnalysisSessionId.current) {
-            return;
-          }
+      if (data.status === 'complete' || data.status === 'error') {
+        setIsLoading(false);
+        if (data.analysisData) {
+          setAnalysisData(data.analysisData);
         }
-
-        const timeAtCheck = Date.now();
-        const isFromOlderSocket = timeAtCheck < socketCreationTime.current;
-
-        if (tokenForHandler !== mintAddress || !dialogOpen || isFromOlderSocket) {
-          return;
-        }
-
-        if (data.analysisData && !hasShownCompletionToast) {
+        if (data.status === 'complete' && !hasShownCompletionToast) {
           toast({
             title: 'Analysis Complete',
-            description: data.message || 'Diamond hands analysis has been completed successfully.',
+            description: data.message || 'Holder analysis has finished successfully.',
           });
           setHasShownCompletionToast(true);
-        }
-
-        if (data.analysisData) {
-          setAnalysisData([...data.analysisData]);
-        } else if (!data.analysisData && data.message === 'No trades found for this wallet.') {
-          setAnalysisData([]);
-        } else if (!data.analysisData) {
-          setAnalysisData([]);
+        } else if (data.status === 'error' && !hasShownCompletionToast) {
+          if (data.error && !data.error.toLowerCase().includes('insufficient credits') && !error) {
+            toast({
+              variant: 'destructive',
+              title: 'Analysis Error',
+              description: data.message || data.error || 'An error occurred during analysis.',
+            });
+          }
+          setHasShownCompletionToast(true);
         }
       }
+    };
+
+    socket.on('analysis_progress', handleAnalysisProgress);
+
+    socket.on('connect_error', (err) => {
+      console.error('WebSocket Connection Error:', err.message);
+      setAnalysisProgress((prev) => {
+        if (prev && prev.status === 'analyzing') {
+          return {
+            ...prev,
+            status: 'error',
+            message: 'Connection to analysis service failed.',
+            error: 'WebSocket connection failed.',
+          };
+        }
+        return prev;
+      });
+      setIsLoading(false);
     });
 
     return () => {
-      const socketToDisconnect = socketRef.current;
-      if (socketToDisconnect) {
-        socketToDisconnect.disconnect();
+      if (socketRef.current) {
+        socketRef.current.off('analysis_progress', handleAnalysisProgress);
+        socketRef.current.off('connect_error');
+        socketRef.current.off('connect');
+        socketRef.current.off('disconnect');
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
-      socketRef.current = null;
     };
-  }, [user?.id, dialogOpen, hasShownCompletionToast, mintAddress]);
+  }, [user?.id, dialogOpen, mintAddress, toast, hasShownCompletionToast]);
 
   const handleButtonClick = useCallback(() => {
-    resetState();
-
-    socketCreationTime.current = Date.now() + 100000;
-
     setDialogOpen(true);
-
-    // Fetch credit costs
-    const fetchCreditCosts = async () => {
-      try {
-        const costs: Record<string, number> = {};
-        const walletCountsToFetch = [10, 20, 50] as const;
-        await Promise.all(
-          walletCountsToFetch.map(async (count) => {
-            const response = await apiTokens.getTokenHolderAnalysisCost(mintAddress, count);
-            costs[count] = response.creditCost;
-          }),
-        );
-        setCreditCosts(costs);
-      } catch (err) {
-        if (err instanceof ApiError) {
-          setError(err);
-
-          if (err.status !== 403 && err.status !== 402) {
-            toast({
-              variant: 'destructive',
-              title: `Error ${err.status || ''}`,
-              description: err.message || 'Failed to fetch credit costs.',
-            });
-          }
-        } else {
-          const unexpectedError = new ApiError(
-            500,
-            'An unexpected error occurred while fetching credit costs.',
-          );
-          setError(unexpectedError);
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: unexpectedError.message,
-          });
-        }
-        setCreditCosts({});
-      }
-    };
-    fetchCreditCosts();
-  }, [mintAddress, toast, resetState]);
+  }, []);
 
   const renderInitialButton = () => (
     <Button
       onClick={handleButtonClick}
       variant='outline'
       size='lg'
-      disabled={isLoading}
       className='w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-teal-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg'>
       <div className='flex items-center'>
         <div className='w-8 h-8 rounded-full bg-teal-700 flex items-center justify-center mr-3'>
@@ -1391,20 +1371,77 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
           Select Analysis Scope
         </DialogTitle>
         <DialogDescription className='text-sm text-zinc-400 pt-1'>
-          Credit cost varies based on the number of wallets and token age. Older tokens require more
-          credits due to increased data processing.
+          {isLoading && isFreeTier === null && userPlatformTokenBalance === undefined && (
+            <span className='flex items-center text-amber-400'>
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              Loading your token balance...
+            </span>
+          )}
+          {isCostFetching && isFreeTier === false && (
+            <span className='flex items-center text-amber-400'>
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              Fetching analysis costs...
+            </span>
+          )}
+          {isFreeTier === true && (
+            <span className='text-emerald-400 font-medium flex items-center gap-2'>
+              <Info size={16} /> This analysis is FREE for you! (You hold{' '}
+              {formatTokenAmount.format(userPlatformTokenBalance)}/
+              {formatTokenAmount.format(minHoldingForFree)} required $DYORHUB)
+            </span>
+          )}
+          <span>
+            Credit cost varies based on the number of wallets and token age. Older tokens require
+            more credits.
+          </span>
+          {isFreeTier === false && userPlatformTokenBalance !== undefined && (
+            <span className='text-amber-400 flex items-center gap-1 mt-1 text-sm'>
+              <Info size={16} /> Hold {formatTokenAmount.format(minHoldingForFree, '$DYORHUB')} for
+              free analysis. Your balance:{' '}
+              {formatTokenAmount.format(userPlatformTokenBalance, '$DYORHUB')}.
+            </span>
+          )}
+          {!user && (
+            <span className='text-amber-400 flex items-center gap-1 mt-1 text-sm'>
+              <Info size={16} /> Log in and hold{' '}
+              {formatTokenAmount.format(minHoldingForFree, '$DYORHUB')} for free analysis.
+            </span>
+          )}
         </DialogDescription>
       </DialogHeader>
-      <div className='space-y-6 p-6 pt-2'>
+      <div className='mt-4 space-y-6 px-1 sm:px-0'>
+        {error && error.status === 403 && (
+          <TokenGatedMessage featureName='Diamond Hands Analysis' error={error} />
+        )}
+        {showInsufficientCreditsError &&
+          isFreeTier === false &&
+          selectedWalletCount &&
+          creditCosts[selectedWalletCount] !== undefined && (
+            <div className='bg-red-900/30 border border-red-700/50 text-red-300 p-3 rounded-lg text-sm'>
+              <p className='font-medium'>Insufficient Credits</p>
+              <p>
+                You need {creditCosts[selectedWalletCount]} credits for Top {selectedWalletCount}{' '}
+                analysis. Your balance: {user?.credits ?? 0} credits.
+              </p>
+            </div>
+          )}
         <div className='flex gap-3'>
           {[10, 20, 50].map((count) => (
             <WalletOptionCard
               key={count}
               walletCount={count}
-              creditCost={creditCosts[count] || 0}
+              creditCost={creditCosts[count]}
               isSelected={selectedWalletCount === count}
               onClick={() => handleWalletCountSelect(count as 10 | 20 | 50)}
-              isLoading={!creditCosts[count] && Object.keys(creditCosts).length === 0}
+              isLoading={
+                isLoading &&
+                selectedWalletCount === count &&
+                analysisProgress?.status === 'analyzing'
+              }
+              isFree={isFreeTier === true}
+              isCostLoadingForOption={
+                isCostFetching && creditCosts[count] === undefined && isFreeTier === false
+              }
             />
           ))}
         </div>
@@ -1416,15 +1453,29 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
               'text-white font-medium py-4 text-base rounded-lg',
               'transition-all duration-200 hover:shadow-lg hover:shadow-teal-500/20',
             )}
-            disabled={isLoading}
+            disabled={
+              !user ||
+              isLoading ||
+              isFreeTier === null ||
+              (isFreeTier === false &&
+                (isCostFetching || creditCosts[selectedWalletCount] === undefined)) ||
+              (isFreeTier === false && showInsufficientCreditsError)
+            }
             onClick={handleStartAnalysis}>
-            {isLoading ? (
+            {isLoading && analysisProgress?.status !== 'analyzing' && isFreeTier === null ? (
+              <>
+                <Loader2 className='mr-2 h-5 w-5 animate-spin' />
+                Please wait...
+              </>
+            ) : analysisProgress?.status === 'analyzing' ? (
               <>
                 <Loader2 className='mr-2 h-5 w-5 animate-spin' />
                 Analyzing...
               </>
+            ) : isFreeTier ? (
+              'Start Free Analysis'
             ) : (
-              'Start Analysis'
+              `Start Analysis (${creditCosts[selectedWalletCount] !== undefined ? creditCosts[selectedWalletCount] + ' Credits' : '...'})`
             )}
           </Button>
         )}
@@ -1441,74 +1492,120 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
               <Diamond className='w-5 h-5 mr-2 text-teal-400' />
               Diamond Hands Analysis
             </DialogTitle>
+            <DialogDescription className='text-sm text-zinc-400 mt-1'>
+              Analyzing wallet transactions and tracking token holders.
+            </DialogDescription>
           </DialogHeader>
-          <div className='py-6 px-4'>
-            <div className='space-y-4'>
-              {/* Message Display Area */}
-              <div className='flex items-center gap-2'>
-                <Loader2 className='w-5 h-5 animate-spin text-teal-400' />
-                <span className='text-zinc-300'>
-                  {(() => {
-                    if (isLoading && !analysisProgress) return 'Initiating analysis...';
-                    if (analysisProgress) {
-                      if (
-                        analysisProgress.message?.includes(
-                          analysisProgress.currentWalletAddress || '',
-                        )
-                      ) {
-                        return analysisProgress.message;
-                      }
-                      return (
-                        analysisProgress.message ||
-                        `Analyzing wallets (${analysisProgress.currentWallet}/${analysisProgress.totalWallets})` // Fallback if somehow not set
-                      );
-                    }
-                    return 'Waiting for analysis to start...'; // General fallback
-                  })()}
-                </span>
+          <div className='py-4 px-4'>
+            <div className='space-y-5'>
+              {/* Animated Banner */}
+              <div className='relative overflow-hidden rounded-lg bg-gradient-to-r from-teal-900/30 to-zinc-900/50 border border-teal-800/30 p-6'>
+                <div className='absolute inset-0 bg-gradient-to-r from-teal-500/10 to-transparent opacity-50'></div>
+                <div className='relative z-10 flex items-center'>
+                  <div className='mr-4 bg-teal-900/70 rounded-full p-3 backdrop-blur'>
+                    <Loader2 className='w-8 h-8 animate-spin text-teal-400' />
+                  </div>
+                  <div>
+                    <h3 className='text-lg font-semibold text-teal-100'>
+                      {(() => {
+                        if (isLoading && !analysisProgress) return 'Initializing analysis...';
+                        if (analysisProgress) {
+                          if (analysisProgress.status === 'analyzing') {
+                            return analysisProgress.message || 'Analyzing in progress';
+                          }
+                        }
+                        return 'Analysis in progress';
+                      })()}
+                    </h3>
+                    {analysisProgress && analysisProgress.currentWallet > 0 && (
+                      <p className='text-sm text-zinc-300 mt-1'>
+                        Processing wallet {analysisProgress.currentWallet} of{' '}
+                        {analysisProgress.totalWallets}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Current Wallet Address */}
               {analysisProgress && analysisProgress.currentWalletAddress && (
-                <div className='text-sm text-zinc-400'>
-                  Current wallet: {analysisProgress.currentWalletAddress}
+                <div className='bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-4 py-3 backdrop-blur-sm'>
+                  <div className='flex items-center justify-between'>
+                    <div className='flex items-center gap-2'>
+                      <Wallet className='w-4 h-4 text-zinc-400' />
+                      <span className='text-sm font-medium text-zinc-300'>Current Wallet</span>
+                    </div>
+                    <span className='font-mono text-xs bg-zinc-900/80 px-2 py-1 rounded-md text-zinc-400'>
+                      {analysisProgress.currentWalletAddress}
+                    </span>
+                  </div>
                 </div>
               )}
 
               {/* Progress Bar Section */}
-              {analysisProgress && analysisProgress.totalWallets > 0 ? (
-                <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/50 p-4'>
-                  <div className='space-y-2'>
-                    <div className='flex justify-between text-sm'>
-                      <span className='text-zinc-400'>Analysis Progress</span>
-                      <span className='text-zinc-300'>
-                        {(() => {
-                          const completedWallets = Math.max(0, analysisProgress.currentWallet - 1);
-                          const progressPercent =
-                            (completedWallets / analysisProgress.totalWallets) * 100;
-                          return `${Math.round(progressPercent)}%`;
-                        })()}
-                      </span>
-                    </div>
-                    <div className='w-full bg-zinc-700/50 rounded-full h-2'>
-                      <div
-                        className='bg-teal-500 h-2 rounded-full transition-all duration-300'
-                        style={{
-                          width: (() => {
+              {analysisProgress && analysisProgress.totalWallets > 0 && (
+                <div className='bg-zinc-800/50 rounded-lg border border-zinc-700/50 p-4 backdrop-blur-sm'>
+                  <div className='space-y-3'>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-sm font-medium text-zinc-300'>Analysis Progress</span>
+                      <div className='flex items-center gap-2'>
+                        <span className='text-sm text-zinc-400'>
+                          {(() => {
                             const completedWallets = Math.max(
                               0,
                               analysisProgress.currentWallet - 1,
                             );
                             const progressPercent =
                               (completedWallets / analysisProgress.totalWallets) * 100;
-                            return `${progressPercent}%`;
-                          })(),
-                        }}
-                      />
+                            return `${Math.round(progressPercent)}%`;
+                          })()}
+                        </span>
+                        <span className='text-xs text-zinc-500'>
+                          {Math.max(0, analysisProgress.currentWallet - 1)}/
+                          {analysisProgress.totalWallets} wallets
+                        </span>
+                      </div>
+                    </div>
+                    <div className='relative pt-1'>
+                      <div className='overflow-hidden h-2 text-xs flex rounded-full bg-zinc-700/70'>
+                        <div
+                          style={{
+                            width: (() => {
+                              const completedWallets = Math.max(
+                                0,
+                                analysisProgress.currentWallet - 1,
+                              );
+                              const progressPercent =
+                                (completedWallets / analysisProgress.totalWallets) * 100;
+                              return `${progressPercent}%`;
+                            })(),
+                          }}
+                          className='shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-teal-500 to-teal-400 transition-all duration-300 ease-in-out'></div>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Additional Info */}
+                  {analysisProgress.tradesFound !== undefined && (
+                    <div className='mt-3 flex items-center text-xs text-zinc-400'>
+                      <TrendingUp className='w-3.5 h-3.5 mr-1.5 text-teal-400' />
+                      <span>{analysisProgress.tradesFound} transactions processed</span>
+                    </div>
+                  )}
                 </div>
-              ) : null}
+              )}
+
+              {/* Info Box */}
+              <div className='bg-blue-900/20 border border-blue-800/30 rounded-lg px-4 py-3 text-sm text-blue-200'>
+                <div className='flex'>
+                  <Info className='w-5 h-5 mr-2 text-blue-400 shrink-0' />
+                  <p>
+                    This analysis may take several minutes to complete. Results will display
+                    automatically when finished. You can safely continue browsing in other tabs
+                    while this runs.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </>
@@ -1516,113 +1613,65 @@ export function TokenHolderAnalysisInfo({ mintAddress, className }: TokenHolderA
     }
 
     if (error) {
-      if (error.status === 403) {
+      const isInsufficientCreditsError =
+        error.status === 402 ||
+        (error.message && error.message.toLowerCase().includes('insufficient credits')) ||
+        (error.status === 403 &&
+          error.data &&
+          typeof error.data === 'object' &&
+          'details' in error.data &&
+          typeof error.data.details === 'object' &&
+          error.data.details !== null &&
+          'code' in error.data.details &&
+          error.data.details.code === 'INSUFFICIENT_CREDITS');
+
+      if (isInsufficientCreditsError) {
         return (
-          <>
-            <DialogHeader className='pb-2'>
-              <DialogTitle className='text-zinc-100 flex items-center text-orange-400'>
-                <Lock className='w-4 h-4 mr-2' />
-                Access Gated
-              </DialogTitle>
-            </DialogHeader>
-            <TokenGatedMessage error={error} featureName='Diamond Hands Analysis' />
-          </>
+          <InsufficientCreditsContent
+            onClose={handleCloseDialog}
+            requiredCredits={selectedWalletCount ? creditCosts[selectedWalletCount] : undefined}
+            currentCredits={user?.credits}
+          />
         );
       }
-      if (error.message?.includes('Insufficient credits')) {
-        return <InsufficientCreditsContent onClose={handleCloseDialog} />;
+
+      if (error.status === 403) {
+        return (
+          <div className='p-4'>
+            <TokenGatedMessage featureName='Diamond Hands Analysis' error={error} />
+          </div>
+        );
       }
-      const errorData = error.data as Partial<TokenGatedErrorData> | string | undefined;
-      const messageFromServer =
-        typeof errorData === 'object' && errorData?.message
-          ? errorData.message
-          : typeof errorData === 'string'
-            ? errorData
-            : error.message;
+
       return (
-        <>
-          <DialogHeader className='pb-2'>
-            <DialogTitle className='text-zinc-100 flex items-center text-red-400'>
-              <AlertTriangle className='w-4 h-4 mr-2' />
-              Error {error.status || ''}
-            </DialogTitle>
+        <div className='p-6 text-center'>
+          <DialogHeader>
+            <DialogTitle className='text-red-400'>Analysis Error</DialogTitle>
+            <DialogDescription>
+              {getApiErrorMessage(error) || error.message || 'An unexpected error occurred.'}
+            </DialogDescription>
           </DialogHeader>
-          <div className='py-6 px-4 text-center text-sm text-zinc-300'>
-            <p>{messageFromServer || 'Failed to load information. Please try again later.'}</p>
-          </div>
-        </>
+          <Button onClick={handleCloseDialog} className='mt-6'>
+            Retry
+          </Button>
+        </div>
       );
     }
 
-    if (
-      analysisProgress &&
-      analysisProgress.status === 'complete' &&
-      analysisData &&
-      analysisData.length > 0
-    ) {
+    if (analysisData) {
       return <HolderAnalysisDialogContent analysisData={analysisData} />;
-    }
-
-    // If analysis is complete but no data (e.g. no holders found)
-    if (
-      analysisProgress &&
-      analysisProgress.status === 'complete' &&
-      (!analysisData || analysisData.length === 0)
-    ) {
-      return (
-        <>
-          <DialogHeader className='pb-2'>
-            <DialogTitle className='text-zinc-100 flex items-center'>
-              <Diamond className='w-5 h-5 mr-2 text-teal-400' />
-              Analysis Complete
-            </DialogTitle>
-          </DialogHeader>
-          <div className='py-6 px-4 text-center text-sm text-zinc-300'>
-            <p>{analysisProgress.message || 'No analysis data to display.'}</p>
-          </div>
-        </>
-      );
-    }
-
-    // If analysis ended with an error reported via WebSocket
-    if (analysisProgress && analysisProgress.status === 'error') {
-      return (
-        <>
-          <DialogHeader className='pb-2'>
-            <DialogTitle className='text-zinc-100 flex items-center text-red-400'>
-              <AlertTriangle className='w-4 h-4 mr-2' />
-              Analysis Error
-            </DialogTitle>
-          </DialogHeader>
-          <div className='py-6 px-4 text-center text-sm text-zinc-300'>
-            <p>{analysisProgress.message || 'An error occurred during analysis.'}</p>
-            {analysisProgress.error && (
-              <p className='text-xs text-zinc-500 mt-1'>Details: {analysisProgress.error}</p>
-            )}
-          </div>
-        </>
-      );
-    }
-
-    if (!selectedWalletCount) {
-      return renderWalletCountSelection();
     }
 
     return renderWalletCountSelection();
   };
 
   return (
-    <div className={cn(className)}>
+    <div className={cn('w-full', className)}>
       {renderInitialButton()}
-      <Dialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            resetState();
-          }
-          setDialogOpen(open);
-        }}>
-        <DialogContent className='max-w-4xl'>{renderDialogView()}</DialogContent>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className='max-w-3xl xl:max-w-5xl bg-zinc-900/95 border-zinc-700/50 backdrop-blur-md text-zinc-50 data-[state=open]:animate-contentShow'>
+          {renderDialogView()}
+        </DialogContent>
       </Dialog>
     </div>
   );

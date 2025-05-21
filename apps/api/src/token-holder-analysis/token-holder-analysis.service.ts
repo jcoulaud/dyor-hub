@@ -112,23 +112,26 @@ export class TokenHolderAnalysisService {
     userId: string,
     tokenAddress: string,
     walletCount: WalletAnalysisCount = 20,
+    effectiveCreditCost: number,
+    isEligibleForFreeTier: boolean,
     sessionId?: string,
   ): Promise<{ message: string; analysisJobId?: string }> {
     const tokenAgeInMonths = await this.getTokenAgeInMonths(tokenAddress);
-    const creditCost = this.calculateCreditCost(tokenAgeInMonths, walletCount);
-
-    // Check and reserve credits first
-    await this.creditsService.checkAndReserveCredits(userId, creditCost);
 
     // Run in the background
     this._performFullAnalysis(
       userId,
       tokenAddress,
       walletCount,
-      creditCost,
+      effectiveCreditCost,
+      isEligibleForFreeTier,
       tokenAgeInMonths,
       sessionId,
     ).catch((error) => {
+      this.logger.error(
+        `Unhandled error in _performFullAnalysis for user ${userId}, token ${tokenAddress}, session ${sessionId}: ${error.message}`,
+        error.stack,
+      );
       this.eventsGateway.sendAnalysisProgress(userId, {
         currentWallet: 0,
         totalWallets: walletCount,
@@ -137,22 +140,15 @@ export class TokenHolderAnalysisService {
         error: 'Internal Server Error',
         sessionId,
       });
-      // Credits are released if the job fails before it can manage credits itself
-      this.creditsService
-        .releaseReservedCredits(userId, creditCost)
-        .catch((releaseError) => {
-          this.logger.error(
-            `Failed to release credits after catastrophic failure for user ${userId}, sessionId ${sessionId}: ${releaseError.message}`,
-          );
-        });
-    });
-
-    this.eventsGateway.sendAnalysisProgress(userId, {
-      currentWallet: 0,
-      totalWallets: walletCount,
-      status: 'analyzing',
-      message: 'Analysis initiated...',
-      sessionId,
+      if (!isEligibleForFreeTier && effectiveCreditCost > 0) {
+        this.creditsService
+          .releaseReservedCredits(userId, effectiveCreditCost)
+          .catch((releaseError) => {
+            this.logger.error(
+              `Failed to release credits (${effectiveCreditCost}) in _performFullAnalysis catch for user ${userId}, sessionId ${sessionId}: ${releaseError.message}`,
+            );
+          });
+      }
     });
 
     return { message: 'Token holder analysis initiated successfully.' };
@@ -162,11 +158,13 @@ export class TokenHolderAnalysisService {
     userId: string,
     tokenAddress: string,
     walletCount: WalletAnalysisCount,
-    creditCost: number,
+    effectiveCreditCost: number,
+    isEligibleForFreeTier: boolean,
     tokenAgeInMonths: number,
     sessionId?: string,
   ): Promise<void> {
     let finalAnalyzedWallets: TrackedWalletHolderStats[] = [];
+    let analysisSuccessful = false;
 
     // Initial progress update: Preparing to analyze
     this.eventsGateway.sendAnalysisProgress(userId, {
@@ -224,7 +222,15 @@ export class TokenHolderAnalysisService {
           status: 'complete',
           message: 'No top holders found for this token.',
           sessionId,
+          analysisData: [],
         });
+        if (!isEligibleForFreeTier && effectiveCreditCost > 0) {
+          await this.creditsService.releaseReservedCredits(
+            userId,
+            effectiveCreditCost,
+          );
+        }
+        return;
       } else {
         const walletsToAnalyze = topHolders.slice(0, walletCount);
 
@@ -306,16 +312,33 @@ export class TokenHolderAnalysisService {
             ),
           );
         }
+        analysisSuccessful = true;
       }
 
-      await this.creditsService.commitReservedCredits(
-        userId,
-        creditCost,
-        `Token Holder Analysis for ${tokenAddress} (${walletCount} wallets)`,
-      );
+      if (
+        analysisSuccessful &&
+        !isEligibleForFreeTier &&
+        effectiveCreditCost > 0
+      ) {
+        try {
+          await this.creditsService.commitReservedCredits(
+            userId,
+            effectiveCreditCost,
+          );
+        } catch (commitError) {
+          this.logger.error(
+            `CRITICAL: Failed to commit ${effectiveCreditCost} credits for user ${userId}, session ${sessionId} after successful holder analysis: ${commitError.message}`,
+            commitError.stack,
+          );
+        }
+      } else if (isEligibleForFreeTier) {
+        this.logger.log(
+          `Holder analysis for user ${userId}, token ${tokenAddress}, session ${sessionId} was free. No credits charged.`,
+        );
+      }
 
       this.eventsGateway.sendAnalysisProgress(userId, {
-        currentWallet: walletCount,
+        currentWallet: finalAnalyzedWallets.length,
         totalWallets: walletCount,
         status: 'complete',
         message: 'Analysis complete',
@@ -323,21 +346,38 @@ export class TokenHolderAnalysisService {
         sessionId,
       });
     } catch (error) {
-      await this.creditsService.releaseReservedCredits(userId, creditCost);
-
+      this.logger.error(
+        `Error during _performFullAnalysis for ${tokenAddress}, user ${userId}, session ${sessionId}: ${error.message}`,
+        error.stack,
+      );
       this.eventsGateway.sendAnalysisProgress(userId, {
-        status: 'error',
-        error: error.message,
-        message: 'Analysis failed',
-        currentWallet: 0,
+        currentWallet:
+          finalAnalyzedWallets.length > 0 ? finalAnalyzedWallets.length : 0,
         totalWallets: walletCount,
+        status: 'error',
+        message:
+          error.message ||
+          'An error occurred during wallet analysis processing.',
+        error: error.message || 'Processing Error',
         sessionId,
       });
 
-      this.logger.error(
-        `Failed to analyze token ${tokenAddress} for user ${userId}, sessionId ${sessionId}: ${error.message}`,
-        error.stack,
-      );
+      if (!isEligibleForFreeTier && effectiveCreditCost > 0) {
+        try {
+          await this.creditsService.releaseReservedCredits(
+            userId,
+            effectiveCreditCost,
+          );
+          this.logger.log(
+            `Released ${effectiveCreditCost} credits for user ${userId}, session ${sessionId} due to error in _performFullAnalysis.`,
+          );
+        } catch (releaseError) {
+          this.logger.error(
+            `Failed to release credits for user ${userId}, session ${sessionId} after error in _performFullAnalysis: ${releaseError.message}`,
+            releaseError.stack,
+          );
+        }
+      }
     }
   }
 
@@ -625,8 +665,6 @@ export class TokenHolderAnalysisService {
     const allTrades: BirdeyeTokenTradeV3Item[] = [];
     let offset = 0;
     const limit = 100;
-    let currentPage = 1;
-    let fetchedTradesInChunk = 0;
     let totalTradesFetchedForWallet = 0;
 
     const numberOfChunks = Math.max(
@@ -634,79 +672,110 @@ export class TokenHolderAnalysisService {
       Math.ceil(tokenAgeInMonths / this.CHUNK_DURATION_MONTHS),
     );
 
-    for (let chunk = 0; chunk < numberOfChunks; chunk++) {
-      const chunkEndDate = new Date(
-        oldestTransactionDate.getTime() +
-          (chunk + 1) * this.CHUNK_DURATION_MONTHS * 30 * 24 * 60 * 60 * 1000,
-      );
+    for (let chunkIndex = 0; chunkIndex < numberOfChunks; chunkIndex++) {
       const chunkStartDate = new Date(
         oldestTransactionDate.getTime() +
-          chunk * this.CHUNK_DURATION_MONTHS * 30 * 24 * 60 * 60 * 1000,
+          chunkIndex * this.CHUNK_DURATION_MONTHS * 30 * 24 * 60 * 60 * 1000,
       );
+      // Ensure chunkEndDate does not exceed current time
+      const potentialChunkEndDate = new Date(
+        oldestTransactionDate.getTime() +
+          (chunkIndex + 1) *
+            this.CHUNK_DURATION_MONTHS *
+            30 *
+            24 *
+            60 *
+            60 *
+            1000,
+      );
+      const chunkEndDate =
+        potentialChunkEndDate > new Date() ? new Date() : potentialChunkEndDate;
 
-      // Send progress: Starting a new chunk
       this.eventsGateway.sendAnalysisProgress(userId, {
         currentWallet: currentWalletIndex + 1,
         totalWallets: totalWalletsToAnalyze,
         currentWalletAddress: walletAddress,
         status: 'analyzing',
-        message: `Wallet ${currentWalletIndex + 1}/${totalWalletsToAnalyze}: Fetching trades (batch ${chunk + 1}/${numberOfChunks})`,
+        message: `Wallet ${currentWalletIndex + 1}/${totalWalletsToAnalyze} (${walletAddress.substring(0, 6)}...): Fetching trades (Batch ${chunkIndex + 1}/${numberOfChunks})`,
         tradesFound: totalTradesFetchedForWallet,
         sessionId,
       });
 
       offset = 0;
-      currentPage = 1;
-      fetchedTradesInChunk = 0;
+      let fetchedTradesInCurrentApiPage = 0;
+      let paginationPageNum = 1;
 
       do {
+        fetchedTradesInCurrentApiPage = 0;
         const headers = {
           'X-API-KEY': this.configService.get<string>('BIRDEYE_API_KEY') || '',
         };
         const params = {
           address: tokenAddress,
           owner: walletAddress,
-          after_time: chunkStartDate.getTime() / 1000,
-          before_time: chunkEndDate.getTime() / 1000,
+          after_time: Math.floor(chunkStartDate.getTime() / 1000),
+          before_time: Math.floor(chunkEndDate.getTime() / 1000),
           sort_by: 'block_unix_time',
-          sort_type: 'desc',
+          sort_type: 'desc', // Get newest first within the chunk
           limit,
           offset,
           tx_type: 'swap',
         };
 
-        const response = await firstValueFrom(
-          this.httpService.get<BirdeyeTokenTradeV3Response>(
-            `${this.BIRDEYE_API_BASE}/defi/v3/token/txs`,
-            { headers, params, timeout: 30000 },
-          ),
-        );
+        try {
+          const response = await firstValueFrom(
+            this.httpService.get<BirdeyeTokenTradeV3Response>(
+              `${this.BIRDEYE_API_BASE}/defi/v3/token/txs`,
+              { headers, params, timeout: 30000 },
+            ),
+          );
 
-        if (response.data?.success && response.data.data?.items) {
-          const newItems = response.data.data.items;
-          allTrades.push(...newItems);
-          fetchedTradesInChunk = newItems.length;
-          totalTradesFetchedForWallet += newItems.length;
+          if (response.data?.success && response.data.data?.items) {
+            const newItems = response.data.data.items;
+            allTrades.push(...newItems);
+            fetchedTradesInCurrentApiPage = newItems.length;
+            totalTradesFetchedForWallet += newItems.length;
 
-          // Send progress: After fetching a page
+            this.eventsGateway.sendAnalysisProgress(userId, {
+              currentWallet: currentWalletIndex + 1,
+              totalWallets: totalWalletsToAnalyze,
+              currentWalletAddress: walletAddress,
+              status: 'analyzing',
+              message: `Wallet ${currentWalletIndex + 1}/${totalWalletsToAnalyze} (${walletAddress.substring(0, 6)}...): Found ${totalTradesFetchedForWallet} trades... (Batch ${chunkIndex + 1}/${numberOfChunks}, Page ${paginationPageNum})`,
+              tradesFound: totalTradesFetchedForWallet,
+              sessionId,
+            });
+
+            if (newItems.length < limit) {
+              break;
+            }
+            offset += limit;
+            paginationPageNum++;
+          } else {
+            break;
+          }
+        } catch (error) {
+          this.logger.error(
+            `[SESSION:${sessionId}] [WALLET:${walletAddress}] Chunk ${chunkIndex + 1}, Page ${paginationPageNum}: Birdeye API call FAILED. Error: ${error.message}. Ending pagination for this chunk.`,
+            error.stack,
+          );
           this.eventsGateway.sendAnalysisProgress(userId, {
             currentWallet: currentWalletIndex + 1,
             totalWallets: totalWalletsToAnalyze,
             currentWalletAddress: walletAddress,
             status: 'analyzing',
-            message: `Wallet ${currentWalletIndex + 1}/${totalWalletsToAnalyze} (${walletAddress.substring(0, 6)}...): Found ${totalTradesFetchedForWallet} trades...`,
+            message: `Wallet ${currentWalletIndex + 1}/${totalWalletsToAnalyze} (${walletAddress.substring(0, 6)}...): Error fetching trades (Batch ${chunkIndex + 1}/${numberOfChunks}, Page ${paginationPageNum}). Some data may be missing. Error: ${error.message}`,
             tradesFound: totalTradesFetchedForWallet,
             sessionId,
           });
-
-          if (newItems.length < limit) break;
-          offset += limit;
-          currentPage++;
-        } else {
           break;
         }
-      } while (fetchedTradesInChunk > 0);
+      } while (
+        fetchedTradesInCurrentApiPage > 0 &&
+        fetchedTradesInCurrentApiPage === limit
+      );
     }
+
     return allTrades;
   }
 }
