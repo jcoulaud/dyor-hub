@@ -772,7 +772,10 @@ export default function Page({ params, commentId }: PageProps) {
                 mintAddress={mintAddress}
                 userPlatformTokenBalance={userDyorHubBalance}
               />
-              <EarlyBuyersInfo mintAddress={mintAddress} />
+              <EarlyBuyersInfo
+                mintAddress={mintAddress}
+                userPlatformTokenBalance={userDyorHubBalance}
+              />
             </>
           ) : null}
         </div>

@@ -844,17 +844,25 @@ export const tokens = {
     }
   },
 
-  getEarlyBuyerInfo: async (mintAddress: string): Promise<EarlyBuyerInfo | null> => {
-    try {
-      const data = await api<EarlyBuyerInfo>(`tokens/${mintAddress}/early-buyers`);
-      return data;
-    } catch (error) {
-      console.error(`Error fetching early buyer info for ${mintAddress}:`, error);
-      if (error instanceof ApiError && error.status === 404) {
-        return null;
-      }
-      throw error;
+  getEarlyBuyerInfo: async (
+    mintAddress: string,
+    useCredits?: boolean,
+  ): Promise<EarlyBuyerInfo | null> => {
+    let endpoint = `early-buyer-analysis/${encodeURIComponent(mintAddress)}`;
+    if (useCredits) {
+      endpoint += '?useCredits=true';
     }
+    return api<EarlyBuyerInfo | null>(endpoint, { method: 'GET' });
+  },
+
+  getEarlyBuyerInfoCost: async (mintAddress: string): Promise<{ cost: number }> => {
+    if (!mintAddress) {
+      throw new Error('Mint address is required to fetch early buyer analysis cost.');
+    }
+    const sanitizedMintAddress = encodeURIComponent(mintAddress);
+    return api<{ cost: number }>(`early-buyer-analysis/${sanitizedMintAddress}/cost`, {
+      method: 'GET',
+    });
   },
 
   getTokenHolderAnalysis: async (

@@ -10,6 +10,7 @@ import { OptionalAuthGuard } from './auth/optional-auth.guard';
 import { CommentsModule } from './comments/comments.module';
 import { CreditsModule } from './credits/credits.module';
 import dataSource from './datasource';
+import { EarlyBuyerAnalysisModule } from './early-buyer-analysis/early-buyer-analysis.module';
 import {
   BadgeEntity,
   CommentEntity,
@@ -108,6 +109,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     TokenAiTechnicalAnalysisModule,
     TwitterModule,
     TwitterAutomationModule,
+    EarlyBuyerAnalysisModule,
   ],
   controllers: [AppController],
   providers: [

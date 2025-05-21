@@ -8,7 +8,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentUser } from '../auth/current-user.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
 import { UserEntity } from '../entities/user.entity';

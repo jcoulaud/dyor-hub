@@ -30,7 +30,7 @@ import { API_BASE_URL, ApiError, tokens as apiTokens } from '@/lib/api';
 import { DYORHUB_SYMBOL, MIN_TOKEN_HOLDING_FOR_AI_TA } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { TokenGatedErrorData } from '@dyor-hub/types';
-import { format, max as maxDateUtil, min as minDateUtil, startOfDay } from 'date-fns';
+import { endOfDay, format, max as maxDateUtil, min as minDateUtil, startOfDay } from 'date-fns';
 import {
   AlertTriangle,
   BarChart4,
@@ -133,17 +133,19 @@ export function TokenAiTradingAnalysis({
   const errorHandledForSession = useRef<Record<string, boolean>>({});
 
   // Determine actual min and max dates for the slider
-  const actualMaxDate = useMemo(() => startOfDay(new Date()), []);
+  const todayStart = useMemo(() => startOfDay(new Date()), []);
+  const actualMaxDate = useMemo(() => endOfDay(new Date()), []);
+
   const actualMinDate = useMemo(() => {
     if (tokenCreationTime) {
       const creationDt = new Date(tokenCreationTime);
       if (!isNaN(creationDt.getTime())) {
         const minCandidate = startOfDay(creationDt);
-        return minCandidate > actualMaxDate ? actualMaxDate : minCandidate;
+        return minCandidate > todayStart ? todayStart : minCandidate;
       }
     }
-    return actualMaxDate;
-  }, [tokenCreationTime, actualMaxDate]);
+    return todayStart;
+  }, [tokenCreationTime, todayStart]);
 
   const [dateRange, setDateRange] = useState<{
     from: Date;

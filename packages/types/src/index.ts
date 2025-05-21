@@ -36,4 +36,7 @@ export interface TokenGatedErrorData {
   currentBalance?: string;
   requiredBalance?: string;
   requiredTokenSymbol?: string;
+  isTokenGated?: boolean;
+  minRequired?: number | string;
+  currentAmount?: number | string;
 }

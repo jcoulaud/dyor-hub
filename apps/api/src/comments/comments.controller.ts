@@ -25,7 +25,7 @@ import {
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { AuthGuard } from '../auth/auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { CommentsService } from './comments.service';
 import { CommentResponseDto } from './dto/comment-response.dto';
