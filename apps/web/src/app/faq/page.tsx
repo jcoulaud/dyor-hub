@@ -1,5 +1,13 @@
 'use client';
 
+import {
+  DYORHUB_SYMBOL,
+  MIN_TOKEN_HOLDING_FOR_AI_TA,
+  MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS,
+  MIN_TOKEN_HOLDING_FOR_FEED,
+  MIN_TOKEN_HOLDING_FOR_FOLDERS,
+  MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS,
+} from '@/lib/constants';
 import { BookOpen, ChevronDown, Trophy } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -271,6 +279,48 @@ const FAQPage = () => {
           make informed decisions. It provides tools to track, analyze, and share token insights
           within the Solana ecosystem.
         </p>
+      ),
+    },
+    {
+      question: 'What are token-gated features and their requirements?',
+      answer: (
+        <div>
+          <p className='mb-2'>
+            DYOR Hub offers premium features unlocked by holding our native {DYORHUB_SYMBOL} token.
+            Here are the token holding requirements:
+          </p>
+          <ul className='list-disc pl-5 space-y-2'>
+            <li>
+              <strong>Social Feed:</strong> {MIN_TOKEN_HOLDING_FOR_FEED.toLocaleString()}{' '}
+              {DYORHUB_SYMBOL} - Follow users and view all their activity in one place under the
+              Feed tab in your watchlist.
+            </li>
+            <li>
+              <strong>Custom Folders:</strong> {MIN_TOKEN_HOLDING_FOR_FOLDERS.toLocaleString()}{' '}
+              {DYORHUB_SYMBOL} - Create and organize custom token folders for better portfolio
+              tracking.
+            </li>
+            <li>
+              <strong>Early Buyers Analysis:</strong>{' '}
+              {MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS.toLocaleString()} {DYORHUB_SYMBOL} - Run an
+              analysis to see the first buyers of any token (in order) and whether they&apos;re
+              still holding.
+            </li>
+            <li>
+              <strong>Diamond Hands Analysis:</strong>{' '}
+              {MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS.toLocaleString()} {DYORHUB_SYMBOL} - Get
+              advanced insights into token holder distribution, whale movements, and detailed wallet
+              activity.
+            </li>
+            <li>
+              <strong>AI Technical Analysis:</strong> {MIN_TOKEN_HOLDING_FOR_AI_TA.toLocaleString()}{' '}
+              {DYORHUB_SYMBOL} - Access AI-powered technical analysis and price predictions.
+            </li>
+          </ul>
+          <p className='mt-3 text-sm text-gray-500 italic'>
+            Token must be held in your connected wallet to access these features.
+          </p>
+        </div>
       ),
     },
     {
