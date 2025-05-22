@@ -196,6 +196,22 @@ export interface EarlyBuyerWallet {
   isHolding: boolean;
   purchaseTxSignature?: string;
   rank: number;
+  firstBuyTime?: number;
+  lastTransactionTime?: number;
+  held?: number;
+  sold?: number;
+  holding?: number;
+  realized?: number;
+  unrealized?: number;
+  total?: number;
+  totalInvested?: number;
+  soldUsd?: number;
+  totalTransactions?: number;
+  buyTransactions?: number;
+  sellTransactions?: number;
+  averageBuyAmount?: number;
+  currentValue?: number;
+  costBasis?: number;
 }
 
 export interface EarlyBuyerInfo {

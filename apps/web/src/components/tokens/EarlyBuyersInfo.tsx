@@ -26,15 +26,7 @@ import { DYORHUB_SYMBOL, MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS } from '@/lib/consta
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { EarlyBuyerInfo, EarlyBuyerWallet, TokenGatedErrorData } from '@dyor-hub/types';
-import {
-  AlertTriangle,
-  ChevronRight,
-  Copy,
-  ExternalLink,
-  Info,
-  Loader2,
-  Users,
-} from 'lucide-react';
+import { AlertTriangle, ChevronRight, Copy, Info, Loader2, Users } from 'lucide-react';
 import { useState } from 'react';
 
 interface EarlyBuyersInfoProps {
@@ -62,19 +54,31 @@ const WalletCard = ({ wallet }: { wallet: EarlyBuyerWallet }) => {
     4,
   )}...${wallet.address.substring(wallet.address.length - 4)}`;
 
+  const formatCurrency = (value?: number) => {
+    if (value === undefined || value === null) return '-';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
+
+  const formatPercentage = (realized?: number, invested?: number) => {
+    if (!realized || !invested || invested === 0) return '-';
+    const percentage = (realized / invested) * 100;
+    return `${percentage.toFixed(1)}%`;
+  };
+
+  const getPnLColor = (value?: number) => {
+    if (!value) return 'text-zinc-400';
+    return value >= 0 ? 'text-emerald-400' : 'text-red-400';
+  };
+
   return (
-    <div className='flex items-center justify-between rounded-md bg-zinc-800/60 px-2.5 py-1.5 border border-zinc-700/50'>
-      <div className='flex items-center gap-2'>
-        <span className='text-xs font-semibold text-zinc-400 mr-1'>#{wallet.rank}</span>
-        {wallet.isHolding ? (
-          <span className='inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-900/30 text-emerald-400 border border-emerald-800/30'>
-            Hold
-          </span>
-        ) : (
-          <span className='inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-900/30 text-red-400 border border-red-800/30'>
-            Sold
-          </span>
-        )}
+    <div className='grid grid-cols-12 items-center gap-3 p-3 rounded-md bg-zinc-800/60 border border-zinc-700/50 hover:bg-zinc-800/80 transition-colors text-xs'>
+      <div className='col-span-7 flex items-center gap-3'>
+        <span className='text-xs font-medium text-purple-400 w-8'>#{wallet.rank}</span>
 
         <TooltipProvider>
           <Tooltip>
@@ -82,7 +86,7 @@ const WalletCard = ({ wallet }: { wallet: EarlyBuyerWallet }) => {
               <SolscanButton
                 address={wallet.address}
                 type='account'
-                className='font-mono text-xs text-zinc-200 hover:text-blue-400 transition-colors cursor-pointer'>
+                className='font-mono text-xs text-zinc-300 hover:text-blue-400 transition-colors cursor-pointer'>
                 {formattedAddress}
               </SolscanButton>
             </TooltipTrigger>
@@ -92,26 +96,46 @@ const WalletCard = ({ wallet }: { wallet: EarlyBuyerWallet }) => {
 
         <button
           onClick={() => copyToClipboard(wallet.address)}
-          className='p-0.5 rounded-md hover:bg-zinc-700/50 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer'>
+          className='p-1 rounded hover:bg-zinc-700/50 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer'>
           <Copy className='h-3 w-3' />
         </button>
-      </div>
 
-      {wallet.purchaseTxSignature && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <SolscanButton
-                address={wallet.purchaseTxSignature}
-                type='tx'
-                className='text-zinc-500 hover:text-blue-400 cursor-pointer'>
-                <ExternalLink className='h-3.5 w-3.5' />
-              </SolscanButton>
-            </TooltipTrigger>
-            <TooltipContent>View First Purchase Transaction</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+        {wallet.isHolding ? (
+          <span className='text-xs text-emerald-400 font-medium'>HOLD</span>
+        ) : (
+          <span className='text-xs text-red-400 font-medium'>SOLD</span>
+        )}
+      </div>
+      <div className='col-span-5 grid grid-cols-4 gap-4'>
+        <div className='text-right'>
+          <div className='text-zinc-500 text-[10px] mb-1'>Invested</div>
+          <div className='font-medium text-zinc-200'>{formatCurrency(wallet.totalInvested)}</div>
+        </div>
+        <div className='text-right'>
+          <div className='text-zinc-500 text-[10px] mb-1'>Realized</div>
+          <div className={`font-medium ${getPnLColor(wallet.realized)}`}>
+            {formatCurrency(wallet.realized)}
+          </div>
+        </div>
+        <div className='text-right'>
+          <div className='text-zinc-500 text-[10px] mb-1'>Unrealized</div>
+          <div className={`font-medium ${getPnLColor(wallet.unrealized)}`}>
+            {formatCurrency(wallet.unrealized)}
+          </div>
+        </div>
+        <div className='flex gap-2 justify-end'>
+          <div className='text-right'>
+            <div className='text-zinc-500 text-[10px] mb-1'>ROI</div>
+            <div className={`font-medium ${getPnLColor(wallet.realized)}`}>
+              {formatPercentage(wallet.realized, wallet.totalInvested)}
+            </div>
+          </div>
+          <div className='text-right'>
+            <div className='text-zinc-500 text-[10px] mb-1'>Txns</div>
+            <div className='font-medium text-zinc-200'>{wallet.totalTransactions || 0}</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -171,26 +195,108 @@ const EarlyBuyersDialogDisplay = ({
         className='overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent hover:scrollbar-thumb-zinc-600 max-h-[calc(100vh-20rem)]'
         style={{ maxHeight: '65vh' }}>
         <div className='px-1 pb-3'>
-          <div className='flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg border border-zinc-700/30'>
-            <span className='text-zinc-400 text-sm'>Holding Wallets</span>
-            <div className='flex items-baseline'>
-              <span className='font-semibold text-white'>{stillHoldingCount}</span>
-              <span className='text-zinc-400 mx-1'>/</span>
-              <span className='font-semibold text-white'>{totalEarlyBuyersCount}</span>
-              <span className='text-zinc-400 ml-1'>buyers</span>
+          <div className='mb-4 p-3 bg-zinc-800/50 rounded-md border border-zinc-700/50'>
+            <div className='grid grid-cols-12 gap-3 text-sm'>
+              <div className='col-span-7 grid grid-cols-2 gap-3'>
+                <div className='text-left'>
+                  <div className='text-zinc-500'>Buyers</div>
+                  <div className='font-semibold text-zinc-200'>{totalEarlyBuyersCount}</div>
+                </div>
+                <div className='text-left'>
+                  <div className='text-zinc-500'>Holding</div>
+                  <div className='font-semibold text-emerald-400'>
+                    {stillHoldingCount} (
+                    {((stillHoldingCount / totalEarlyBuyersCount) * 100).toFixed(0)}%)
+                  </div>
+                </div>
+              </div>
+              <div className='col-span-5 grid grid-cols-4 gap-4'>
+                <div className='text-right'>
+                  <div className='text-zinc-500'>Invested</div>
+                  <div className='font-semibold text-zinc-200'>
+                    {(() => {
+                      const totalInvested = sortedBuyers.reduce((sum, buyer) => {
+                        const invested = buyer.totalInvested;
+                        const numValue =
+                          typeof invested === 'string' ? parseFloat(invested) : invested;
+                        return (
+                          sum + (typeof numValue === 'number' && !isNaN(numValue) ? numValue : 0)
+                        );
+                      }, 0);
+                      return totalInvested > 0
+                        ? new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                            maximumFractionDigits: 0,
+                          }).format(totalInvested)
+                        : '-';
+                    })()}
+                  </div>
+                </div>
+                <div className='text-right'>
+                  <div className='text-zinc-500'>Realized</div>
+                  <div
+                    className={`font-semibold ${(() => {
+                      const totalRealized = sortedBuyers.reduce(
+                        (sum, buyer) => sum + (buyer.realized || 0),
+                        0,
+                      );
+                      return totalRealized >= 0 ? 'text-emerald-400' : 'text-red-400';
+                    })()}`}>
+                    {(() => {
+                      const totalRealized = sortedBuyers.reduce(
+                        (sum, buyer) => sum + (buyer.realized || 0),
+                        0,
+                      );
+                      return totalRealized !== 0
+                        ? new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                            maximumFractionDigits: 0,
+                          }).format(totalRealized)
+                        : '-';
+                    })()}
+                  </div>
+                </div>
+                <div className='text-right'>
+                  <div className='text-zinc-500'>Unrealized</div>
+                  <div
+                    className={`font-semibold ${(() => {
+                      const totalUnrealized = sortedBuyers.reduce(
+                        (sum, buyer) => sum + (buyer.unrealized || 0),
+                        0,
+                      );
+                      return totalUnrealized >= 0 ? 'text-emerald-400' : 'text-red-400';
+                    })()}`}>
+                    {(() => {
+                      const totalUnrealized = sortedBuyers.reduce(
+                        (sum, buyer) => sum + (buyer.unrealized || 0),
+                        0,
+                      );
+                      return totalUnrealized !== 0
+                        ? new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                            maximumFractionDigits: 0,
+                          }).format(totalUnrealized)
+                        : '-';
+                    })()}
+                  </div>
+                </div>
+                <div className='text-right'>
+                  <div className='text-zinc-500'>Txns</div>
+                  <div className='font-semibold text-zinc-200'>
+                    {sortedBuyers.reduce((sum, buyer) => sum + (buyer.totalTransactions || 0), 0)}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-2 px-1 pb-3'>
+        <div className='space-y-2 px-1 pb-3'>
           {sortedBuyers.map((wallet) => (
             <WalletCard key={wallet.address} wallet={wallet} />
           ))}
-        </div>
-
-        <div className='mt-4 pt-3 border-t border-zinc-800 text-xs text-zinc-500 px-1'>
-          <Info size={12} className='inline-block mr-1.5 relative -top-px text-zinc-400' />
-          Early buyer data is for informational purposes only and not financial advice. Always do
-          your own research (DYOR).
         </div>
       </div>
       <DialogFooter className='mt-6'>
@@ -449,14 +555,16 @@ export const EarlyBuyersInfo = ({
                   Early Buyers Analysis
                 </DialogTitle>
                 {!isLoading && (
-                  <DialogDescription className='text-sm text-zinc-400 pt-1'>
-                    Discover who bought the token early. This can provide insights into potential
-                    whales or informed traders.
+                  <>
+                    <DialogDescription className='text-sm text-zinc-400 pt-1'>
+                      Discover who bought the token early. This can provide insights into potential
+                      whales or informed traders.
+                    </DialogDescription>
                     {isLoading ? (
-                      <span className='block mt-2 text-zinc-400 text-sm'>
+                      <div className='block mt-2 text-zinc-400 text-sm'>
                         <Loader2 className='h-4 w-4 animate-spin inline mr-1.5' />
                         Loading user data...
-                      </span>
+                      </div>
                     ) : !isAuthenticated ? (
                       <div className='text-amber-400 flex items-center gap-1 mt-2 text-sm'>
                         <Info size={16} className='inline shrink-0 mr-1' />
@@ -468,17 +576,17 @@ export const EarlyBuyersInfo = ({
                         {`This analysis is FREE for you! (You hold ${formatTokenAmount.format(userPlatformTokenBalance)}/${formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS)} required ${DYORHUB_SYMBOL})`}
                       </div>
                     ) : isAuthenticated && typeof userPlatformTokenBalance === 'undefined' ? (
-                      <span className='block mt-2 text-zinc-400 text-sm'>
+                      <div className='block mt-2 text-zinc-400 text-sm'>
                         <Loader2 className='h-4 w-4 animate-spin inline mr-1.5' />
                         Loading token balance...
-                      </span>
+                      </div>
                     ) : (
                       <div className='text-amber-400 flex items-center gap-1 mt-2 text-sm'>
                         <Info size={16} className='inline shrink-0 mr-1' />
                         {`Hold ${formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS, DYORHUB_SYMBOL)} for free analysis. Your balance: ${formatTokenAmount.format(userPlatformTokenBalance, DYORHUB_SYMBOL)}.`}
                       </div>
                     )}
-                  </DialogDescription>
+                  </>
                 )}
               </DialogHeader>
 

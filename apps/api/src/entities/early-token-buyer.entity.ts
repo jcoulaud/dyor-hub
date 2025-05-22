@@ -44,11 +44,20 @@ export class EarlyTokenBuyerEntity {
   @Column({ type: 'smallint' })
   rank: number;
 
-  @Column({ type: 'boolean', nullable: true })
-  isStillHolding?: boolean | null;
+  @Column({ type: 'bigint', nullable: true })
+  firstBuyTime?: number | null;
 
-  @Column({ type: 'timestamp with time zone', nullable: true })
-  lastCheckedAt?: Date | null;
+  @Column({ type: 'decimal', precision: 20, scale: 8, nullable: true })
+  totalInvested?: number | null;
+
+  @Column({ type: 'decimal', precision: 20, scale: 8, nullable: true })
+  averageBuyAmount?: number | null;
+
+  @Column({ type: 'smallint', nullable: true })
+  buyTransactions?: number | null;
+
+  @Column({ type: 'smallint', nullable: true })
+  sellTransactions?: number | null;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
   createdAt: Date;
