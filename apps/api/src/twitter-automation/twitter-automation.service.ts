@@ -415,33 +415,7 @@ export class TwitterAutomationService {
     post += `Age: ${tokenAge}\n`;
     post += `View on DYOR Hub: ${dyorHubTokenLink}\n\n`;
 
-    post += `--- SUMMARY ---\n\n`;
-    post += `🔑 Key Takeaway: ${analysis.bottomLine}\n\n`;
-    post += `📊 Market Sentiment: ${analysis.marketSentiment}\n\n`;
-    post += `🗣️ Unfiltered Truth: ${analysis.unfilteredTruth}\n\n`;
-
-    post += `--- DETAILED ANALYSIS ---\n\n`;
-    if (analysis.decodedStory) {
-      if (analysis.decodedStory.marketcapJourney) {
-        post += `📈 Marketcap Journey: ${analysis.decodedStory.marketcapJourney}\n\n`;
-      }
-      if (analysis.decodedStory.momentum) {
-        post += `⚡ Momentum: ${analysis.decodedStory.momentum}\n\n`;
-      }
-      if (analysis.decodedStory.keyLevels) {
-        post += `📉 Key Levels (Support/Resistance): ${analysis.decodedStory.keyLevels}\n\n`;
-      }
-      if (analysis.decodedStory.tradingActivity) {
-        post += `📊 Trading Activity: ${analysis.decodedStory.tradingActivity}\n\n`;
-      }
-      if (analysis.decodedStory.buyerSellerDynamics) {
-        post += `⚖️ Buyer/Seller Dynamics: ${analysis.decodedStory.buyerSellerDynamics}\n\n`;
-      }
-      if (analysis.decodedStory.timeframeAnalysis) {
-        post += `⏳ Timeframe Analysis: ${analysis.decodedStory.timeframeAnalysis}\n\n`;
-      }
-    }
-
+    // --- RATINGS SECTION ---
     if (analysis.ratings) {
       post += `--- RATINGS (1-10) ---\n\n`;
       if (analysis.ratings.marketcapStrength) {
@@ -462,9 +436,35 @@ export class TwitterAutomationService {
       post += `\n`;
     }
 
+    // --- TRADING OPINION SECTION ---
     if (analysis.tradingOpinion) {
       post += `--- TRADING OPINION ---\n\n`;
       post += `${analysis.tradingOpinion}\n\n`;
+    }
+
+    // --- DETAILED ANALYSIS SECTION ---
+    post += `--- DETAILED ANALYSIS ---\n\n`;
+    if (analysis.decodedStory) {
+      if (analysis.decodedStory.marketcapJourney) {
+        post += `📈 Marketcap Journey: ${analysis.decodedStory.marketcapJourney}\n\n`;
+      }
+      if (analysis.decodedStory.momentum) {
+        post += `⚡ Momentum: ${analysis.decodedStory.momentum}\n\n`;
+      }
+      if (analysis.decodedStory.keyLevels) {
+        post += `📉 Key Levels (Support/Resistance): ${analysis.decodedStory.keyLevels}\n\n`;
+      }
+      if (analysis.decodedStory.tradingActivity) {
+        post += `📊 Trading Activity: ${analysis.decodedStory.tradingActivity}\n\n`;
+      }
+      if (analysis.decodedStory.buyerSellerDynamics) {
+        post += `⚖️ Buyer/Seller Dynamics: ${analysis.decodedStory.buyerSellerDynamics}\n\n`;
+      }
+      if (analysis.decodedStory.timeframeAnalysis) {
+        post += `⏳ Timeframe Analysis: ${analysis.decodedStory.timeframeAnalysis}\n\n`;
+      }
+    } else {
+      post += `No detailed analysis available at this time.\n\n`;
     }
 
     post += `#${token.symbol} #DYORHub #DYOR`;

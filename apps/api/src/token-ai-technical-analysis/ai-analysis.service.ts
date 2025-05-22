@@ -53,32 +53,17 @@ const RatingsSchema = z.object({
 
 const ChartWhispererSchema = z
   .object({
-    unfilteredTruth: z
-      .string()
-      .describe(
-        'A direct, no-BS sentence summarizing the current marketcap action in casual language.',
-      ),
-    decodedStory: DecodedStorySchema.describe(
-      'Detailed analysis sections written in casual, direct language.',
-    ),
     ratings: RatingsSchema.describe(
       'Numerical ratings (1-10) for key trading metrics with brief explanations.',
     ),
-    marketSentiment: z
-      .string()
-      .describe(
-        'The overall mood based on marketcap action and trading patterns.',
-      ),
-    bottomLine: z
-      .string()
-      .describe(
-        "A candid, direct conclusion about the token's current trading situation.",
-      ),
     tradingOpinion: z
       .string()
       .describe(
         'An opinionated take on current trading opportunities, with appropriate disclaimers.',
       ),
+    decodedStory: DecodedStorySchema.describe(
+      'Detailed analysis sections written in casual, direct language.',
+    ),
   })
   .describe('The structured analysis from the Chart Whisperer AI.');
 
@@ -455,6 +440,7 @@ export class AiAnalysisService {
       '• **Data-Driven:** Ground all analysis in the provided data. Always include specific figures ($ amounts, percentages, dates) to substantiate claims.',
       '• **Contextual Awareness:** Consider and articulate the behavior of different market participants (e.g., "smart money" vs. retail), if discernible from data.',
       '• **Professional Tone:** While direct, maintain a professional demeanor suitable for expert financial analysis. Avoid overly casual slang that undermines credibility. If colloquial terms are essential for context (e.g., describing market phenomena), use them judiciously and with explanation if needed.',
+      '• **Clear & Conversational:** Explain complex ideas in simple, direct language. Avoid jargon where possible; if used, provide a brief explanation. The goal is for the analysis to be easily understood by a broad audience while retaining its professional integrity.',
       '',
       '\n🎯 YOUR TASK:',
       `Analyze ${tokenIdentifier} which has been trading for ${tokenAge}. You will analyze BOTH marketcap action AND on-chain trading activity to populate a structured JSON output.`,
@@ -467,8 +453,6 @@ export class AiAnalysisService {
       `${tradeDataSummary}`,
       '',
       '\n🚫 THINGS TO AVOID:',
-      "• Don't make definite marketcap predictions (but you can suggest potential scenarios based on data).",
-      '• Don\'t give specific financial advice like "you should buy/sell". Your analysis is for informational purposes based on data.',
       "• Don't use highly technical jargon without brief, clear explanation if essential.",
       "• Don't invent or make up fictional project names or details not present in the data.",
       "• Don't refer to the token with made-up names - use only the actual token name/symbol provided.",
@@ -489,26 +473,23 @@ export class AiAnalysisService {
       '',
       '\n🔍 YOUR ANALYSIS MUST POPULATE THE FOLLOWING STRUCTURE (Adhere to the descriptions for each field, infusing your expert persona):',
       'Your output will be a JSON object. The following describes the fields you need to generate content for:',
-      "1.  `unfilteredTruth`: A direct, brutally honest, and concise (1-2 sentences) assessment of the token's current core situation. Professional, yet hard-hitting.",
-      '2.  `decodedStory`: This object contains detailed analysis:',
+      '1.  `ratings`: This object contains numerical ratings (1-10, integers only) with brief, expert justifications:',
+      '    a.  `marketcapStrength`: Assess the quality and structural support of marketcap, not just magnitude.',
+      '    b.  `momentum`: Evaluate the sustainability and genuine conviction behind the momentum.',
+      '    c.  `buyPressure`: Rate the conviction and impact of buying pressure, considering participant profiles.',
+      '    d.  `volumeQuality`: Judge if volume confirms price trends and its indicative power; assess authenticity.',
+      "    e.  `overallSentiment`: Your direct, high-conviction assessment of the token\'s current market sentiment based on all data.",
+      "2.  `tradingOpinion`: An opinionated, data-driven take on the token\'s current situation, highlighting potential strategic considerations or noteworthy patterns for an experienced trader. Conclude this section with the mandatory disclaimer.",
+      '3.  `decodedStory`: This object contains detailed analysis:',
       '    a.  `marketcapJourney`: Describe key marketcap movements with exact $ figures, % changes, and dates. Focus on the narrative these changes tell.',
       '    b.  `momentum`: Analyze current market momentum (marketcap and trading activity). Is it sustainable? What drives it? What are the underlying volume patterns?',
       '    c.  `keyLevels`: Identify important support/resistance marketcap zones with $ values. Explain their significance.',
       '    d.  `tradingActivity`: Detail trading volume and buy/sell patterns across different timeframes. What are the trends and anomalies?',
       '    e.  `buyerSellerDynamics`: Analyze buy vs. sell pressure using volume, trade counts, and average trade sizes. What does this suggest about market participants and their conviction?',
       '    f.  `timeframeAnalysis`: Synthesize observations across various timeframes (e.g., last 24h, 7d) based on available data. Highlight congruencies or divergences.',
-      '3.  `ratings`: This object contains numerical ratings (1-10, integers only) with brief, expert justifications:',
-      '    a.  `marketcapStrength`: Assess the quality and structural support of marketcap, not just magnitude.',
-      '    b.  `momentum`: Evaluate the sustainability and genuine conviction behind the momentum.',
-      '    c.  `buyPressure`: Rate the conviction and impact of buying pressure, considering participant profiles.',
-      '    d.  `volumeQuality`: Judge if volume confirms price trends and its indicative power; assess authenticity.',
-      "    e.  `overallSentiment`: Your direct, high-conviction assessment of the token's current market sentiment based on all data.",
-      '4.  `marketSentiment`: Briefly state the prevailing market sentiment (e.g., Bullish with caution, Bearish, Neutral) derived from data analysis.',
-      "5.  `bottomLine`: A candid, direct (1-2 sentences) conclusion about the token's current trading situation and immediate outlook from an expert POV.",
-      "6.  `tradingOpinion`: An opinionated, data-driven take on the token's current situation, highlighting potential strategic considerations or noteworthy patterns for an experienced trader. Conclude this section with the mandatory disclaimer.",
       '',
       '\n⚠️ MANDATORY DISCLAIMER (Include this EXACT text at the end of your `tradingOpinion`):',
-      '"This analysis is based purely on historical data and market patterns. It is not financial advice. Always do your own research (DYOR) and consider your risk tolerance before trading."',
+      '"\n\nThis analysis is based purely on historical data and market patterns. It is not financial advice. Always do your own research (DYOR) and consider your risk tolerance before trading."',
     ];
 
     return promptParts.join('\n');
