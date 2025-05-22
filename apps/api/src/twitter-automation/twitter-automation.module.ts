@@ -7,6 +7,7 @@ import { TweetEntity } from '../entities';
 import { TokenAiTechnicalAnalysisModule } from '../token-ai-technical-analysis/token-ai-technical-analysis.module';
 import { TokensModule } from '../tokens/tokens.module';
 import { TwitterModule } from '../twitter/twitter.module';
+import { TwitterAutomationController } from './twitter-automation.controller';
 import { TwitterAutomationService } from './twitter-automation.service';
 
 @Module({
@@ -20,5 +21,6 @@ import { TwitterAutomationService } from './twitter-automation.service';
     TwitterModule,
   ],
   providers: [TwitterAutomationService],
+  controllers: [TwitterAutomationController],
 })
 export class TwitterAutomationModule {}

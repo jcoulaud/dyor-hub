@@ -2300,7 +2300,38 @@ export const dev = {
           body: { credits },
         },
       );
-    }, // Added the new method here
+    },
+    fetchDevelopmentAnalysisPreview: async (): Promise<AiTradingAnalysisResponse | null> => {
+      try {
+        const result = await api<AiTradingAnalysisResponse | { message: string }>(
+          'twitter-automation/development-analysis-preview',
+          { method: 'GET' },
+        );
+
+        if (
+          result &&
+          typeof (result as { message: string }).message === 'string' &&
+          !('analysisOutput' in result)
+        ) {
+          console.warn(
+            'Development analysis preview failed on backend:',
+            (result as { message: string }).message,
+          );
+          return null;
+        }
+
+        return result as AiTradingAnalysisResponse;
+      } catch (error) {
+        console.error('Error fetching development analysis preview in api.ts:', error);
+        if (error instanceof ApiError) {
+          throw error;
+        }
+        throw new ApiError(
+          500,
+          error instanceof Error ? error.message : 'An unexpected error occurred',
+        );
+      }
+    },
   },
 };
 

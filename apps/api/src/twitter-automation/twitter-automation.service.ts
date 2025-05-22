@@ -197,20 +197,26 @@ export class TwitterAutomationService {
     timeZone: 'UTC',
     disabled: !enableTwitterPostCron,
   })
-  async handleDailyTwitterPost() {
-    if (!enableTwitterPostCron) {
+  async handleDailyTwitterPost(
+    postToTwitter: boolean = true,
+  ): Promise<OrchestrationResult | void | null> {
+    if (postToTwitter && !enableTwitterPostCron) {
       this.logger.warn(
         'Daily Twitter post job is disabled for this environment (NODE_ENV: %s). Execution should have been skipped by decorator.',
         process.env.NODE_ENV,
       );
       return;
     }
-    this.logger.log('Starting daily Twitter post job...');
+    this.logger.log(
+      `Starting daily Twitter post job. Will post to Twitter: ${postToTwitter}`,
+    );
 
     const trendingTokens = await this.getTrendingTokens();
     if (!trendingTokens || trendingTokens.length === 0) {
-      this.logger.warn('No trending tokens found. Skipping Twitter post.');
-      return;
+      this.logger.warn(
+        'No trending tokens found. Skipping Twitter post logic.',
+      );
+      return null;
     }
 
     let selectedTokenAnalytics: {
@@ -221,65 +227,76 @@ export class TwitterAutomationService {
     } | null = null;
 
     for (const token of trendingTokens) {
-      const alreadyPosted = await this.tweetRepository.findOne({
-        where: {
-          metadata: Raw(
-            (alias) => `${alias} ->> 'tokenAddress' = :tokenAddress`,
-            { tokenAddress: token.address },
-          ),
-        },
-      });
-      if (!alreadyPosted) {
-        let ageInDays: number | null = null;
-        let humanReadableAge: string = '-';
+      if (postToTwitter) {
+        const alreadyPosted = await this.tweetRepository.findOne({
+          where: {
+            metadata: Raw(
+              (alias) => `${alias} ->> 'tokenAddress' = :tokenAddress`,
+              { tokenAddress: token.address },
+            ),
+          },
+        });
+        if (alreadyPosted) {
+          this.logger.log(`Token ${token.address} already posted. Skipping.`);
+          continue;
+        }
+      }
+      let ageInDays: number | null = null;
+      let humanReadableAge: string = '-';
 
-        try {
-          const securityInfo = await this.tokensService.fetchTokenSecurityInfo(
-            token.address,
+      try {
+        const securityInfo = await this.tokensService.fetchTokenSecurityInfo(
+          token.address,
+        );
+
+        if (securityInfo && securityInfo.creationTime) {
+          const creationTimeMs = securityInfo.creationTime * 1000;
+          ageInDays = (Date.now() - creationTimeMs) / (1000 * 60 * 60 * 24);
+          humanReadableAge = formatDistanceToNowStrict(
+            new Date(creationTimeMs),
+            { addSuffix: true },
           );
-
-          if (securityInfo && securityInfo.creationTime) {
-            const creationTimeMs = securityInfo.creationTime * 1000;
-            ageInDays = (Date.now() - creationTimeMs) / (1000 * 60 * 60 * 24);
-            humanReadableAge = formatDistanceToNowStrict(
-              new Date(creationTimeMs),
-              { addSuffix: true },
-            );
-          } else {
-            this.logger.warn(
-              `creationTime not available via fetchTokenSecurityInfo for ${token.symbol} (${token.address}). Skipping this token.`,
-            );
-            continue;
-          }
-        } catch (error) {
-          continue;
-        }
-
-        if (!token.name) {
-          continue;
-        }
-
-        if (ageInDays !== null && ageInDays >= 0) {
-          selectedTokenAnalytics = {
-            tokenInfo: token,
-            name: token.name,
-            ageInDays: ageInDays,
-            humanReadableAge: humanReadableAge,
-          };
-          break;
         } else {
           this.logger.warn(
-            `Invalid age calculated for token ${token.address} (${token.symbol}). Skipping.`,
+            `creationTime not available via fetchTokenSecurityInfo for ${token.symbol} (${token.address}). Skipping this token.`,
           );
+          continue;
         }
+      } catch (error) {
+        this.logger.error(
+          `Error fetching security info for ${token.symbol} (${token.address}): ${error.message}`,
+        );
+        continue;
+      }
+
+      if (!token.name) {
+        this.logger.warn(`Token ${token.address} has no name. Skipping.`);
+        continue;
+      }
+
+      if (ageInDays !== null && ageInDays >= 0) {
+        selectedTokenAnalytics = {
+          tokenInfo: token,
+          name: token.name,
+          ageInDays: ageInDays,
+          humanReadableAge: humanReadableAge,
+        };
+        this.logger.log(
+          `Selected token for processing: ${token.name} (${token.address}), Age: ${ageInDays.toFixed(2)} days.`,
+        );
+        break;
+      } else {
+        this.logger.warn(
+          `Invalid age calculated for token ${token.address} (${token.symbol}). Skipping.`,
+        );
       }
     }
 
     if (!selectedTokenAnalytics) {
       this.logger.warn(
-        'No new, valid trending tokens found to post after checking age/name and prior posts.',
+        'No new, valid trending tokens found to process after checking age/name and prior posts (if applicable).',
       );
-      return;
+      return null;
     }
 
     const {
@@ -313,37 +330,51 @@ export class TwitterAutomationService {
         this.logger.error(
           `AI Analysis did not return expected output for ${tokenName}.`,
         );
-        return;
+        return null;
       }
       const analysisOutput: ChartWhispererOutput =
         analysisResultObj.analysisOutput;
 
-      const twitterPostText = this.formatTwitterPost(
-        selectedToken,
-        analysisOutput,
-        humanReadableAge,
-      );
-
-      const tweetId = await this.twitterService.postTweet(twitterPostText);
-
-      if (tweetId) {
-        await this.tweetRepository.save(
-          this.tweetRepository.create({
-            tweetId: tweetId,
-            metadata: {
-              type: 'token_analysis',
-              tokenAddress: selectedToken.address,
-              tokenName: selectedToken.name,
-              tokenSymbol: selectedToken.symbol,
-              tokenAgeDays: ageInDays.toFixed(2),
-              tokenAgeHuman: humanReadableAge,
-            },
-          }),
+      this.logger.log(`AI Analysis for ${tokenName} successful.`);
+      if (!postToTwitter) {
+        this.logger.debug(
+          `Analysis Preview for ${tokenName}:`,
+          JSON.stringify(analysisResultObj, null, 2),
         );
+      }
+
+      if (postToTwitter) {
+        const twitterPostText = this.formatTwitterPost(
+          selectedToken,
+          analysisOutput,
+          humanReadableAge,
+        );
+        const tweetId = await this.twitterService.postTweet(twitterPostText);
+        if (tweetId) {
+          await this.tweetRepository.save(
+            this.tweetRepository.create({
+              tweetId: tweetId,
+              metadata: {
+                type: 'token_analysis',
+                tokenAddress: selectedToken.address,
+                tokenName: selectedToken.name,
+                tokenSymbol: selectedToken.symbol,
+                tokenAgeDays: ageInDays.toFixed(2),
+                tokenAgeHuman: humanReadableAge,
+              },
+            }),
+          );
+          this.logger.log(
+            `Successfully posted tweet ${tweetId} for ${tokenName}.`,
+          );
+        } else {
+          this.logger.error(
+            `Failed to post tweet for token ${selectedToken.address}. It will not be recorded as posted.`,
+          );
+        }
+        return;
       } else {
-        this.logger.error(
-          `Failed to post tweet for token ${selectedToken.address}. It will not be recorded as posted.`,
-        );
+        return analysisResultObj;
       }
     } catch (error) {
       this.logger.error(
@@ -353,6 +384,7 @@ export class TwitterAutomationService {
           tokenAddress: selectedToken.address,
         },
       );
+      return null;
     }
   }
 
