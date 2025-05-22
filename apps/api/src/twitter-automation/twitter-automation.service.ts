@@ -69,7 +69,7 @@ export class TwitterAutomationService {
   }
 
   async getTrendingTokens(
-    timeframe: string = '1h',
+    timeframe: string = '4h',
   ): Promise<TrendingTokenInfo[]> {
     const validTimeframes = [
       '5m',
@@ -88,7 +88,7 @@ export class TwitterAutomationService {
       this.logger.warn(
         `Invalid timeframe: ${timeframe}. Defaulting to 1h. Valid timeframes are: ${validTimeframes.join(', ')}`,
       );
-      timeframe = '1h';
+      timeframe = '4h';
     }
 
     const cacheKey = `solana_tracker_trending_tokens_${timeframe}`;
