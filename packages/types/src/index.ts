@@ -39,4 +39,5 @@ export interface TokenGatedErrorData {
   isTokenGated?: boolean;
   minRequired?: number | string;
   currentAmount?: number | string;
+  requiredCredits?: number;
 }
