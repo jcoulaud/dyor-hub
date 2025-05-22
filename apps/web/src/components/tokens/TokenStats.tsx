@@ -1,66 +1,45 @@
-import { Skeleton } from '@/components/ui/skeleton';
 import { formatLargeNumber, truncateAddress } from '@/lib/utils';
-import { TokenHolder, TokenStats as TokenStatsType } from '@dyor-hub/types';
-import { format, formatDistanceStrict } from 'date-fns';
+import type {
+  SolanaTrackerHolderDataPoint,
+  TokenHolder,
+  TokenStats as TokenStatsType,
+} from '@dyor-hub/types';
 import { BarChart2, DollarSign, TrendingDown, TrendingUp, Users } from 'lucide-react';
 import { SolscanButton } from '../SolscanButton';
+import { Skeleton } from '../ui/skeleton';
+import { HolderHistoryChart } from './HolderHistoryChart';
 import TokenPriceChart from './TokenPriceChart';
 
 interface TokenStatsProps {
   stats: TokenStatsType;
   tokenMintAddress: string;
   tokenSymbol?: string;
+  holderHistoryData?: SolanaTrackerHolderDataPoint[] | null;
+  isLoadingHolderHistory?: boolean;
 }
 
-// Helper function to safely format a price with 6 decimal places
+// Utility functions
 const formatPrice = (price: number | string | undefined | null): string => {
-  try {
-    if (typeof price === 'number') {
-      return price.toFixed(6);
-    }
-
-    if (price === null || price === undefined) {
-      return '0.000000';
-    }
-
-    const numPrice = Number(price);
-    return isNaN(numPrice) ? '0.000000' : numPrice.toFixed(6);
-  } catch {
-    return '0.000000';
-  }
+  if (price === undefined || price === null) return '0';
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+  return numPrice < 0.01
+    ? numPrice.toFixed(10).replace(/0+$/, '')
+    : numPrice < 1
+      ? numPrice.toFixed(4)
+      : numPrice.toLocaleString(undefined, { maximumFractionDigits: 2 });
 };
 
 const formatPercentage = (num: number): string => {
-  return num.toFixed(2);
+  return num < 0.01 ? '<0.01' : num.toFixed(2);
 };
 
-const formatDateSafe = (
-  dateString: string | Date | undefined | null,
-  formatType: 'distance' | 'format' = 'distance',
-  formatPattern = 'PPp',
-): string => {
-  try {
-    if (!dateString) return 'Unknown';
-
-    if (typeof dateString === 'object' && dateString !== null && !(dateString instanceof Date)) {
-      return 'Invalid date';
-    }
-
-    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-
-    if (isNaN(date.getTime())) return 'Invalid date';
-
-    if (formatType === 'distance') {
-      return formatDistanceStrict(date, new Date()) + ' ago';
-    } else {
-      return format(date, formatPattern);
-    }
-  } catch {
-    return 'Invalid date';
-  }
-};
-
-export const TokenStats = ({ stats, tokenMintAddress, tokenSymbol }: TokenStatsProps) => {
+export const TokenStats = ({
+  stats,
+  tokenMintAddress,
+  tokenSymbol,
+  holderHistoryData,
+  isLoadingHolderHistory,
+}: TokenStatsProps) => {
   if (!stats) {
     return (
       <div className='space-y-6'>
@@ -162,45 +141,18 @@ export const TokenStats = ({ stats, tokenMintAddress, tokenSymbol }: TokenStatsP
               <span className='font-medium'>{stats.uniqueWallets24h}</span>
             </div>
           )}
-
-          {/* Total Holders */}
-          {stats.holders != null && (
-            <div className='flex justify-between items-center'>
-              <span className='text-sm'>Total Holders:</span>
-              <span className='font-medium'>
-                {typeof stats.holders === 'number' ? stats.holders.toLocaleString() : stats.holders}
-              </span>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Price Chart */}
       <TokenPriceChart
         tokenAddress={tokenMintAddress}
-        totalSupply={stats.totalSupply}
+        totalSupply={stats.totalSupply || '0'}
         tokenSymbol={tokenSymbol}
       />
 
-      {/* Supply Information */}
-      <div className='space-y-3'>
-        <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
-          <BarChart2 className='h-4 w-4 mr-2 text-blue-400' />
-          Supply Information
-        </h3>
-        <div className='space-y-2'>
-          <div className='flex justify-between items-center'>
-            <span className='text-sm'>Total Supply:</span>
-            <span className='font-medium'>{formatLargeNumber(adjustedTotalSupply) || '-'}</span>
-          </div>
-          {adjustedCirculatingSupply !== null && adjustedCirculatingSupply > 0 && (
-            <div className='flex justify-between items-center'>
-              <span className='text-sm'>Circulating Supply:</span>
-              <span className='font-medium'>{formatLargeNumber(adjustedCirculatingSupply)}</span>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Holder History Chart */}
+      <HolderHistoryChart data={holderHistoryData || null} isLoading={isLoadingHolderHistory} />
 
       {/* Top Holders */}
       {stats.topHolders && stats.topHolders.length > 0 && (
@@ -235,9 +187,24 @@ export const TokenStats = ({ stats, tokenMintAddress, tokenSymbol }: TokenStatsP
         </div>
       )}
 
-      {/* Last Updated */}
-      <div className='pt-2 text-xs text-zinc-500 text-right'>
-        Last updated: {formatDateSafe(stats.lastUpdated, 'format', 'PPp')}
+      {/* Supply Information */}
+      <div className='space-y-3'>
+        <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
+          <BarChart2 className='h-4 w-4 mr-2 text-blue-400' />
+          Supply Information
+        </h3>
+        <div className='space-y-2'>
+          <div className='flex justify-between items-center'>
+            <span className='text-sm'>Total Supply:</span>
+            <span className='font-medium'>{formatLargeNumber(adjustedTotalSupply)}</span>
+          </div>
+          {adjustedCirculatingSupply !== null && adjustedCirculatingSupply > 0 && (
+            <div className='flex justify-between items-center'>
+              <span className='text-sm'>Circulating Supply:</span>
+              <span className='font-medium'>{formatLargeNumber(adjustedCirculatingSupply)}</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

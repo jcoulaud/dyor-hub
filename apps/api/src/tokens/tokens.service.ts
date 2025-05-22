@@ -4,8 +4,10 @@ import {
   PaginatedTokensResponse,
   ProcessedBundleData,
   SingleBundleData,
+  SolanaTrackerHoldersChartResponse,
   TokenHolder,
   TokenStats,
+  TrenchBundle,
   TrenchBundleApiResponse,
 } from '@dyor-hub/types';
 import { HttpService } from '@nestjs/axios';
@@ -21,7 +23,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AxiosError } from 'axios';
-import { subDays, subMonths } from 'date-fns';
+import { differenceInHours, subDays, subMonths } from 'date-fns';
 import { firstValueFrom } from 'rxjs';
 import { DataSource, FindManyOptions, In, Repository } from 'typeorm';
 import { TokenEntity, WalletEntity } from '../entities';
@@ -136,6 +138,10 @@ export class TokensService {
   private readonly logger = new Logger(TokensService.name);
   private readonly tokenOverviewCache: Map<string, any> = new Map();
   private readonly topHoldersCache: Map<string, any> = new Map();
+  private readonly holderChartCache: Map<
+    string,
+    SolanaTrackerHoldersChartResponse
+  > = new Map();
   private readonly pendingRequests: Map<string, Promise<any>> = new Map();
   private readonly cacheTimestamps: Map<string, number> = new Map();
   private readonly dexScreenerCache: Map<string, any> = new Map();
@@ -322,9 +328,6 @@ export class TokensService {
       if (pairWithInfo.info.websites && pairWithInfo.info.websites.length > 0) {
         const websiteUrl = pairWithInfo.info.websites[0]?.url;
         if (websiteUrl && token.websiteUrl !== websiteUrl) {
-          this.logger.log(
-            `Updating website URL for ${token.mintAddress} from ${token.websiteUrl || 'none'} to ${websiteUrl}`,
-          );
           updates.websiteUrl = websiteUrl;
           updated = true;
         }
@@ -388,9 +391,6 @@ export class TokensService {
           }
 
           if (telegramUrl && token.telegramUrl !== telegramUrl) {
-            this.logger.log(
-              `Updating Telegram URL for ${token.mintAddress} from ${token.telegramUrl || 'none'} to ${telegramUrl}`,
-            );
             updates.telegramUrl = telegramUrl;
             updated = true;
           }
@@ -919,10 +919,21 @@ export class TokensService {
 
           const processedBundles: SingleBundleData[] = Object.entries(
             rawData.bundles || {},
-          ).map(([id, bundleData]) => ({
-            ...bundleData,
-            id,
-          }));
+          ).map(([id, bundleData]: [string, TrenchBundle]) => {
+            const newBundle: SingleBundleData = {
+              bundle_analysis: bundleData.bundle_analysis,
+              holding_amount: bundleData.holding_amount,
+              holding_percentage: bundleData.holding_percentage,
+              token_percentage: bundleData.token_percentage,
+              total_sol: bundleData.total_sol,
+              total_tokens: bundleData.total_tokens,
+              unique_wallets: bundleData.unique_wallets,
+              wallet_categories: bundleData.wallet_categories,
+              wallet_info: bundleData.wallet_info,
+              id: id,
+            };
+            return newBundle;
+          });
 
           const responseData: ProcessedBundleData = {
             bonded: rawData.bonded,
@@ -1116,7 +1127,7 @@ export class TokensService {
           return null;
         }
 
-        const securityData = response.data.data ?? null;
+        const securityData = response.data?.data ?? null;
         return securityData;
       } catch (error) {
         const axiosError = error as AxiosError;
@@ -1124,6 +1135,120 @@ export class TokensService {
           `Error fetching security info from external API for ${tokenAddress}: Status ${axiosError.response?.status}`,
           axiosError.response?.data || axiosError.message,
         );
+        return null;
+      } finally {
+        this.pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
+  }
+
+  public async fetchSolanaTrackerHolderChart(
+    tokenAddress: string,
+  ): Promise<SolanaTrackerHoldersChartResponse | null> {
+    // Get token creation time to determine a default interval
+    let determinedIntervalType = '1d';
+    try {
+      const token = await this.tokenRepository.findOne({
+        where: { mintAddress: tokenAddress },
+        select: ['creationTime'],
+      });
+      if (token && token.creationTime) {
+        const now = new Date();
+        const hoursSinceCreation = differenceInHours(now, token.creationTime);
+
+        if (hoursSinceCreation < 24) {
+          determinedIntervalType = '1m'; // Tokens younger than 24 hours: 1-minute intervals
+        } else if (hoursSinceCreation < 24 * 7) {
+          determinedIntervalType = '1h'; // Tokens younger than 7 days: 1-hour intervals
+        } else {
+          determinedIntervalType = '1d'; // Older tokens: 1-day intervals
+        }
+      } else {
+        this.logger.warn(
+          `Could not retrieve creation time for ${tokenAddress} to determine dynamic interval. Defaulting to '1d'.`,
+        );
+      }
+    } catch (e) {
+      this.logger.error(
+        `Error fetching token creation time for ${tokenAddress}: ${e.message}. Defaulting to '1d'.`,
+      );
+    }
+
+    const cacheKey = `solana_tracker_holder_chart_${tokenAddress}_${determinedIntervalType}`;
+    const cachedData = this.holderChartCache.get(cacheKey);
+    const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
+    const HOLDER_CHART_CACHE_TTL = 5 * 60 * 1000;
+
+    if (
+      cachedData &&
+      cachedTimestamp &&
+      Date.now() - cachedTimestamp < HOLDER_CHART_CACHE_TTL
+    ) {
+      return cachedData;
+    }
+
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
+    }
+
+    const requestPromise = (async () => {
+      const apiKey = this.configService.get<string>('SOLANA_TRACKER_API_KEY');
+      if (!apiKey) {
+        this.logger.error('SOLANA_TRACKER_API_KEY not configured');
+        return null;
+      }
+
+      const apiUrl = `https://data.solanatracker.io/holders/chart/${tokenAddress}?type=${determinedIntervalType}`;
+
+      try {
+        const response = await firstValueFrom(
+          this.httpService.get<SolanaTrackerHoldersChartResponse>(apiUrl, {
+            headers: {
+              'x-api-key': apiKey,
+            },
+          }),
+        );
+
+        const chartData = response.data;
+
+        if (
+          !chartData ||
+          !chartData.holders ||
+          !Array.isArray(chartData.holders)
+        ) {
+          this.logger.warn(
+            `Solana Tracker holder chart API response did not match expected structure for ${tokenAddress}. Received: ${JSON.stringify(chartData)}`,
+          );
+          return null;
+        }
+
+        this.holderChartCache.set(cacheKey, chartData);
+        this.cacheTimestamps.set(cacheKey, Date.now());
+
+        return chartData;
+      } catch (error) {
+        if (error instanceof AxiosError) {
+          this.logger.error(
+            `AxiosError fetching Solana Tracker holder chart for ${tokenAddress}: ${error.message}`,
+            error.response?.status,
+            error.response?.data,
+          );
+          if (
+            error.response?.status === 401 ||
+            error.response?.status === 403
+          ) {
+            this.logger.error(
+              'Authorization error with Solana Tracker API. Check API Key.',
+            );
+          }
+        } else {
+          this.logger.error(
+            `Unexpected error fetching Solana Tracker holder chart for ${tokenAddress}: ${(error as Error).message}`,
+          );
+        }
         return null;
       } finally {
         this.pendingRequests.delete(cacheKey);

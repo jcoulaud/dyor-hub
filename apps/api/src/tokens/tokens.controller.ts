@@ -2,6 +2,7 @@ import {
   PaginatedHotTokensResult,
   PaginatedTokensResponse,
   ProcessedBundleData,
+  SolanaTrackerHoldersChartResponse,
   TokenStats,
   TwitterUsernameHistoryEntity,
 } from '@dyor-hub/types';
@@ -23,7 +24,7 @@ import {
 import { subDays } from 'date-fns';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards';
 import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
 import { TokenEntity } from '../entities/token.entity';
 import { UserEntity } from '../entities/user.entity';
@@ -142,5 +143,20 @@ export class TokensController {
       userId,
     );
     return result;
+  }
+
+  @Public()
+  @Get(':mintAddress/holder-history')
+  async getHolderChartData(
+    @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
+  ): Promise<SolanaTrackerHoldersChartResponse> {
+    const chartData =
+      await this.tokensService.fetchSolanaTrackerHolderChart(mintAddress);
+    if (!chartData) {
+      throw new NotFoundException(
+        `Holder chart data not found for token ${mintAddress}`,
+      );
+    }
+    return chartData;
   }
 }

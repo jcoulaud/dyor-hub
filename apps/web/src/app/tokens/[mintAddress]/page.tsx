@@ -27,6 +27,7 @@ import { useAuthContext } from '@/providers/auth-provider';
 import {
   Comment,
   SentimentType,
+  SolanaTrackerHoldersChartResponse,
   Token,
   TokenCall,
   TokenSentimentStats,
@@ -49,7 +50,7 @@ import Link from 'next/link';
 import { notFound, usePathname, useRouter } from 'next/navigation';
 import { use, useCallback, useEffect, useRef, useState } from 'react';
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV !== 'development';
 
 interface PageProps {
   params: Promise<{ mintAddress: string }>;
@@ -119,6 +120,9 @@ export default function Page({ params, commentId }: PageProps) {
   const commentSectionRef = useRef<CommentSectionHandle>(null);
   const [isVerifyingCreator, setIsVerifyingCreator] = useState(false);
   const [userDyorHubBalance, setUserDyorHubBalance] = useState<number | undefined>(undefined);
+  const [holderHistoryData, setHolderHistoryData] =
+    useState<SolanaTrackerHoldersChartResponse | null>(null);
+  const [isLoadingHolderHistory, setIsLoadingHolderHistory] = useState<boolean>(true);
 
   const { toast } = useToast();
 
@@ -252,6 +256,7 @@ export default function Page({ params, commentId }: PageProps) {
       setTokenData(null);
       setTokenStatsData(null);
       setTokenHistoryData(null);
+      setHolderHistoryData(null);
 
       if (!isValidSolanaAddress(mintAddress)) {
         if (isMounted) notFound();
@@ -326,6 +331,24 @@ export default function Page({ params, commentId }: PageProps) {
       isMounted = false;
     };
   }, [mintAddress, user?.id, isAuthenticated, isLoading]);
+
+  useEffect(() => {
+    const fetchHolderHistory = async () => {
+      if (!mintAddress) return;
+      setIsLoadingHolderHistory(true);
+      try {
+        const historyData = await tokens.getHolderHistory(mintAddress);
+        setHolderHistoryData(historyData);
+      } catch {
+        setError('Failed to load holder history. Please try refreshing.');
+        setHolderHistoryData(null);
+      } finally {
+        setIsLoadingHolderHistory(false);
+      }
+    };
+
+    fetchHolderHistory();
+  }, [mintAddress]);
 
   useEffect(() => {
     const fetchSentimentData = async () => {
@@ -853,11 +876,34 @@ export default function Page({ params, commentId }: PageProps) {
                     </div>
                   ) : tokenData ? (
                     <div className='py-4 space-y-6'>
+                      {/* Market Data */}
+                      {tokenStatsData ? (
+                        <TokenStats
+                          stats={tokenStatsData}
+                          tokenMintAddress={tokenData.mintAddress}
+                          tokenSymbol={tokenData.symbol}
+                          holderHistoryData={holderHistoryData?.holders ?? null}
+                          isLoadingHolderHistory={isLoadingHolderHistory}
+                        />
+                      ) : (
+                        <div className='flex items-center justify-center py-8'>
+                          <div className='inline-flex items-center px-4 py-2 rounded-full bg-red-950/20 backdrop-blur-sm border border-red-500/10'>
+                            <Shield className='h-4 w-4 text-red-400 mr-2' />
+                            <span className='text-sm font-medium text-zinc-200'>
+                              {isDev
+                                ? 'Market data disabled in local dev.'
+                                : 'Unable to load market data.'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Token Security Info */}
                       {(tokenData.creatorAddress ||
                         tokenData.creationTime ||
                         tokenData.creationTx) && (
                         <div className='space-y-3 text-xs'>
+                          <div className='w-full h-[1px] bg-gradient-to-r from-zinc-700/20 via-zinc-700/50 to-zinc-700/20 mb-3'></div>
                           <h3 className='text-sm font-medium text-zinc-400 flex items-center gap-2'>
                             <Shield className='w-4 h-4 text-blue-400' />
                             Token Creation Details
@@ -907,29 +953,6 @@ export default function Page({ params, commentId }: PageProps) {
                               </div>
                             )}
                           </div>
-                          {/* Divider */}
-                          <div className='pt-3'>
-                            <div className='w-full h-[1px] bg-gradient-to-r from-zinc-700/20 via-zinc-700/50 to-zinc-700/20'></div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Existing Market Data */}
-                      {tokenStatsData ? (
-                        <TokenStats
-                          stats={tokenStatsData}
-                          tokenMintAddress={tokenData.mintAddress}
-                        />
-                      ) : (
-                        <div className='flex items-center justify-center py-8'>
-                          <div className='inline-flex items-center px-4 py-2 rounded-full bg-red-950/20 backdrop-blur-sm border border-red-500/10'>
-                            <Shield className='h-4 w-4 text-red-400 mr-2' />
-                            <span className='text-sm font-medium text-zinc-200'>
-                              {isDev
-                                ? 'Market data disabled in local dev.'
-                                : 'Unable to load market data.'}
-                            </span>
-                          </div>
                         </div>
                       )}
                     </div>
@@ -969,7 +992,7 @@ export default function Page({ params, commentId }: PageProps) {
                     isLoadingUserCalls={isLoadingUserCalls}
                     onCallCreated={handleCallCreated}
                     onAddComment={handleAddComment}
-                    circulatingSupply={tokenStatsData?.circulatingSupply}
+                    circulatingSupply={tokenStatsData?.circulatingSupply ?? undefined}
                   />
                 ) : (
                   <>
@@ -1242,7 +1265,7 @@ export default function Page({ params, commentId }: PageProps) {
                     isLoadingUserCalls={isLoadingUserCalls}
                     onCallCreated={handleCallCreated}
                     onAddComment={handleAddComment}
-                    circulatingSupply={tokenStatsData?.circulatingSupply}
+                    circulatingSupply={tokenStatsData?.circulatingSupply ?? undefined}
                   />
                 ) : (
                   <>

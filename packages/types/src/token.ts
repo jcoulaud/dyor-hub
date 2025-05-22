@@ -48,26 +48,17 @@ export interface TokenHolder {
 }
 
 export interface TokenStats {
-  // Market data
-  price?: number;
-  marketCap?: number;
-  volume24h?: number;
-
-  // Trading statistics
-  volume24hChangePercent?: number;
-  buyCount24h?: number;
-  sellCount24h?: number;
-  uniqueWallets24h?: number;
-  holders?: number;
-
-  // Supply information
-  totalSupply: string;
-  circulatingSupply: string;
-
-  // Holder information
-  topHolders?: TokenHolder[];
-
-  // Last updated timestamp
+  price?: number | null;
+  marketCap?: number | null;
+  volume24h?: number | null;
+  volume24hChangePercent?: number | null;
+  buyCount24h?: number | null;
+  sellCount24h?: number | null;
+  uniqueWallets24h?: number | null;
+  holders?: number | null;
+  totalSupply?: string | null;
+  circulatingSupply?: string | null;
+  topHolders: TokenHolder[];
   lastUpdated: Date;
 }
 
@@ -213,4 +204,19 @@ export interface EarlyBuyerInfo {
   stillHoldingCount: number;
   earlyBuyers: EarlyBuyerWallet[];
   lastChecked: string;
+}
+
+export interface HolderScanDelta {
+  holder: string;
+  delta: number;
+  amount: number;
+}
+
+export interface SolanaTrackerHolderDataPoint {
+  holders: number;
+  time: number;
+}
+
+export interface SolanaTrackerHoldersChartResponse {
+  holders: SolanaTrackerHolderDataPoint[];
 }
