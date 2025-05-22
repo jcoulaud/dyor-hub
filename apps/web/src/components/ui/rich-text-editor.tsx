@@ -718,8 +718,6 @@ export function RichTextEditor({
             class: 'rounded-md bg-muted p-4',
           },
         },
-        bold: false,
-        italic: false,
       }),
       Placeholder.configure({
         placeholder,
