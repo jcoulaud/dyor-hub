@@ -2272,24 +2272,6 @@ export const tokenCallsLeaderboard = {
 
 export const dev = {
   admin: {
-    backfillTokenSecurityInfo: async (): Promise<{
-      message: string;
-      result: { processed: number; updated: number; failed: number; noData: number };
-    }> => {
-      try {
-        const data = await api<{
-          message: string;
-          result: { processed: number; updated: number; failed: number; noData: number };
-        }>('admin/dev/backfill-security', { method: 'POST' });
-        return data;
-      } catch (error) {
-        console.error('[backfillTokenSecurityInfo] Error:', error);
-        if (error instanceof ApiError) {
-          throw new ApiError(error.status, error.message, error.data);
-        }
-        throw new ApiError(500, 'Failed to initiate token security info backfill');
-      }
-    },
     addCreditsToAllUsers: async (
       credits: number,
     ): Promise<{ affected: number; transactionsCreated: number }> => {
@@ -2446,3 +2428,5 @@ export const credits = {
     },
   },
 };
+
+export type ApiInstance = typeof api;

@@ -8,8 +8,6 @@ import { useState } from 'react';
 
 export default function DevAdminPage() {
   const { toast } = useToast();
-  const [isBackfilling, setIsBackfilling] = useState(false);
-  const [backfillResult, setBackfillResult] = useState<string | null>(null);
 
   const [isAddingCredits, setIsAddingCredits] = useState(false);
   const [creditsToAdd, setCreditsToAdd] = useState('5');
@@ -19,32 +17,6 @@ export default function DevAdminPage() {
   const [devAnalysisResult, setDevAnalysisResult] = useState<AiTradingAnalysisResponse | null>(
     null,
   );
-
-  const handleBackfillSecurityInfo = async () => {
-    setIsBackfilling(true);
-    setBackfillResult(null);
-    try {
-      const response = await dev.admin.backfillTokenSecurityInfo();
-      setBackfillResult(
-        `Processed: ${response.result.processed}, Updated: ${response.result.updated}, Failed: ${response.result.failed}, No Data: ${response.result.noData}`,
-      );
-      toast({
-        title: 'Backfill Complete',
-        description: response.message,
-      });
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to backfill token security info';
-      setBackfillResult(`Error: ${message}`);
-      toast({
-        title: 'Backfill Error',
-        description: message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsBackfilling(false);
-    }
-  };
 
   const handleAddCreditsToAllUsers = async () => {
     setIsAddingCredits(true);
@@ -121,18 +93,6 @@ export default function DevAdminPage() {
   return (
     <div className='container mx-auto p-4 space-y-8'>
       <h1 className='mb-4 text-2xl font-bold'>Dev Admin Tools</h1>
-
-      <section className='rounded-lg border bg-card p-6 text-card-foreground shadow-sm'>
-        <h2 className='text-xl font-semibold mb-2'>Token Security Backfill</h2>
-        <Button onClick={handleBackfillSecurityInfo} disabled={isBackfilling}>
-          {isBackfilling ? 'Backfilling...' : 'Start Token Security Backfill'}
-        </Button>
-        {backfillResult && (
-          <pre className='mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-sm'>
-            {backfillResult}
-          </pre>
-        )}
-      </section>
 
       <section className='rounded-lg border bg-card p-6 text-card-foreground shadow-sm'>
         <h2 className='text-xl font-semibold mb-2'>Add Credits to All Users</h2>
