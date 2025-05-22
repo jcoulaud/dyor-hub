@@ -204,10 +204,7 @@ const EarlyBuyersDialogDisplay = ({
                 </div>
                 <div className='text-left'>
                   <div className='text-zinc-500'>Holding</div>
-                  <div className='font-semibold text-emerald-400'>
-                    {stillHoldingCount} (
-                    {((stillHoldingCount / totalEarlyBuyersCount) * 100).toFixed(0)}%)
-                  </div>
+                  <div className='font-semibold text-emerald-400'>{stillHoldingCount}</div>
                 </div>
               </div>
               <div className='col-span-5 grid grid-cols-4 gap-4'>
