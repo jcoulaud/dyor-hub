@@ -16,6 +16,7 @@ import {
   FeedActivity,
   GetTippingEligibilityResponseDto,
   GiphySearchResponse,
+  HolderScanDelta,
   LeaderboardEntry,
   LeaderboardResponse,
   NotificationPreference,
@@ -33,6 +34,7 @@ import {
   Referral,
   ReferralLeaderboardEntry,
   SentimentType,
+  SolanaTrackerHoldersChartResponse,
   StreakMilestone,
   StreakMilestonesResponse,
   StreakOverview,
@@ -674,18 +676,26 @@ export const tokens = {
       const endpoint = `tokens/${sanitizedMintAddress}/twitter-history`;
       const cacheKey = `api:${endpoint}`;
 
-      const cachedData = getCache<TwitterUsernameHistoryEntity>(cacheKey);
+      const cachedData = getCache<TwitterUsernameHistoryEntity | null>(cacheKey);
       if (cachedData) {
         return cachedData;
       }
 
-      const data = await api<TwitterUsernameHistoryEntity>(endpoint);
+      const data = await api<TwitterUsernameHistoryEntity | null>(endpoint);
       setCache(cacheKey, data, 5 * 1000);
       return data;
     } catch (error) {
       console.error(`Error fetching token twitter history for ${mintAddress}:`, error);
       throw error;
     }
+  },
+
+  getHolderHistory: async (
+    mintAddress: string,
+  ): Promise<SolanaTrackerHoldersChartResponse | null> => {
+    return await api<SolanaTrackerHoldersChartResponse | null>(
+      `/tokens/${encodeURIComponent(mintAddress)}/holder-history`,
+    );
   },
 
   getTokenPriceHistory: async (mintAddress: string): Promise<PriceHistoryResponse> => {
@@ -825,11 +835,13 @@ export const tokens = {
   ): Promise<{ success: boolean; message: string }> => {
     try {
       const endpoint = `tokens/${mintAddress}/verify-creator`;
+      // Reverted to standard api call for POST
       const data = await api<{ success: boolean; message: string }>(endpoint, {
         method: 'POST',
       });
       return data;
     } catch (error) {
+      // Handle ApiError specifically, otherwise rethrow a generic one or the original
       if (error instanceof ApiError) {
         throw new ApiError(
           error.status,
@@ -949,6 +961,12 @@ export const tokens = {
         method: 'POST',
         body: payload,
       },
+    );
+  },
+
+  async getHolderDeltas(mintAddress: string): Promise<HolderScanDelta[] | null> {
+    return api<HolderScanDelta[] | null>(
+      `/tokens/${encodeURIComponent(mintAddress)}/holder-deltas`,
     );
   },
 };
