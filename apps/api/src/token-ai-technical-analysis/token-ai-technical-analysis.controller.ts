@@ -244,6 +244,8 @@ export class TokenAiTechnicalAnalysisController {
     sessionId: string,
   ): Promise<void> {
     let analysisSuccessful = false;
+    const { tokenAddress } = requestDto;
+
     try {
       this.eventsGateway.sendTradingAnalysisProgress(userId, {
         status: 'analyzing',
@@ -253,7 +255,6 @@ export class TokenAiTechnicalAnalysisController {
         sessionId,
       });
 
-      const { timeFrom, timeTo, tokenAddress } = requestDto;
       const analysisResult =
         await this.tokenAiTechnicalAnalysisService.prepareAndExecuteAnalysis(
           requestDto,
@@ -335,10 +336,6 @@ export class TokenAiTechnicalAnalysisController {
       Math.floor(tokenAgeInMilliseconds / (1000 * 60 * 60 * 24)),
     );
 
-    const tokenOverview =
-      await this.tokensService.fetchTokenOverview(tokenAddress);
-    const marketCap = tokenOverview?.marketCap || 0;
-
     let isEligibleForFreeTier = false;
     let effectiveCreditCost = this.calculateAiTaCreditCost();
     let creditsReservedForThisRequest = false;
@@ -411,7 +408,6 @@ export class TokenAiTechnicalAnalysisController {
           tokenName,
           tokenAgeInDays,
           undefined, // No progress callback for this simpler endpoint
-          marketCap,
         );
 
       // Deduct credits only if it was a paid analysis and successful

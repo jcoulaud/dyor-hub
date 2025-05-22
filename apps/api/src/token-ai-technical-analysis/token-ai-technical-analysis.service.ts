@@ -313,7 +313,6 @@ export class TokenAiTechnicalAnalysisService {
     tokenName: string,
     tokenAgeInDays: number,
     progressCallback?: (percent: number, stage: string) => void,
-    marketCap?: number,
   ): Promise<OrchestrationResult> {
     const {
       tokenAddress,
@@ -329,6 +328,11 @@ export class TokenAiTechnicalAnalysisService {
     if (progressCallback) {
       progressCallback(10, 'Determining optimal data resolution...');
     }
+
+    // Fetch marketCap
+    const tokenOverview =
+      await this.tokensService.fetchTokenOverview(tokenAddress);
+    const marketCap = tokenOverview?.marketCap || 0;
 
     // Fetch complete token data to get the symbol
     const tokenData = await this.tokensService.getTokenData(tokenAddress);
