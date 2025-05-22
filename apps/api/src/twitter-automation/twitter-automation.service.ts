@@ -152,10 +152,24 @@ export class TwitterAutomationService {
             return null;
           }
 
-          this.trendingTokensCache.set(cacheKey, trendingTokensData);
-          this.cacheTimestamps.set(cacheKey, Date.now());
+          const filteredTokens = trendingTokensData.filter((token) => {
+            if (
+              token.risk &&
+              token.risk.risks &&
+              Array.isArray(token.risk.risks)
+            ) {
+              const hasDangerRisk = token.risk.risks.some(
+                (risk) => risk.level === 'danger',
+              );
 
-          return trendingTokensData;
+              return !hasDangerRisk;
+            }
+            return true;
+          });
+
+          this.trendingTokensCache.set(cacheKey, filteredTokens);
+          this.cacheTimestamps.set(cacheKey, Date.now());
+          return filteredTokens;
         } catch (error) {
           if (error instanceof AxiosError) {
             if (
