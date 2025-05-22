@@ -220,3 +220,80 @@ export interface SolanaTrackerHolderDataPoint {
 export interface SolanaTrackerHoldersChartResponse {
   holders: SolanaTrackerHolderDataPoint[];
 }
+
+export interface SolanaTrackerTrendingToken {
+  token: {
+    name: string;
+    symbol: string;
+    mint: string;
+    uri: string;
+    decimals: number;
+    isMutable: boolean;
+    description: string;
+    image: string;
+    metadata: {
+      mentionId: string;
+      tweetId: string;
+      twitterConversationId: string;
+      tweetCreatorUserId: string;
+      tweetReplyAuthorId: string;
+      tweetCreatorUsername: string;
+    };
+    hasFileMetaData: boolean;
+  };
+  pools: Array<{
+    liquidity: {
+      quote: number;
+      usd: number;
+    };
+    price: {
+      quote: number;
+      usd: number;
+    };
+    tokenSupply: number;
+    lpBurn: number;
+    tokenAddress: string;
+    marketCap: {
+      quote: number;
+      usd: number;
+    };
+    market: string;
+    quoteToken: string;
+    decimals: number;
+    security: {
+      freezeAuthority: string | null;
+      mintAuthority: string | null;
+    };
+    lastUpdated: number;
+    createdAt: number;
+    deployer: string;
+    txns: {
+      buys: number;
+      total: number;
+      volume: number;
+      sells: number;
+    };
+    poolId: string;
+  }>;
+  events: {
+    [timeframe: string]: {
+      // e.g., "1m", "5m", "1h", "24h"
+      priceChangePercentage: number;
+    };
+  };
+  risk: {
+    rugged: boolean;
+    risks: Array<{
+      name: string;
+      description: string;
+      level: 'warning' | 'danger' | 'info';
+      score: number;
+      value?: string;
+    }>;
+    score: number;
+  };
+  buysCount: number;
+  sellsCount: number;
+}
+
+export type SolanaTrackerTrendingTokensResponse = SolanaTrackerTrendingToken[];

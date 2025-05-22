@@ -29,11 +29,3 @@ export interface BirdeyeTokenDto {
   holder?: number;
   recent_listing_time?: number;
 }
-
-export interface BirdeyeTokenListResponseDto {
-  data: {
-    items: BirdeyeTokenDto[];
-    has_next: boolean;
-  };
-  success: boolean;
-}

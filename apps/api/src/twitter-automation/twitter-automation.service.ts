@@ -1,8 +1,17 @@
+import {
+  SolanaTrackerTrendingToken,
+  SolanaTrackerTrendingTokensResponse,
+} from '@dyor-hub/types';
 import { HttpService } from '@nestjs/axios';
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
+import { AxiosError } from 'axios';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { firstValueFrom } from 'rxjs';
 import { Raw, Repository } from 'typeorm';
@@ -13,18 +22,28 @@ import {
   OrchestrationResult,
   TokenAiTechnicalAnalysisService,
 } from '../token-ai-technical-analysis/token-ai-technical-analysis.service';
+import { TokensService } from '../tokens/tokens.service';
 import { TwitterService } from '../twitter/twitter.service';
-import {
-  BirdeyeTokenDto,
-  BirdeyeTokenListResponseDto,
-} from './dto/birdeye-token.dto';
 
 const enableTwitterPostCron = process.env.NODE_ENV === 'production';
+
+interface TrendingTokenInfo {
+  address: string;
+  symbol: string;
+  name: string;
+}
 
 @Injectable()
 export class TwitterAutomationService {
   private readonly logger = new Logger(TwitterAutomationService.name);
   private readonly birdeyeApiKey: string;
+  private readonly solanaTrackerApiKey: string;
+  private readonly cacheTimestamps: Map<string, number> = new Map();
+  private readonly pendingRequests: Map<string, Promise<any>> = new Map();
+  private readonly trendingTokensCache: Map<
+    string,
+    SolanaTrackerTrendingTokensResponse
+  > = new Map();
 
   constructor(
     private readonly configService: ConfigService,
@@ -33,66 +52,145 @@ export class TwitterAutomationService {
     private readonly tweetRepository: Repository<TweetEntity>,
     private readonly twitterService: TwitterService,
     private readonly tokenAiTechnicalAnalysisService: TokenAiTechnicalAnalysisService,
+    private readonly tokensService: TokensService,
   ) {
     this.birdeyeApiKey = this.configService.get<string>('BIRDEYE_API_KEY');
+    this.solanaTrackerApiKey = this.configService.get<string>(
+      'SOLANA_TRACKER_API_KEY',
+    );
+    if (!this.solanaTrackerApiKey) {
+      this.logger.error('SOLANA_TRACKER_API_KEY is not configured.');
+    }
     if (!this.birdeyeApiKey) {
-      this.logger.error('BIRDEYE_API_KEY is not configured.');
+      this.logger.warn(
+        'BIRDEYE_API_KEY is not configured. This might affect other functionalities.',
+      );
     }
   }
 
-  async getTrendingTokens(): Promise<BirdeyeTokenDto[]> {
-    const url = 'https://public-api.birdeye.so/defi/v3/token/list';
-    const params = {
-      sort_by: 'volume_4h_change_percent',
-      sort_type: 'desc',
-      min_liquidity: 30000,
-      max_liquidity: 4000000,
-      min_market_cap: 100000,
-      min_holder: 500,
-      min_volume_4h_usd: 100000,
-      offset: 0,
-      limit: 100,
-    };
-    const headers = {
-      'X-API-KEY': this.birdeyeApiKey,
-      accept: 'application/json',
-      'x-chain': 'solana',
-    };
+  async getTrendingTokens(
+    timeframe: string = '1h',
+  ): Promise<TrendingTokenInfo[]> {
+    const validTimeframes = [
+      '5m',
+      '15m',
+      '30m',
+      '1h',
+      '2h',
+      '3h',
+      '4h',
+      '5h',
+      '6h',
+      '12h',
+      '24h',
+    ];
+    if (!validTimeframes.includes(timeframe)) {
+      this.logger.warn(
+        `Invalid timeframe: ${timeframe}. Defaulting to 1h. Valid timeframes are: ${validTimeframes.join(', ')}`,
+      );
+      timeframe = '1h';
+    }
 
-    try {
-      const response = await firstValueFrom(
-        this.httpService.get<BirdeyeTokenListResponseDto>(url, {
-          params,
-          headers,
+    const cacheKey = `solana_tracker_trending_tokens_${timeframe}`;
+    const TRENDING_TOKENS_CACHE_TTL = 5 * 60 * 1000;
+
+    const cachedData = this.trendingTokensCache.get(cacheKey);
+    const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
+
+    if (
+      cachedData &&
+      cachedTimestamp &&
+      Date.now() - cachedTimestamp < TRENDING_TOKENS_CACHE_TTL
+    ) {
+      if (!cachedData) return [];
+      return cachedData.map(
+        (item: SolanaTrackerTrendingToken): TrendingTokenInfo => ({
+          address: item.token.mint,
+          symbol: item.token.symbol,
+          name: item.token.name,
         }),
       );
-
-      if (
-        response.data &&
-        response.data.success &&
-        response.data.data &&
-        response.data.data.items
-      ) {
-        return response.data.data.items;
-      } else {
-        this.logger.warn(
-          'No tokens found or error in Birdeye response',
-          response.data,
-        );
-        return [];
-      }
-    } catch (error) {
-      this.logger.error(
-        'Error fetching trending tokens from Birdeye',
-        error.stack,
-        {
-          url,
-          params,
-          status: error.response?.status,
-        },
-      );
-      return [];
     }
+
+    if (this.pendingRequests.has(cacheKey)) {
+      const pendingData = await this.pendingRequests.get(cacheKey);
+      if (!pendingData) return [];
+      return pendingData.map(
+        (item: SolanaTrackerTrendingToken): TrendingTokenInfo => ({
+          address: item.token.mint,
+          symbol: item.token.symbol,
+          name: item.token.name,
+        }),
+      );
+    }
+
+    const requestPromise =
+      (async (): Promise<SolanaTrackerTrendingTokensResponse | null> => {
+        if (!this.solanaTrackerApiKey) {
+          this.logger.error(
+            'SOLANA_TRACKER_API_KEY not configured. Cannot fetch trending tokens.',
+          );
+          throw new ServiceUnavailableException(
+            'Solana Tracker API key is not configured.',
+          );
+        }
+
+        const apiUrl = `https://data.solanatracker.io/tokens/trending/${timeframe}`;
+
+        try {
+          const response = await firstValueFrom(
+            this.httpService.get<SolanaTrackerTrendingTokensResponse>(apiUrl, {
+              headers: {
+                'x-api-key': this.solanaTrackerApiKey,
+              },
+            }),
+          );
+
+          const trendingTokensData = response.data;
+
+          if (!trendingTokensData || !Array.isArray(trendingTokensData)) {
+            return null;
+          }
+
+          this.trendingTokensCache.set(cacheKey, trendingTokensData);
+          this.cacheTimestamps.set(cacheKey, Date.now());
+
+          return trendingTokensData;
+        } catch (error) {
+          if (error instanceof AxiosError) {
+            if (
+              error.response?.status === 401 ||
+              error.response?.status === 403
+            ) {
+              this.logger.error(
+                'Authorization error with Solana Tracker API. Check API Key.',
+              );
+            }
+          } else {
+            this.logger.error(
+              `Unexpected error fetching Solana Tracker trending tokens for timeframe ${timeframe}: ${(error as Error).message}`,
+              (error as Error).stack,
+            );
+          }
+          return null;
+        } finally {
+          this.pendingRequests.delete(cacheKey);
+        }
+      })();
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+    const result = await requestPromise;
+
+    if (result) {
+      return result.map(
+        (item: SolanaTrackerTrendingToken): TrendingTokenInfo => ({
+          address: item.token.mint,
+          symbol: item.token.symbol,
+          name: item.token.name,
+        }),
+      );
+    }
+    return [];
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_6PM, {
@@ -116,7 +214,7 @@ export class TwitterAutomationService {
     }
 
     let selectedTokenAnalytics: {
-      token: BirdeyeTokenDto;
+      tokenInfo: TrendingTokenInfo;
       name: string;
       ageInDays: number;
       humanReadableAge: string;
@@ -135,42 +233,35 @@ export class TwitterAutomationService {
         let ageInDays: number | null = null;
         let humanReadableAge: string = '-';
 
-        if (token.recent_listing_time) {
-          const listingTimeMs = token.recent_listing_time * 1000;
-          ageInDays = (Date.now() - listingTimeMs) / (1000 * 60 * 60 * 24);
-          humanReadableAge = formatDistanceToNowStrict(
-            new Date(listingTimeMs),
-            { addSuffix: true },
+        try {
+          const securityInfo = await this.tokensService.fetchTokenSecurityInfo(
+            token.address,
           );
-        } else {
-          this.logger.warn(
-            `recent_listing_time not available for ${token.symbol} (${token.address}). Falling back to getTokenAgeInDays.`,
-          );
-          try {
-            ageInDays =
-              await this.tokenAiTechnicalAnalysisService.getTokenAgeInDays(
-                token.address,
-              );
-            const approxCreationDate = new Date(
-              Date.now() - ageInDays * 24 * 60 * 60 * 1000,
+
+          if (securityInfo && securityInfo.creationTime) {
+            const creationTimeMs = securityInfo.creationTime * 1000;
+            ageInDays = (Date.now() - creationTimeMs) / (1000 * 60 * 60 * 24);
+            humanReadableAge = formatDistanceToNowStrict(
+              new Date(creationTimeMs),
+              { addSuffix: true },
             );
-            humanReadableAge = formatDistanceToNowStrict(approxCreationDate, {
-              addSuffix: true,
-            });
-            this.logger.log(
-              `Using fallback age for ${token.symbol} (${token.address}): ${humanReadableAge}`,
-            );
-          } catch (error) {
+          } else {
             this.logger.warn(
-              `Failed to get age using fallback for token ${token.address}. Skipping. Error: ${error.message}`,
+              `creationTime not available via fetchTokenSecurityInfo for ${token.symbol} (${token.address}). Skipping this token.`,
             );
             continue;
           }
+        } catch (error) {
+          continue;
+        }
+
+        if (!token.name) {
+          continue;
         }
 
         if (ageInDays !== null && ageInDays >= 0) {
           selectedTokenAnalytics = {
-            token: token,
+            tokenInfo: token,
             name: token.name,
             ageInDays: ageInDays,
             humanReadableAge: humanReadableAge,
@@ -180,7 +271,6 @@ export class TwitterAutomationService {
           this.logger.warn(
             `Invalid age calculated for token ${token.address} (${token.symbol}). Skipping.`,
           );
-          continue;
         }
       }
     }
@@ -193,7 +283,7 @@ export class TwitterAutomationService {
     }
 
     const {
-      token: selectedToken,
+      tokenInfo: selectedToken,
       name: tokenName,
       ageInDays,
       humanReadableAge,
@@ -216,7 +306,7 @@ export class TwitterAutomationService {
           analysisRequestDto,
           tokenName,
           ageInDays,
-          undefined, // No progress callback
+          undefined,
         );
 
       if (!analysisResultObj || !analysisResultObj.analysisOutput) {
@@ -267,7 +357,7 @@ export class TwitterAutomationService {
   }
 
   private formatTwitterPost(
-    token: BirdeyeTokenDto,
+    token: TrendingTokenInfo,
     analysis: ChartWhispererOutput,
     tokenAge: string,
   ): string {
