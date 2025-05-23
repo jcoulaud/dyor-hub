@@ -1259,6 +1259,99 @@ export class TokensService {
     return requestPromise;
   }
 
+  public async fetchSolanaTrackerRisk(tokenAddress: string): Promise<{
+    score: number;
+    risks: Array<{
+      name: string;
+      description: string;
+      level: 'warning' | 'danger' | 'info';
+      score: number;
+      value?: string;
+    }>;
+  } | null> {
+    const cacheKey = `solana_tracker_risk_${tokenAddress}`;
+    const cachedData = this.tokenDataCache.get(cacheKey);
+    const cachedTimestamp = this.cacheTimestamps.get(cacheKey);
+    const RISK_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    if (
+      cachedData &&
+      cachedTimestamp &&
+      Date.now() - cachedTimestamp < RISK_CACHE_TTL
+    ) {
+      return cachedData;
+    }
+
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
+    }
+
+    const requestPromise = (async () => {
+      const apiKey = this.configService.get<string>('SOLANA_TRACKER_API_KEY');
+      if (!apiKey) {
+        this.logger.error('SOLANA_TRACKER_API_KEY not configured');
+        return null;
+      }
+
+      const apiUrl = `https://data.solanatracker.io/tokens/${tokenAddress}`;
+
+      try {
+        const response = await firstValueFrom(
+          this.httpService.get(apiUrl, {
+            headers: {
+              'x-api-key': apiKey,
+            },
+          }),
+        );
+
+        const tokenData = response.data;
+
+        if (!tokenData || !tokenData.risk) {
+          this.logger.warn(
+            `Solana Tracker token API response did not contain risk data for ${tokenAddress}`,
+          );
+          return null;
+        }
+
+        const riskData = {
+          score: tokenData.risk.score,
+          risks: tokenData.risk.risks || [],
+        };
+
+        this.tokenDataCache.set(cacheKey, riskData);
+        this.cacheTimestamps.set(cacheKey, Date.now());
+
+        return riskData;
+      } catch (error) {
+        if (error instanceof AxiosError) {
+          this.logger.error(
+            `AxiosError fetching Solana Tracker risk data for ${tokenAddress}: ${error.message}`,
+            error.response?.status,
+            error.response?.data,
+          );
+          if (
+            error.response?.status === 401 ||
+            error.response?.status === 403
+          ) {
+            this.logger.error(
+              'Authorization error with Solana Tracker API. Check API Key.',
+            );
+          }
+        } else {
+          this.logger.error(
+            `Unexpected error fetching Solana Tracker risk data for ${tokenAddress}: ${(error as Error).message}`,
+          );
+        }
+        return null;
+      } finally {
+        this.pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
+  }
+
   async verifyTokenCreator(
     tokenMintAddress: string,
     userId: string,

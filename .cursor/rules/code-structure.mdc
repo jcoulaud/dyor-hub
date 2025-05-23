@@ -10,4 +10,4 @@ If you need to run pnpm commands, use this before: "export NVM_DIR="$HOME/.nvm" 
 - My frontend api file proxy that calls my controllers is in apps/web/src/lib/api.ts
 - Don't install and use Swagger packages
 - Don't generate or run the migrations yourself, I will do it. Let me know when I need to do it
-- Don't try to run the frontend or backend, I'm doing this myself
+- Don't try to run/build the frontend or backend, I'm doing this myself

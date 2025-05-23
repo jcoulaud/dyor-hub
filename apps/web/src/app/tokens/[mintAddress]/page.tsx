@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import type { TokenRiskData } from '@/lib/api';
 import { tokenCalls, tokens, users, watchlist } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
@@ -51,7 +52,7 @@ import Link from 'next/link';
 import { notFound, usePathname, useRouter } from 'next/navigation';
 import { use, useCallback, useEffect, useRef, useState } from 'react';
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV !== 'development';
 
 interface PageProps {
   params: Promise<{ mintAddress: string }>;
@@ -124,6 +125,8 @@ export default function Page({ params, commentId }: PageProps) {
   const [holderHistoryData, setHolderHistoryData] =
     useState<SolanaTrackerHoldersChartResponse | null>(null);
   const [isLoadingHolderHistory, setIsLoadingHolderHistory] = useState<boolean>(true);
+  const [riskData, setRiskData] = useState<TokenRiskData | null>(null);
+  const [isLoadingRiskData, setIsLoadingRiskData] = useState<boolean>(true);
 
   const { toast } = useToast();
 
@@ -258,6 +261,8 @@ export default function Page({ params, commentId }: PageProps) {
       setTokenStatsData(null);
       setTokenHistoryData(null);
       setHolderHistoryData(null);
+      setRiskData(null);
+      setIsLoadingRiskData(true);
 
       if (!isValidSolanaAddress(mintAddress)) {
         if (isMounted) notFound();
@@ -265,11 +270,13 @@ export default function Page({ params, commentId }: PageProps) {
       }
 
       try {
-        const [tokenResult, tokenStatsResult, twitterHistoryResult] = await Promise.allSettled([
-          tokens.getByMintAddress(mintAddress),
-          isDev ? Promise.resolve(null) : tokens.getTokenStats(mintAddress),
-          isDev ? Promise.resolve(null) : tokens.getTwitterHistory(mintAddress),
-        ]);
+        const [tokenResult, tokenStatsResult, twitterHistoryResult, riskDataResult] =
+          await Promise.allSettled([
+            tokens.getByMintAddress(mintAddress),
+            isDev ? Promise.resolve(null) : tokens.getTokenStats(mintAddress),
+            isDev ? Promise.resolve(null) : tokens.getTwitterHistory(mintAddress),
+            isDev ? Promise.resolve(null) : tokens.getSolanaTrackerRisk(mintAddress),
+          ]);
 
         if (!isMounted) return;
 
@@ -298,6 +305,11 @@ export default function Page({ params, commentId }: PageProps) {
         if (twitterHistoryResult.status === 'fulfilled') {
           setTokenHistoryData(twitterHistoryResult.value);
         }
+
+        if (riskDataResult.status === 'fulfilled') {
+          setRiskData(riskDataResult.value);
+        }
+        setIsLoadingRiskData(false);
 
         if (isAuthenticated && user?.id) {
           try {
@@ -341,7 +353,6 @@ export default function Page({ params, commentId }: PageProps) {
         const historyData = await tokens.getHolderHistory(mintAddress);
         setHolderHistoryData(historyData);
       } catch {
-        setError('Failed to load holder history. Please try refreshing.');
         setHolderHistoryData(null);
       } finally {
         setIsLoadingHolderHistory(false);
@@ -505,6 +516,7 @@ export default function Page({ params, commentId }: PageProps) {
                         symbol={tokenData.symbol}
                         className='w-16 h-16 rounded-full'
                       />
+
                       <div className='sm:hidden flex items-center gap-2 mt-2'>
                         <WatchlistButton
                           mintAddress={tokenData.mintAddress}
@@ -618,80 +630,71 @@ export default function Page({ params, commentId }: PageProps) {
                             )}
                           </div>
                         </div>
-                        <p className='text-zinc-400 max-w-full md:max-w-[75%] text-sm'>
+                        <p className='text-zinc-400 max-w-full md:max-w-[75%] text-sm -mt-0.5'>
                           {tokenData.description}
                         </p>
 
                         {/* Views Count Display */}
                         {tokenData.viewsCount !== undefined && (
-                          <div className='flex items-center mt-2'>
-                            <div className='inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-800/70 border border-zinc-700/50 backdrop-blur-sm'>
+                          <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between mt-2 gap-2'>
+                            <div className='inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-800/70 border border-zinc-700/50 backdrop-blur-sm w-fit'>
                               <Eye className='w-3.5 h-3.5 mr-1.5 text-blue-400' />
                               <span className='text-xs font-medium text-zinc-200'>
                                 {tokenData.viewsCount.toLocaleString()} views
                               </span>
                             </div>
+
+                            {/* Risk Information Display */}
+                            {!isDev && riskData && !isLoadingRiskData && (
+                              <div className='flex flex-col sm:flex-row sm:items-center gap-2 sm:flex-wrap mt-3 sm:mt-0'>
+                                {/* Risk Score */}
+                                <div className='flex items-center gap-1'>
+                                  <Shield className='w-4 h-4 text-zinc-400' />
+                                  <span className='text-sm font-medium text-zinc-300'>
+                                    Risk Score
+                                  </span>
+                                  <div
+                                    className={`text-sm font-bold ${
+                                      riskData.score <= 3
+                                        ? 'text-emerald-400'
+                                        : riskData.score <= 6
+                                          ? 'text-amber-400'
+                                          : 'text-red-400'
+                                    }`}>
+                                    {riskData.score}/10
+                                  </div>
+                                </div>
+
+                                {/* All Risk Badges */}
+                                {riskData.risks && riskData.risks.length > 0 && (
+                                  <div className='flex flex-col sm:flex-row gap-2 sm:flex-wrap'>
+                                    {riskData.risks.map((risk, index) => {
+                                      const displayName =
+                                        risk.name === 'No social media'
+                                          ? 'No original social media'
+                                          : risk.name;
+
+                                      return (
+                                        <div
+                                          key={index}
+                                          className={`px-2.5 py-1.5 rounded-full text-xs font-medium w-fit ${
+                                            risk.level === 'danger'
+                                              ? 'text-red-200 bg-red-500/15'
+                                              : risk.level === 'warning'
+                                                ? 'text-amber-200 bg-amber-500/15'
+                                                : 'text-blue-200 bg-blue-500/15'
+                                          }`}>
+                                          {displayName}
+                                          {risk.value ? `: ${risk.value}` : ''}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
-
-                        {/* Mobile Social Buttons */}
-                        <div className='flex sm:hidden items-center gap-2 mt-3'>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(tokenData.mintAddress);
-                              toast({
-                                title: 'Address copied',
-                                description: 'Token address copied to clipboard',
-                              });
-                            }}
-                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
-                            title='Copy address'>
-                            <Copy className='w-4 h-4 text-blue-400' />
-                          </button>
-
-                          {tokenData.websiteUrl && (
-                            <WebsiteInfoTooltip websiteUrl={tokenData.websiteUrl} />
-                          )}
-
-                          {tokenData.twitterHandle && (
-                            <TwitterHistoryTooltip
-                              twitterHandle={tokenData.twitterHandle}
-                              twitterHistory={tokenHistoryData}
-                            />
-                          )}
-
-                          {tokenData.telegramUrl && (
-                            <Link
-                              href={tokenData.telegramUrl}
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                              title='Telegram'>
-                              <MessageSquare className='w-4 h-4 text-blue-400' />
-                            </Link>
-                          )}
-
-                          <SolscanButton
-                            address={tokenData.mintAddress}
-                            type='token'
-                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'>
-                            <svg
-                              xmlns='http://www.w3.org/2000/svg'
-                              width='16'
-                              height='16'
-                              viewBox='0 0 24 24'
-                              fill='none'
-                              stroke='currentColor'
-                              strokeWidth='2'
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              className='text-blue-400 transition-colors'>
-                              <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
-                              <polyline points='15 3 21 3 21 9' />
-                              <line x1='10' y1='14' x2='21' y2='3' />
-                            </svg>
-                          </SolscanButton>
-                        </div>
                       </div>
                     </div>
                   </div>

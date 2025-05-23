@@ -1,6 +1,6 @@
 import {
-  SolanaTrackerTrendingToken,
-  SolanaTrackerTrendingTokensResponse,
+  SolanaTrackerToken,
+  SolanaTrackerTokensResponse,
 } from '@dyor-hub/types';
 import { HttpService } from '@nestjs/axios';
 import {
@@ -42,7 +42,7 @@ export class TwitterAutomationService {
   private readonly pendingRequests: Map<string, Promise<any>> = new Map();
   private readonly trendingTokensCache: Map<
     string,
-    SolanaTrackerTrendingTokensResponse
+    SolanaTrackerTokensResponse
   > = new Map();
 
   constructor(
@@ -104,7 +104,7 @@ export class TwitterAutomationService {
     ) {
       if (!cachedData) return [];
       return cachedData.map(
-        (item: SolanaTrackerTrendingToken): TrendingTokenInfo => ({
+        (item: SolanaTrackerToken): TrendingTokenInfo => ({
           address: item.token.mint,
           symbol: item.token.symbol,
           name: item.token.name,
@@ -116,7 +116,7 @@ export class TwitterAutomationService {
       const pendingData = await this.pendingRequests.get(cacheKey);
       if (!pendingData) return [];
       return pendingData.map(
-        (item: SolanaTrackerTrendingToken): TrendingTokenInfo => ({
+        (item: SolanaTrackerToken): TrendingTokenInfo => ({
           address: item.token.mint,
           symbol: item.token.symbol,
           name: item.token.name,
@@ -125,7 +125,7 @@ export class TwitterAutomationService {
     }
 
     const requestPromise =
-      (async (): Promise<SolanaTrackerTrendingTokensResponse | null> => {
+      (async (): Promise<SolanaTrackerTokensResponse | null> => {
         if (!this.solanaTrackerApiKey) {
           this.logger.error(
             'SOLANA_TRACKER_API_KEY not configured. Cannot fetch trending tokens.',
@@ -139,7 +139,7 @@ export class TwitterAutomationService {
 
         try {
           const response = await firstValueFrom(
-            this.httpService.get<SolanaTrackerTrendingTokensResponse>(apiUrl, {
+            this.httpService.get<SolanaTrackerTokensResponse>(apiUrl, {
               headers: {
                 'x-api-key': this.solanaTrackerApiKey,
               },
@@ -197,7 +197,7 @@ export class TwitterAutomationService {
 
     if (result) {
       return result.map(
-        (item: SolanaTrackerTrendingToken): TrendingTokenInfo => ({
+        (item: SolanaTrackerToken): TrendingTokenInfo => ({
           address: item.token.mint,
           symbol: item.token.symbol,
           name: item.token.name,
