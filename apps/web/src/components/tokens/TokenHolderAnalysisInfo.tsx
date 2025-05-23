@@ -17,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { API_BASE_URL, ApiError, tokens as apiTokens } from '@/lib/api';
 import { MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS } from '@/lib/constants';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { TokenPurchaseInfo, TrackedWalletHolderStats } from '@dyor-hub/types';
 import {
@@ -67,35 +67,6 @@ const formatDuration = (seconds: number): string => {
   if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
   if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
   return `${(seconds / 86400).toFixed(1)}d`;
-};
-
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: value !== 0 && Math.abs(value) < 0.01 ? 6 : 2,
-  }).format(value);
-};
-
-interface TokenHolderAnalysisInfoProps {
-  mintAddress: string;
-  className?: string;
-  userPlatformTokenBalance: number | null | undefined;
-}
-
-const getWalletActivityLevel = (stats: TrackedWalletHolderStats): 'high' | 'medium' | 'low' => {
-  const purchaseCount = stats.purchaseRounds.reduce(
-    (count, round) => count + 1 + round.subsequentPurchasesInRound.length,
-    0,
-  );
-
-  if (stats.currentHoldingDurationSeconds && stats.currentHoldingDurationSeconds > 2592000) {
-    return purchaseCount > 5 ? 'high' : 'medium';
-  } else if (stats.currentHoldingDurationSeconds && stats.currentHoldingDurationSeconds > 604800) {
-    return purchaseCount > 3 ? 'medium' : 'low';
-  }
-  return 'low';
 };
 
 const StyledProgress = ({
@@ -968,6 +939,26 @@ interface AnalysisProgress {
   analysisData?: TrackedWalletHolderStats[];
   sessionId?: string;
 }
+
+interface TokenHolderAnalysisInfoProps {
+  mintAddress: string;
+  className?: string;
+  userPlatformTokenBalance: number | null | undefined;
+}
+
+const getWalletActivityLevel = (stats: TrackedWalletHolderStats): 'high' | 'medium' | 'low' => {
+  const purchaseCount = stats.purchaseRounds.reduce(
+    (count, round) => count + 1 + round.subsequentPurchasesInRound.length,
+    0,
+  );
+
+  if (stats.currentHoldingDurationSeconds && stats.currentHoldingDurationSeconds > 2592000) {
+    return purchaseCount > 5 ? 'high' : 'medium';
+  } else if (stats.currentHoldingDurationSeconds && stats.currentHoldingDurationSeconds > 604800) {
+    return purchaseCount > 3 ? 'medium' : 'low';
+  }
+  return 'low';
+};
 
 export function TokenHolderAnalysisInfo({
   mintAddress,

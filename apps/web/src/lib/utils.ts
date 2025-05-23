@@ -167,7 +167,7 @@ const formatLargeNumber = (num: string | number | undefined | null): string => {
 export { formatLargeNumber };
 
 export const formatCurrency = (value?: number | null): string => {
-  if (value === undefined || value === null) return '$0';
+  if (value === undefined || value === null) return '-';
   if (Math.abs(value) >= 1000000) {
     return `$${(value / 1000000).toFixed(1)}M`;
   }

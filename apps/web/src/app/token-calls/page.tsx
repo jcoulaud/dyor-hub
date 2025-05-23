@@ -18,7 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { TokenCallListFilters, TokenCallListSort, tokenCalls } from '@/lib/api';
-import { cn, formatLargeNumber, formatPrice, getHighResAvatar } from '@/lib/utils';
+import { cn, formatCurrency, formatLargeNumber, getHighResAvatar } from '@/lib/utils';
 import { TokenCall, TokenCallSortBy, TokenCallStatus } from '@dyor-hub/types';
 import { formatDistanceStrict, isValid, parseISO } from 'date-fns';
 import {
@@ -384,11 +384,6 @@ export default function TokenCallsExplorerPage() {
       console.error('Error formatting date:', e);
       return 'Invalid date';
     }
-  };
-
-  const formatCurrency = (price: number | undefined | null): string => {
-    if (price === undefined || price === null) return '-';
-    return `$${formatPrice(price)}`;
   };
 
   const formatMcap = (

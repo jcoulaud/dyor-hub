@@ -1,12 +1,5 @@
 'use client';
 
-const formatTokenAmount = {
-  format: (amount: number | null | undefined, symbol?: string) => {
-    if (amount === undefined || amount === null) return 'N/A';
-    return `${amount.toLocaleString()} ${symbol || ''}`.trim();
-  },
-};
-
 import { TokenGatedMessage } from '@/components/common/TokenGatedMessage';
 import { SolscanButton } from '@/components/SolscanButton';
 import { Button } from '@/components/ui/button';
@@ -23,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { ApiError, tokens as apiTokens } from '@/lib/api';
 import { DYORHUB_SYMBOL, MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS } from '@/lib/constants';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency, formatTokenAmount } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { EarlyBuyerInfo, EarlyBuyerWallet, TokenGatedErrorData } from '@dyor-hub/types';
 import { AlertTriangle, ChevronRight, Copy, Info, Loader2, Users } from 'lucide-react';
@@ -53,16 +46,6 @@ const WalletCard = ({ wallet }: { wallet: EarlyBuyerWallet }) => {
     0,
     4,
   )}...${wallet.address.substring(wallet.address.length - 4)}`;
-
-  const formatCurrency = (value?: number) => {
-    if (value === undefined || value === null) return '-';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
 
   const formatPercentage = (realized?: number, invested?: number) => {
     if (!realized || !invested || invested === 0) return '-';
@@ -545,14 +528,13 @@ export const EarlyBuyersInfo = ({
                         Loading user data...
                       </div>
                     ) : !isAuthenticated ? (
-                      <div className='text-amber-400 flex items-center gap-1 mt-2 text-sm'>
-                        <Info size={16} className='inline shrink-0 mr-1' />
-                        {`Log in and hold ${formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS, DYORHUB_SYMBOL)} for free analysis.`}
+                      <div className='text-center text-sm text-zinc-400 mt-2'>
+                        {`Log in and hold ${formatTokenAmount(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS, DYORHUB_SYMBOL)} for free analysis.`}
                       </div>
                     ) : isTokenHolder ? (
                       <div className='text-emerald-400 flex items-center gap-1 mt-2 text-sm'>
                         <Info size={16} className='inline shrink-0 mr-1' />
-                        {`This analysis is FREE for you! (You hold ${formatTokenAmount.format(userPlatformTokenBalance)}/${formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS)} required ${DYORHUB_SYMBOL})`}
+                        {`This analysis is FREE for you! (You hold ${formatTokenAmount(userPlatformTokenBalance)}/${formatTokenAmount(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS)} required ${DYORHUB_SYMBOL})`}
                       </div>
                     ) : isAuthenticated && typeof userPlatformTokenBalance === 'undefined' ? (
                       <div className='block mt-2 text-zinc-400 text-sm'>
@@ -562,7 +544,7 @@ export const EarlyBuyersInfo = ({
                     ) : (
                       <div className='text-amber-400 flex items-center gap-1 mt-2 text-sm'>
                         <Info size={16} className='inline shrink-0 mr-1' />
-                        {`Hold ${formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS, DYORHUB_SYMBOL)} for free analysis. Your balance: ${formatTokenAmount.format(userPlatformTokenBalance, DYORHUB_SYMBOL)}.`}
+                        {`Hold ${formatTokenAmount(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS, DYORHUB_SYMBOL)} for free analysis. Your balance: ${formatTokenAmount(userPlatformTokenBalance, DYORHUB_SYMBOL)}.`}
                       </div>
                     )}
                   </>
