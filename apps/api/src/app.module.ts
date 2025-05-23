@@ -49,6 +49,7 @@ import { TokenCallsLeaderboardModule } from './token-calls-leaderboard/tokenCall
 import { TokenCallsModule } from './token-calls/token-calls.module';
 import { TokenHolderAnalysisModule } from './token-holder-analysis/token-holder-analysis.module';
 import { TokensModule } from './tokens/tokens.module';
+import { TopTradersAnalysisModule } from './top-traders-analysis/top-traders-analysis.module';
 import { TwitterAutomationModule } from './twitter-automation/twitter-automation.module';
 import { TwitterModule } from './twitter/twitter.module';
 import { UploadsModule } from './uploads/uploads.module';
@@ -110,6 +111,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     TwitterModule,
     TwitterAutomationModule,
     EarlyBuyerAnalysisModule,
+    TopTradersAnalysisModule,
   ],
   controllers: [AppController],
   providers: [

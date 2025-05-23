@@ -1,12 +1,5 @@
 'use client';
 
-const formatTokenAmount = {
-  format: (amount: number | null | undefined, symbol?: string) => {
-    if (amount === undefined || amount === null) return 'N/A';
-    return `${amount.toLocaleString()} ${symbol || ''}`.trim();
-  },
-};
-
 import { TokenGatedMessage } from '@/components/common/TokenGatedMessage';
 import { SolscanButton } from '@/components/SolscanButton';
 import { Button } from '@/components/ui/button';
@@ -23,8 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { API_BASE_URL, ApiError, tokens as apiTokens } from '@/lib/api';
-import { DYORHUB_SYMBOL, MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS } from '@/lib/constants';
-import { cn } from '@/lib/utils';
+import { MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS } from '@/lib/constants';
+import { cn, formatCurrency } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { TokenPurchaseInfo, TrackedWalletHolderStats } from '@dyor-hub/types';
 import {
@@ -52,6 +45,13 @@ import {
 } from 'recharts';
 import { io, Socket } from 'socket.io-client';
 
+const formatTokenAmount = {
+  format: (amount: number | null | undefined, symbol?: string) => {
+    if (amount === undefined || amount === null) return 'N/A';
+    return `${amount.toLocaleString()} ${symbol || ''}`.trim();
+  },
+};
+
 const formatTimestamp = (timestamp: number): string => {
   return new Date(timestamp * 1000).toLocaleString(undefined, {
     year: 'numeric',
@@ -67,35 +67,6 @@ const formatDuration = (seconds: number): string => {
   if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
   if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
   return `${(seconds / 86400).toFixed(1)}d`;
-};
-
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: value !== 0 && Math.abs(value) < 0.01 ? 6 : 2,
-  }).format(value);
-};
-
-interface TokenHolderAnalysisInfoProps {
-  mintAddress: string;
-  className?: string;
-  userPlatformTokenBalance: number | null | undefined;
-}
-
-const getWalletActivityLevel = (stats: TrackedWalletHolderStats): 'high' | 'medium' | 'low' => {
-  const purchaseCount = stats.purchaseRounds.reduce(
-    (count, round) => count + 1 + round.subsequentPurchasesInRound.length,
-    0,
-  );
-
-  if (stats.currentHoldingDurationSeconds && stats.currentHoldingDurationSeconds > 2592000) {
-    return purchaseCount > 5 ? 'high' : 'medium';
-  } else if (stats.currentHoldingDurationSeconds && stats.currentHoldingDurationSeconds > 604800) {
-    return purchaseCount > 3 ? 'medium' : 'low';
-  }
-  return 'low';
 };
 
 const StyledProgress = ({
@@ -969,6 +940,26 @@ interface AnalysisProgress {
   sessionId?: string;
 }
 
+interface TokenHolderAnalysisInfoProps {
+  mintAddress: string;
+  className?: string;
+  userPlatformTokenBalance: number | null | undefined;
+}
+
+const getWalletActivityLevel = (stats: TrackedWalletHolderStats): 'high' | 'medium' | 'low' => {
+  const purchaseCount = stats.purchaseRounds.reduce(
+    (count, round) => count + 1 + round.subsequentPurchasesInRound.length,
+    0,
+  );
+
+  if (stats.currentHoldingDurationSeconds && stats.currentHoldingDurationSeconds > 2592000) {
+    return purchaseCount > 5 ? 'high' : 'medium';
+  } else if (stats.currentHoldingDurationSeconds && stats.currentHoldingDurationSeconds > 604800) {
+    return purchaseCount > 3 ? 'medium' : 'low';
+  }
+  return 'low';
+};
+
 export function TokenHolderAnalysisInfo({
   mintAddress,
   className,
@@ -996,20 +987,6 @@ export function TokenHolderAnalysisInfo({
   const minHoldingForFree = MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS;
 
   const ANALYTICS_FEATURE_NAME = 'Diamond Hands Analysis';
-
-  const getCreditCostSummary = () => {
-    if (isFreeTier === true) {
-      return 'Free';
-    }
-    if (isCostFetching) {
-      return '...';
-    }
-    const costFor10 = creditCosts['10'];
-    if (costFor10 !== undefined) {
-      return `${costFor10} Credits for Top 10`;
-    }
-    return 'Cost varies';
-  };
 
   const resetState = useCallback(() => {
     setError(null);
@@ -1375,54 +1352,36 @@ export function TokenHolderAnalysisInfo({
   };
 
   const renderInitialButton = () => (
-    <TooltipProvider>
-      <Tooltip delayDuration={200}>
-        <TooltipTrigger asChild>
-          <Button
-            onClick={handleOpenDialog}
-            variant='outline'
-            size='lg'
-            className={cn(
-              'w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-teal-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg',
-              className,
-            )}
-            disabled={
-              isLoading ||
-              (socketRef.current?.connected &&
-                analysisProgress !== null &&
-                analysisProgress.status !== 'complete')
-            }>
-            <div className='flex items-center'>
-              <div className='w-8 h-8 rounded-full bg-teal-700 flex items-center justify-center mr-3'>
-                <Diamond className='w-5 h-5 text-teal-100' />
-              </div>
-              <span className='font-semibold'>{ANALYTICS_FEATURE_NAME}</span>
-            </div>
-            {(isLoading ||
-              (socketRef.current?.connected &&
-                analysisProgress !== null &&
-                analysisProgress.status !== 'complete')) &&
-            analysisProgress?.status !== 'error' ? (
-              <Loader2 className='w-5 h-5 text-teal-400 animate-spin' />
-            ) : (
-              <ChevronRight className='w-5 h-5 text-teal-400' />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent
-          side='top'
-          align='center'
-          className='bg-zinc-800 text-zinc-200 border-zinc-700 shadow-lg text-xs px-3 py-1.5 rounded-md'>
-          <p>
-            Deep dive into top holders activity for this token.
-            <br />
-            {isFreeTier === null || isFreeTier
-              ? `Free for ${MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS} ${DYORHUB_SYMBOL} token holders.`
-              : getCreditCostSummary()}
-          </p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Button
+      onClick={handleOpenDialog}
+      variant='outline'
+      size='lg'
+      className={cn(
+        'w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-teal-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg',
+        className,
+      )}
+      disabled={
+        isLoading ||
+        (socketRef.current?.connected &&
+          analysisProgress !== null &&
+          analysisProgress.status !== 'complete')
+      }>
+      <div className='flex items-center'>
+        <div className='w-8 h-8 rounded-full bg-teal-700 flex items-center justify-center mr-3'>
+          <Diamond className='w-5 h-5 text-teal-100' />
+        </div>
+        <span className='font-semibold'>{ANALYTICS_FEATURE_NAME}</span>
+      </div>
+      {(isLoading ||
+        (socketRef.current?.connected &&
+          analysisProgress !== null &&
+          analysisProgress.status !== 'complete')) &&
+      analysisProgress?.status !== 'error' ? (
+        <Loader2 className='w-5 h-5 text-teal-400 animate-spin' />
+      ) : (
+        <ChevronRight className='w-5 h-5 text-teal-400' />
+      )}
+    </Button>
   );
 
   const renderWalletCountSelection = () => (

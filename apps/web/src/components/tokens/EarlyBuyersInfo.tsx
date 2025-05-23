@@ -1,12 +1,5 @@
 'use client';
 
-const formatTokenAmount = {
-  format: (amount: number | null | undefined, symbol?: string) => {
-    if (amount === undefined || amount === null) return 'N/A';
-    return `${amount.toLocaleString()} ${symbol || ''}`.trim();
-  },
-};
-
 import { TokenGatedMessage } from '@/components/common/TokenGatedMessage';
 import { SolscanButton } from '@/components/SolscanButton';
 import { Button } from '@/components/ui/button';
@@ -23,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { ApiError, tokens as apiTokens } from '@/lib/api';
 import { DYORHUB_SYMBOL, MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS } from '@/lib/constants';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency, formatTokenAmount } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import type { EarlyBuyerInfo, EarlyBuyerWallet, TokenGatedErrorData } from '@dyor-hub/types';
 import { AlertTriangle, ChevronRight, Copy, Info, Loader2, Users } from 'lucide-react';
@@ -53,16 +46,6 @@ const WalletCard = ({ wallet }: { wallet: EarlyBuyerWallet }) => {
     0,
     4,
   )}...${wallet.address.substring(wallet.address.length - 4)}`;
-
-  const formatCurrency = (value?: number) => {
-    if (value === undefined || value === null) return '-';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
 
   const formatPercentage = (realized?: number, invested?: number) => {
     if (!realized || !invested || invested === 0) return '-';
@@ -484,56 +467,38 @@ export const EarlyBuyersInfo = ({
 
   return (
     <div className={className}>
-      <TooltipProvider>
-        <Tooltip delayDuration={200}>
-          <TooltipTrigger asChild>
-            <Button
-              onClick={handleOpenDialog}
-              variant='outline'
-              size='lg'
-              className={cn(
-                'w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-purple-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg',
-                className,
-              )}
-              disabled={isLoading || authLoading}>
-              {isLoading || authLoading ? (
-                <>
-                  <div className='flex items-center'>
-                    <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
-                      <Loader2 className='w-5 h-5 text-purple-100 animate-spin' />
-                    </div>
-                    <span className='font-semibold'>
-                      {authLoading ? 'Authenticating...' : 'Analyzing...'}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className='flex items-center'>
-                    <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
-                      <Users className='w-5 h-5 text-purple-100' />
-                    </div>
-                    <span className='font-semibold'>Early Buyers Analysis</span>
-                  </div>
-                  <ChevronRight className='w-5 h-5 text-purple-400' />
-                </>
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent
-            side='top'
-            align='center'
-            className='bg-zinc-800 text-zinc-200 border-zinc-700 shadow-lg text-xs px-3 py-1.5 rounded-md'>
-            <p>
-              Analyze the wallets that bought this token early.
-              <br />
-              {isTokenHolder
-                ? `Free for ${DYORHUB_SYMBOL} token holders.`
-                : 'Costs 1 credit per analysis.'}
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Button
+        onClick={handleOpenDialog}
+        variant='outline'
+        size='lg'
+        className={cn(
+          'w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-purple-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg',
+          className,
+        )}
+        disabled={isLoading || authLoading}>
+        {isLoading || authLoading ? (
+          <>
+            <div className='flex items-center'>
+              <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
+                <Loader2 className='w-5 h-5 text-purple-100 animate-spin' />
+              </div>
+              <span className='font-semibold'>
+                {authLoading ? 'Authenticating...' : 'Analyzing...'}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className='flex items-center'>
+              <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
+                <Users className='w-5 h-5 text-purple-100' />
+              </div>
+              <span className='font-semibold'>Early Buyers Analysis</span>
+            </div>
+            <ChevronRight className='w-5 h-5 text-purple-400' />
+          </>
+        )}
+      </Button>
 
       <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
         <DialogContent className='max-w-4xl bg-zinc-900/95 border-zinc-700/50 backdrop-blur-md text-zinc-50 data-[state=open]:animate-contentShow'>
@@ -563,14 +528,13 @@ export const EarlyBuyersInfo = ({
                         Loading user data...
                       </div>
                     ) : !isAuthenticated ? (
-                      <div className='text-amber-400 flex items-center gap-1 mt-2 text-sm'>
-                        <Info size={16} className='inline shrink-0 mr-1' />
-                        {`Log in and hold ${formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS, DYORHUB_SYMBOL)} for free analysis.`}
+                      <div className='text-center text-sm text-zinc-400 mt-2'>
+                        {`Log in and hold ${formatTokenAmount(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS, DYORHUB_SYMBOL)} for free analysis.`}
                       </div>
                     ) : isTokenHolder ? (
                       <div className='text-emerald-400 flex items-center gap-1 mt-2 text-sm'>
                         <Info size={16} className='inline shrink-0 mr-1' />
-                        {`This analysis is FREE for you! (You hold ${formatTokenAmount.format(userPlatformTokenBalance)}/${formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS)} required ${DYORHUB_SYMBOL})`}
+                        {`This analysis is FREE for you! (You hold ${formatTokenAmount(userPlatformTokenBalance)}/${formatTokenAmount(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS)} required ${DYORHUB_SYMBOL})`}
                       </div>
                     ) : isAuthenticated && typeof userPlatformTokenBalance === 'undefined' ? (
                       <div className='block mt-2 text-zinc-400 text-sm'>
@@ -580,7 +544,7 @@ export const EarlyBuyersInfo = ({
                     ) : (
                       <div className='text-amber-400 flex items-center gap-1 mt-2 text-sm'>
                         <Info size={16} className='inline shrink-0 mr-1' />
-                        {`Hold ${formatTokenAmount.format(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS, DYORHUB_SYMBOL)} for free analysis. Your balance: ${formatTokenAmount.format(userPlatformTokenBalance, DYORHUB_SYMBOL)}.`}
+                        {`Hold ${formatTokenAmount(MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS, DYORHUB_SYMBOL)} for free analysis. Your balance: ${formatTokenAmount(userPlatformTokenBalance, DYORHUB_SYMBOL)}.`}
                       </div>
                     )}
                   </>

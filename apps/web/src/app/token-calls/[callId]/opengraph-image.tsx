@@ -1,5 +1,5 @@
 import { tokenCalls } from '@/lib/api';
-import { calculateMultiplier, formatLargeNumber } from '@/lib/utils';
+import { calculateMultiplier, formatCurrency } from '@/lib/utils';
 import { TokenCallStatus } from '@dyor-hub/types';
 import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
@@ -38,13 +38,6 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
     return null;
   }
 }
-
-// Format large number for display with dollar sign
-const formatCurrency = (value: number | string | null | undefined): string => {
-  if (value === null || value === undefined) return '-';
-  const formatted = formatLargeNumber(value);
-  return formatted === '-' ? formatted : `$${formatted}`;
-};
 
 const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return '-';

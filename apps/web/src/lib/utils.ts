@@ -166,6 +166,22 @@ const formatLargeNumber = (num: string | number | undefined | null): string => {
 
 export { formatLargeNumber };
 
+export const formatCurrency = (value?: number | null): string => {
+  if (value === undefined || value === null) return '-';
+  if (Math.abs(value) >= 1000000) {
+    return `$${(value / 1000000).toFixed(1)}M`;
+  }
+  if (Math.abs(value) >= 1000) {
+    return `$${(value / 1000).toFixed(1)}K`;
+  }
+  return `$${Math.abs(value).toFixed(0)}`;
+};
+
+export const formatTokenAmount = (amount: number | null | undefined, symbol?: string): string => {
+  if (amount === undefined || amount === null) return '-';
+  return `${amount.toLocaleString()} ${symbol || ''}`.trim();
+};
+
 export const formatPrice = (price: number | string | undefined | null): string => {
   if (price === null || price === undefined) return '0'; // Handle null/undefined
   const num = typeof price === 'string' ? Number(price) : price;

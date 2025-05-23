@@ -13,6 +13,7 @@ import { TokenExternalLinks } from '@/components/tokens/TokenExternalLinks';
 import { TokenHolderAnalysisInfo } from '@/components/tokens/TokenHolderAnalysisInfo';
 import { TokenImage } from '@/components/tokens/TokenImage';
 import { TokenStats } from '@/components/tokens/TokenStats';
+import { TopTradersAnalysisInfo } from '@/components/tokens/TopTradersAnalysisInfo';
 import { TwitterHistoryTooltip } from '@/components/tokens/TwitterHistoryTooltip';
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
 import { WebsiteInfoTooltip } from '@/components/tokens/WebsiteInfoTooltip';
@@ -777,9 +778,10 @@ export default function Page({ params, commentId }: PageProps) {
         </div>
 
         {/* Trading Analysis Buttons */}
-        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-5 my-6'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5 my-6'>
           {isPageLoading || !isHeaderLoaded ? (
             <>
+              <Skeleton className='h-14 w-full rounded-lg' />
               <Skeleton className='h-14 w-full rounded-lg' />
               <Skeleton className='h-14 w-full rounded-lg' />
               <Skeleton className='h-14 w-full rounded-lg' />
@@ -796,6 +798,10 @@ export default function Page({ params, commentId }: PageProps) {
                 userPlatformTokenBalance={userDyorHubBalance}
               />
               <EarlyBuyersInfo
+                mintAddress={mintAddress}
+                userPlatformTokenBalance={userDyorHubBalance}
+              />
+              <TopTradersAnalysisInfo
                 mintAddress={mintAddress}
                 userPlatformTokenBalance={userDyorHubBalance}
               />

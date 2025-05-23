@@ -46,6 +46,7 @@ import {
   TokenSentimentStats,
   TokenStats,
   TopStreakUsers,
+  TopTradersResponse,
   TrackedWalletHolderStats,
   TwitterUsernameHistoryEntity,
   UpdateCreditPackageDto,
@@ -873,6 +874,26 @@ export const tokens = {
     }
     const sanitizedMintAddress = encodeURIComponent(mintAddress);
     return api<{ cost: number }>(`early-buyer-analysis/${sanitizedMintAddress}/cost`, {
+      method: 'GET',
+    });
+  },
+
+  getTopTraders: async (tokenAddress: string): Promise<TopTradersResponse> => {
+    if (!tokenAddress) {
+      throw new Error('Token address is required to fetch top traders analysis.');
+    }
+    const sanitizedTokenAddress = encodeURIComponent(tokenAddress);
+    return api<TopTradersResponse>(`top-traders-analysis/${sanitizedTokenAddress}`, {
+      method: 'GET',
+    });
+  },
+
+  getTopTradersCost: async (tokenAddress: string): Promise<{ cost: number }> => {
+    if (!tokenAddress) {
+      throw new Error('Token address is required to fetch top traders analysis cost.');
+    }
+    const sanitizedTokenAddress = encodeURIComponent(tokenAddress);
+    return api<{ cost: number }>(`top-traders-analysis/${sanitizedTokenAddress}/cost`, {
       method: 'GET',
     });
   },
