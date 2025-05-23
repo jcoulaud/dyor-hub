@@ -262,12 +262,31 @@ export const TopTradersAnalysisInfo = ({
     } catch (err) {
       const caughtError = err as ApiError;
       console.error('Failed to fetch top traders:', caughtError);
-      setError(caughtError.message || 'An error occurred.');
-      toast({
-        variant: 'destructive',
-        title: 'Analysis Failed',
-        description: caughtError.message || 'Could not fetch top trader information.',
-      });
+
+      if (
+        caughtError.status === 403 &&
+        (caughtError.message?.toLowerCase().includes('insufficient credits') ||
+          (typeof caughtError.data === 'object' &&
+            caughtError.data &&
+            'requiredCredits' in caughtError.data))
+      ) {
+        const errorData = caughtError.data as { requiredCredits?: number } | undefined;
+        const requiredCredits = errorData?.requiredCredits || creditCost || 3;
+
+        setErrorData({
+          message: 'Insufficient credits for Top Traders Analysis.',
+          requiredCredits,
+          isTokenGated: true,
+        });
+        setError('Insufficient credits for Top Traders Analysis.');
+      } else {
+        setError(caughtError.message || 'An error occurred.');
+        toast({
+          variant: 'destructive',
+          title: 'Analysis Failed',
+          description: caughtError.message || 'Could not fetch top trader information.',
+        });
+      }
       setTopTradersData(null);
     } finally {
       setIsLoading(false);

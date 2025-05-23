@@ -385,6 +385,23 @@ export const EarlyBuyersInfo = ({
           isTokenGated: true,
         });
         setError(caughtError.message || 'Insufficient credits for Early Buyers Analysis.');
+      } else if (
+        caughtError.status === 403 &&
+        (caughtError.message?.toLowerCase().includes('insufficient credits') ||
+          (typeof caughtError.data === 'object' &&
+            caughtError.data &&
+            'details' in caughtError.data &&
+            typeof caughtError.data.details === 'object' &&
+            caughtError.data.details &&
+            'code' in caughtError.data.details &&
+            caughtError.data.details.code === 'INSUFFICIENT_CREDITS'))
+      ) {
+        setErrorData({
+          message: 'Insufficient credits for Early Buyers Analysis.',
+          requiredCredits: 1,
+          isTokenGated: true,
+        });
+        setError('Insufficient credits for Early Buyers Analysis.');
       } else if ((caughtError.data as TokenGatedErrorData)?.isTokenGated) {
         setErrorData(caughtError.data as TokenGatedErrorData);
         setError(caughtError.message || 'An error occurred.');
