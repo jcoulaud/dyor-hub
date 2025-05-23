@@ -484,56 +484,38 @@ export const EarlyBuyersInfo = ({
 
   return (
     <div className={className}>
-      <TooltipProvider>
-        <Tooltip delayDuration={200}>
-          <TooltipTrigger asChild>
-            <Button
-              onClick={handleOpenDialog}
-              variant='outline'
-              size='lg'
-              className={cn(
-                'w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-purple-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg',
-                className,
-              )}
-              disabled={isLoading || authLoading}>
-              {isLoading || authLoading ? (
-                <>
-                  <div className='flex items-center'>
-                    <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
-                      <Loader2 className='w-5 h-5 text-purple-100 animate-spin' />
-                    </div>
-                    <span className='font-semibold'>
-                      {authLoading ? 'Authenticating...' : 'Analyzing...'}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className='flex items-center'>
-                    <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
-                      <Users className='w-5 h-5 text-purple-100' />
-                    </div>
-                    <span className='font-semibold'>Early Buyers Analysis</span>
-                  </div>
-                  <ChevronRight className='w-5 h-5 text-purple-400' />
-                </>
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent
-            side='top'
-            align='center'
-            className='bg-zinc-800 text-zinc-200 border-zinc-700 shadow-lg text-xs px-3 py-1.5 rounded-md'>
-            <p>
-              Analyze the wallets that bought this token early.
-              <br />
-              {isTokenHolder
-                ? `Free for ${DYORHUB_SYMBOL} token holders.`
-                : 'Costs 1 credit per analysis.'}
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Button
+        onClick={handleOpenDialog}
+        variant='outline'
+        size='lg'
+        className={cn(
+          'w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-purple-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg',
+          className,
+        )}
+        disabled={isLoading || authLoading}>
+        {isLoading || authLoading ? (
+          <>
+            <div className='flex items-center'>
+              <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
+                <Loader2 className='w-5 h-5 text-purple-100 animate-spin' />
+              </div>
+              <span className='font-semibold'>
+                {authLoading ? 'Authenticating...' : 'Analyzing...'}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className='flex items-center'>
+              <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
+                <Users className='w-5 h-5 text-purple-100' />
+              </div>
+              <span className='font-semibold'>Early Buyers Analysis</span>
+            </div>
+            <ChevronRight className='w-5 h-5 text-purple-400' />
+          </>
+        )}
+      </Button>
 
       <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
         <DialogContent className='max-w-4xl bg-zinc-900/95 border-zinc-700/50 backdrop-blur-md text-zinc-50 data-[state=open]:animate-contentShow'>
