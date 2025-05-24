@@ -52,7 +52,7 @@ import Link from 'next/link';
 import { notFound, usePathname, useRouter } from 'next/navigation';
 import { use, useCallback, useEffect, useRef, useState } from 'react';
 
-const isDev = process.env.NODE_ENV !== 'development';
+const isDev = process.env.NODE_ENV === 'development';
 
 interface PageProps {
   params: Promise<{ mintAddress: string }>;
