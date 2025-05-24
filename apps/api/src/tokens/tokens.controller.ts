@@ -159,4 +159,28 @@ export class TokensController {
     }
     return chartData;
   }
+
+  @Public()
+  @Get(':mintAddress/solana-tracker-risk')
+  async getSolanaTrackerRisk(
+    @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
+  ): Promise<{
+    score: number;
+    risks: Array<{
+      name: string;
+      description: string;
+      level: 'warning' | 'danger' | 'info';
+      score: number;
+      value?: string;
+    }>;
+  }> {
+    const riskData =
+      await this.tokensService.fetchSolanaTrackerRisk(mintAddress);
+    if (!riskData) {
+      throw new NotFoundException(
+        `Risk data not found for token ${mintAddress}`,
+      );
+    }
+    return riskData;
+  }
 }

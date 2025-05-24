@@ -990,6 +990,26 @@ export const tokens = {
       `/tokens/${encodeURIComponent(mintAddress)}/holder-deltas`,
     );
   },
+
+  getSolanaTrackerRisk: async (mintAddress: string): Promise<TokenRiskData | null> => {
+    try {
+      const sanitizedMintAddress = encodeURIComponent(mintAddress);
+      const endpoint = `tokens/${sanitizedMintAddress}/solana-tracker-risk`;
+      const cacheKey = `api:${endpoint}`;
+
+      const cachedData = getCache<TokenRiskData | null>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      const data = await api<TokenRiskData | null>(endpoint);
+      setCache(cacheKey, data, 60 * 1000); // Cache for 1 minute
+      return data;
+    } catch (error) {
+      console.error(`Error fetching Solana Tracker risk data for ${mintAddress}:`, error);
+      return null;
+    }
+  },
 };
 
 // Keep local DTO definition if not shared
@@ -2451,3 +2471,14 @@ export const credits = {
 };
 
 export type ApiInstance = typeof api;
+
+export interface TokenRiskData {
+  score: number;
+  risks: Array<{
+    name: string;
+    description: string;
+    level: 'warning' | 'danger' | 'info';
+    score: number;
+    value?: string;
+  }>;
+}

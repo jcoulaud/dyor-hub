@@ -237,7 +237,7 @@ export interface SolanaTrackerHoldersChartResponse {
   holders: SolanaTrackerHolderDataPoint[];
 }
 
-export interface SolanaTrackerTrendingToken {
+export interface SolanaTrackerToken {
   token: {
     name: string;
     symbol: string;
@@ -312,4 +312,4 @@ export interface SolanaTrackerTrendingToken {
   sellsCount: number;
 }
 
-export type SolanaTrackerTrendingTokensResponse = SolanaTrackerTrendingToken[];
+export type SolanaTrackerTokensResponse = SolanaTrackerToken[];
