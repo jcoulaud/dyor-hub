@@ -48,7 +48,7 @@ const FAQPage = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('contests');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -1544,11 +1544,11 @@ const FAQPage = () => {
   ];
 
   const activeFaqItems =
-    activeTab === 'contests'
-      ? contestsFaqItems
-      : activeTab === 'overview'
-        ? overviewFaqItems
-        : featuresFaqItems;
+    activeTab === 'overview'
+      ? overviewFaqItems
+      : activeTab === 'features'
+        ? featuresFaqItems
+        : contestsFaqItems;
 
   return (
     <div className='py-10 min-h-screen bg-black'>
@@ -1569,16 +1569,6 @@ const FAQPage = () => {
         <div className='flex justify-center mb-8'>
           <div className='inline-flex rounded-md p-1 bg-zinc-900 border border-gray-700'>
             <button
-              onClick={() => handleTabChange('contests')}
-              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-                activeTab === 'contests'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-gray-300 hover:bg-zinc-800'
-              }`}>
-              <Trophy className='w-4 h-4 mr-2' />
-              Contests
-            </button>
-            <button
               onClick={() => handleTabChange('overview')}
               className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                 activeTab === 'overview'
@@ -1597,6 +1587,16 @@ const FAQPage = () => {
               }`}>
               <Star className='w-4 h-4 mr-2' />
               Features
+            </button>
+            <button
+              onClick={() => handleTabChange('contests')}
+              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                activeTab === 'contests'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-gray-300 hover:bg-zinc-800'
+              }`}>
+              <Trophy className='w-4 h-4 mr-2' />
+              Contests
             </button>
           </div>
         </div>
