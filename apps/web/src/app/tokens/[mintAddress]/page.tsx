@@ -1187,6 +1187,47 @@ export default function Page({ params, commentId }: PageProps) {
                 </CardContent>
               </Card>
 
+              {/* Bubblemap Section */}
+              <div className='mt-4 sm:mt-6 xl:mt-8'>
+                <div className='relative group'>
+                  <div className='absolute -inset-0.5 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
+                  <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden'>
+                    <div className='absolute inset-0 bg-gradient-to-br from-orange-600/5 to-orange-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                    <CardHeader className='pb-2 relative'>
+                      <div className='flex items-center mb-4'>
+                        <div className='h-10 w-10 rounded-xl bg-orange-500/10 flex items-center justify-center mr-4 group-hover:bg-orange-500/20 transition-colors duration-300'>
+                          <Eye className='h-5 w-5 text-orange-400' />
+                        </div>
+                        <CardTitle className='text-xl font-semibold text-white'>
+                          Bubblemap
+                        </CardTitle>
+                      </div>
+                      <div className='w-full h-0.5 bg-gradient-to-r from-orange-500/20 to-transparent'></div>
+                    </CardHeader>
+                    <CardContent className='relative pt-0 pb-0'>
+                      {tokenData ? (
+                        <div className='w-full h-[300px] rounded-lg overflow-hidden'>
+                          <iframe
+                            src={`https://app.bubblemaps.io/sol/token/${tokenData.mintAddress}`}
+                            className='w-full h-full border-0'
+                            title='Bubblemap Token Analysis'
+                          />
+                        </div>
+                      ) : (
+                        <div className='flex items-center justify-center py-8'>
+                          <div className='inline-flex items-center px-4 py-2 rounded-full bg-orange-950/20 backdrop-blur-sm border border-orange-500/10'>
+                            <Eye className='h-4 w-4 text-orange-400 mr-2' />
+                            <span className='text-sm font-medium text-zinc-200'>
+                              Loading bubblemap...
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
               <div className='mt-4 sm:mt-6 xl:mt-8'>
                 {tokenData && <TokenBundlesSection mintAddress={mintAddress} />}
               </div>
