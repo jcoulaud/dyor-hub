@@ -8,13 +8,16 @@ import { useEffect, useState } from 'react';
 const CONTEST_START_DATE_UTC = new Date(Date.UTC(2025, 4, 19, 0, 1, 0)); // May 19, 2025, 00:01 UTC
 const CONTEST_END_DATE_UTC = new Date(Date.UTC(2025, 4, 25, 23, 59, 0)); // May 25, 2025, 23:59 UTC
 
-export function ContestBanner() {
+export function TopBanner() {
   const [isVisible, setIsVisible] = useState(true);
   const [bannerText, setBannerText] = useState('');
   const [bannerLinkText, setBannerLinkText] = useState('Learn more');
 
+  // Force hide the banner for now
+  const isBannerEnabled = false;
+
   useEffect(() => {
-    const dismissed = localStorage.getItem('contestBannerDismissed');
+    const dismissed = localStorage.getItem('topBannerDismissed');
     if (dismissed === 'true') {
       setIsVisible(false);
       return;
@@ -38,10 +41,11 @@ export function ContestBanner() {
 
   const hideBanner = () => {
     setIsVisible(false);
-    localStorage.setItem('contestBannerDismissed', 'true');
+    localStorage.setItem('topBannerDismissed', 'true');
   };
 
-  if (!isVisible || !bannerText) return null;
+  // Return null if banner is disabled or not visible
+  if (!isBannerEnabled || !isVisible || !bannerText) return null;
 
   return (
     <div className='w-full bg-indigo-600 text-white py-2 px-4 text-center relative'>

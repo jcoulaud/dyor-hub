@@ -23,7 +23,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { UserMenu } from '../auth/UserMenu';
-import { ContestBanner } from './ContestBanner';
+import { TopBanner } from './TopBanner';
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -145,7 +145,7 @@ export function Header() {
           </div>
         </div>
       </div>
-      <ContestBanner />
+      <TopBanner />
     </header>
   );
 }
