@@ -673,7 +673,7 @@ export default function Page({ params, commentId }: PageProps) {
                         </div>
                       )}
 
-                      {/* Mobile Social buttons */}
+                      {/* Mobile Primary buttons */}
                       <div className='flex items-center gap-2 justify-center mt-4 flex-wrap'>
                         <button
                           onClick={() => setShowEmbedDialog(true)}
@@ -716,26 +716,34 @@ export default function Page({ params, commentId }: PageProps) {
                           title='Copy address'>
                           <Copy className='w-4 h-4 text-blue-400' />
                         </button>
-                        {tokenData.websiteUrl && (
-                          <WebsiteInfoTooltip websiteUrl={tokenData.websiteUrl} />
-                        )}
-                        {tokenData.twitterHandle && (
-                          <TwitterHistoryTooltip
-                            twitterHandle={tokenData.twitterHandle}
-                            twitterHistory={tokenHistoryData}
-                          />
-                        )}
-                        {tokenData.telegramUrl && (
-                          <Link
-                            href={tokenData.telegramUrl}
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                            title='Telegram'>
-                            <MessageSquare className='w-4 h-4 text-blue-400' />
-                          </Link>
-                        )}
                       </div>
+
+                      {/* Mobile Social links */}
+                      {(tokenData.websiteUrl ||
+                        tokenData.twitterHandle ||
+                        tokenData.telegramUrl) && (
+                        <div className='flex items-center gap-2 justify-center mt-3 flex-wrap'>
+                          {tokenData.websiteUrl && (
+                            <WebsiteInfoTooltip websiteUrl={tokenData.websiteUrl} />
+                          )}
+                          {tokenData.twitterHandle && (
+                            <TwitterHistoryTooltip
+                              twitterHandle={tokenData.twitterHandle}
+                              twitterHistory={tokenHistoryData}
+                            />
+                          )}
+                          {tokenData.telegramUrl && (
+                            <Link
+                              href={tokenData.telegramUrl}
+                              target='_blank'
+                              rel='noopener noreferrer'
+                              className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                              title='Telegram'>
+                              <MessageSquare className='w-4 h-4 text-blue-400' />
+                            </Link>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
