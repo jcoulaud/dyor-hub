@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import type { TokenRiskData } from '@/lib/api';
 import { tokenCalls, tokens, users, watchlist } from '@/lib/api';
 import { isValidSolanaAddress, truncateAddress } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
@@ -124,6 +125,8 @@ export default function Page({ params, commentId }: PageProps) {
   const [holderHistoryData, setHolderHistoryData] =
     useState<SolanaTrackerHoldersChartResponse | null>(null);
   const [isLoadingHolderHistory, setIsLoadingHolderHistory] = useState<boolean>(true);
+  const [riskData, setRiskData] = useState<TokenRiskData | null>(null);
+  const [isLoadingRiskData, setIsLoadingRiskData] = useState<boolean>(true);
 
   const { toast } = useToast();
 
@@ -258,6 +261,8 @@ export default function Page({ params, commentId }: PageProps) {
       setTokenStatsData(null);
       setTokenHistoryData(null);
       setHolderHistoryData(null);
+      setRiskData(null);
+      setIsLoadingRiskData(true);
 
       if (!isValidSolanaAddress(mintAddress)) {
         if (isMounted) notFound();
@@ -265,11 +270,13 @@ export default function Page({ params, commentId }: PageProps) {
       }
 
       try {
-        const [tokenResult, tokenStatsResult, twitterHistoryResult] = await Promise.allSettled([
-          tokens.getByMintAddress(mintAddress),
-          isDev ? Promise.resolve(null) : tokens.getTokenStats(mintAddress),
-          isDev ? Promise.resolve(null) : tokens.getTwitterHistory(mintAddress),
-        ]);
+        const [tokenResult, tokenStatsResult, twitterHistoryResult, riskDataResult] =
+          await Promise.allSettled([
+            tokens.getByMintAddress(mintAddress),
+            isDev ? Promise.resolve(null) : tokens.getTokenStats(mintAddress),
+            isDev ? Promise.resolve(null) : tokens.getTwitterHistory(mintAddress),
+            isDev ? Promise.resolve(null) : tokens.getSolanaTrackerRisk(mintAddress),
+          ]);
 
         if (!isMounted) return;
 
@@ -298,6 +305,11 @@ export default function Page({ params, commentId }: PageProps) {
         if (twitterHistoryResult.status === 'fulfilled') {
           setTokenHistoryData(twitterHistoryResult.value);
         }
+
+        if (riskDataResult.status === 'fulfilled') {
+          setRiskData(riskDataResult.value);
+        }
+        setIsLoadingRiskData(false);
 
         if (isAuthenticated && user?.id) {
           try {
@@ -341,7 +353,6 @@ export default function Page({ params, commentId }: PageProps) {
         const historyData = await tokens.getHolderHistory(mintAddress);
         setHolderHistoryData(historyData);
       } catch {
-        setError('Failed to load holder history. Please try refreshing.');
         setHolderHistoryData(null);
       } finally {
         setIsLoadingHolderHistory(false);
@@ -497,15 +508,25 @@ export default function Page({ params, commentId }: PageProps) {
                 </div>
               ) : tokenData ? (
                 <>
-                  <div className='flex items-start gap-4'>
-                    <div className='flex flex-col items-center'>
+                  {/* Mobile Layout - Vertical */}
+                  <div className='sm:hidden'>
+                    <div className='flex flex-col items-center text-center mb-4'>
                       <TokenImage
                         imageUrl={tokenData.imageUrl}
                         name={tokenData.name}
                         symbol={tokenData.symbol}
-                        className='w-16 h-16 rounded-full'
+                        className='w-20 h-20 rounded-full mb-3'
                       />
-                      <div className='sm:hidden flex items-center gap-2 mt-2'>
+                      <h1 className='text-2xl font-bold text-white mb-1'>{tokenData.name}</h1>
+                      <div className='flex items-center mb-3'>
+                        <span className='text-lg text-zinc-400 font-medium'>$</span>
+                        <span className='text-lg text-zinc-400 font-medium'>
+                          {tokenData.symbol}
+                        </span>
+                      </div>
+
+                      {/* Mobile Bookmark Button */}
+                      <div className='flex justify-center mb-3'>
                         <WatchlistButton
                           mintAddress={tokenData.mintAddress}
                           initialWatchlistStatus={tokenData.isWatchlisted}
@@ -518,18 +539,221 @@ export default function Page({ params, commentId }: PageProps) {
                           tokenSymbol={tokenData.symbol}
                         />
                       </div>
+
+                      {/* Mobile Ownership Verification */}
+                      <div className='flex items-center gap-2 flex-wrap justify-center mb-3'>
+                        {tokenData.verifiedCreatorUserId ? (
+                          user?.id === tokenData.verifiedCreatorUserId ? (
+                            <div className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-green-600/40 to-emerald-500/30 text-white text-xs font-medium border border-green-500/30 shadow-lg shadow-green-900/20 backdrop-blur-sm'>
+                              <Shield className='w-3.5 h-3.5 text-green-300 drop-shadow-sm' />
+                              <span className='font-semibold'>Verified Ownership</span>
+                            </div>
+                          ) : tokenData.verifiedCreatorUser ? (
+                            <Button
+                              variant='ghost'
+                              size='sm'
+                              className='h-auto px-2.5 py-1 text-xs gap-1.5 rounded-lg bg-gradient-to-r from-green-600/20 to-emerald-500/10 text-green-300 border border-green-500/30 hover:from-green-600/30 hover:to-emerald-500/20 hover:text-green-200 hover:border-green-400/40 transition-all duration-300 shadow-sm backdrop-blur-sm'
+                              asChild>
+                              <Link href={`/users/${tokenData.verifiedCreatorUser.username}`}>
+                                <Shield className='w-3.5 h-3.5 text-green-300 drop-shadow-sm' />
+                                <span className='font-medium'>Dev verified: </span>
+                                <span className='font-semibold'>
+                                  @{tokenData.verifiedCreatorUser.username}
+                                </span>
+                              </Link>
+                            </Button>
+                          ) : (
+                            <div className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-zinc-700/50 to-zinc-800/40 text-zinc-200 text-xs font-medium border border-zinc-600/20 shadow-sm backdrop-blur-sm'>
+                              <Shield className='w-3.5 h-3.5 text-zinc-300' />
+                              <span className='font-medium'>Dev Verified</span>
+                            </div>
+                          )
+                        ) : (
+                          isAuthenticated &&
+                          user &&
+                          !isVerifyingCreator && (
+                            <button
+                              onClick={handleVerifyCreator}
+                              disabled={isVerifyingCreator}
+                              className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-blue-600/40 to-blue-500/30 hover:from-blue-600/50 hover:to-blue-500/40 text-white text-xs font-medium border border-blue-500/30 hover:border-blue-400/50 shadow-md hover:shadow-lg shadow-blue-900/20 backdrop-blur-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer'>
+                              <Shield className='w-3.5 h-3.5 text-blue-300' />
+                              <span className='font-semibold'>Verify token ownership</span>
+                            </button>
+                          )
+                        )}
+
+                        {/* Loading Indicator for mobile */}
+                        {isVerifyingCreator && (
+                          <div className='flex items-center gap-1 text-zinc-300'>
+                            <svg
+                              className='animate-spin h-3 w-3'
+                              xmlns='http://www.w3.org/2000/svg'
+                              fill='none'
+                              viewBox='0 0 24 24'>
+                              <circle
+                                className='opacity-25'
+                                cx='12'
+                                cy='12'
+                                r='10'
+                                stroke='currentColor'
+                                strokeWidth='4'></circle>
+                              <path
+                                className='opacity-75'
+                                fill='currentColor'
+                                d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
+                            </svg>
+                            <span className='text-xs font-medium'>Verifying...</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <p className='text-zinc-400 text-sm text-center mb-3'>
+                        {tokenData.description}
+                      </p>
+
+                      {/* Views Count and Risk Information for Mobile */}
+                      {tokenData.viewsCount !== undefined && (
+                        <div className='flex flex-col items-center gap-3'>
+                          <div className='inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-800/70 border border-zinc-700/50 backdrop-blur-sm'>
+                            <Eye className='w-3.5 h-3.5 mr-1.5 text-blue-400' />
+                            <span className='text-xs font-medium text-zinc-200'>
+                              {tokenData.viewsCount.toLocaleString()} views
+                            </span>
+                          </div>
+
+                          {/* Risk Information Display for Mobile */}
+                          {!isDev && riskData && !isLoadingRiskData && (
+                            <div className='flex flex-col items-center gap-2 mt-4 mb-3'>
+                              {/* Risk Score */}
+                              <div className='flex items-center gap-1'>
+                                <Shield className='w-4 h-4 text-zinc-400' />
+                                <span className='text-sm font-medium text-zinc-300'>
+                                  Risk Score
+                                </span>
+                                <div
+                                  className={`text-sm font-bold ${
+                                    riskData.score <= 3
+                                      ? 'text-emerald-400'
+                                      : riskData.score <= 6
+                                        ? 'text-amber-400'
+                                        : 'text-red-400'
+                                  }`}>
+                                  {riskData.score}/10
+                                </div>
+                              </div>
+
+                              {/* All Risk Badges */}
+                              {riskData.risks && riskData.risks.length > 0 && (
+                                <div className='flex flex-wrap gap-2 justify-center'>
+                                  {riskData.risks.map((risk, index) => {
+                                    const displayName =
+                                      risk.name === 'No social media'
+                                        ? 'No original social media'
+                                        : risk.name;
+
+                                    return (
+                                      <div
+                                        key={index}
+                                        className={`px-2.5 py-1.5 rounded-full text-xs font-medium ${
+                                          risk.level === 'danger'
+                                            ? 'text-red-200 bg-red-500/15'
+                                            : risk.level === 'warning'
+                                              ? 'text-amber-200 bg-amber-500/15'
+                                              : 'text-blue-200 bg-blue-500/15'
+                                        }`}>
+                                        {displayName}
+                                        {risk.value ? `: ${risk.value}` : ''}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Mobile Social buttons */}
+                      <div className='flex items-center gap-2 justify-center mt-4 flex-wrap'>
+                        <button
+                          onClick={() => setShowEmbedDialog(true)}
+                          className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
+                          title='Embed Button'>
+                          <Code className='w-4 h-4 text-blue-400' />
+                        </button>
+                        <SolscanButton
+                          address={tokenData.mintAddress}
+                          type='token'
+                          className='relative flex items-center gap-1 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 h-8 px-2 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'>
+                          <span className='font-mono text-zinc-200 text-xs'>
+                            {truncateAddress(tokenData.mintAddress)}
+                          </span>
+                          <svg
+                            xmlns='http://www.w3.org/2000/svg'
+                            width='12'
+                            height='12'
+                            viewBox='0 0 24 24'
+                            fill='none'
+                            stroke='currentColor'
+                            strokeWidth='2'
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            className='text-blue-400 transition-colors'>
+                            <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
+                            <polyline points='15 3 21 3 21 9' />
+                            <line x1='10' y1='14' x2='21' y2='3' />
+                          </svg>
+                        </SolscanButton>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(tokenData.mintAddress);
+                            toast({
+                              title: 'Address copied',
+                              description: 'Token address copied to clipboard',
+                            });
+                          }}
+                          className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
+                          title='Copy address'>
+                          <Copy className='w-4 h-4 text-blue-400' />
+                        </button>
+                        {tokenData.websiteUrl && (
+                          <WebsiteInfoTooltip websiteUrl={tokenData.websiteUrl} />
+                        )}
+                        {tokenData.twitterHandle && (
+                          <TwitterHistoryTooltip
+                            twitterHandle={tokenData.twitterHandle}
+                            twitterHistory={tokenHistoryData}
+                          />
+                        )}
+                        {tokenData.telegramUrl && (
+                          <Link
+                            href={tokenData.telegramUrl}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
+                            title='Telegram'>
+                            <MessageSquare className='w-4 h-4 text-blue-400' />
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop Layout - Horizontal */}
+                  <div className='hidden sm:flex items-start gap-4'>
+                    <div className='flex flex-col items-center'>
+                      <TokenImage
+                        imageUrl={tokenData.imageUrl}
+                        name={tokenData.name}
+                        symbol={tokenData.symbol}
+                        className='w-16 h-16 rounded-full'
+                      />
                     </div>
                     <div className='flex-1 min-w-0'>
                       <div className='flex flex-col gap-2'>
                         <div className='flex justify-between items-center flex-wrap'>
                           <div className='flex flex-col sm:flex-row sm:items-center sm:gap-2'>
                             <h1 className='text-2xl font-bold text-white'>{tokenData.name}</h1>
-                            <div className='flex items-center sm:hidden'>
-                              <span className='text-lg text-zinc-400 font-medium'>$</span>
-                              <span className='text-lg text-zinc-400 font-medium'>
-                                {tokenData.symbol}
-                              </span>
-                            </div>
                             <div className='hidden sm:flex sm:items-center'>
                               <span className='text-lg text-zinc-400 font-medium'>$</span>
                               <span className='text-lg text-zinc-400 font-medium'>
@@ -547,6 +771,72 @@ export default function Page({ params, commentId }: PageProps) {
                                   size='sm'
                                   tokenSymbol={tokenData.symbol}
                                 />
+
+                                {/* Desktop Ownership Verification */}
+                                {tokenData.verifiedCreatorUserId ? (
+                                  user?.id === tokenData.verifiedCreatorUserId ? (
+                                    <div className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-green-600/40 to-emerald-500/30 text-white text-xs font-medium border border-green-500/30 shadow-lg shadow-green-900/20 backdrop-blur-sm'>
+                                      <Shield className='w-3.5 h-3.5 text-green-300 drop-shadow-sm' />
+                                      <span className='font-semibold'>Verified Ownership</span>
+                                    </div>
+                                  ) : tokenData.verifiedCreatorUser ? (
+                                    <Button
+                                      variant='ghost'
+                                      size='sm'
+                                      className='h-auto px-2.5 py-1 text-xs gap-1.5 rounded-lg bg-gradient-to-r from-green-600/20 to-emerald-500/10 text-green-300 border border-green-500/30 hover:from-green-600/30 hover:to-emerald-500/20 hover:text-green-200 hover:border-green-400/40 transition-all duration-300 shadow-sm backdrop-blur-sm'
+                                      asChild>
+                                      <Link
+                                        href={`/users/${tokenData.verifiedCreatorUser.username}`}>
+                                        <Shield className='w-3.5 h-3.5 text-green-300 drop-shadow-sm' />
+                                        <span className='font-medium'>Dev verified: </span>
+                                        <span className='font-semibold'>
+                                          @{tokenData.verifiedCreatorUser.username}
+                                        </span>
+                                      </Link>
+                                    </Button>
+                                  ) : (
+                                    <div className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-zinc-700/50 to-zinc-800/40 text-zinc-200 text-xs font-medium border border-zinc-600/20 shadow-sm backdrop-blur-sm'>
+                                      <Shield className='w-3.5 h-3.5 text-zinc-300' />
+                                      <span className='font-medium'>Dev Verified</span>
+                                    </div>
+                                  )
+                                ) : (
+                                  isAuthenticated &&
+                                  user &&
+                                  !isVerifyingCreator && (
+                                    <button
+                                      onClick={handleVerifyCreator}
+                                      disabled={isVerifyingCreator}
+                                      className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-blue-600/40 to-blue-500/30 hover:from-blue-600/50 hover:to-blue-500/40 text-white text-xs font-medium border border-blue-500/30 hover:border-blue-400/50 shadow-md hover:shadow-lg shadow-blue-900/20 backdrop-blur-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer'>
+                                      <Shield className='w-3.5 h-3.5 text-blue-300' />
+                                      <span className='font-semibold'>Verify token ownership</span>
+                                    </button>
+                                  )
+                                )}
+
+                                {/* Loading Indicator for desktop */}
+                                {isVerifyingCreator && (
+                                  <div className='flex items-center gap-1 text-zinc-300'>
+                                    <svg
+                                      className='animate-spin h-3 w-3'
+                                      xmlns='http://www.w3.org/2000/svg'
+                                      fill='none'
+                                      viewBox='0 0 24 24'>
+                                      <circle
+                                        className='opacity-25'
+                                        cx='12'
+                                        cy='12'
+                                        r='10'
+                                        stroke='currentColor'
+                                        strokeWidth='4'></circle>
+                                      <path
+                                        className='opacity-75'
+                                        fill='currentColor'
+                                        d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
+                                    </svg>
+                                    <span className='text-xs font-medium'>Verifying...</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -618,152 +908,74 @@ export default function Page({ params, commentId }: PageProps) {
                             )}
                           </div>
                         </div>
-                        <p className='text-zinc-400 max-w-full md:max-w-[75%] text-sm'>
+                        <p className='text-zinc-400 max-w-full md:max-w-[75%] text-sm -mt-0.5'>
                           {tokenData.description}
                         </p>
 
                         {/* Views Count Display */}
                         {tokenData.viewsCount !== undefined && (
-                          <div className='flex items-center mt-2'>
-                            <div className='inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-800/70 border border-zinc-700/50 backdrop-blur-sm'>
+                          <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between mt-2 gap-2'>
+                            <div className='inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-800/70 border border-zinc-700/50 backdrop-blur-sm w-fit'>
                               <Eye className='w-3.5 h-3.5 mr-1.5 text-blue-400' />
                               <span className='text-xs font-medium text-zinc-200'>
                                 {tokenData.viewsCount.toLocaleString()} views
                               </span>
                             </div>
+
+                            {/* Risk Information Display */}
+                            {!isDev && riskData && !isLoadingRiskData && (
+                              <div className='flex flex-col sm:flex-row sm:items-center gap-2 sm:flex-wrap mt-3 sm:mt-0'>
+                                {/* Risk Score */}
+                                <div className='flex items-center gap-1'>
+                                  <Shield className='w-4 h-4 text-zinc-400' />
+                                  <span className='text-sm font-medium text-zinc-300'>
+                                    Risk Score
+                                  </span>
+                                  <div
+                                    className={`text-sm font-bold ${
+                                      riskData.score <= 3
+                                        ? 'text-emerald-400'
+                                        : riskData.score <= 6
+                                          ? 'text-amber-400'
+                                          : 'text-red-400'
+                                    }`}>
+                                    {riskData.score}/10
+                                  </div>
+                                </div>
+
+                                {/* All Risk Badges */}
+                                {riskData.risks && riskData.risks.length > 0 && (
+                                  <div className='flex flex-col sm:flex-row gap-2 sm:flex-wrap'>
+                                    {riskData.risks.map((risk, index) => {
+                                      const displayName =
+                                        risk.name === 'No social media'
+                                          ? 'No original social media'
+                                          : risk.name;
+
+                                      return (
+                                        <div
+                                          key={index}
+                                          className={`px-2.5 py-1.5 rounded-full text-xs font-medium w-fit ${
+                                            risk.level === 'danger'
+                                              ? 'text-red-200 bg-red-500/15'
+                                              : risk.level === 'warning'
+                                                ? 'text-amber-200 bg-amber-500/15'
+                                                : 'text-blue-200 bg-blue-500/15'
+                                          }`}>
+                                          {displayName}
+                                          {risk.value ? `: ${risk.value}` : ''}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
-
-                        {/* Mobile Social Buttons */}
-                        <div className='flex sm:hidden items-center gap-2 mt-3'>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(tokenData.mintAddress);
-                              toast({
-                                title: 'Address copied',
-                                description: 'Token address copied to clipboard',
-                              });
-                            }}
-                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
-                            title='Copy address'>
-                            <Copy className='w-4 h-4 text-blue-400' />
-                          </button>
-
-                          {tokenData.websiteUrl && (
-                            <WebsiteInfoTooltip websiteUrl={tokenData.websiteUrl} />
-                          )}
-
-                          {tokenData.twitterHandle && (
-                            <TwitterHistoryTooltip
-                              twitterHandle={tokenData.twitterHandle}
-                              twitterHistory={tokenHistoryData}
-                            />
-                          )}
-
-                          {tokenData.telegramUrl && (
-                            <Link
-                              href={tokenData.telegramUrl}
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                              title='Telegram'>
-                              <MessageSquare className='w-4 h-4 text-blue-400' />
-                            </Link>
-                          )}
-
-                          <SolscanButton
-                            address={tokenData.mintAddress}
-                            type='token'
-                            className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'>
-                            <svg
-                              xmlns='http://www.w3.org/2000/svg'
-                              width='16'
-                              height='16'
-                              viewBox='0 0 24 24'
-                              fill='none'
-                              stroke='currentColor'
-                              strokeWidth='2'
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              className='text-blue-400 transition-colors'>
-                              <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' />
-                              <polyline points='15 3 21 3 21 9' />
-                              <line x1='10' y1='14' x2='21' y2='3' />
-                            </svg>
-                          </SolscanButton>
-                        </div>
                       </div>
                     </div>
                   </div>
-
-                  {/* Ownership Verification */}
-                  {tokenData && (
-                    <div className='absolute bottom-4 right-4 text-right text-xs'>
-                      {tokenData.verifiedCreatorUserId ? (
-                        user?.id === tokenData.verifiedCreatorUserId ? (
-                          <div className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-green-600/40 to-emerald-500/30 text-white text-xs font-medium border border-green-500/30 shadow-lg shadow-green-900/20 backdrop-blur-sm'>
-                            <Shield className='w-3.5 h-3.5 text-green-300 drop-shadow-sm' />
-                            <span className='font-semibold'>Verified Ownership</span>
-                          </div>
-                        ) : tokenData.verifiedCreatorUser ? (
-                          <Button
-                            variant='ghost'
-                            size='sm'
-                            className='h-auto px-2.5 py-1 text-xs gap-1.5 rounded-lg bg-gradient-to-r from-green-600/20 to-emerald-500/10 text-green-300 border border-green-500/30 hover:from-green-600/30 hover:to-emerald-500/20 hover:text-green-200 hover:border-green-400/40 transition-all duration-300 shadow-sm backdrop-blur-sm'
-                            asChild>
-                            <Link href={`/users/${tokenData.verifiedCreatorUser.username}`}>
-                              <Shield className='w-3.5 h-3.5 text-green-300 drop-shadow-sm' />
-                              <span className='font-medium'>Dev verified: </span>
-                              <span className='font-semibold'>
-                                @{tokenData.verifiedCreatorUser.username}
-                              </span>
-                            </Link>
-                          </Button>
-                        ) : (
-                          <div className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-zinc-700/50 to-zinc-800/40 text-zinc-200 text-xs font-medium border border-zinc-600/20 shadow-sm backdrop-blur-sm'>
-                            <Shield className='w-3.5 h-3.5 text-zinc-300' />
-                            <span className='font-medium'>Dev Verified</span>
-                          </div>
-                        )
-                      ) : (
-                        isAuthenticated &&
-                        user &&
-                        !isVerifyingCreator && (
-                          <button
-                            onClick={handleVerifyCreator}
-                            disabled={isVerifyingCreator}
-                            className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-blue-600/40 to-blue-500/30 hover:from-blue-600/50 hover:to-blue-500/40 text-white text-xs font-medium border border-blue-500/30 hover:border-blue-400/50 shadow-md hover:shadow-lg shadow-blue-900/20 backdrop-blur-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer'>
-                            <Shield className='w-3.5 h-3.5 text-blue-300' />
-                            <span className='font-semibold'>Verify token ownership</span>
-                          </button>
-                        )
-                      )}
-
-                      {/* Loading Indicator */}
-                      {isVerifyingCreator && (
-                        <div className='flex items-center justify-end gap-2 text-zinc-300 mt-1'>
-                          <svg
-                            className='animate-spin h-4 w-4'
-                            xmlns='http://www.w3.org/2000/svg'
-                            fill='none'
-                            viewBox='0 0 24 24'>
-                            <circle
-                              className='opacity-25'
-                              cx='12'
-                              cy='12'
-                              r='10'
-                              stroke='currentColor'
-                              strokeWidth='4'></circle>
-                            <path
-                              className='opacity-75'
-                              fill='currentColor'
-                              d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
-                          </svg>
-                          <span className='font-medium'>Verifying...</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </>
               ) : (
                 <div className='text-center p-8'>
