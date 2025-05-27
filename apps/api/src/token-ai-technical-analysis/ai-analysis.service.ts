@@ -8,37 +8,6 @@ const RatingSchema = z.object({
   explanation: z.string().describe('Brief explanation for this rating'),
 });
 
-const DecodedStorySchema = z.object({
-  marketcapJourney: z
-    .string()
-    .describe(
-      'Brief description of the key marketcap movements with exact $ figures and % changes.',
-    ),
-  momentum: z
-    .string()
-    .describe(
-      'Analysis of current marketcap momentum including trading activity and volume patterns.',
-    ),
-  keyLevels: z
-    .string()
-    .describe('Important support/resistance marketcap zones with $ values.'),
-  tradingActivity: z
-    .string()
-    .describe(
-      'Detailed breakdown of trading volume and buy/sell patterns across different timeframes.',
-    ),
-  buyerSellerDynamics: z
-    .string()
-    .describe(
-      'Analysis of buy vs sell pressure with detailed volume comparisons, trade sizes, and what they suggest about market participants.',
-    ),
-  timeframeAnalysis: z
-    .string()
-    .describe(
-      'Analysis of what happened in each timeframe (like last 24h, last 7d, etc) based on available data.',
-    ),
-});
-
 const RatingsSchema = z.object({
   marketcapStrength: RatingSchema.describe(
     'Rating for current marketcap strength',
@@ -61,9 +30,6 @@ const ChartWhispererSchema = z
       .describe(
         'An opinionated take on current trading opportunities, with appropriate disclaimers.',
       ),
-    decodedStory: DecodedStorySchema.describe(
-      'Detailed analysis sections written in casual, direct language.',
-    ),
   })
   .describe('The structured analysis from the Chart Whisperer AI.');
 
@@ -459,10 +425,8 @@ export class AiAnalysisService {
       '',
       '\n✅ THINGS TO INCLUDE (Ensure these are reflected in your structured output):',
       '• Always refer to the token by its symbol (e.g. $SYMBOL) when available, otherwise its name.',
-      '• Always include the token symbol (e.g. $TOKEN) when discussing it.',
       '• Always include dates when referencing specific marketcap movements or data points.',
       '• Specific marketcap levels in $ terms (not just percentages).',
-      '• Marketcap changes over multiple timeframes (if data is available).',
       '• Clear explanations of buy vs. sell pressure with actual numbers and volume data.',
       '• What different timeframes show about trading patterns and momentum shifts.',
       '• Analysis of dollar volume imbalance across timeframes (not just transaction count).',
@@ -479,17 +443,7 @@ export class AiAnalysisService {
       '    c.  `buyPressure`: Rate the conviction and impact of buying pressure, considering participant profiles.',
       '    d.  `volumeQuality`: Judge if volume confirms price trends and its indicative power; assess authenticity.',
       "    e.  `overallSentiment`: Your direct, high-conviction assessment of the token\'s current market sentiment based on all data.",
-      "2.  `tradingOpinion`: An opinionated, data-driven take on the token\'s current situation, highlighting potential strategic considerations or noteworthy patterns for an experienced trader. Conclude this section with the mandatory disclaimer.",
-      '3.  `decodedStory`: This object contains detailed analysis:',
-      '    a.  `marketcapJourney`: Describe key marketcap movements with exact $ figures, % changes, and dates. Focus on the narrative these changes tell.',
-      '    b.  `momentum`: Analyze current market momentum (marketcap and trading activity). Is it sustainable? What drives it? What are the underlying volume patterns?',
-      '    c.  `keyLevels`: Identify important support/resistance marketcap zones with $ values. Explain their significance.',
-      '    d.  `tradingActivity`: Detail trading volume and buy/sell patterns across different timeframes. What are the trends and anomalies?',
-      '    e.  `buyerSellerDynamics`: Analyze buy vs. sell pressure using volume, trade counts, and average trade sizes. What does this suggest about market participants and their conviction?',
-      '    f.  `timeframeAnalysis`: Synthesize observations across various timeframes (e.g., last 24h, 7d) based on available data. Highlight congruencies or divergences.',
-      '',
-      '\n⚠️ MANDATORY DISCLAIMER (Include this EXACT text at the end of your `tradingOpinion`):',
-      '"\n\nThis analysis is based purely on historical data and market patterns. It is not financial advice. Always do your own research (DYOR) and consider your risk tolerance before trading."',
+      "2.  `tradingOpinion`: An opinionated, data-driven take on the token\'s current situation, highlighting potential strategic considerations or noteworthy patterns for an experienced trader.",
     ];
 
     return promptParts.join('\n');
