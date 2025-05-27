@@ -1216,7 +1216,7 @@ export default function Page({ params, commentId }: PageProps) {
                       {tokenData ? (
                         <div className='w-full h-[300px] rounded-lg overflow-hidden'>
                           <iframe
-                            src={`https://app.bubblemaps.io/sol/token/${tokenData.mintAddress}`}
+                            src={`https://v2.bubblemaps.io/map?address=${tokenData.mintAddress}&chain=solana&partnerId=regular`}
                             className='w-full h-full border-0'
                             title='Bubblemap Token Analysis'
                           />
