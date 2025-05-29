@@ -746,54 +746,68 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
 
                 {/* Token Call Details */}
                 {comment.type === LocalCommentType.TOKEN_CALL_EXPLANATION && comment.tokenCall && (
-                  <div className='mt-2 border border-zinc-700/50 bg-zinc-900/50 rounded-md p-2 flex items-center justify-between text-xs'>
-                    <div className='flex items-center space-x-2'>
-                      <Rocket className='h-4 w-4 text-green-400' />
-                      <span>
-                        Predicted{' '}
-                        {targetMcap !== null ? (
-                          <>
-                            <span className='font-semibold text-green-400'>
-                              ${formatLargeNumber(targetMcap)}
-                            </span>{' '}
-                            (
-                            <span className='font-semibold text-green-400'>
-                              ${formatPrice(comment.tokenCall.targetPrice)}
-                            </span>
-                            )
-                          </>
-                        ) : (
-                          <span className='font-semibold text-green-400'>
-                            ${formatPrice(comment.tokenCall.targetPrice)}
-                          </span>
-                        )}{' '}
-                        <span className='font-semibold text-blue-300'>{formattedTargetDate}</span>{' '}
-                        {percentageIncrease !== null && (
-                          <span className='text-green-400 text-xs font-medium'>
-                            ({percentageIncrease >= 0 ? '+' : ''}
-                            {percentageIncrease.toFixed(1)}%)
-                          </span>
-                        )}
-                      </span>
+                  <div className='mt-2 border border-zinc-700/50 bg-zinc-900/50 rounded-lg p-3 space-y-2 text-xs'>
+                    <div className='flex items-center gap-2'>
+                      <Rocket className='h-4 w-4 text-green-400 shrink-0' />
+                      <span className='font-medium text-zinc-300'>Token Call Prediction</span>
                     </div>
 
-                    <div className='flex items-center gap-2 shrink-0'>
+                    {/* Main prediction content */}
+                    <div>
+                      <div className='flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-2 text-sm'>
+                        {/* Target section */}
+                        <div className='flex flex-wrap items-center gap-1'>
+                          <span className='text-zinc-400'>Target:</span>
+                          {targetMcap !== null ? (
+                            <div className='flex flex-wrap items-center gap-1'>
+                              <span className='font-bold text-green-400'>
+                                ${formatLargeNumber(targetMcap)}
+                              </span>
+                              <span className='text-zinc-500'>MC</span>
+                            </div>
+                          ) : (
+                            <span className='font-bold text-green-400'>
+                              ${formatPrice(comment.tokenCall.targetPrice)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Timeline section */}
+                        <div className='flex flex-wrap items-center gap-1 sm:gap-2'>
+                          <span className='text-zinc-400'>By:</span>
+                          <span className='font-semibold text-blue-300'>{formattedTargetDate}</span>
+                          {percentageIncrease !== null && (
+                            <>
+                              <span className='text-zinc-500'>·</span>
+                              <span className='text-green-400 font-medium'>
+                                ({percentageIncrease >= 0 ? '+' : ''}
+                                {percentageIncrease.toFixed(1)}%)
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer with status and external link */}
+                    <div className='flex items-center justify-between pt-1 border-t border-zinc-700/30'>
+                      <div className='flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-800/60 border border-zinc-700/40'>
+                        {getStatusIcon(comment.tokenCall.status)}
+                        <span className='font-medium text-xs'>
+                          {getStatusText(comment.tokenCall.status)}
+                        </span>
+                      </div>
+
                       <Link href={`/token-calls/${comment.tokenCall.id}`} passHref legacyBehavior>
                         <a
                           target='_blank'
                           rel='noopener noreferrer'
-                          title='View Token Call Details'
-                          className='p-1 rounded-md bg-zinc-800/50 text-muted-foreground hover:text-foreground hover:bg-zinc-700/50 transition-colors'>
-                          <ExternalLink className='h-3.5 w-3.5' />
+                          title='View Full Token Call'
+                          className='flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-800/40 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors'>
+                          <span className='text-xs font-medium hidden sm:inline'>View Details</span>
+                          <ExternalLink className='h-3.5 w-3.5 shrink-0' />
                         </a>
                       </Link>
-
-                      <div className='flex items-center space-x-1 px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 shrink-0'>
-                        {getStatusIcon(comment.tokenCall.status)}
-                        <span className='font-medium'>
-                          {getStatusText(comment.tokenCall.status)}
-                        </span>
-                      </div>
                     </div>
                   </div>
                 )}
