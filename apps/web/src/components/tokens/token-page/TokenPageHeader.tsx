@@ -65,7 +65,7 @@ export const TokenPageHeader = memo(function TokenPageHeader({
   isVoting,
 }: TokenPageHeaderProps) {
   const { toast } = useToast();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [isRiskCollapsed, setIsRiskCollapsed] = useState(false);
   const [searchAddress, setSearchAddress] = useState('');
   const [isSearching, setIsSearching] = useState(false);
