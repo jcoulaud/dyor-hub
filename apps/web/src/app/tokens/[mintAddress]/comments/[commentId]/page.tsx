@@ -8,8 +8,8 @@ interface PageProps {
 }
 
 export default function Page({ params }: PageProps) {
-  const { mintAddress, commentId } = use(params);
-  return <TokenPage params={Promise.resolve({ mintAddress })} commentId={commentId} />;
+  const { mintAddress } = use(params);
+  return <TokenPage params={Promise.resolve({ mintAddress })} />;
 }
 
 export async function generateMetadata({

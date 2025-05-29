@@ -5,7 +5,6 @@ import type { CommentSectionHandle } from '@/components/comments/CommentSection'
 import { EmbedButtonDialog } from '@/components/token/EmbedButtonDialog';
 import { TokenPageHeader } from '@/components/tokens/token-page/TokenPageHeader';
 import { TokenPageTabs } from '@/components/tokens/token-page/TokenPageTabs';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import type { TokenRiskData } from '@/lib/api';
 import { tokenCalls, tokens, users } from '@/lib/api';
@@ -25,22 +24,20 @@ import { use, useCallback, useEffect, useRef, useState } from 'react';
 
 interface PageProps {
   params: Promise<{ mintAddress: string }>;
-  commentId?: string;
 }
 
-export default function Page({ params, commentId }: PageProps) {
+export default function Page({ params }: PageProps) {
   const { mintAddress } = use(params);
   const pathname = usePathname();
   const { user, isAuthenticated, isLoading } = useAuthContext();
   const commentIdFromProps =
-    commentId || (pathname && pathname.includes('/comments/'))
+    pathname && pathname.includes('/comments/')
       ? pathname?.split('/comments/')[1]?.split('/')[0]
       : undefined;
 
   const [tokenData, setTokenData] = useState<Token | null>(null);
   const [tokenStatsData, setTokenStatsData] = useState<TokenStatsType | null>(null);
-  const [isPageLoading, setIsPageLoading] = useState(true);
-  const [isHeaderLoaded, setIsHeaderLoaded] = useState(false);
+  const [isLoadingTokenData, setIsLoadingTokenData] = useState(true);
   const [sentimentData, setSentimentData] = useState<TokenSentimentStats | null>(null);
   const [isVoting, setIsVoting] = useState(false);
   const [userCalls, setUserCalls] = useState<TokenCall[]>([]);
@@ -78,11 +75,10 @@ export default function Page({ params, commentId }: PageProps) {
 
       setTokenData(tokenResponse);
       setTokenStatsData(statsResponse);
-      setIsHeaderLoaded(true);
     } catch {
       notFound();
     } finally {
-      setIsPageLoading(false);
+      setIsLoadingTokenData(false);
     }
   };
 
@@ -263,8 +259,7 @@ export default function Page({ params, commentId }: PageProps) {
           <div className='h-full overflow-y-auto scrollbar-thin scrollbar-track-zinc-800 scrollbar-thumb-zinc-600'>
             <TokenPageHeader
               tokenData={tokenData}
-              isPageLoading={isPageLoading}
-              isHeaderLoaded={isHeaderLoaded}
+              isLoadingTokenData={isLoadingTokenData}
               tokenHistoryData={tokenHistoryData}
               riskData={riskData}
               isLoadingRiskData={isLoadingRiskData}
@@ -284,39 +279,21 @@ export default function Page({ params, commentId }: PageProps) {
         <div className='w-full lg:ml-80'>
           {/* Mobile Token Header - Only visible on mobile */}
           <div className='lg:hidden bg-zinc-900/95 backdrop-blur-xl border-b border-zinc-700/50 relative z-20'>
-            {isPageLoading || !isHeaderLoaded ? (
-              <div className='flex items-center gap-3 p-4'>
-                <Skeleton className='w-12 h-12 rounded-lg' />
-                <div className='flex-1'>
-                  <Skeleton className='w-32 h-5 mb-1' />
-                  <Skeleton className='w-20 h-4' />
-                </div>
-                <Skeleton className='w-8 h-8 rounded' />
-              </div>
-            ) : tokenData ? (
-              <div className='w-full'>
-                <TokenPageHeader
-                  tokenData={tokenData}
-                  isPageLoading={isPageLoading}
-                  isHeaderLoaded={isHeaderLoaded}
-                  tokenHistoryData={tokenHistoryData}
-                  riskData={riskData}
-                  isLoadingRiskData={isLoadingRiskData}
-                  isVerifyingCreator={isVerifyingCreator}
-                  onVerifyCreator={handleVerifyCreator}
-                  onShowEmbedDialog={() => setShowEmbedDialog(true)}
-                  user={user}
-                  isAuthenticated={isAuthenticated}
-                  sentimentData={sentimentData}
-                  onSentimentVote={handleSentimentVote}
-                  isVoting={isVoting}
-                />
-              </div>
-            ) : (
-              <div className='text-center py-4'>
-                <span className='text-red-400 font-medium'>Token not found</span>
-              </div>
-            )}
+            <TokenPageHeader
+              tokenData={tokenData}
+              isLoadingTokenData={isLoadingTokenData}
+              tokenHistoryData={tokenHistoryData}
+              riskData={riskData}
+              isLoadingRiskData={isLoadingRiskData}
+              isVerifyingCreator={isVerifyingCreator}
+              onVerifyCreator={handleVerifyCreator}
+              onShowEmbedDialog={() => setShowEmbedDialog(true)}
+              user={user}
+              isAuthenticated={isAuthenticated}
+              sentimentData={sentimentData}
+              onSentimentVote={handleSentimentVote}
+              isVoting={isVoting}
+            />
           </div>
 
           <div className='container mx-auto px-6 py-8 max-w-6xl relative z-30'>

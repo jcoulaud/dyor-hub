@@ -7,6 +7,7 @@ import { TwitterHistoryTooltip } from '@/components/tokens/TwitterHistoryTooltip
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
 import { WebsiteInfoTooltip } from '@/components/tokens/WebsiteInfoTooltip';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import type { TokenRiskData } from '@/lib/api';
 import { isValidSolanaAddress } from '@/lib/utils';
@@ -33,8 +34,7 @@ import { memo, useCallback, useState } from 'react';
 
 interface TokenPageHeaderProps {
   tokenData: Token | null;
-  isPageLoading: boolean;
-  isHeaderLoaded: boolean;
+  isLoadingTokenData: boolean;
   tokenHistoryData: TwitterUsernameHistoryEntity | null;
   riskData: TokenRiskData | null;
   isLoadingRiskData: boolean;
@@ -52,8 +52,7 @@ const isDev = process.env.NODE_ENV === 'development';
 
 export const TokenPageHeader = memo(function TokenPageHeader({
   tokenData,
-  isPageLoading,
-  isHeaderLoaded,
+  isLoadingTokenData,
   tokenHistoryData,
   riskData,
   isLoadingRiskData,
@@ -108,9 +107,37 @@ export const TokenPageHeader = memo(function TokenPageHeader({
 
   return (
     <div className='h-full flex flex-col relative'>
-      {isPageLoading || !isHeaderLoaded ? (
-        <div className='flex flex-col items-center justify-center p-6 min-h-[200px]'>
-          <div className='animate-pulse text-zinc-400 text-sm'>Loading token data...</div>
+      {isLoadingTokenData ? (
+        <div className='p-4'>
+          {/* Mobile Skeleton Header */}
+          <div className='lg:hidden flex items-center gap-3 mb-4'>
+            <Skeleton className='w-12 h-12 rounded-lg' />
+            <div className='flex-1'>
+              <Skeleton className='w-32 h-5 mb-1' />
+              <Skeleton className='w-20 h-4' />
+            </div>
+            <Skeleton className='w-8 h-8 rounded' />
+          </div>
+
+          {/* Desktop Skeleton Header */}
+          <div className='hidden lg:block space-y-4'>
+            <div className='flex items-center gap-4'>
+              <Skeleton className='w-16 h-16 rounded-lg' />
+              <div className='flex-1'>
+                <Skeleton className='w-48 h-6 mb-2' />
+                <Skeleton className='w-24 h-4' />
+              </div>
+            </div>
+            <div className='space-y-2'>
+              <Skeleton className='w-full h-4' />
+              <Skeleton className='w-3/4 h-4' />
+            </div>
+            <div className='flex gap-2'>
+              <Skeleton className='w-8 h-8 rounded' />
+              <Skeleton className='w-8 h-8 rounded' />
+              <Skeleton className='w-8 h-8 rounded' />
+            </div>
+          </div>
         </div>
       ) : tokenData ? (
         <>
