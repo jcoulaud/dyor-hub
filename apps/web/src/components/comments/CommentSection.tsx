@@ -50,6 +50,7 @@ import {
 import { AdminModeration } from './AdminModeration';
 import { CommentInput } from './CommentInput';
 import { CopyLinkButton } from './CopyLinkButton';
+import { EmptyDiscussionState } from './EmptyDiscussionState';
 import { TwitterShareButton } from './TwitterShareButton';
 
 const processMentionsInHtml = (html: string): string => {
@@ -139,6 +140,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
     });
     const { isAuthenticated, isLoading: authLoading, user } = useAuthContext();
     const commentRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+    const commentInputRef = useRef<HTMLDivElement>(null);
     const hasScrolled = useRef(false);
     const userHasInteracted = useRef(false);
     const observerTarget = useRef<HTMLDivElement>(null);
@@ -1060,15 +1062,17 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
       content = (
         <div className='space-y-4'>
           <div className='space-y-4 w-full'>
-            <CommentInput
-              onSubmit={(content) => handleSubmitComment(undefined, content)}
-              onCancel={() => setNewComment('')}
-              placeholder='Add a comment'
-              className='w-full'
-              onAuthRequired={() => {
-                setShowAuthModal(true);
-              }}
-            />
+            <div ref={commentInputRef}>
+              <CommentInput
+                onSubmit={(content) => handleSubmitComment(undefined, content)}
+                onCancel={() => setNewComment('')}
+                placeholder='Add a comment'
+                className='w-full'
+                onAuthRequired={() => {
+                  setShowAuthModal(true);
+                }}
+              />
+            </div>
             <div className='flex items-center pb-2 w-full'>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1140,10 +1144,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
                   </div>
                 </Card>
               ) : (
-                <Card className='p-6 text-center text-gray-500 w-full'>
-                  <MessageSquare className='h-12 w-12 mx-auto mb-3 text-gray-400' />
-                  <p>No comments yet. Be the first to share your thoughts!</p>
-                </Card>
+                <EmptyDiscussionState tokenSymbol={tokenSymbol} />
               )}
             </div>
           </div>
