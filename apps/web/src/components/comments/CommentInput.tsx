@@ -141,8 +141,8 @@ export function CommentInput({
       className={cn('relative', className)}>
       <div
         className={cn(
-          'relative flex flex-col border bg-background overflow-hidden',
-          variant === 'main' && !isExpanded ? 'rounded-full' : 'rounded-md',
+          'relative flex flex-col border bg-zinc-900/40 backdrop-blur-sm border-zinc-700/50 overflow-hidden transition-all duration-200 ease-in-out hover:bg-zinc-900/60 hover:border-zinc-600/60',
+          variant === 'main' && !isExpanded ? 'rounded-2xl' : 'rounded-xl',
         )}
         onClick={handleInputClick}>
         <RichTextEditor
@@ -165,7 +165,7 @@ export function CommentInput({
           )}
         />
         {(variant === 'reply' || isExpanded) && (
-          <div className='p-1.5 sm:p-2 flex justify-between items-center w-full bg-background'>
+          <div className='p-1.5 sm:p-2 flex justify-between items-center w-full bg-zinc-900/30 border-t border-zinc-700/30'>
             <div className='text-xs text-muted-foreground'>
               {content.length}/{COMMENT_MAX_LENGTH} characters
             </div>

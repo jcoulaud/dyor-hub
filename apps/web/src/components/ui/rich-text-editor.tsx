@@ -381,7 +381,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
         accept={ALLOWED_TYPES.join(',')}
         style={{ display: 'none' }}
       />
-      <div className='flex flex-wrap gap-1 p-1 border-b'>
+      <div className='flex flex-wrap gap-1 p-1 border-b border-zinc-700/30 bg-zinc-900/20'>
         {/* Format Buttons */}
         {formatActions.map(({ icon: Icon, action, isActive, label, shortcut }) => (
           <Button
@@ -797,9 +797,11 @@ export function RichTextEditor({
   return (
     <div
       className={cn(
-        'bg-background overflow-hidden',
-        variant === 'main' && !isExpanded && 'hover:bg-accent/50 cursor-text',
-        !readOnly && 'border',
+        'bg-transparent overflow-hidden',
+        variant === 'main' &&
+          !isExpanded &&
+          'hover:bg-zinc-800/20 cursor-text transition-colors duration-200',
+        !readOnly && 'border-0',
       )}
       onClick={handleRequestExpand}>
       {!readOnly && isExpanded && (
