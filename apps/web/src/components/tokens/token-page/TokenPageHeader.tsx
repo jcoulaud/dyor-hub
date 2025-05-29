@@ -67,6 +67,7 @@ export const TokenPageHeader = memo(function TokenPageHeader({
 }: TokenPageHeaderProps) {
   const { toast } = useToast();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isRiskCollapsed, setIsRiskCollapsed] = useState(false);
   const [searchAddress, setSearchAddress] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const router = useRouter();
@@ -144,6 +145,18 @@ export const TokenPageHeader = memo(function TokenPageHeader({
           {/* Mobile Compact Header */}
           <div className='lg:hidden'>
             <div className='p-4 border-b border-zinc-700/50 relative'>
+              {/* Views Counter - Mobile */}
+              {tokenData.viewsCount !== undefined && (
+                <div className='absolute top-2 right-2 z-10'>
+                  <div className='flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30'>
+                    <Eye className='w-3 h-3 text-blue-400' />
+                    <span className='text-xs font-medium text-white'>
+                      {tokenData.viewsCount.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className='flex items-center gap-3'>
                 <div className='relative'>
                   <div className='absolute -inset-0.5 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-lg blur-sm'></div>
@@ -251,23 +264,44 @@ export const TokenPageHeader = memo(function TokenPageHeader({
                 <div className='p-3 border-b border-zinc-700/50'>
                   {!isDev && riskData && !isLoadingRiskData ? (
                     <div className='space-y-2'>
-                      <div className='flex items-center gap-3 px-3 py-1.5 rounded-lg bg-zinc-800/50'>
+                      <div
+                        className={`flex items-center gap-3 px-3 py-1.5 rounded-lg bg-zinc-800/50 ${
+                          riskData.risks && riskData.risks.length > 0
+                            ? 'cursor-pointer hover:bg-zinc-700/50'
+                            : ''
+                        } transition-colors duration-200`}
+                        onClick={() =>
+                          riskData.risks &&
+                          riskData.risks.length > 0 &&
+                          setIsRiskCollapsed(!isRiskCollapsed)
+                        }>
                         <Shield className='w-4 h-4 text-zinc-400' />
                         <span className='text-sm text-zinc-300'>Risk Score</span>
-                        <div
-                          className={`text-sm font-bold px-2 py-1 rounded ml-auto ${
-                            riskData.score <= 3
-                              ? 'text-emerald-300 bg-emerald-500/20'
-                              : riskData.score <= 6
-                                ? 'text-amber-300 bg-amber-500/20'
-                                : 'text-red-300 bg-red-500/20'
-                          }`}>
-                          {riskData.score}/10
+                        <div className='ml-auto flex items-center gap-2'>
+                          <div
+                            className={`text-sm font-bold px-2 py-1 rounded ${
+                              riskData.score <= 3
+                                ? 'text-emerald-300 bg-emerald-500/20'
+                                : riskData.score <= 6
+                                  ? 'text-amber-300 bg-amber-500/20'
+                                  : 'text-red-300 bg-red-500/20'
+                            }`}>
+                            {riskData.score}/10
+                          </div>
+                          {riskData.risks && riskData.risks.length > 0 && (
+                            <div>
+                              {isRiskCollapsed ? (
+                                <ChevronDown className='w-4 h-4 text-zinc-400' />
+                              ) : (
+                                <ChevronUp className='w-4 h-4 text-zinc-400' />
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       {/* Risk Badges - Mobile */}
-                      {riskData.risks && riskData.risks.length > 0 && (
+                      {riskData.risks && riskData.risks.length > 0 && !isRiskCollapsed && (
                         <div className='space-y-1.5'>
                           {riskData.risks.slice(0, 3).map((risk, index) => {
                             const displayName =
@@ -447,6 +481,18 @@ export const TokenPageHeader = memo(function TokenPageHeader({
 
           {/* Desktop Sidebar Layout */}
           <div className='hidden lg:block'>
+            {/* Views Counter */}
+            {tokenData.viewsCount !== undefined && (
+              <div className='absolute top-5 left-4 z-10 flex items-center'>
+                <div className='flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 h-6'>
+                  <Eye className='w-3 h-3 text-blue-400' />
+                  <span className='text-xs font-medium text-white'>
+                    {tokenData.viewsCount.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Bookmark Button */}
             <div className='absolute top-4 right-4 z-10'>
               <WatchlistButton
@@ -550,48 +596,31 @@ export const TokenPageHeader = memo(function TokenPageHeader({
               </div>
             </div>
 
-            {/* Social Links and Views Section */}
-            {(tokenData.websiteUrl ||
-              tokenData.twitterHandle ||
-              tokenData.telegramUrl ||
-              tokenData.viewsCount !== undefined) && (
+            {/* Social Links Section - Only show if there are actual social links */}
+            {(tokenData.websiteUrl || tokenData.twitterHandle || tokenData.telegramUrl) && (
               <div className='p-6 border-b border-zinc-700/50'>
                 <div className='flex items-center justify-center gap-3'>
-                  {/* Social Icons */}
-                  {(tokenData.websiteUrl || tokenData.twitterHandle || tokenData.telegramUrl) && (
-                    <div className='flex gap-2'>
-                      {tokenData.websiteUrl && (
-                        <WebsiteInfoTooltip websiteUrl={tokenData.websiteUrl} />
-                      )}
-                      {tokenData.twitterHandle && (
-                        <TwitterHistoryTooltip
-                          twitterHandle={tokenData.twitterHandle}
-                          twitterHistory={tokenHistoryData}
-                        />
-                      )}
-                      {tokenData.telegramUrl && (
-                        <Link
-                          href={tokenData.telegramUrl}
-                          target='_blank'
-                          rel='noopener noreferrer'
-                          className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
-                          title='Telegram'>
-                          <MessageSquare className='w-4 h-4 text-blue-400' />
-                        </Link>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Views */}
-                  {tokenData.viewsCount !== undefined && (
-                    <div className='flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800/50'>
-                      <Eye className='w-4 h-4 text-blue-400' />
-                      <span className='text-sm text-zinc-300'>Views</span>
-                      <span className='text-sm font-medium text-white'>
-                        {tokenData.viewsCount.toLocaleString()}
-                      </span>
-                    </div>
-                  )}
+                  <div className='flex gap-2'>
+                    {tokenData.websiteUrl && (
+                      <WebsiteInfoTooltip websiteUrl={tokenData.websiteUrl} />
+                    )}
+                    {tokenData.twitterHandle && (
+                      <TwitterHistoryTooltip
+                        twitterHandle={tokenData.twitterHandle}
+                        twitterHistory={tokenHistoryData}
+                      />
+                    )}
+                    {tokenData.telegramUrl && (
+                      <Link
+                        href={tokenData.telegramUrl}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
+                        title='Telegram'>
+                        <MessageSquare className='w-4 h-4 text-blue-400' />
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -601,23 +630,44 @@ export const TokenPageHeader = memo(function TokenPageHeader({
               {/* Risk Score */}
               {!isDev && riskData && !isLoadingRiskData ? (
                 <div className='space-y-4'>
-                  <div className='flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-800/50'>
+                  <div
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-800/50 ${
+                      riskData.risks && riskData.risks.length > 0
+                        ? 'cursor-pointer hover:bg-zinc-700/50'
+                        : ''
+                    } transition-colors duration-200`}
+                    onClick={() =>
+                      riskData.risks &&
+                      riskData.risks.length > 0 &&
+                      setIsRiskCollapsed(!isRiskCollapsed)
+                    }>
                     <Shield className='w-4 h-4 text-zinc-400' />
                     <span className='text-sm text-zinc-300'>Risk Score</span>
-                    <div
-                      className={`text-sm font-bold px-2 py-1 rounded ml-auto ${
-                        riskData.score <= 3
-                          ? 'text-emerald-300 bg-emerald-500/20'
-                          : riskData.score <= 6
-                            ? 'text-amber-300 bg-amber-500/20'
-                            : 'text-red-300 bg-red-500/20'
-                      }`}>
-                      {riskData.score}/10
+                    <div className='ml-auto flex items-center gap-2'>
+                      <div
+                        className={`text-sm font-bold px-2 py-1 rounded ${
+                          riskData.score <= 3
+                            ? 'text-emerald-300 bg-emerald-500/20'
+                            : riskData.score <= 6
+                              ? 'text-amber-300 bg-amber-500/20'
+                              : 'text-red-300 bg-red-500/20'
+                        }`}>
+                        {riskData.score}/10
+                      </div>
+                      {riskData.risks && riskData.risks.length > 0 && (
+                        <div>
+                          {isRiskCollapsed ? (
+                            <ChevronDown className='w-4 h-4 text-zinc-400' />
+                          ) : (
+                            <ChevronUp className='w-4 h-4 text-zinc-400' />
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Risk Badges */}
-                  {riskData.risks && riskData.risks.length > 0 && (
+                  {riskData.risks && riskData.risks.length > 0 && !isRiskCollapsed && (
                     <div className='space-y-2'>
                       {riskData.risks.map((risk, index) => {
                         const displayName =
