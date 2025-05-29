@@ -4,7 +4,8 @@ import type { CommentSectionHandle } from '@/components/comments/CommentSection'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SolanaTrackerHoldersChartResponse, Token, TokenCall, TokenStats } from '@dyor-hub/types';
 import { BarChart3, MessageSquare, Shield, TrendingUp } from 'lucide-react';
-import { memo, RefObject } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { memo, RefObject, useEffect, useState } from 'react';
 
 import { TokenAnalysisTab } from './tabs/TokenAnalysisTab';
 import { TokenCallsTab } from './tabs/TokenCallsTab';
@@ -42,9 +43,40 @@ export const TokenPageTabs = memo(function TokenPageTabs({
   commentIdFromProps,
   onCallCreated,
 }: TokenPageTabsProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabParam = searchParams.get('tab');
+    // If there's a commentId, default to discussion tab
+    if (commentIdFromProps && !tabParam) {
+      return 'discussion';
+    }
+    return tabParam || 'security';
+  });
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    } else if (commentIdFromProps && !tabParam) {
+      setActiveTab('discussion');
+    }
+  }, [searchParams, commentIdFromProps, activeTab]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    newSearchParams.set('tab', value);
+
+    const newUrl = `/tokens/${mintAddress}?${newSearchParams.toString()}`;
+    router.push(newUrl, { scroll: false });
+  };
+
   return (
     <div className='w-full'>
-      <Tabs defaultValue='security' className='w-full'>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className='w-full'>
         {/* Tab Navigation */}
         <div className='relative z-50 mb-8'>
           <TabsList className='grid w-full grid-cols-4 bg-zinc-900/80 backdrop-blur-xl border border-zinc-700/50 p-1.5 h-14 rounded-2xl'>

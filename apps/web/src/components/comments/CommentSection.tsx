@@ -1002,7 +1002,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
             <p>Could not load comment thread:</p>
             <p className='text-sm text-red-400/80'>{threadFetchError}</p>
             <Button
-              onClick={() => router.push(`/tokens/${tokenMintAddress}`)}
+              onClick={() => router.push(`/tokens/${tokenMintAddress}?tab=discussion`)}
               variant='outline'
               size='sm'
               className='mt-4 gap-2'>
@@ -1016,7 +1016,7 @@ export const CommentSection = forwardRef<CommentSectionHandle, CommentSectionPro
           <div className='space-y-4'>
             <div className='flex items-center gap-2'>
               <Button
-                onClick={() => router.push(`/tokens/${tokenMintAddress}`)}
+                onClick={() => router.push(`/tokens/${tokenMintAddress}?tab=discussion`)}
                 variant='ghost'
                 size='sm'
                 className='gap-2 text-muted-foreground hover:text-foreground cursor-pointer'>
