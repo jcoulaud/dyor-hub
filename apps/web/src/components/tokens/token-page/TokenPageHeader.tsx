@@ -7,7 +7,6 @@ import { TwitterHistoryTooltip } from '@/components/tokens/TwitterHistoryTooltip
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
 import { WebsiteInfoTooltip } from '@/components/tokens/WebsiteInfoTooltip';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import type { TokenRiskData } from '@/lib/api';
 import { isValidSolanaAddress } from '@/lib/utils';
@@ -110,11 +109,8 @@ export const TokenPageHeader = memo(function TokenPageHeader({
   return (
     <div className='h-full flex flex-col relative'>
       {isPageLoading || !isHeaderLoaded ? (
-        <div className='flex flex-col items-center p-6'>
-          <Skeleton className='w-16 h-16 rounded-xl mb-4' />
-          <Skeleton className='w-24 h-5 mb-2' />
-          <Skeleton className='w-16 h-4 mb-4' />
-          <Skeleton className='w-full h-16' />
+        <div className='flex flex-col items-center justify-center p-6 min-h-[200px]'>
+          <div className='animate-pulse text-zinc-400 text-sm'>Loading token data...</div>
         </div>
       ) : tokenData ? (
         <>

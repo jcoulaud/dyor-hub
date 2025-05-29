@@ -3,7 +3,6 @@
 import { TokenStats } from '@/components/tokens/TokenStats';
 import { TokenBundlesSection } from '@/components/tokens/bundles/TokenBundlesSection';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   SolanaTrackerHoldersChartResponse,
@@ -73,14 +72,9 @@ export const TokenSecurityTab = memo(function TokenSecurityTab({
                 )}
               </div>
             ) : (
-              <div className='space-y-6'>
-                <div className='space-y-4'>
-                  <Skeleton className='h-6 w-32 bg-zinc-700/50' />
-                  <div className='space-y-3'>
-                    <Skeleton className='h-8 w-full bg-zinc-700/50' />
-                    <Skeleton className='h-8 w-full bg-zinc-700/50' />
-                    <Skeleton className='h-8 w-full bg-zinc-700/50' />
-                  </div>
+              <div className='flex items-center justify-center py-12'>
+                <div className='animate-pulse text-zinc-400 text-sm'>
+                  Loading token information...
                 </div>
               </div>
             )}
