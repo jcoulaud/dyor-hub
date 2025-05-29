@@ -16,6 +16,7 @@ interface DisplayUserCallProps {
   currentTokenPrice?: number;
   totalUserCalls?: number;
   currentPredictionIndex?: number;
+  hideCounterInCard?: boolean;
 }
 
 export const DisplayUserCall = memo(function DisplayUserCall({
@@ -23,6 +24,7 @@ export const DisplayUserCall = memo(function DisplayUserCall({
   currentTokenPrice = 0,
   totalUserCalls = 1,
   currentPredictionIndex = 0,
+  hideCounterInCard = true,
 }: DisplayUserCallProps) {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<'price' | 'mcap'>('mcap');
@@ -106,40 +108,42 @@ export const DisplayUserCall = memo(function DisplayUserCall({
           call.status === TokenCallStatus.PENDING && 'bg-gradient-to-r from-amber-500 to-amber-600',
           call.status === TokenCallStatus.ERROR && 'bg-gradient-to-r from-zinc-500 to-zinc-600',
         )}></div>
-      <Card className='relative rounded-xl bg-zinc-900/90 backdrop-blur-sm border-0 shadow-lg'>
-        <CardHeader className='pb-2 flex flex-row items-center justify-between space-y-0 px-4'>
-          <div className='flex items-center'>
-            <div
-              className={cn(
-                'h-8 w-8 rounded-lg flex items-center justify-center mr-2.5',
-                `bg-${statusColor}-500/15`,
-                'group-hover:scale-105 transition-transform duration-300',
-              )}>
-              <TrendingUp className={`h-4 w-4 text-${statusColor}-400`} />
+      <Card className='relative rounded-xl backdrop-blur-sm border-0 shadow-lg !bg-transparent'>
+        {!hideCounterInCard && (
+          <CardHeader className='pb-2 flex flex-row items-center justify-between space-y-0 px-4'>
+            <div className='flex items-center'>
+              <div
+                className={cn(
+                  'h-8 w-8 rounded-lg flex items-center justify-center mr-2.5',
+                  `bg-${statusColor}-500/15`,
+                  'group-hover:scale-105 transition-transform duration-300',
+                )}>
+                <TrendingUp className={`h-4 w-4 text-${statusColor}-400`} />
+              </div>
+              <CardTitle className='text-base font-medium text-white'>
+                {totalUserCalls > 1
+                  ? `Prediction ${currentPredictionIndex + 1}/${totalUserCalls}`
+                  : 'Your Prediction'}
+              </CardTitle>
             </div>
-            <CardTitle className='text-base font-medium text-white'>
-              {totalUserCalls > 1
-                ? `Prediction ${currentPredictionIndex + 1}/${totalUserCalls}`
-                : 'Your Prediction'}
-            </CardTitle>
-          </div>
-          <Badge
-            variant={call.status === TokenCallStatus.VERIFIED_FAIL ? 'destructive' : 'default'}
-            className={cn(
-              'rounded-md shadow-sm text-xs font-medium',
-              call.status === TokenCallStatus.VERIFIED_SUCCESS &&
-                'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30',
-              call.status === TokenCallStatus.PENDING &&
-                'bg-amber-500/20 text-amber-300 hover:bg-amber-500/20 border border-amber-500/30',
-              call.status === TokenCallStatus.ERROR &&
-                'bg-zinc-500/20 text-zinc-300 hover:bg-zinc-500/30 border border-zinc-500/30',
-            )}>
-            {call.status.replace('VERIFIED_', '')}
-          </Badge>
-        </CardHeader>
-        <CardContent className='pt-1 pb-1 px-4'>
+            <Badge
+              variant={call.status === TokenCallStatus.VERIFIED_FAIL ? 'destructive' : 'default'}
+              className={cn(
+                'rounded-md shadow-sm text-xs font-medium',
+                call.status === TokenCallStatus.VERIFIED_SUCCESS &&
+                  'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30',
+                call.status === TokenCallStatus.PENDING &&
+                  'bg-amber-500/20 text-amber-300 hover:bg-amber-500/20 border border-amber-500/30',
+                call.status === TokenCallStatus.ERROR &&
+                  'bg-zinc-500/20 text-zinc-300 hover:bg-zinc-500/30 border border-zinc-500/30',
+              )}>
+              {call.status.replace('VERIFIED_', '')}
+            </Badge>
+          </CardHeader>
+        )}
+        <CardContent className={cn('pt-1 pb-1 px-4', hideCounterInCard && 'pt-4')}>
           <div className='space-y-3'>
-            <div className='bg-gradient-to-br from-zinc-800/80 to-zinc-900/80 rounded-lg p-3 text-center relative shadow-inner'>
+            <div className='rounded-lg p-3 text-center relative shadow-inner'>
               {call.status === TokenCallStatus.PENDING && (
                 <div className='absolute top-3 right-3'>
                   <Button

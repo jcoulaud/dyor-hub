@@ -30,9 +30,9 @@ export function Header() {
   const { isAuthenticated } = useAuthContext();
 
   return (
-    <header className='sticky top-0 z-50 w-full border-b border-white/10 bg-black/80 backdrop-blur-xl'>
-      <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
-        <div className='flex h-16 items-center'>
+    <header className='sticky top-0 z-50 w-full border-b border-white/10 bg-black backdrop-blur-xl'>
+      <div className='w-full px-0 sm:px-6 lg:px-8'>
+        <div className='flex h-16 items-center px-4 sm:px-0'>
           <div className='w-[140px]'>
             <Link href='/'>
               <div className='flex items-center'>
@@ -77,9 +77,9 @@ export function Header() {
               </a>
             </nav>
           </div>
-          <div className='w-[140px] flex items-center justify-end space-x-2'>
+          <div className='min-w-[140px] flex items-center justify-end space-x-2'>
             {/* Mobile Menu Button */}
-            <div className='md:hidden'>
+            <div className='md:hidden relative'>
               <DropdownMenu open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -92,7 +92,8 @@ export function Header() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align='end'
-                  className='w-52 p-1 overflow-hidden border border-white/10 bg-black shadow-xl rounded-xl mt-2'>
+                  className='w-52 p-1 overflow-hidden border border-white/10 bg-black shadow-xl rounded-xl mt-2'
+                  sideOffset={4}>
                   <Link
                     href='/'
                     onClick={() => setIsMobileMenuOpen(false)}

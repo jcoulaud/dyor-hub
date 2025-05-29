@@ -1,4 +1,3 @@
-import { Footer } from '@/components/Footer';
 import { Header } from '@/components/layout/Header';
 import { Toaster } from '@/components/ui/toast';
 import { ReferralHandler } from '@/components/util/ReferralHandler';
@@ -70,7 +69,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <div className='flex flex-col min-h-screen w-full'>
                       <Header />
                       <main className='flex-1 flex flex-col w-full relative'>{children}</main>
-                      <Footer />
                     </div>
                   </Toaster>
                 </SolanaWalletProvider>

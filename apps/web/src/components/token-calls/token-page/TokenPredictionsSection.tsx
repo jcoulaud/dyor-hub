@@ -1,19 +1,16 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { tokenCalls } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Comment, TokenCall } from '@dyor-hub/types';
-import { ChevronLeft, ChevronRight, LineChart } from 'lucide-react';
-import Link from 'next/link';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DisplayUserCall } from './DisplayUserCall';
 import { MakeCallModal } from './MakeCallModal';
-import { TokenCallsStats } from './TokenCallsStats';
 
-interface TokenCallsSectionProps {
+interface TokenPredictionsSectionProps {
   tokenId: string;
   tokenSymbol: string;
   currentTokenPrice: number;
@@ -23,13 +20,10 @@ interface TokenCallsSectionProps {
   onCallCreated?: () => void;
   onAddComment?: (comment: Comment) => void;
   circulatingSupply?: string;
-  showOnlyPredictions?: boolean;
-  showOnlyStats?: boolean;
-  hideCounterInCard?: boolean;
   onPredictionIndexChange?: (index: number) => void;
 }
 
-export function TokenCallsSection({
+export function TokenPredictionsSection({
   tokenId,
   tokenSymbol,
   currentTokenPrice,
@@ -39,38 +33,12 @@ export function TokenCallsSection({
   onCallCreated,
   onAddComment,
   circulatingSupply,
-  showOnlyPredictions = false,
-  showOnlyStats = false,
-  hideCounterInCard = false,
   onPredictionIndexChange,
-}: TokenCallsSectionProps) {
-  const [tokenCallsData, setTokenCallsData] = useState<TokenCall[]>([]);
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
+}: TokenPredictionsSectionProps) {
   const [currentPredictionIndex, setCurrentPredictionIndex] = useState(0);
   const [isTransitioningPrediction, setIsTransitioningPrediction] = useState(false);
 
-  const fetchStatsData = useCallback(async () => {
-    setIsLoadingStats(true);
-    try {
-      const result = await tokenCalls.list({ tokenId: tokenId }, { page: 1, limit: 20 });
-      setTokenCallsData(result.items);
-    } catch {
-      setTokenCallsData([]);
-    } finally {
-      setIsLoadingStats(false);
-    }
-  }, [tokenId]);
-
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        await fetchStatsData();
-      } catch {
-        setIsLoadingStats(false);
-      }
-    };
-
-    loadData();
     if (currentPredictionIndex >= userCalls.length) {
       setCurrentPredictionIndex(0);
     }
@@ -80,12 +48,11 @@ export function TokenCallsSection({
       const indexToUse = currentPredictionIndex >= userCalls.length ? 0 : currentPredictionIndex;
       onPredictionIndexChange(indexToUse);
     }
-  }, [fetchStatsData, userCalls.length, currentPredictionIndex, onPredictionIndexChange]);
+  }, [userCalls.length, currentPredictionIndex, onPredictionIndexChange]);
 
   const handleCallCreated = useCallback(() => {
-    fetchStatsData();
     onCallCreated?.();
-  }, [fetchStatsData, onCallCreated]);
+  }, [onCallCreated]);
 
   const handlePredictionNavigate = (index: number) => {
     if (index === currentPredictionIndex || userCalls.length <= 1) return;
@@ -97,11 +64,6 @@ export function TokenCallsSection({
       setIsTransitioningPrediction(false);
     }, 200);
   };
-
-  // Memoize the stats component to prevent re-rendering when prediction navigation changes
-  const memoizedStatsComponent = useMemo(() => {
-    return <TokenCallsStats tokenCalls={tokenCallsData} isLoading={isLoadingStats} />;
-  }, [tokenCallsData, isLoadingStats]);
 
   const renderPredictionSection = useMemo(() => {
     if (isLoadingUserCalls) {
@@ -157,7 +119,7 @@ export function TokenCallsSection({
                   currentTokenPrice={currentTokenPrice}
                   totalUserCalls={userCalls.length}
                   currentPredictionIndex={currentPredictionIndex}
-                  hideCounterInCard={hideCounterInCard}
+                  hideCounterInCard={true}
                 />
               )}
             </div>
@@ -228,11 +190,8 @@ export function TokenCallsSection({
       <div className='relative group'>
         <div className='absolute -inset-0.5 bg-gradient-to-r from-zinc-500 to-zinc-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
         <Card className='relative rounded-xl opacity-70 backdrop-blur-sm border-0 shadow-md !bg-transparent'>
-          <CardHeader className='pb-2'>
-            <CardTitle className='text-base'>Make a Prediction</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className='text-sm text-muted-foreground'>
+          <CardContent className='pt-6 pb-4'>
+            <p className='text-sm text-muted-foreground text-center'>
               Current price data is unavailable for this token, cannot make predictions.
             </p>
           </CardContent>
@@ -252,63 +211,15 @@ export function TokenCallsSection({
     onAddComment,
     circulatingSupply,
     handlePredictionNavigate,
-    hideCounterInCard,
-    onPredictionIndexChange,
   ]);
 
-  if (showOnlyStats) {
-    return memoizedStatsComponent;
-  }
-
-  if (showOnlyPredictions) {
-    return (
-      <div className='space-y-4'>
-        {userCalls.length > 0 ? (
-          <div className='space-y-3'>{renderPredictionSection}</div>
-        ) : (
-          renderPredictionSection
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className='relative group'>
-      <div className='absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
-      <Card className='relative h-full backdrop-blur-sm border-0 rounded-xl overflow-hidden shadow-xl !bg-transparent'>
-        <div className='absolute inset-0 bg-gradient-to-br from-amber-600/5 to-amber-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
-        <CardHeader className='pb-3 relative'>
-          <div className='flex items-center mb-4'>
-            <div className='h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center mr-4 group-hover:bg-amber-500/20 transition-colors duration-300'>
-              <LineChart className='h-5 w-5 text-amber-400' />
-            </div>
-            <div className='flex items-center justify-between flex-grow'>
-              <CardTitle className='text-xl font-semibold text-white'>Token Calls</CardTitle>
-              {tokenCallsData.length > 0 && (
-                <div>
-                  <Link
-                    href={`/token-calls?tokenSearch=${tokenSymbol}`}
-                    className='text-xs text-amber-400/80 hover:text-amber-400 px-3 py-1.5 rounded-md border border-amber-500/40 hover:border-amber-500/70 transition-all duration-200 hover:shadow-md hover:shadow-amber-500/10'>
-                    View all
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className='w-full h-0.5 bg-gradient-to-r from-amber-500/30 to-transparent'></div>
-        </CardHeader>
-        <CardContent className='relative pt-0 space-y-7 px-4'>
-          {/* Stats Section */}
-          {memoizedStatsComponent}
-
-          {/* User Predictions Section */}
-          {userCalls.length > 0 ? (
-            <div className='space-y-3'>{renderPredictionSection}</div>
-          ) : (
-            renderPredictionSection
-          )}
-        </CardContent>
-      </Card>
+    <div className='space-y-4'>
+      {userCalls.length > 0 ? (
+        <div className='space-y-3'>{renderPredictionSection}</div>
+      ) : (
+        renderPredictionSection
+      )}
     </div>
   );
 }
