@@ -80,7 +80,9 @@ export const HolderHistoryChart = memo(
             <BarChart3 className='h-4 w-4 mr-2 text-blue-400' />
             Holder History
           </h3>
-          <Skeleton className='h-[120px] w-full bg-zinc-800/50 rounded-xl' />
+          <div className='ml-6'>
+            <Skeleton className='h-[120px] w-full bg-zinc-800/50 rounded-xl' />
+          </div>
         </div>
       );
     }
@@ -92,68 +94,75 @@ export const HolderHistoryChart = memo(
             <BarChart3 className='h-4 w-4 mr-2 text-blue-400' />
             Holder History
           </h3>
-          <div className='flex h-[120px] w-full items-center justify-center bg-zinc-800/10 rounded-lg border border-zinc-700/20'>
-            <p className='text-zinc-400'>No holder history data available.</p>
+          <div className='ml-6'>
+            <div className='flex h-[120px] w-full items-center justify-center bg-zinc-800/10 rounded-lg border border-zinc-700/20'>
+              <p className='text-zinc-400'>No holder history data available.</p>
+            </div>
           </div>
         </div>
       );
     }
 
     return (
-      <div className={`space-y-3 ${className}`}>
+      <div className='space-y-3'>
         <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
           <BarChart3 className='h-4 w-4 mr-2 text-blue-400' />
           Holder History
         </h3>
-        <div className='relative w-full h-[120px] bg-zinc-900 rounded-xl shadow py-2'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <AreaChart
-              data={chartData}
-              margin={{
-                top: 15,
-                right: 10,
-                left: 0,
-                bottom: 5,
-              }}>
-              <CartesianGrid
-                strokeDasharray='3 3'
-                vertical={false}
-                stroke='rgba(255,255,255,0.1)'
-              />
-              <YAxis
-                stroke='hsl(var(--muted-foreground))'
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                ticks={[
-                  minMaxValues.min,
-                  (minMaxValues.min + minMaxValues.max) / 2,
-                  minMaxValues.max,
-                ]}
-                tickFormatter={(value) => formatLargeNumber(value)}
-                allowDecimals={false}
-                domain={[minMaxValues.min, minMaxValues.max]}
-                width={40}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#525252', strokeWidth: 1 }} />
-              <Area
-                type='monotone'
-                dataKey='holders'
-                stroke='hsl(var(--emerald-500, 16 185 129))'
-                fill='none'
-                strokeWidth={1.5}
-                activeDot={{
-                  r: 4,
-                  style: {
-                    fill: 'hsl(var(--emerald-500, 16 185 129))',
-                    stroke: 'hsl(var(--background))',
-                    strokeWidth: 2,
-                  },
-                }}
-                dot={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className='ml-6'>
+          <div className={`w-full h-[120px] bg-zinc-900 rounded-xl shadow ${className || ''}`}>
+            <ResponsiveContainer width='100%' height='100%'>
+              <AreaChart
+                data={chartData}
+                margin={{
+                  top: 15,
+                  right: 10,
+                  left: 0,
+                  bottom: 5,
+                }}>
+                <CartesianGrid
+                  strokeDasharray='3 3'
+                  vertical={false}
+                  stroke='rgba(255,255,255,0.1)'
+                />
+                <YAxis
+                  stroke='hsl(var(--muted-foreground))'
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  ticks={[
+                    minMaxValues.min,
+                    (minMaxValues.min + minMaxValues.max) / 2,
+                    minMaxValues.max,
+                  ]}
+                  tickFormatter={(value) => formatLargeNumber(value)}
+                  allowDecimals={false}
+                  domain={[minMaxValues.min, minMaxValues.max]}
+                  width={40}
+                />
+                <Tooltip
+                  content={<CustomTooltip />}
+                  cursor={{ stroke: '#525252', strokeWidth: 1 }}
+                />
+                <Area
+                  type='monotone'
+                  dataKey='holders'
+                  stroke='hsl(var(--emerald-500, 16 185 129))'
+                  fill='none'
+                  strokeWidth={1.5}
+                  activeDot={{
+                    r: 4,
+                    style: {
+                      fill: 'hsl(var(--emerald-500, 16 185 129))',
+                      stroke: 'hsl(var(--background))',
+                      strokeWidth: 2,
+                    },
+                  }}
+                  dot={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     );

@@ -533,7 +533,7 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
   return (
     <div className='space-y-4'>
       <div className='grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2'>
-        <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/50 p-3'>
+        <div className='rounded-lg border border-zinc-700/50 p-3'>
           <div className='flex items-center gap-2 mb-1'>
             <Users className='w-4 h-4 text-zinc-400' />
             <span className='text-xs text-zinc-400'>Analyzed Wallets</span>
@@ -541,7 +541,7 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
           <p className='text-lg font-semibold'>{stats.totalWallets}</p>
         </div>
 
-        <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/50 p-3'>
+        <div className='rounded-lg border border-zinc-700/50 p-3'>
           <div className='flex items-center gap-2 mb-1'>
             <Diamond className='w-4 h-4 text-teal-400' />
             <span className='text-xs text-zinc-400'>Diamond Hands</span>
@@ -549,7 +549,7 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
           <p className='text-lg font-semibold'>{stats.diamondHands}</p>
         </div>
 
-        <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/50 p-3 mb-2 sm:mb-0'>
+        <div className='rounded-lg border border-zinc-700/50 p-3 mb-2 sm:mb-0'>
           <div className='flex items-center gap-2 mb-1'>
             <Clock className='w-4 h-4 text-amber-400' />
             <span className='text-xs text-zinc-400'>Avg Holding Time</span>
@@ -561,7 +561,7 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
       </div>
 
       <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-        <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/50 p-3'>
+        <div className='rounded-lg border border-zinc-700/50 p-3'>
           <h3 className='text-sm font-medium text-zinc-300 mb-4'>Holder Distribution</h3>
 
           <div className='flex flex-col items-center w-full'>
@@ -688,7 +688,7 @@ const AnalysisOverview = ({ analysisData }: { analysisData: TrackedWalletHolderS
           </div>
         </div>
 
-        <div className='bg-zinc-800/40 rounded-lg border border-zinc-700/50 p-3'>
+        <div className='rounded-lg border border-zinc-700/50 p-3'>
           <h3 className='text-sm font-medium text-zinc-300 mb-2'>Key Metrics</h3>
           <div className='space-y-3'>
             <div>

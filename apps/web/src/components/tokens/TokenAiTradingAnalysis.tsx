@@ -839,7 +839,7 @@ export function TokenAiTradingAnalysis({
 
                         <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 px-3 text-sm'>
                           {analysisData.analysisOutput.ratings.marketcapStrength && (
-                            <div className='bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/30'>
+                            <div className='rounded-lg p-3 border border-zinc-700/30'>
                               <div className='flex justify-between items-center mb-1'>
                                 <span className='text-zinc-300'>Marketcap Strength</span>
                                 <span className='text-lg font-bold text-teal-400'>
@@ -853,7 +853,7 @@ export function TokenAiTradingAnalysis({
                           )}
 
                           {analysisData.analysisOutput.ratings.momentum && (
-                            <div className='bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/30'>
+                            <div className='rounded-lg p-3 border border-zinc-700/30'>
                               <div className='flex justify-between items-center mb-1'>
                                 <span className='text-zinc-300'>Momentum</span>
                                 <span className='text-lg font-bold text-teal-400'>
@@ -867,7 +867,7 @@ export function TokenAiTradingAnalysis({
                           )}
 
                           {analysisData.analysisOutput.ratings.buyPressure && (
-                            <div className='bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/30'>
+                            <div className='rounded-lg p-3 border border-zinc-700/30'>
                               <div className='flex justify-between items-center mb-1'>
                                 <span className='text-zinc-300'>Buy Pressure</span>
                                 <span className='text-lg font-bold text-teal-400'>
@@ -881,7 +881,7 @@ export function TokenAiTradingAnalysis({
                           )}
 
                           {analysisData.analysisOutput.ratings.volumeQuality && (
-                            <div className='bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/30'>
+                            <div className='rounded-lg p-3 border border-zinc-700/30'>
                               <div className='flex justify-between items-center mb-1'>
                                 <span className='text-zinc-300'>Volume Quality</span>
                                 <span className='text-lg font-bold text-teal-400'>
@@ -895,7 +895,7 @@ export function TokenAiTradingAnalysis({
                           )}
 
                           {analysisData.analysisOutput.ratings.overallSentiment && (
-                            <div className='bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/30 sm:col-span-2'>
+                            <div className='rounded-lg p-3 border border-zinc-700/30 sm:col-span-2'>
                               <div className='flex justify-between items-center mb-1'>
                                 <span className='text-zinc-300'>Overall Sentiment</span>
                                 <span className='text-lg font-bold text-teal-400'>
@@ -1061,7 +1061,7 @@ export function TokenAiTradingAnalysis({
                         return <RangeSlider key={sliderKey} {...sliderRenderProps} />;
                       })()}
                     </div>
-                    <div className='text-xs text-zinc-500 p-3 bg-zinc-800/40 rounded-md border border-zinc-700/30 flex items-start'>
+                    <div className='text-xs text-zinc-500 p-3 rounded-md border border-zinc-700/30 flex items-start'>
                       <Info size={16} className='mr-2 mt-0.5 shrink-0 text-teal-500' />
                       <span>
                         The AI will analyze chart data for the selected period. Analysis quality

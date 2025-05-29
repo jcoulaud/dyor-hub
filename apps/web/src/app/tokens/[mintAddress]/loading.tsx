@@ -54,7 +54,7 @@ export default function Loading() {
                 <div className='absolute inset-0 bg-gradient-to-br from-blue-600/5 to-blue-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
                 <CardHeader className='pb-2 relative'>
                   <div className='flex items-center mb-4'>
-                    <div className='h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
+                    <div className='h-10 rounded-xl bg-blue-500/10 flex items-center justify-center mr-4 group-hover:bg-blue-500/20 transition-colors duration-300'>
                       <Sparkles className='h-5 w-5 text-blue-400' />
                     </div>
                     <CardTitle className='text-xl font-semibold text-white'>
@@ -114,7 +114,7 @@ export default function Loading() {
                 <div className='absolute inset-0 bg-gradient-to-br from-purple-600/5 to-purple-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
                 <CardHeader className='pb-2 relative'>
                   <div className='flex items-center'>
-                    <div className='h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center mr-4 group-hover:bg-purple-500/20 transition-colors duration-300'>
+                    <div className='h-10 rounded-xl bg-purple-500/10 flex items-center justify-center mr-4 group-hover:bg-purple-500/20 transition-colors duration-300'>
                       <MessageSquare className='h-5 w-5 text-purple-400' />
                     </div>
                     <CardTitle className='text-xl font-semibold text-white'>
@@ -144,7 +144,7 @@ export default function Loading() {
                 <div className='absolute inset-0 bg-gradient-to-br from-green-600/5 to-green-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
                 <CardHeader className='pb-2 relative'>
                   <div className='flex items-center'>
-                    <div className='h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center mr-4 group-hover:bg-green-500/20 transition-colors duration-300'>
+                    <div className='h-10 rounded-xl bg-green-500/10 flex items-center justify-center mr-4 group-hover:bg-green-500/20 transition-colors duration-300'>
                       <Search className='h-5 w-5 text-green-400' />
                     </div>
                     <CardTitle className='text-xl font-semibold text-white'>Search Token</CardTitle>

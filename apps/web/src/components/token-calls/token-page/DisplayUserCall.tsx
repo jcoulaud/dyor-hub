@@ -106,7 +106,7 @@ export const DisplayUserCall = memo(function DisplayUserCall({
           call.status === TokenCallStatus.PENDING && 'bg-gradient-to-r from-amber-500 to-amber-600',
           call.status === TokenCallStatus.ERROR && 'bg-gradient-to-r from-zinc-500 to-zinc-600',
         )}></div>
-      <Card className='relative rounded-xl bg-zinc-900/90 backdrop-blur-sm border-0 shadow-lg'>
+      <Card className='relative rounded-xl backdrop-blur-sm border-0 shadow-lg !bg-transparent'>
         <CardHeader className='pb-2 flex flex-row items-center justify-between space-y-0 px-4'>
           <div className='flex items-center'>
             <div
@@ -139,7 +139,7 @@ export const DisplayUserCall = memo(function DisplayUserCall({
         </CardHeader>
         <CardContent className='pt-1 pb-1 px-4'>
           <div className='space-y-3'>
-            <div className='bg-gradient-to-br from-zinc-800/80 to-zinc-900/80 rounded-lg p-3 text-center relative shadow-inner'>
+            <div className='rounded-lg p-3 text-center relative shadow-inner'>
               {call.status === TokenCallStatus.PENDING && (
                 <div className='absolute top-3 right-3'>
                   <Button

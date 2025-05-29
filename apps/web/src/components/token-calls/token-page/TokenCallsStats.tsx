@@ -62,7 +62,7 @@ export function TokenCallsStats({ tokenCalls, isLoading }: TokenCallsStatsProps)
   }
 
   return (
-    <div className='bg-zinc-900/40 rounded-lg p-3 mb-4'>
+    <div className='rounded-lg p-3 mb-4'>
       <div className='grid grid-cols-2 gap-x-4 gap-y-3'>
         <div className='flex items-center'>
           <div className='w-8 h-8 rounded bg-indigo-500/10 flex items-center justify-center mr-3'>

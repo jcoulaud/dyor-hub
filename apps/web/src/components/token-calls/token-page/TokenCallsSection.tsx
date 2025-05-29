@@ -23,6 +23,8 @@ interface TokenCallsSectionProps {
   onCallCreated?: () => void;
   onAddComment?: (comment: Comment) => void;
   circulatingSupply?: string;
+  showOnlyPredictions?: boolean;
+  showOnlyStats?: boolean;
 }
 
 export function TokenCallsSection({
@@ -35,6 +37,8 @@ export function TokenCallsSection({
   onCallCreated,
   onAddComment,
   circulatingSupply,
+  showOnlyPredictions = false,
+  showOnlyStats = false,
 }: TokenCallsSectionProps) {
   const [tokenCallsData, setTokenCallsData] = useState<TokenCall[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
@@ -93,7 +97,7 @@ export function TokenCallsSection({
       return (
         <div className='relative group'>
           <div className='absolute -inset-0.5 bg-gradient-to-r from-amber-500/30 to-amber-600/30 rounded-xl blur opacity-20 group-hover:opacity-30 transition duration-300'></div>
-          <Card className='relative rounded-xl min-h-[80px] bg-zinc-900/80 backdrop-blur-sm border-0'>
+          <Card className='relative rounded-xl min-h-[80px] backdrop-blur-sm border-0 !bg-transparent'>
             <CardContent className='flex items-center justify-center h-full py-6'>
               <Skeleton className='h-10 w-3/4' />
             </CardContent>
@@ -211,7 +215,7 @@ export function TokenCallsSection({
     return (
       <div className='relative group'>
         <div className='absolute -inset-0.5 bg-gradient-to-r from-zinc-500 to-zinc-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
-        <Card className='relative rounded-xl opacity-70 bg-zinc-900/80 backdrop-blur-sm border-0 shadow-md'>
+        <Card className='relative rounded-xl opacity-70 backdrop-blur-sm border-0 shadow-md !bg-transparent'>
           <CardHeader className='pb-2'>
             <CardTitle className='text-base'>Make a Prediction</CardTitle>
           </CardHeader>
@@ -238,10 +242,26 @@ export function TokenCallsSection({
     handlePredictionNavigate,
   ]);
 
+  if (showOnlyStats) {
+    return memoizedStatsComponent;
+  }
+
+  if (showOnlyPredictions) {
+    return (
+      <div className='space-y-4'>
+        {userCalls.length > 0 ? (
+          <div className='space-y-3'>{renderPredictionSection}</div>
+        ) : (
+          renderPredictionSection
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className='relative group'>
       <div className='absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition duration-300'></div>
-      <Card className='relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden shadow-xl'>
+      <Card className='relative h-full backdrop-blur-sm border-0 rounded-xl overflow-hidden shadow-xl !bg-transparent'>
         <div className='absolute inset-0 bg-gradient-to-br from-amber-600/5 to-amber-800/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
         <CardHeader className='pb-3 relative'>
           <div className='flex items-center mb-4'>
@@ -269,13 +289,7 @@ export function TokenCallsSection({
 
           {/* User Predictions Section */}
           {userCalls.length > 0 ? (
-            <div className='space-y-3'>
-              <div className='flex items-center'>
-                <h3 className='text-lg font-medium text-white'>Your Predictions</h3>
-                <div className='h-0.5 bg-gradient-to-r from-amber-500/20 to-transparent flex-grow ml-3'></div>
-              </div>
-              {renderPredictionSection}
-            </div>
+            <div className='space-y-3'>{renderPredictionSection}</div>
           ) : (
             renderPredictionSection
           )}

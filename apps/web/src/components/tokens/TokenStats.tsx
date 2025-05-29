@@ -1,10 +1,20 @@
 import { formatLargeNumber, truncateAddress } from '@/lib/utils';
 import type {
   SolanaTrackerHolderDataPoint,
+  Token,
   TokenHolder,
   TokenStats as TokenStatsType,
 } from '@dyor-hub/types';
-import { BarChart2, DollarSign, TrendingDown, TrendingUp, Users } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import {
+  BarChart2,
+  DollarSign,
+  ExternalLink,
+  Shield,
+  TrendingDown,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { SolscanButton } from '../SolscanButton';
 import { Skeleton } from '../ui/skeleton';
 import { HolderHistoryChart } from './HolderHistoryChart';
@@ -16,6 +26,7 @@ interface TokenStatsProps {
   tokenSymbol?: string;
   holderHistoryData?: SolanaTrackerHolderDataPoint[] | null;
   isLoadingHolderHistory?: boolean;
+  tokenData?: Token;
 }
 
 // Utility functions
@@ -33,12 +44,24 @@ const formatPercentage = (num: number): string => {
   return num < 0.01 ? '<0.01' : num.toFixed(2);
 };
 
+const formatCreationTime = (dateString: string | Date | null | undefined): string | null => {
+  if (!dateString) return null;
+  try {
+    const date = new Date(dateString);
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch (e) {
+    console.error('Error formatting date:', e);
+    return 'Invalid date';
+  }
+};
+
 export const TokenStats = ({
   stats,
   tokenMintAddress,
   tokenSymbol,
   holderHistoryData,
   isLoadingHolderHistory,
+  tokenData,
 }: TokenStatsProps) => {
   if (!stats) {
     return (
@@ -82,7 +105,7 @@ export const TokenStats = ({
           <DollarSign className='h-4 w-4 mr-2 text-blue-400' />
           Market Data
         </h3>
-        <div className='space-y-2'>
+        <div className='space-y-2 ml-6'>
           {/* Price */}
           {stats.price != null && (
             <div className='flex justify-between items-center'>
@@ -145,11 +168,19 @@ export const TokenStats = ({
       </div>
 
       {/* Price Chart */}
-      <TokenPriceChart
-        tokenAddress={tokenMintAddress}
-        totalSupply={stats.totalSupply || '0'}
-        tokenSymbol={tokenSymbol}
-      />
+      <div className='space-y-3'>
+        <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
+          <BarChart2 className='h-4 w-4 mr-2 text-blue-400' />
+          Price history
+        </h3>
+        <div className='ml-6'>
+          <TokenPriceChart
+            tokenAddress={tokenMintAddress}
+            totalSupply={stats.totalSupply || '0'}
+            tokenSymbol={tokenSymbol}
+          />
+        </div>
+      </div>
 
       {/* Holder History Chart */}
       <HolderHistoryChart data={holderHistoryData || null} isLoading={isLoadingHolderHistory} />
@@ -161,7 +192,7 @@ export const TokenStats = ({
             <Users className='h-4 w-4 mr-2 text-blue-400' />
             Top Holders
           </h3>
-          <div className='space-y-2'>
+          <div className='space-y-2 ml-6'>
             {stats.topHolders.map((holder: TokenHolder, index: number) => (
               <div key={index} className='flex items-center justify-between'>
                 <SolscanButton
@@ -187,13 +218,60 @@ export const TokenStats = ({
         </div>
       )}
 
+      {/* Creation Details */}
+      {tokenData &&
+        (tokenData.creatorAddress || tokenData.creationTime || tokenData.creationTx) && (
+          <div className='space-y-3'>
+            <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
+              <Shield className='h-4 w-4 mr-2 text-blue-400' />
+              Creation Details
+            </h3>
+            <div className='space-y-2 ml-6'>
+              {tokenData.creatorAddress && (
+                <div className='flex justify-between items-center'>
+                  <span className='text-sm'>Creator Wallet:</span>
+                  <SolscanButton
+                    address={tokenData.creatorAddress}
+                    type='account'
+                    className='flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors font-mono text-sm cursor-pointer group'>
+                    {truncateAddress(tokenData.creatorAddress)}
+                    <ExternalLink className='w-4 h-4 group-hover:scale-110 transition-transform' />
+                  </SolscanButton>
+                </div>
+              )}
+
+              {tokenData.creationTx && (
+                <div className='flex justify-between items-center'>
+                  <span className='text-sm'>Creation Tx:</span>
+                  <SolscanButton
+                    address={tokenData.creationTx}
+                    type='tx'
+                    className='flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors font-mono text-sm cursor-pointer group'>
+                    {truncateAddress(tokenData.creationTx)}
+                    <ExternalLink className='w-4 h-4 group-hover:scale-110 transition-transform' />
+                  </SolscanButton>
+                </div>
+              )}
+
+              {tokenData.creationTime && (
+                <div className='flex justify-between items-center'>
+                  <span className='text-sm'>Created:</span>
+                  <span className='font-medium text-white'>
+                    {formatCreationTime(tokenData.creationTime) || 'N/A'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       {/* Supply Information */}
       <div className='space-y-3'>
         <h3 className='text-sm font-medium text-zinc-400 flex items-center'>
           <BarChart2 className='h-4 w-4 mr-2 text-blue-400' />
           Supply Information
         </h3>
-        <div className='space-y-2'>
+        <div className='space-y-2 ml-6'>
           <div className='flex justify-between items-center'>
             <span className='text-sm'>Total Supply:</span>
             <span className='font-medium'>{formatLargeNumber(adjustedTotalSupply)}</span>

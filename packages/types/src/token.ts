@@ -15,6 +15,10 @@ export interface Token {
   updatedAt: Date;
   verifiedCreatorUserId?: string | null;
   verifiedCreatorUser?: Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl'> | null;
+  isWatchlisted?: boolean;
+  creatorAddress?: string | null;
+  creationTime?: Date | null;
+  creationTx?: string | null;
 }
 
 export enum SentimentType {

@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   CircleDollarSign,
   HelpCircle,
-  InfoIcon,
   Percent,
   RefreshCw,
   Users,
@@ -139,7 +138,7 @@ export const BundleSummaryCard = ({
         )}></div>
       <Card
         className={cn(
-          'relative h-full bg-zinc-900/40 backdrop-blur-sm border-0 rounded-xl overflow-hidden',
+          'relative h-full backdrop-blur-sm border-0 rounded-xl overflow-hidden !bg-transparent',
           displayError && 'border border-red-500/30',
         )}>
         <div
@@ -150,75 +149,7 @@ export const BundleSummaryCard = ({
               : 'bg-gradient-to-br from-teal-600/5 to-cyan-800/5',
           )}
         />
-        <CardHeader className='pb-2 relative'>
-          <div className='flex items-center mb-4'>
-            {isLoading ? (
-              <>
-                <div className='h-10 w-10 rounded-xl bg-cyan-500/10 flex items-center justify-center mr-4'>
-                  <Boxes className='h-5 w-5 text-cyan-400/50' />
-                </div>
-                <div>
-                  <CardTitle className='text-xl font-semibold text-white flex items-center'>
-                    Bundle Analysis
-                    <div className='ml-2 w-4 h-4 opacity-30'>
-                      <Skeleton className='w-4 h-4 rounded-full' />
-                    </div>
-                  </CardTitle>
-                  <div className='text-xs text-zinc-400/50 mt-1'>
-                    <Skeleton className='h-3 w-40 mt-1' />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className='h-10 w-10 rounded-xl bg-cyan-500/10 flex items-center justify-center mr-4 group-hover:bg-cyan-500/20 transition-colors duration-300'>
-                  <Boxes className='h-5 w-5 text-cyan-400' />
-                </div>
-                <div>
-                  <CardTitle className='text-xl font-semibold text-white flex items-center'>
-                    Bundle Analysis
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant='ghost' size='icon' className='h-6 w-6 p-0 ml-2'>
-                            <InfoIcon className='h-4 w-4 text-zinc-400' />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side='right' className='max-w-96'>
-                          <p className='text-xs mb-2'>
-                            <strong>What are bundles?</strong> Bundles are coordinated purchases
-                            from multiple wallets controlled by the same entity (usually the token
-                            team).
-                          </p>
-                          <p className='text-xs mb-2'>
-                            Bundles are used to control token supply and manipulate price action. A
-                            high bundle percentage (especially currently held) is a potential red
-                            flag.
-                          </p>
-                          <p className='text-xs'>
-                            Data provided by{' '}
-                            <a
-                              href='https://trench.bot/'
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='text-cyan-400 hover:underline'>
-                              Trench
-                            </a>
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </CardTitle>
-                  <div className='text-xs text-zinc-400 mt-1'>
-                    Analyze bundled wallets and their token control
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-          <div className='w-full h-0.5 bg-gradient-to-r from-cyan-500/20 to-transparent'></div>
-        </CardHeader>
-        <CardContent className='relative pt-2 pb-4'>
+        <CardContent className='relative pl-0 pt-4 pb-4'>
           {/* Error, Info, or Data */}
           {displayError ? (
             <div className='flex flex-col items-center justify-center text-center space-y-2 py-4'>
