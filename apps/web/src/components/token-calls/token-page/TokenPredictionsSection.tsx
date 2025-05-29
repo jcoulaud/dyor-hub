@@ -157,18 +157,6 @@ export function TokenPredictionsSection({
               ))}
             </div>
           )}
-
-          <div className='pt-4'>
-            <MakeCallModal
-              tokenId={tokenId}
-              tokenSymbol={tokenSymbol}
-              currentTokenPrice={currentTokenPrice}
-              onCallCreated={handleCallCreated}
-              onAddComment={onAddComment}
-              circulatingSupply={circulatingSupply}
-              isMakingAnotherCall={userCalls.length > 0}
-            />
-          </div>
         </div>
       );
     }
@@ -214,11 +202,26 @@ export function TokenPredictionsSection({
   ]);
 
   return (
-    <div className='space-y-4'>
+    <div className='h-full flex flex-col'>
       {userCalls.length > 0 ? (
-        <div className='space-y-3'>{renderPredictionSection}</div>
+        <>
+          <div className='flex-1'>{renderPredictionSection}</div>
+          <div className='mt-6 pt-6 border-t border-zinc-700/30'>
+            <MakeCallModal
+              tokenId={tokenId}
+              tokenSymbol={tokenSymbol}
+              currentTokenPrice={currentTokenPrice}
+              onCallCreated={handleCallCreated}
+              onAddComment={onAddComment}
+              circulatingSupply={circulatingSupply}
+              isMakingAnotherCall={true}
+            />
+          </div>
+        </>
       ) : (
-        renderPredictionSection
+        <div className='h-full flex flex-col'>
+          <div className='flex-1 flex items-center justify-center'>{renderPredictionSection}</div>
+        </div>
       )}
     </div>
   );

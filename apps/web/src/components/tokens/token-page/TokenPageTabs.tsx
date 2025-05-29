@@ -102,7 +102,7 @@ export const TokenPageTabs = memo(function TokenPageTabs({
               value='calls'
               className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
               <TrendingUp className='w-4 h-4' />
-              <span className='hidden sm:inline'>Your Calls</span>
+              <span className='hidden sm:inline'>Calls</span>
             </TabsTrigger>
           </TabsList>
         </div>
