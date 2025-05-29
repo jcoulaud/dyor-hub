@@ -53,7 +53,7 @@ export const TokenExternalLinks = ({ tokenAddress, className = '' }: Props) => {
           href={url(tokenAddress)}
           target='_blank'
           rel='noopener noreferrer'
-          className='flex items-center justify-center gap-2 w-10 h-10 bg-black-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
+          className='flex items-center justify-center gap-2 w-10 h-10 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200 cursor-pointer'
           title={name}>
           <Image src={icon} alt={name} width={20} height={20} className='rounded-sm' />
         </Link>

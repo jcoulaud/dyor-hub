@@ -4,6 +4,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import type { CommentSectionHandle } from '@/components/comments/CommentSection';
 import { EmbedButtonDialog } from '@/components/token/EmbedButtonDialog';
 import { TokenPageHeader } from '@/components/tokens/token-page/TokenPageHeader';
+import { TokenPageRightSidebar } from '@/components/tokens/token-page/TokenPageRightSidebar';
 import { TokenPageTabs } from '@/components/tokens/token-page/TokenPageTabs';
 import { useToast } from '@/hooks/use-toast';
 import type { TokenRiskData } from '@/lib/api';
@@ -276,7 +277,7 @@ export default function Page({ params }: PageProps) {
         </div>
 
         {/* Main Content Area */}
-        <div className='w-full lg:ml-80'>
+        <div className='w-full lg:ml-80 lg:mr-80'>
           {/* Mobile Token Header - Only visible on mobile */}
           <div className='lg:hidden bg-zinc-900/95 backdrop-blur-xl border-b border-zinc-700/50 relative z-20'>
             <TokenPageHeader
@@ -315,6 +316,18 @@ export default function Page({ params }: PageProps) {
                 onCallCreated={handleCallCreated}
               />
             </div>
+          </div>
+        </div>
+
+        {/* Fixed Right Sidebar */}
+        <div className='hidden lg:block fixed right-0 top-16 bottom-0 w-80 bg-transparent overflow-hidden z-10'>
+          <div className='h-full overflow-y-auto scrollbar-thin scrollbar-track-zinc-800 scrollbar-thumb-zinc-600 pt-8 px-6'>
+            <TokenPageRightSidebar
+              tokenAddress={mintAddress}
+              sentimentData={sentimentData}
+              onSentimentVote={handleSentimentVote}
+              isVoting={isVoting}
+            />
           </div>
         </div>
       </div>
