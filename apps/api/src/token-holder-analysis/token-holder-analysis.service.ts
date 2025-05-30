@@ -315,25 +315,14 @@ export class TokenHolderAnalysisService {
         analysisSuccessful = true;
       }
 
-      if (
-        analysisSuccessful &&
-        !isEligibleForFreeTier &&
-        effectiveCreditCost > 0
-      ) {
-        try {
-          await this.creditsService.commitReservedCredits(
-            userId,
-            effectiveCreditCost,
-          );
-        } catch (commitError) {
-          this.logger.error(
-            `CRITICAL: Failed to commit ${effectiveCreditCost} credits for user ${userId}, session ${sessionId} after successful holder analysis: ${commitError.message}`,
-            commitError.stack,
-          );
-        }
-      } else if (isEligibleForFreeTier) {
+      // Credits are already deducted in the controller, so no need to commit reserved credits
+      if (isEligibleForFreeTier) {
         this.logger.log(
           `Holder analysis for user ${userId}, token ${tokenAddress}, session ${sessionId} was free. No credits charged.`,
+        );
+      } else if (effectiveCreditCost > 0) {
+        this.logger.log(
+          `Holder analysis for user ${userId}, token ${tokenAddress}, session ${sessionId} completed. Credits (${effectiveCreditCost}) were already deducted.`,
         );
       }
 
@@ -361,23 +350,6 @@ export class TokenHolderAnalysisService {
         error: error.message || 'Processing Error',
         sessionId,
       });
-
-      if (!isEligibleForFreeTier && effectiveCreditCost > 0) {
-        try {
-          await this.creditsService.releaseReservedCredits(
-            userId,
-            effectiveCreditCost,
-          );
-          this.logger.log(
-            `Released ${effectiveCreditCost} credits for user ${userId}, session ${sessionId} due to error in _performFullAnalysis.`,
-          );
-        } catch (releaseError) {
-          this.logger.error(
-            `Failed to release credits for user ${userId}, session ${sessionId} after error in _performFullAnalysis: ${releaseError.message}`,
-            releaseError.stack,
-          );
-        }
-      }
     }
   }
 

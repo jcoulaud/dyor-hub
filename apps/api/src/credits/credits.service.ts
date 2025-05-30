@@ -468,28 +468,43 @@ export class CreditsService {
   }
 
   async checkAndReserveCredits(userId: string, amount: number): Promise<void> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      select: { credits: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
+    if (amount <= 0) {
+      this.logger.warn(
+        `Attempted to reserve non-positive credit amount (${amount}) for user ${userId}`,
+      );
+      return;
     }
 
-    if (user.credits < amount) {
-      throw new BadRequestException('Insufficient credits');
-    }
-
-    // Reserve credits by deducting them temporarily
-    await this.userRepository
+    // Use atomic update with WHERE condition to prevent race conditions
+    const result = await this.userRepository
       .createQueryBuilder()
       .update(UserEntity)
       .set({
         credits: () => `credits - ${amount}`,
       })
-      .where('id = :userId', { userId })
+      .where('id = :userId AND credits >= :amount', { userId, amount })
       .execute();
+
+    // If no rows were affected, the user either doesn't exist or has insufficient credits
+    if (result.affected === 0) {
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        select: { id: true, credits: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (user.credits < amount) {
+        throw new BadRequestException('Insufficient credits');
+      }
+
+      // If user exists and should have enough credits but update failed,
+      throw new BadRequestException(
+        'Credit reservation failed - please try again',
+      );
+    }
   }
 
   async commitReservedCredits(
@@ -516,5 +531,67 @@ export class CreditsService {
       })
       .where('id = :userId', { userId })
       .execute();
+  }
+
+  async addCreditsManually(
+    userId: string,
+    amount: number,
+    reason: string,
+  ): Promise<void> {
+    if (amount <= 0) {
+      this.logger.warn(
+        `Attempted to add non-positive credit amount (${amount}) for user ${userId}`,
+      );
+      return;
+    }
+
+    const queryRunner =
+      this.creditTransactionRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const user = await queryRunner.manager.findOneBy(UserEntity, {
+        id: userId,
+      });
+      if (!user) {
+        throw new NotFoundException('User not found.');
+      }
+
+      // Add credits to user
+      await queryRunner.manager.increment(
+        UserEntity,
+        { id: userId },
+        'credits',
+        amount,
+      );
+
+      // Record the credit addition transaction
+      const transaction = queryRunner.manager.create(CreditTransaction, {
+        userId,
+        type: DyorHubCreditTransactionType.PURCHASE, // Using PURCHASE type for positive credits
+        amount: amount,
+        details: reason,
+      });
+      await queryRunner.manager.save(CreditTransaction, transaction);
+
+      await queryRunner.commitTransaction();
+
+      this.logger.log(
+        `Successfully added ${amount} credits to user ${userId}: ${reason}`,
+      );
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(
+        `Failed to add ${amount} credits to user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to add credits.');
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

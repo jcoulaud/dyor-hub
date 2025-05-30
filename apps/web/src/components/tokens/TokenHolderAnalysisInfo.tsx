@@ -1132,6 +1132,11 @@ export function TokenHolderAnalysisInfo({
       return;
     }
 
+    // Prevent multiple concurrent requests
+    if (isLoading || (analysisProgress && analysisProgress.status === 'analyzing')) {
+      return;
+    }
+
     if (isFreeTier === null && !isCostFetching) {
       toast({
         variant: 'default',
@@ -1142,7 +1147,6 @@ export function TokenHolderAnalysisInfo({
     }
 
     const newSessionId = Math.random().toString(36).substring(2, 15);
-    console.log('Starting analysis with session ID:', newSessionId);
     currentAnalysisSessionId.current = newSessionId;
     setError(null);
 
@@ -1175,16 +1179,8 @@ export function TokenHolderAnalysisInfo({
     setHasShownCompletionToast(false);
 
     try {
-      console.log('Sending analysis request to API:', {
-        mintAddress,
-        walletCount: selectedWalletCount,
-        sessionId: newSessionId,
-      });
-
       await apiTokens.getTokenHolderAnalysis(mintAddress, selectedWalletCount, newSessionId);
-      console.log('Analysis request successful');
     } catch (err) {
-      console.error('Analysis request error:', err);
       let apiError: ApiError;
       if (err instanceof ApiError) {
         apiError = err;
@@ -1229,6 +1225,7 @@ export function TokenHolderAnalysisInfo({
     isCostFetching,
     fetchCreditCostsInternal,
     analysisProgress?.status,
+    isLoading,
   ]);
 
   useEffect(() => {

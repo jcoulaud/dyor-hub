@@ -60,7 +60,7 @@ export class TokenHolderAnalysisController {
     const { sessionId } = params;
     let isEligibleForFreeTier = false;
     let effectiveCreditCost = 0;
-    let creditsReserved = false;
+    let creditsAlreadyDeducted = false;
 
     const dyorhubTokenAddress =
       this.configService.get<string>('DYORHUB_CONTRACT_ADDRESS') ||
@@ -70,6 +70,7 @@ export class TokenHolderAnalysisController {
         'MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS',
       ) || MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS;
 
+    // Check if user is eligible for free tier
     try {
       const primaryWallet = await this.walletsService.getUserPrimaryWallet(
         user.id,
@@ -81,6 +82,7 @@ export class TokenHolderAnalysisController {
         );
         const currentBalanceNum =
           typeof balance === 'bigint' ? Number(balance) : balance;
+
         if (currentBalanceNum >= minHoldingForFreeTier) {
           isEligibleForFreeTier = true;
           this.logger.log(
@@ -105,28 +107,43 @@ export class TokenHolderAnalysisController {
       effectiveCreditCost = 0;
     } else {
       effectiveCreditCost = calculatedCost;
+
+      // Check if user has enough credits and deduct them immediately
       const userCreditBalance = await this.creditsService.getUserBalance(
         user.id,
       );
+
       if (userCreditBalance < effectiveCreditCost) {
         throw new ForbiddenException({
           message: 'Insufficient credits for Holder Analysis.',
           details: { code: 'INSUFFICIENT_CREDITS' },
         });
       }
+
+      // Deduct credits immediately
       try {
-        await this.creditsService.checkAndReserveCredits(
+        await this.creditsService.deductCredits(
           user.id,
           effectiveCreditCost,
+          `Diamond Hands Analysis for ${tokenAddress} (${walletCount} wallets)`,
         );
-        creditsReserved = true;
+        creditsAlreadyDeducted = true;
       } catch (error) {
         this.logger.error(
-          `Failed to reserve ${effectiveCreditCost} credits for Holder Analysis for user ${user.id}: ${error.message}`,
+          `Failed to deduct ${effectiveCreditCost} credits for Holder Analysis for user ${user.id}: ${error.message}`,
         );
-        throw new InternalServerErrorException(
-          'Failed to reserve credits for analysis.',
-        );
+
+        const errorMessage = error.message?.toLowerCase();
+        if (errorMessage?.includes('insufficient')) {
+          throw new ForbiddenException({
+            message: 'Insufficient credits for Holder Analysis.',
+            details: { code: 'INSUFFICIENT_CREDITS' },
+          });
+        } else {
+          throw new InternalServerErrorException(
+            'Failed to process credit payment for analysis.',
+          );
+        }
       }
     }
 
@@ -140,17 +157,24 @@ export class TokenHolderAnalysisController {
         sessionId,
       );
     } catch (analysisError) {
-      if (creditsReserved) {
+      // If we already deducted credits and the analysis fails, refund them
+      if (creditsAlreadyDeducted && effectiveCreditCost > 0) {
         this.logger.warn(
-          `Analysis failed for user ${user.id}, releasing ${effectiveCreditCost} credits. Error: ${analysisError.message}`,
+          `Analysis failed for user ${user.id}, refunding ${effectiveCreditCost} credits. Error: ${analysisError.message}`,
         );
-        await this.creditsService
-          .releaseReservedCredits(user.id, effectiveCreditCost)
-          .catch((releaseError) =>
-            this.logger.error(
-              `Failed to release credits for user ${user.id} after analysis error: ${releaseError.message}`,
-            ),
+
+        try {
+          await this.creditsService.addCreditsManually(
+            user.id,
+            effectiveCreditCost,
+            `Refund for failed Diamond Hands Analysis: ${tokenAddress}`,
           );
+        } catch (refundError) {
+          this.logger.error(
+            `CRITICAL: Failed to refund ${effectiveCreditCost} credits to user ${user.id} after analysis failure: ${refundError.message}`,
+            refundError.stack,
+          );
+        }
       }
       throw analysisError;
     }
