@@ -4,6 +4,7 @@ import {
   ProcessedBundleData,
   SolanaTrackerHoldersChartResponse,
   TokenStats,
+  TwitterFeedResponse,
   TwitterUsernameHistoryEntity,
 } from '@dyor-hub/types';
 import {
@@ -29,6 +30,7 @@ import { SolanaAddressPipe } from '../common/pipes/solana-address.pipe';
 import { TokenEntity } from '../entities/token.entity';
 import { UserEntity } from '../entities/user.entity';
 import { TokensService } from './tokens.service';
+import { TwitterFeedService } from './twitter-feed.service';
 import { TwitterHistoryService } from './twitter-history.service';
 
 @Controller('tokens')
@@ -36,6 +38,7 @@ export class TokensController {
   constructor(
     private readonly tokensService: TokensService,
     private readonly twitterHistoryService: TwitterHistoryService,
+    private readonly twitterFeedService: TwitterFeedService,
   ) {}
 
   @Public()
@@ -182,5 +185,41 @@ export class TokensController {
       );
     }
     return riskData;
+  }
+
+  @Public()
+  @Get(':mintAddress/twitter-feed')
+  async getTokenTwitterFeed(
+    @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
+    @Query('cursor') cursor?: string,
+  ): Promise<TwitterFeedResponse | null> {
+    // Get token data to check if it has a Twitter handle
+    const token = await this.tokensService.getTokenData(mintAddress);
+
+    if (!token?.twitterHandle) {
+      throw new NotFoundException(
+        `No Twitter handle found for token ${mintAddress}`,
+      );
+    }
+
+    if (!this.twitterFeedService.isTwitterClientAvailable()) {
+      throw new HttpException(
+        'Twitter API is not available',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    const feedData = await this.twitterFeedService.getLatestTweets(
+      token.twitterHandle,
+      cursor,
+    );
+
+    if (!feedData) {
+      throw new NotFoundException(
+        `Twitter feed not found for token ${mintAddress}`,
+      );
+    }
+
+    return feedData;
   }
 }
