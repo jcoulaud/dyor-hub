@@ -8,11 +8,59 @@ import session from 'express-session';
 import * as fs from 'fs';
 import * as path from 'path';
 import 'reflect-metadata';
+import { ServerOptions } from 'socket.io';
 import { AppModule } from './app.module';
 import { initializeDatabase } from './datasource';
 import { SessionService } from './session/session.service';
 
 const logger = new Logger('Bootstrap');
+
+// Custom WebSocket adapter with consistent CORS
+class CustomIoAdapter extends IoAdapter {
+  private corsOrigins: string[];
+  private isDevelopment: boolean;
+
+  constructor(app: any, corsOrigins: string[], isDevelopment: boolean) {
+    super(app);
+    this.corsOrigins = corsOrigins;
+    this.isDevelopment = isDevelopment;
+  }
+
+  createIOServer(port: number, options?: ServerOptions): any {
+    const serverOptions: ServerOptions = {
+      ...options,
+      cors: {
+        origin: (origin, callback) => {
+          if (!origin || this.corsOrigins.includes(origin)) {
+            callback(null, true);
+          } else {
+            if (!this.isDevelopment) {
+              logger.warn(
+                `CORS blocked WebSocket request from origin: ${origin}`,
+              );
+              callback(new Error('Not allowed by CORS'));
+            } else {
+              // Allow other origins in dev
+              callback(null, true);
+            }
+          }
+        },
+        methods: ['GET', 'POST'],
+        credentials: true,
+        allowedHeaders: [
+          'Content-Type',
+          'Authorization',
+          'Cookie',
+          'Accept',
+          'Origin',
+          'X-Requested-With',
+          'solana-client',
+        ],
+      },
+    };
+    return super.createIOServer(port, serverOptions);
+  }
+}
 
 async function bootstrap() {
   // --- Database Initialization ---
@@ -57,9 +105,6 @@ async function bootstrap() {
       ? ['log', 'debug', 'error', 'verbose', 'warn']
       : ['log', 'error', 'warn'], // Use NestJS logger levels
   });
-
-  // Use WebSocket adapter
-  app.useWebSocketAdapter(new IoAdapter(app));
 
   // Get services/config needed during bootstrap
   const configService = app.get(ConfigService);
@@ -116,6 +161,11 @@ async function bootstrap() {
     exposedHeaders: ['Set-Cookie'],
   });
   // --- End CORS ---
+
+  // Use custom WebSocket adapter with consistent CORS
+  app.useWebSocketAdapter(
+    new CustomIoAdapter(app, finalOrigins, isDevelopment),
+  );
 
   // --- Core Middleware ---
   app.use(cookieParser());

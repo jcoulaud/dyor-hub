@@ -14,13 +14,6 @@ import { AuthService } from '../auth/auth.service';
 import { JwtPayload } from '../auth/interfaces/auth.types';
 import { ChartWhispererOutput } from '../token-ai-technical-analysis/ai-analysis.service';
 
-const corsOptions = {
-  origin: process.env.CLIENT_URL || true,
-  methods: ['GET', 'POST'],
-  credentials: true,
-  allowedHeaders: ['cookie', 'Cookie', 'authorization', 'Authorization'],
-};
-
 export interface AnalysisProgressEvent {
   status: 'analyzing' | 'complete' | 'error' | 'queued';
   message?: string;
@@ -45,7 +38,6 @@ export interface TradingAnalysisProgressEvent {
 
 @WebSocketGateway({
   namespace: '/analysis',
-  cors: corsOptions,
 })
 export class EventsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
@@ -61,13 +53,13 @@ export class EventsGateway
 
   constructor(private readonly authService: AuthService) {}
 
-  afterInit(server: Server) {
+  afterInit() {
     setInterval(() => {
       this.server.emit('ping');
     }, 25000);
   }
 
-  async handleConnection(client: Socket, ...args: any[]) {
+  async handleConnection(client: Socket) {
     let token: string | undefined;
     const AUTH_COOKIE_NAME = 'jwt';
 

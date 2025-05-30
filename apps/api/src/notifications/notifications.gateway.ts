@@ -13,13 +13,7 @@ import { AuthService } from '../auth/auth.service';
 import { JwtPayload } from '../auth/interfaces/auth.types';
 import { NotificationEntity } from '../entities';
 
-const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'https://localhost:3000',
-  methods: ['GET', 'POST'],
-  credentials: true,
-};
-
-@WebSocketGateway({ namespace: '/notifications', cors: corsOptions })
+@WebSocketGateway({ namespace: '/notifications' })
 export class NotificationsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
@@ -34,11 +28,11 @@ export class NotificationsGateway
 
   constructor(private readonly authService: AuthService) {}
 
-  afterInit(server: Server) {
+  afterInit() {
     this.logger.log('WebSocket Gateway Initialized (Notifications)');
   }
 
-  async handleConnection(client: Socket, ...args: any[]) {
+  async handleConnection(client: Socket) {
     let token: string | undefined;
     const AUTH_COOKIE_NAME = 'jwt';
 

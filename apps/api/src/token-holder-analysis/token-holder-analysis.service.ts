@@ -163,8 +163,7 @@ export class TokenHolderAnalysisService {
     tokenAgeInMonths: number,
     sessionId?: string,
   ): Promise<void> {
-    let finalAnalyzedWallets: TrackedWalletHolderStats[] = [];
-    let analysisSuccessful = false;
+    const finalAnalyzedWallets: TrackedWalletHolderStats[] = [];
 
     // Initial progress update: Preparing to analyze
     this.eventsGateway.sendAnalysisProgress(userId, {
@@ -266,13 +265,6 @@ export class TokenHolderAnalysisService {
               );
 
               if (tradeStats.length === 0) {
-                this.eventsGateway.sendAnalysisProgress(userId, {
-                  currentWallet: walletIndex + 1,
-                  totalWallets: walletsToAnalyze.length,
-                  status: 'complete',
-                  message: 'No trades found for this wallet.',
-                  sessionId,
-                });
                 const emptyStat = this.processWalletTrades(
                   holderAddress,
                   [],
@@ -312,7 +304,6 @@ export class TokenHolderAnalysisService {
             ),
           );
         }
-        analysisSuccessful = true;
       }
 
       // Credits are already deducted in the controller, so no need to commit reserved credits
@@ -478,7 +469,7 @@ export class TokenHolderAnalysisService {
 
         calculatedBalanceUi += tokenAmountBought;
       } else if (isSell) {
-        let tokenAmountSold =
+        const tokenAmountSold =
           trade.from.ui_amount > 0 ? trade.from.ui_amount : 0;
         const usdReceivedFromSale = trade.volume_usd > 0 ? trade.volume_usd : 0;
         if (tokenAmountSold === 0) continue;
