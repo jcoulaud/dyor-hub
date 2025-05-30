@@ -99,7 +99,9 @@ const TweetComponent = memo(function TweetComponent({ tweet }: TweetComponentPro
               src={tweet.authorProfileImageUrl}
               alt={`${tweet.authorDisplayName} profile`}
               fill
+              sizes='40px'
               className='object-cover'
+              unoptimized
             />
           </div>
         )}
@@ -133,22 +135,23 @@ const TweetComponent = memo(function TweetComponent({ tweet }: TweetComponentPro
       {tweet.media && tweet.media.length > 0 && (
         <div className='mb-4'>
           <div
-            className={`grid gap-2 ${tweet.media.length === 1 ? 'grid-cols-1 place-items-center' : 'grid-cols-1 md:grid-cols-2'}`}>
+            className={`grid gap-2 ${tweet.media.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
             {tweet.media.slice(0, 4).map((media) => (
               <div
                 key={media.mediaKey}
-                className={`relative rounded-xl overflow-hidden border border-zinc-700/50 ${tweet.media && tweet.media.length === 1 ? 'max-w-lg' : 'w-full'}`}>
-                <div
-                  className={`relative ${tweet.media && tweet.media.length === 1 ? 'aspect-[4/3]' : 'aspect-video'}`}>
+                className={`rounded-xl overflow-hidden border border-zinc-700/50 ${tweet.media && tweet.media.length === 1 ? 'max-w-lg w-full' : 'w-full'}`}>
+                <div className='relative w-full h-0 pb-[75%]'>
                   {media.url ? (
                     <Image
                       src={media.url}
                       alt='Tweet media'
                       fill
-                      className='object-cover hover:scale-105 transition-transform duration-200'
+                      sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
+                      className='absolute inset-0 object-cover'
+                      unoptimized
                     />
                   ) : (
-                    <div className='w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-400'>
+                    <div className='absolute inset-0 bg-zinc-800 flex items-center justify-center text-zinc-400'>
                       No image available
                     </div>
                   )}
