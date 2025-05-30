@@ -180,9 +180,6 @@ export class TwitterHistoryService {
       });
 
       await this.twitterHistoryRepository.save(history);
-      this.logger.debug(
-        `Created empty history record for ${mintAddress} to prevent future attempts`,
-      );
     } catch (error) {
       this.logger.error(
         `Failed to create empty history record for ${mintAddress}`,

@@ -274,9 +274,6 @@ export class TokensService {
         const data: DexScreenerTokenPair[] = await response.json();
 
         if (!data || !Array.isArray(data) || data.length === 0) {
-          this.logger.warn(
-            `DexScreener response unsuccessful or missing data for ${mintAddress}`,
-          );
           return null;
         }
 
@@ -361,9 +358,6 @@ export class TokensService {
           }
 
           if (twitterHandle && token.twitterHandle !== twitterHandle) {
-            this.logger.log(
-              `Updating Twitter handle for ${token.mintAddress} from ${token.twitterHandle || 'none'} to ${twitterHandle}`,
-            );
             updates.twitterHandle = twitterHandle;
             updated = true;
           }
@@ -1166,10 +1160,6 @@ export class TokensService {
         } else {
           determinedIntervalType = '1d'; // Older tokens: 1-day intervals
         }
-      } else {
-        this.logger.warn(
-          `Could not retrieve creation time for ${tokenAddress} to determine dynamic interval. Defaulting to '1d'.`,
-        );
       }
     } catch (e) {
       this.logger.error(
