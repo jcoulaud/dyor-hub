@@ -1,12 +1,12 @@
 'use client';
 
-import LoadingSpinner from '@/components/ui/loading-spinner';
 import { tokens } from '@/lib/api';
 import { Token, TwitterFeedResponse, TwitterFeedTweet } from '@dyor-hub/types';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { Heart, MessageCircle, Repeat2, Twitter } from 'lucide-react';
 import Image from 'next/image';
 import { memo, useCallback, useEffect, useState } from 'react';
+import { TwitterFeedLoader } from './TwitterFeedLoader';
 
 interface TokenTwitterTabProps {
   tokenData: Token | null;
@@ -264,12 +264,7 @@ export const TokenTwitterTab = memo(function TokenTwitterTab({ tokenData }: Toke
   }
 
   if (isLoading) {
-    return (
-      <div className='flex flex-col items-center justify-center py-16'>
-        <LoadingSpinner size='lg' />
-        <p className='text-zinc-400 mt-4'>Loading Twitter feed...</p>
-      </div>
-    );
+    return <TwitterFeedLoader message='Loading Twitter feed...' />;
   }
 
   if (error && !twitterFeed) {
@@ -342,14 +337,7 @@ export const TokenTwitterTab = memo(function TokenTwitterTab({ tokenData }: Toke
             onClick={handleLoadMore}
             disabled={isLoadingMore}
             className='px-6 py-3 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 text-white rounded-xl transition-colors border border-zinc-700/50 flex items-center gap-2'>
-            {isLoadingMore ? (
-              <>
-                <LoadingSpinner size='sm' />
-                Loading more tweets...
-              </>
-            ) : (
-              'Load more tweets'
-            )}
+            {isLoadingMore ? <TwitterFeedLoader variant='more' /> : 'Load more tweets'}
           </button>
         </div>
       )}

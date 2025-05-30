@@ -96,7 +96,7 @@ export const TokenPageTabs = memo(function TokenPageTabs({
             </TabsTrigger>
             <TabsTrigger
               value='analysis'
-              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
+              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
               <BarChart3 className='w-4 h-4' />
               <span className='hidden sm:inline'>Analysis</span>
             </TabsTrigger>
