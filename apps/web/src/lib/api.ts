@@ -48,6 +48,7 @@ import {
   TopStreakUsers,
   TopTradersResponse,
   TrackedWalletHolderStats,
+  TwitterFeedResponse,
   TwitterUsernameHistoryEntity,
   UpdateCreditPackageDto,
   User,
@@ -1003,10 +1004,36 @@ export const tokens = {
       }
 
       const data = await api<TokenRiskData | null>(endpoint);
-      setCache(cacheKey, data, 60 * 1000); // Cache for 1 minute
+      setCache(cacheKey, data, 5 * 1000);
       return data;
     } catch (error) {
-      console.error(`Error fetching Solana Tracker risk data for ${mintAddress}:`, error);
+      console.error(`Error fetching risk data for ${mintAddress}:`, error);
+      throw error;
+    }
+  },
+
+  getTwitterFeed: async (
+    mintAddress: string,
+    cursor?: string,
+  ): Promise<TwitterFeedResponse | null> => {
+    try {
+      const sanitizedMintAddress = encodeURIComponent(mintAddress);
+      const params = new URLSearchParams();
+      if (cursor) params.append('cursor', cursor);
+
+      const endpoint = `tokens/${sanitizedMintAddress}/twitter-feed?${params.toString()}`;
+      const cacheKey = `api:${endpoint}`;
+
+      const cachedData = getCache<TwitterFeedResponse | null>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      const data = await api<TwitterFeedResponse | null>(endpoint);
+      setCache(cacheKey, data, 30 * 1000);
+      return data;
+    } catch (error) {
+      console.error(`Error fetching Twitter feed for ${mintAddress}:`, error);
       return null;
     }
   },

@@ -18,6 +18,7 @@ import { TokenSentimentController } from './token-sentiment.controller';
 import { TokenSentimentService } from './token-sentiment.service';
 import { TokensController } from './tokens.controller';
 import { TokensService } from './tokens.service';
+import { TwitterFeedService } from './twitter-feed.service';
 import { TwitterHistoryService } from './twitter-history.service';
 
 @Module({
@@ -42,7 +43,12 @@ import { TwitterHistoryService } from './twitter-history.service';
     forwardRef(() => CreditsModule),
   ],
   controllers: [TokensController, TokenSentimentController],
-  providers: [TokensService, TwitterHistoryService, TokenSentimentService],
+  providers: [
+    TokensService,
+    TwitterHistoryService,
+    TokenSentimentService,
+    TwitterFeedService,
+  ],
   exports: [TokensService, TokenSentimentService],
 })
 export class TokensModule {}

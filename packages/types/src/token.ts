@@ -259,7 +259,6 @@ export interface SolanaTrackerToken {
       tweetReplyAuthorId: string;
       tweetCreatorUsername: string;
     };
-    hasFileMetaData: boolean;
   };
   pools: Array<{
     liquidity: {
@@ -317,3 +316,44 @@ export interface SolanaTrackerToken {
 }
 
 export type SolanaTrackerTokensResponse = SolanaTrackerToken[];
+
+export interface TwitterFeedTweet {
+  id: string;
+  text: string;
+  authorId: string;
+  authorUsername: string;
+  authorDisplayName: string;
+  authorProfileImageUrl?: string;
+  createdAt: string;
+  publicMetrics: {
+    retweetCount: number;
+    likeCount: number;
+    replyCount: number;
+    quoteCount: number;
+  };
+  referencedTweets?: Array<{
+    type: 'retweeted' | 'quoted' | 'replied_to';
+    id: string;
+  }>;
+  attachments?: {
+    mediaKeys?: string[];
+  };
+  media?: Array<{
+    mediaKey: string;
+    type: 'photo' | 'video' | 'animated_gif';
+    url?: string;
+    previewImageUrl?: string;
+    width?: number;
+    height?: number;
+  }>;
+}
+
+export interface TwitterFeedResponse {
+  tweets: TwitterFeedTweet[];
+  meta: {
+    resultCount: number;
+    newestId?: string;
+    oldestId?: string;
+    nextToken?: string;
+  };
+}
