@@ -2,7 +2,6 @@
 
 import { SolscanButton } from '@/components/SolscanButton';
 import { TokenImage } from '@/components/tokens/TokenImage';
-import { TwitterHistoryTooltip } from '@/components/tokens/TwitterHistoryTooltip';
 import { WatchlistButton } from '@/components/tokens/WatchlistButton';
 import { WebsiteInfoTooltip } from '@/components/tokens/WebsiteInfoTooltip';
 import { Input } from '@/components/ui/input';
@@ -30,6 +29,7 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { memo, useCallback, useState } from 'react';
+import TwitterInfoTooltip from '../TwitterInfoTooltip';
 
 interface TokenPageHeaderProps {
   tokenData: Token | null;
@@ -227,9 +227,13 @@ export const TokenPageHeader = memo(function TokenPageHeader({
                             <WebsiteInfoTooltip websiteUrl={tokenData.websiteUrl} />
                           )}
                           {tokenData.twitterHandle && (
-                            <TwitterHistoryTooltip
+                            <TwitterInfoTooltip
                               twitterHandle={tokenData.twitterHandle}
-                              twitterHistory={tokenHistoryData}
+                              mintAddress={tokenData.mintAddress}
+                              hasUsernameHistory={
+                                !!(tokenHistoryData?.history && tokenHistoryData.history.length > 0)
+                              }
+                              tokenHistoryData={tokenHistoryData}
                             />
                           )}
                           {tokenData.telegramUrl && (
@@ -604,9 +608,13 @@ export const TokenPageHeader = memo(function TokenPageHeader({
                       <WebsiteInfoTooltip websiteUrl={tokenData.websiteUrl} />
                     )}
                     {tokenData.twitterHandle && (
-                      <TwitterHistoryTooltip
+                      <TwitterInfoTooltip
                         twitterHandle={tokenData.twitterHandle}
-                        twitterHistory={tokenHistoryData}
+                        mintAddress={tokenData.mintAddress}
+                        hasUsernameHistory={
+                          !!(tokenHistoryData?.history && tokenHistoryData.history.length > 0)
+                        }
+                        tokenHistoryData={tokenHistoryData}
                       />
                     )}
                     {tokenData.telegramUrl && (

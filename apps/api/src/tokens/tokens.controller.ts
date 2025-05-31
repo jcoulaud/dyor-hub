@@ -4,7 +4,10 @@ import {
   ProcessedBundleData,
   SolanaTrackerHoldersChartResponse,
   TokenStats,
+  TwitterCommunityInfo,
   TwitterFeedResponse,
+  TwitterTweetInfo,
+  TwitterUserInfo,
   TwitterUsernameHistoryEntity,
 } from '@dyor-hub/types';
 import {
@@ -32,6 +35,7 @@ import { UserEntity } from '../entities/user.entity';
 import { TokensService } from './tokens.service';
 import { TwitterFeedService } from './twitter-feed.service';
 import { TwitterHistoryService } from './twitter-history.service';
+import { TwitterInfoService } from './twitter-info.service';
 
 @Controller('tokens')
 export class TokensController {
@@ -39,6 +43,7 @@ export class TokensController {
     private readonly tokensService: TokensService,
     private readonly twitterHistoryService: TwitterHistoryService,
     private readonly twitterFeedService: TwitterFeedService,
+    private readonly twitterInfoService: TwitterInfoService,
   ) {}
 
   @Public()
@@ -221,5 +226,32 @@ export class TokensController {
     }
 
     return feedData;
+  }
+
+  @Public()
+  @Get(':mintAddress/twitter-info')
+  async getTwitterInfo(
+    @Param('mintAddress', SolanaAddressPipe) mintAddress: string,
+  ): Promise<TwitterUserInfo | TwitterCommunityInfo | TwitterTweetInfo | null> {
+    // Get token data to check if it has a Twitter handle
+    const token = await this.tokensService.getTokenData(mintAddress);
+
+    if (!token?.twitterHandle) {
+      throw new NotFoundException(
+        `No Twitter handle found for token ${mintAddress}`,
+      );
+    }
+
+    const twitterInfo = await this.twitterInfoService.getTwitterInfo(
+      token.twitterHandle,
+    );
+
+    if (!twitterInfo) {
+      throw new NotFoundException(
+        `Twitter information not found for ${token.twitterHandle}`,
+      );
+    }
+
+    return twitterInfo;
   }
 }

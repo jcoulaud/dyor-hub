@@ -66,19 +66,6 @@ export interface TokenStats {
   lastUpdated: Date;
 }
 
-export interface TwitterUsernameHistory {
-  last_checked: string;
-  username: string;
-}
-
-export interface TwitterUsernameHistoryEntity {
-  id: string;
-  tokenMintAddress: string;
-  twitterUsername: string;
-  history: TwitterUsernameHistory[] | null;
-  createdAt: Date;
-}
-
 export interface TokenMinimum {
   mintAddress: string;
   name: string;
@@ -316,44 +303,3 @@ export interface SolanaTrackerToken {
 }
 
 export type SolanaTrackerTokensResponse = SolanaTrackerToken[];
-
-export interface TwitterFeedTweet {
-  id: string;
-  text: string;
-  authorId: string;
-  authorUsername: string;
-  authorDisplayName: string;
-  authorProfileImageUrl?: string;
-  createdAt: string;
-  publicMetrics: {
-    retweetCount: number;
-    likeCount: number;
-    replyCount: number;
-    quoteCount: number;
-  };
-  referencedTweets?: Array<{
-    type: 'retweeted' | 'quoted' | 'replied_to';
-    id: string;
-  }>;
-  attachments?: {
-    mediaKeys?: string[];
-  };
-  media?: Array<{
-    mediaKey: string;
-    type: 'photo' | 'video' | 'animated_gif';
-    url?: string;
-    previewImageUrl?: string;
-    width?: number;
-    height?: number;
-  }>;
-}
-
-export interface TwitterFeedResponse {
-  tweets: TwitterFeedTweet[];
-  meta: {
-    resultCount: number;
-    newestId?: string;
-    oldestId?: string;
-    nextToken?: string;
-  };
-}
