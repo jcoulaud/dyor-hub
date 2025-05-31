@@ -12,6 +12,7 @@ export * from './tip';
 export * from './token';
 export * from './token-analysis';
 export * from './token-call';
+export * from './twitter';
 export * from './uploads';
 export * from './user';
 export * from './user-preferences';
