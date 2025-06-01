@@ -148,6 +148,7 @@ export const TokenPageTabs = memo(function TokenPageTabs({
           <TabsContent value='calls' className='mt-0 focus-visible:outline-none'>
             <TokenCallsTab
               tokenData={tokenData}
+              tokenStatsData={tokenStatsData}
               userCalls={userCalls}
               isLoadingUserCalls={isLoadingUserCalls}
               currentPrice={currentPrice}

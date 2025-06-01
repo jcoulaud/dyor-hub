@@ -6,13 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Token, TokenCall, TokenCallStatus } from '@dyor-hub/types';
+import { Token, TokenCall, TokenCallStatus, TokenStats } from '@dyor-hub/types';
 import { BarChart3, ExternalLink, Target } from 'lucide-react';
 import Link from 'next/link';
 import { memo, useState } from 'react';
 
 interface TokenCallsTabProps {
   tokenData: Token | null;
+  tokenStatsData: TokenStats | null;
   userCalls: TokenCall[];
   isLoadingUserCalls: boolean;
   currentPrice: number;
@@ -22,6 +23,7 @@ interface TokenCallsTabProps {
 
 export const TokenCallsTab = memo(function TokenCallsTab({
   tokenData,
+  tokenStatsData,
   userCalls,
   isLoadingUserCalls,
   currentPrice,
@@ -97,6 +99,7 @@ export const TokenCallsTab = memo(function TokenCallsTab({
                   isLoadingUserCalls={isLoadingUserCalls}
                   onCallCreated={onCallCreated}
                   onPredictionIndexChange={setCurrentPredictionIndex}
+                  tokenStatsData={tokenStatsData}
                 />
               )}
             </div>

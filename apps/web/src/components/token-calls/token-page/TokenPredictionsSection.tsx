@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { Comment, TokenCall } from '@dyor-hub/types';
+import { Comment, TokenCall, TokenStats } from '@dyor-hub/types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DisplayUserCall } from './DisplayUserCall';
@@ -21,6 +21,7 @@ interface TokenPredictionsSectionProps {
   onAddComment?: (comment: Comment) => void;
   circulatingSupply?: string;
   onPredictionIndexChange?: (index: number) => void;
+  tokenStatsData?: TokenStats | null;
 }
 
 export function TokenPredictionsSection({
@@ -34,6 +35,7 @@ export function TokenPredictionsSection({
   onAddComment,
   circulatingSupply,
   onPredictionIndexChange,
+  tokenStatsData,
 }: TokenPredictionsSectionProps) {
   const [currentPredictionIndex, setCurrentPredictionIndex] = useState(0);
   const [isTransitioningPrediction, setIsTransitioningPrediction] = useState(false);
@@ -169,7 +171,8 @@ export function TokenPredictionsSection({
           currentTokenPrice={currentTokenPrice}
           onCallCreated={handleCallCreated}
           onAddComment={onAddComment}
-          circulatingSupply={circulatingSupply}
+          circulatingSupply={tokenStatsData?.circulatingSupply || circulatingSupply}
+          currentMarketCap={tokenStatsData?.marketCap ?? undefined}
         />
       );
     }
@@ -195,9 +198,11 @@ export function TokenPredictionsSection({
     isPriceValid,
     tokenId,
     tokenSymbol,
-    onCallCreated,
+    handleCallCreated,
     onAddComment,
     circulatingSupply,
+    tokenStatsData?.circulatingSupply,
+    tokenStatsData?.marketCap,
     handlePredictionNavigate,
   ]);
 
@@ -213,7 +218,8 @@ export function TokenPredictionsSection({
               currentTokenPrice={currentTokenPrice}
               onCallCreated={handleCallCreated}
               onAddComment={onAddComment}
-              circulatingSupply={circulatingSupply}
+              circulatingSupply={tokenStatsData?.circulatingSupply || circulatingSupply}
+              currentMarketCap={tokenStatsData?.marketCap ?? undefined}
               isMakingAnotherCall={true}
             />
           </div>

@@ -18,9 +18,10 @@ export interface MakeCallModalProps {
   tokenId: string;
   tokenSymbol: string;
   currentTokenPrice: number;
-  onCallCreated: () => void;
+  onCallCreated?: () => void;
   onAddComment?: (comment: Comment) => void;
   circulatingSupply?: string;
+  currentMarketCap?: number;
   isMakingAnotherCall?: boolean;
 }
 
@@ -31,6 +32,7 @@ export function MakeCallModal({
   onCallCreated,
   onAddComment,
   circulatingSupply,
+  currentMarketCap,
   isMakingAnotherCall,
 }: MakeCallModalProps) {
   const [open, setOpen] = useState(false);
@@ -56,9 +58,18 @@ export function MakeCallModal({
         onAddComment={onAddComment}
         onClose={() => setOpen(false)}
         circulatingSupply={circulatingSupply}
+        currentMarketCap={currentMarketCap}
       />
     );
-  }, [tokenId, tokenSymbol, currentTokenPrice, onCallCreated, onAddComment, circulatingSupply]);
+  }, [
+    tokenId,
+    tokenSymbol,
+    currentTokenPrice,
+    onCallCreated,
+    onAddComment,
+    circulatingSupply,
+    currentMarketCap,
+  ]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

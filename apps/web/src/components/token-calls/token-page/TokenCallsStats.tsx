@@ -2,7 +2,7 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { TokenCall, TokenCallStatus } from '@dyor-hub/types';
-import { Activity, CheckCircle2, Clock, TrendingUp, Zap } from 'lucide-react';
+import { Activity, CheckCircle2, Clock, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
 
 interface TokenCallsStatsProps {
@@ -140,42 +140,6 @@ export function TokenCallsStats({ tokenCalls, isLoading }: TokenCallsStatsProps)
           );
         })}
       </div>
-
-      {/* Performance Indicator */}
-      {stats.total > 0 && (
-        <div className='relative group'>
-          <div className='absolute -inset-0.5 bg-gradient-to-r from-zinc-600/20 to-zinc-500/20 rounded-xl blur opacity-30 group-hover:opacity-50 transition-all duration-300'></div>
-          <div className='relative bg-zinc-900/40 backdrop-blur-sm border border-zinc-700/50 rounded-xl p-4'>
-            <div className='flex items-center justify-between mb-3'>
-              <div className='flex items-center'>
-                <Zap className='h-4 w-4 text-zinc-400 mr-2' />
-                <span className='text-xs font-medium text-zinc-400'>Community Activity</span>
-              </div>
-              <div className='flex items-center gap-1'>
-                <div className='w-2 h-2 bg-green-500 rounded-full animate-pulse'></div>
-                <span className='text-xs text-green-400'>Active</span>
-              </div>
-            </div>
-
-            <div className='grid grid-cols-3 gap-4'>
-              <div className='text-center'>
-                <div className='text-sm font-semibold text-white'>{stats.total}</div>
-                <div className='text-xs text-zinc-400'>Total Predictions</div>
-              </div>
-              <div className='text-center'>
-                <div className='text-sm font-semibold text-amber-400'>{stats.ongoing}</div>
-                <div className='text-xs text-zinc-400'>Active Now</div>
-              </div>
-              <div className='text-center'>
-                <div className='text-sm font-semibold text-emerald-400'>
-                  {stats.successRate !== null ? `${stats.successRate}%` : '-'}
-                </div>
-                <div className='text-xs text-zinc-400'>Accuracy</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
