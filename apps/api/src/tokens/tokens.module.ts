@@ -20,6 +20,7 @@ import { TokensController } from './tokens.controller';
 import { TokensService } from './tokens.service';
 import { TwitterFeedService } from './twitter-feed.service';
 import { TwitterHistoryService } from './twitter-history.service';
+import { TwitterInfoService } from './twitter-info.service';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { TwitterHistoryService } from './twitter-history.service';
     TwitterHistoryService,
     TokenSentimentService,
     TwitterFeedService,
+    TwitterInfoService,
   ],
   exports: [TokensService, TokenSentimentService],
 })

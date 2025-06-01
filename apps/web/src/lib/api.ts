@@ -692,6 +692,26 @@ export const tokens = {
     }
   },
 
+  getTwitterInfo: async (mintAddress: string): Promise<Record<string, unknown> | null> => {
+    try {
+      const sanitizedMintAddress = encodeURIComponent(mintAddress);
+      const endpoint = `tokens/${sanitizedMintAddress}/twitter-info`;
+      const cacheKey = `api:${endpoint}`;
+
+      const cachedData = getCache<Record<string, unknown> | null>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      const data = await api<Record<string, unknown> | null>(endpoint);
+      setCache(cacheKey, data, 5 * 60 * 1000); // Cache for 5 minutes
+      return data;
+    } catch (error) {
+      console.error(`Error fetching token twitter info for ${mintAddress}:`, error);
+      return null;
+    }
+  },
+
   getHolderHistory: async (
     mintAddress: string,
   ): Promise<SolanaTrackerHoldersChartResponse | null> => {
