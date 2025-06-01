@@ -324,6 +324,16 @@ const FAQPage = () => {
               </a>
             </li>
             <li>
+              <strong>Telegram Group:</strong>{' '}
+              <a
+                href='https://t.me/dyorhub_official'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-indigo-400 hover:text-indigo-300 underline'>
+                https://t.me/dyorhub_official
+              </a>
+            </li>
+            <li>
               <strong>GitHub Repository:</strong>{' '}
               <a
                 href='https://github.com/jcoulaud/dyor-hub'

@@ -1,6 +1,6 @@
 import { CopyButton } from '@/components/CopyButton';
-import { CONTRACT_ADDRESS, DISCORD_URL } from '@/lib/constants';
-import { Github, Globe, Home, LineChart, MessageSquare, Twitter } from 'lucide-react';
+import { CONTRACT_ADDRESS, DISCORD_URL, TELEGRAM_URL } from '@/lib/constants';
+import { Github, Globe, Home, LineChart, MessageSquare, Send, Twitter } from 'lucide-react';
 import { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -41,6 +41,12 @@ export default function LinksPage() {
       url: DISCORD_URL,
       icon: <MessageSquare className='h-4 w-4' />,
       description: 'HQ for DYOR',
+    },
+    {
+      title: 'Telegram',
+      url: TELEGRAM_URL,
+      icon: <Send className='h-4 w-4' />,
+      description: 'Official Telegram community',
     },
     {
       title: 'DexScreener',

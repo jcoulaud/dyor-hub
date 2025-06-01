@@ -3,6 +3,7 @@ export const DYORHUB_MARKETING_ADDRESS = 'B5BwurzzkE1c6S4mrbcuenBTA3F7WwCWQP59dt
 export const DYORHUB_SYMBOL = '$DYORHUB';
 export const DYORHUB_DECIMALS = 6;
 export const DISCORD_URL = 'https://discord.gg/MDw6vG8E3y';
+export const TELEGRAM_URL = 'https://t.me/dyorhub_official';
 export const MIN_TOKEN_HOLDING_FOR_FEED = 100000;
 export const MIN_TOKEN_HOLDING_FOR_FOLDERS = 100000;
 export const MIN_TOKEN_HOLDING_FOR_EARLY_BUYERS = 500000;
