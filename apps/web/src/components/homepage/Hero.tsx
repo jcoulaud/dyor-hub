@@ -35,8 +35,13 @@ export const Hero = memo(() => {
             </div>
 
             <h1 className='text-2xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-white'>
-              Your trusted source for Solana memecoin community insights
+              The Complete Toolkit for
+              <span className='block text-emerald-400'>Smarter Trading Decisions</span>
             </h1>
+            <p className='text-zinc-400 text-base md:text-lg max-w-2xl mx-auto mt-4'>
+              One platform with everything you need to make informed decisions in the Solana
+              ecosystem.
+            </p>
           </div>
         </div>
       </div>
