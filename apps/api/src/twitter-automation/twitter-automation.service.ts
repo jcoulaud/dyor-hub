@@ -9,7 +9,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Cron, CronExpression } from '@nestjs/schedule';
+// import { Cron, CronExpression } from '@nestjs/schedule'; // Removed: daily AI analysis disabled
 import { InjectRepository } from '@nestjs/typeorm';
 import { AxiosError } from 'axios';
 import { formatDistanceToNowStrict } from 'date-fns';
@@ -207,10 +207,11 @@ export class TwitterAutomationService {
     return [];
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_6PM, {
-    timeZone: 'UTC',
-    disabled: !enableTwitterPostCron,
-  })
+  // @Cron(CronExpression.EVERY_DAY_AT_6PM, {
+  //   timeZone: 'UTC',
+  //   disabled: !enableTwitterPostCron,
+  // })
+  // TODO: Re-enable automatic daily AI analysis when needed
   async handleDailyTwitterPost(
     postToTwitter: boolean = true,
   ): Promise<OrchestrationResult | void | null> {
