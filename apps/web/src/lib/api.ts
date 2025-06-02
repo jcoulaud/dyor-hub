@@ -262,7 +262,7 @@ const publicApi = async <T>(endpoint: string, options: ApiOptions = {}): Promise
   try {
     const config: RequestInit = {
       ...options,
-      credentials: 'omit',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(typeof window !== 'undefined' && { Origin: window.location.origin }),
