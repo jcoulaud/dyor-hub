@@ -228,6 +228,7 @@ export const TokenPageHeader = memo(function TokenPageHeader({
                           )}
                           {tokenData.twitterHandle && (
                             <TwitterInfoTooltip
+                              mode='token'
                               twitterHandle={tokenData.twitterHandle}
                               mintAddress={tokenData.mintAddress}
                               hasUsernameHistory={
@@ -609,6 +610,7 @@ export const TokenPageHeader = memo(function TokenPageHeader({
                     )}
                     {tokenData.twitterHandle && (
                       <TwitterInfoTooltip
+                        mode='token'
                         twitterHandle={tokenData.twitterHandle}
                         mintAddress={tokenData.mintAddress}
                         hasUsernameHistory={

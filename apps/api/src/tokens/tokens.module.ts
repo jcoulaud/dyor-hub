@@ -51,6 +51,6 @@ import { TwitterInfoService } from './twitter-info.service';
     TwitterFeedService,
     TwitterInfoService,
   ],
-  exports: [TokensService, TokenSentimentService],
+  exports: [TokensService, TokenSentimentService, TwitterInfoService],
 })
 export class TokensModule {}

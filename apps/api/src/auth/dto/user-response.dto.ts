@@ -14,6 +14,7 @@ export class UserResponseDto {
   followersCount?: number;
   followingCount?: number;
   createdTokens?: { mintAddress: string; symbol: string }[];
+  twitterId?: string;
 
   constructor(partial: Partial<UserResponseDto>) {
     Object.assign(this, partial);
@@ -62,6 +63,7 @@ export class UserResponseDto {
           mintAddress: token.mintAddress,
           symbol: token.symbol,
         })) || [],
+      twitterId: user.twitterId,
     });
 
     // Only include createdAt for admin endpoints

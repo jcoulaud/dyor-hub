@@ -78,6 +78,7 @@ export class UsersService {
           'user.createdAt',
           'user.updatedAt',
           'user.referralCode',
+          'user.twitterId',
           'wallets.address',
           'wallets.isPrimary',
           'wallets.isVerified',

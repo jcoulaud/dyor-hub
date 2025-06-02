@@ -31,6 +31,7 @@ import { UserEntity } from '../entities/user.entity';
 import { UpdateFollowPreferencesDto } from '../follows/dto/update-follow-preferences.dto';
 import { FollowsService } from '../follows/follows.service';
 import { TokenCallsService } from '../token-calls/token-calls.service';
+import { TwitterInfoService } from '../tokens/twitter-info.service';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserTokenCallStatsDto } from './dto/user-token-call-stats.dto';
@@ -43,10 +44,10 @@ export class UsersController {
 
   constructor(
     private readonly usersService: UsersService,
+    private readonly followsService: FollowsService,
     @Inject(forwardRef(() => TokenCallsService))
     private readonly tokenCallsService: TokenCallsService,
-    @Inject(forwardRef(() => FollowsService))
-    private readonly followsService: FollowsService,
+    private readonly twitterInfoService: TwitterInfoService,
   ) {}
 
   @Public()
@@ -312,5 +313,33 @@ export class UsersController {
         'Failed to retrieve user statistics.',
       );
     }
+  }
+
+  @Public()
+  @Get(':username/twitter-info')
+  async getUserTwitterInfo(@Param('username') username: string): Promise<any> {
+    const user = await this.usersService.findByUsername(username);
+
+    if (!user) {
+      throw new NotFoundException(`User with username ${username} not found`);
+    }
+
+    if (!user.twitterId) {
+      throw new NotFoundException(
+        `No Twitter account linked for user ${username}`,
+      );
+    }
+
+    const twitterInfo = await this.twitterInfoService.getTwitterInfo(
+      user.username,
+    );
+
+    if (!twitterInfo) {
+      throw new NotFoundException(
+        `Twitter information not found for ${user.username}`,
+      );
+    }
+
+    return twitterInfo;
   }
 }
