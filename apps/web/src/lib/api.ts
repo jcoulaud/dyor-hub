@@ -1314,6 +1314,26 @@ export const users = {
     }
   },
 
+  getTwitterInfo: async (username: string): Promise<Record<string, unknown> | null> => {
+    try {
+      const sanitizedUsername = encodeURIComponent(username);
+      const endpoint = `users/${sanitizedUsername}/twitter-info`;
+      const cacheKey = `api:${endpoint}`;
+
+      const cachedData = getCache<Record<string, unknown> | null>(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
+      const data = await api<Record<string, unknown> | null>(endpoint);
+      setCache(cacheKey, data, 5 * 60 * 1000); // Cache for 5 minutes
+      return data;
+    } catch (error) {
+      console.error(`Error fetching user twitter info for ${username}:`, error);
+      return null;
+    }
+  },
+
   admin: {
     getLastRegisteredUsers: async (limit: number): Promise<User[]> => {
       try {

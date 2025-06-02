@@ -4,12 +4,13 @@ import { ProfileStats } from '@/components/profile/ProfileStats';
 import { ShareButton } from '@/components/share/ShareButton';
 import { TwitterShareButton } from '@/components/share/TwitterShareButton';
 import { TipButton } from '@/components/tipping/TipButton';
+import TwitterInfoTooltip from '@/components/tokens/TwitterInfoTooltip';
 import { FollowButton } from '@/components/user/FollowButton';
 import { WalletBadge } from '@/components/wallet/WalletBadge';
 import { getHighResAvatar } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
-import type { User, UserStats } from '@dyor-hub/types';
-import { MessageSquare, Reply, Shield, ThumbsDown, ThumbsUp, Twitter } from 'lucide-react';
+import type { UserProfile, UserStats } from '@dyor-hub/types';
+import { MessageSquare, Reply, Shield, ThumbsDown, ThumbsUp } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -68,7 +69,7 @@ function formatBioWithLinks(bio: string) {
 }
 
 interface UserProfileHeaderClientProps {
-  profileUser: User & {
+  profileUser: UserProfile & {
     followersCount?: number;
     followingCount?: number;
     primaryWalletAddress?: string;
@@ -81,7 +82,7 @@ interface UserProfileHeaderClientProps {
 export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileHeaderClientProps) {
   const { user: loggedInUser, isAuthenticated } = useAuthContext();
   const avatarUrl = getHighResAvatar(profileUser.avatarUrl) || null;
-
+  console.log('profileUser', profileUser);
   const shouldRenderTipButton =
     isAuthenticated && loggedInUser && profileUser && loggedInUser.id !== profileUser.id;
 
@@ -200,14 +201,13 @@ export function UserProfileHeaderClient({ profileUser, userStats }: UserProfileH
                     className='flex items-center justify-center h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-amber-500/30 transition-all duration-200'
                   />
                 )}
-                <Link
-                  href={`https://twitter.com/${profileUser.username}`}
-                  target='_blank'
-                  rel='noopener noreferrer'
-                  className='flex items-center justify-center w-8 h-8 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-700/50 hover:border-blue-500/30 transition-all duration-200'
-                  title='Twitter'>
-                  <Twitter className='h-4 w-4 text-blue-400' />
-                </Link>
+                {profileUser.twitterId && (
+                  <TwitterInfoTooltip
+                    mode='user'
+                    username={profileUser.username}
+                    twitterHandle={profileUser.username}
+                  />
+                )}
               </div>
             </div>
             <ProfileStats userId={profileUser.id} />

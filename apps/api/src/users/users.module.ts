@@ -10,6 +10,7 @@ import { UserStreakEntity } from '../entities/user-streak.entity';
 import { UserEntity } from '../entities/user.entity';
 import { FollowsModule } from '../follows/follows.module';
 import { TokenCallsModule } from '../token-calls/token-calls.module';
+import { TokensModule } from '../tokens/tokens.module';
 import { WalletsModule } from '../wallets/wallets.module';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
@@ -28,6 +29,7 @@ import { UsersService } from './users.service';
     forwardRef(() => AuthModule),
     forwardRef(() => TokenCallsModule),
     forwardRef(() => FollowsModule),
+    forwardRef(() => TokensModule),
     WalletsModule,
   ],
   controllers: [UsersController],
