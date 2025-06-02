@@ -13,7 +13,7 @@ interface Link {
 
 export const metadata: Metadata = {
   title: 'Links | DYOR hub',
-  description: 'Official links for DYOR hub',
+  description: 'The Complete Toolkit for Smarter Trading Decisions - Official Links',
 };
 
 export default function LinksPage() {
@@ -68,7 +68,7 @@ export default function LinksPage() {
         <div className='mb-8 text-center space-y-2'>
           <h1 className='text-2xl font-medium text-zinc-200'>DYOR hub</h1>
           <p className='text-zinc-400'>
-            Your trusted platform for Solana memecoin insights, discussions, and real-time updates.
+            The Complete Toolkit for Smarter Trading Decisions in the Solana ecosystem.
           </p>
         </div>
 

@@ -17,11 +17,11 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
+  title: 'DYOR hub | The Complete Toolkit for Smarter Trading Decisions',
   description:
-    'Your trusted platform for Solana memecoin insights, discussions, and real-time updates. Connect with verified users, share research, make predictions, and trade smarter.',
+    'The Complete Toolkit for Smarter Trading Decisions. One platform with everything you need to make informed decisions in the Solana ecosystem.',
   keywords:
-    'Solana, memecoin, cryptocurrency, token research, predcrypto community, DYOR, blockchain, token discussions',
+    'Solana, memecoin, cryptocurrency, trading toolkit, token research, crypto community, DYOR, blockchain, smart trading, token analysis',
   metadataBase: new URL(process.env.NEXT_PUBLIC_URL || 'https://dyorhub.xyz'),
   icons: {
     icon: [
@@ -32,25 +32,25 @@ export const metadata: Metadata = {
     apple: [{ url: '/apple-icon.png', type: 'image/png' }],
   },
   openGraph: {
-    title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
+    title: 'DYOR hub | The Complete Toolkit for Smarter Trading Decisions',
     description:
-      'Your trusted platform for Solana memecoin insights, discussions, and real-time updates. Connect with verified users, share research, make predictions, and trade smarter.',
+      'The Complete Toolkit for Smarter Trading Decisions. One platform with everything you need to make informed decisions in the Solana ecosystem.',
     type: 'website',
     images: [
       {
         url: `${process.env.NEXT_PUBLIC_URL || 'https://dyorhub.xyz'}/opengraph-image.png`,
         width: 1200,
         height: 630,
-        alt: 'DYOR hub - Solana Memecoin Research Platform',
+        alt: 'DYOR hub - The Complete Toolkit for Smarter Trading Decisions',
       },
     ],
     siteName: 'DYOR hub',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'DYOR hub | Trusted Solana Memecoin Research & Community Platform',
+    title: 'DYOR hub | The Complete Toolkit for Smarter Trading Decisions',
     description:
-      'Your trusted platform for Solana memecoin insights, discussions, and real-time updates. Connect with verified users, share research, make predictions, and trade smarter.',
+      'The Complete Toolkit for Smarter Trading Decisions. One platform with everything you need to make informed decisions in the Solana ecosystem.',
     creator: '@JulienCoulaud',
   },
 };
