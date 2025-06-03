@@ -74,6 +74,7 @@ import {
 interface UpdateProfilePayload {
   displayName?: string;
   bio?: string;
+  avatarUrl?: string;
 }
 
 interface PublicWalletInfo {
@@ -2492,6 +2493,14 @@ export const uploads = {
     return api<PresignedUrlResponse>(endpoint, {
       method: 'POST',
       body: data,
+    });
+  },
+
+  confirmUpload: async (tempObjectKey: string): Promise<{ finalUrl: string }> => {
+    const endpoint = 'uploads/confirm-upload';
+    return api<{ finalUrl: string }>(endpoint, {
+      method: 'POST',
+      body: { tempObjectKey },
     });
   },
 };

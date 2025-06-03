@@ -100,4 +100,29 @@ export class UploadsController {
       throw new BadRequestException('Could not generate upload URL.');
     }
   }
+
+  @Post('confirm-upload')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async confirmUpload(
+    @Body() body: { tempObjectKey: string },
+  ): Promise<{ finalUrl: string }> {
+    try {
+      const finalUrl = await this.uploadsService.confirmUpload(
+        body.tempObjectKey,
+      );
+      return { finalUrl };
+    } catch (error) {
+      console.error(`Error confirming upload:`, error);
+
+      if (
+        error.name === 'ForbiddenException' ||
+        error.constructor.name === 'ForbiddenException'
+      ) {
+        throw error;
+      }
+
+      throw new BadRequestException('Could not confirm upload.');
+    }
+  }
 }
