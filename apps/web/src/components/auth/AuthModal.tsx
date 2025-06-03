@@ -19,8 +19,11 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import {
   ArrowLeft,
   Camera,
+  CheckCircle2,
   Info,
   Loader2,
+  Shield,
+  Sparkles,
   Twitter,
   User,
   Wallet as WalletIcon,
@@ -72,11 +75,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       setStep('choose');
       setError(null);
       setWalletStatus(null);
-      setShouldAutoCheck(false); // Don't auto-check when modal opens
+      setShouldAutoCheck(false);
     }
   }, [isOpen]);
 
-  // Reset to choose step when wallet disconnects
   useEffect(() => {
     if (
       !connected &&
@@ -131,7 +133,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     try {
       const walletAddress = publicKey.toBase58();
-
       const result = await walletAuth.checkWallet(walletAddress);
 
       setWalletStatus(result.status);
@@ -157,7 +158,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setError(null);
 
     try {
-      // Create signature message
       const message = `Sign this message to authenticate with DYOR Hub.\n\nWallet: ${publicKey.toBase58()}`;
       const messageBytes = new TextEncoder().encode(message);
       const signature = await signMessage(messageBytes);
@@ -167,13 +167,12 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         signature: Buffer.from(signature).toString('base64'),
       });
 
-      // Refresh auth state
       await checkAuth(true);
       setStep('wallet-success');
 
       setTimeout(() => {
         onClose();
-      }, 1500);
+      }, 2000);
     } catch {
       setError('Failed to sign in with wallet. Please try again.');
     } finally {
@@ -193,7 +192,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setError(null);
 
     try {
-      // Create signature message
       const message = `Sign this message to authenticate with DYOR Hub.\n\nWallet: ${publicKey.toBase58()}`;
       const messageBytes = new TextEncoder().encode(message);
       const signature = await signMessage(messageBytes);
@@ -215,27 +213,21 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.username}`,
       };
 
-      // Only include referralCode if there's actually a value
       if (displayedReferralCode && displayedReferralCode.trim()) {
         signupData.referralCode = displayedReferralCode.trim();
       }
 
       await walletAuth.signup(signupData);
-
-      // Refresh auth state
       await checkAuth(true);
       setStep('wallet-success');
 
       setTimeout(() => {
         onClose();
-      }, 1500);
+      }, 2000);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Username is already taken')) {
-        setError('Username is already taken. Please choose a different one.');
-      } else {
-        setError('Failed to create account. Please try again.');
-      }
+      // Display the actual API error message instead of generic message
+      setError(errorMessage || 'Failed to create account. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -245,9 +237,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Client-side validation
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+    const maxSizeBytes = 5 * 1024 * 1024;
 
     if (!allowedTypes.includes(file.type)) {
       setError(`Invalid file type. Allowed: ${allowedTypes.join(', ')}`);
@@ -263,21 +254,18 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setError(null);
 
     try {
-      // 1. Create preview
       const reader = new FileReader();
       reader.onload = (e) => {
         setAvatarPreview(e.target?.result as string);
       };
       reader.readAsDataURL(file);
 
-      // 2. Get presigned URL from backend
       const presignedResponse = await uploads.getSignupPresignedImageUrl({
         filename: file.name,
         contentType: file.type,
         contentLength: file.size,
       });
 
-      // 3. Upload to S3
       const uploadResponse = await fetch(presignedResponse.presignedUrl, {
         method: 'PUT',
         body: file,
@@ -290,7 +278,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
       }
 
-      // 4. Store the S3 URL for later use in signup
       const avatarUrl = `https://${process.env.NEXT_PUBLIC_S3_UPLOAD_BUCKET}.s3.${process.env.NEXT_PUBLIC_AWS_REGION}.amazonaws.com/${presignedResponse.objectKey}`;
       setProfileData((prev) => ({ ...prev, avatarUrl }));
 
@@ -311,35 +298,26 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   };
 
   const goBack = async () => {
-    console.log('goBack clicked, current step:', step, 'connected:', connected);
     setError(null);
-    setShouldAutoCheck(false); // Prevent auto-check when going back
+    setShouldAutoCheck(false);
 
     if (step === 'wallet-profile' || step === 'wallet-verify') {
-      // Disconnect wallet when going back from profile/verify step
       if (connected && disconnect) {
         try {
-          console.log('Disconnecting wallet...');
           await disconnect();
-          console.log('Wallet disconnected successfully');
-
-          // Wait a bit to ensure the disconnect is fully processed
           await new Promise((resolve) => setTimeout(resolve, 100));
         } catch (error) {
           console.error('Failed to disconnect wallet:', error);
         }
       }
-      // Go back to wallet connect step
       setStep('wallet-connect');
       setWalletStatus(null);
     } else if (step === 'wallet-connect') {
-      // Go back to choose step
       setStep('choose');
       setWalletStatus(null);
     }
   };
 
-  // Auto-check wallet status when connected (but only in wallet-connect step)
   useEffect(() => {
     if (shouldAutoCheck && connected && publicKey && step === 'wallet-connect') {
       checkWalletStatus();
@@ -350,61 +328,77 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     switch (step) {
       case 'choose':
         return (
-          <div className='space-y-6'>
+          <div className='space-y-8'>
+            {/* Header */}
+            <div className='text-center space-y-3'>
+              <div className='relative mx-auto w-16 h-16 mb-4'>
+                <div className='absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 rounded-2xl opacity-20 animate-pulse'></div>
+                <div className='relative bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 rounded-2xl p-4 flex items-center justify-center'>
+                  <Sparkles className='h-8 w-8 text-white' />
+                </div>
+              </div>
+
+              <div className='space-y-2'>
+                <h1 className='text-3xl font-bold tracking-tight text-white'>
+                  Welcome to DYOR Hub
+                </h1>
+                <p className='text-gray-300 text-lg font-medium'>
+                  Your gateway to smarter trading decisions
+                </p>
+              </div>
+            </div>
+
+            {/* Referral Code Badge */}
             {displayedReferralCode && (
-              <div className='text-center mb-4'>
-                <div className='inline-flex items-center px-4 py-2 rounded-full bg-blue-50 border border-blue-200'>
-                  <span className='text-sm text-blue-700 font-medium'>
-                    🎁 Referral code: {displayedReferralCode}
+              <div className='flex justify-center'>
+                <div className='inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/30'>
+                  <div className='w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse'></div>
+                  <span className='text-sm font-semibold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent'>
+                    Referral: {displayedReferralCode}
                   </span>
                 </div>
               </div>
             )}
 
-            <div className='text-center space-y-2'>
-              <h2 className='text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent'>
-                Welcome to DYOR Hub
-              </h2>
-              <p className='text-muted-foreground text-sm'>
-                Your gateway to smarter crypto research
-              </p>
-            </div>
-
+            {/* Auth Options */}
             <div className='space-y-4'>
+              {/* Twitter Login */}
               <Button
                 onClick={handleTwitterLogin}
-                className='w-full h-12 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl font-semibold relative overflow-hidden group'
+                className='w-full h-14 bg-[#1DA1F2] hover:bg-[#1a8cd8] text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl font-semibold text-base border border-[#1DA1F2] hover:border-[#1a8cd8]'
                 size='lg'>
-                <div className='absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000'></div>
-                <Twitter className='h-5 w-5 mr-3' />
-                Continue with Twitter
+                <div className='flex items-center justify-center space-x-3'>
+                  <Twitter className='h-5 w-5' />
+                  <span>Continue with Twitter</span>
+                </div>
               </Button>
 
-              <div className='relative'>
+              {/* Divider */}
+              <div className='relative py-2'>
                 <div className='absolute inset-0 flex items-center'>
-                  <div className='w-full border-t border-gray-200'></div>
+                  <div className='w-full border-t border-gray-600'></div>
                 </div>
-                <div className='relative flex justify-center text-xs'>
-                  <span className='bg-background px-4 text-muted-foreground font-medium'>or</span>
+                <div className='relative flex justify-center'>
+                  <span className='bg-gray-900 px-4 text-sm font-medium text-gray-400'>or</span>
                 </div>
               </div>
 
+              {/* Wallet Auth */}
               <Button
                 onClick={handleWalletAuth}
                 variant='outline'
-                className='w-full h-12 border-2 border-purple-200 hover:border-purple-300 hover:bg-purple-50 transition-all duration-200 rounded-xl font-semibold group'
+                className='group w-full h-14 border-2 border-gray-600 hover:border-purple-400 hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-pink-500/10 transition-all duration-300 rounded-2xl font-semibold text-base bg-gray-800/50'
                 size='lg'>
-                <WalletIcon className='h-5 w-5 mr-3 text-purple-600 group-hover:text-purple-700' />
-                <span className='text-purple-700 group-hover:text-purple-800'>
-                  Continue with Wallet
-                </span>
+                <div className='flex items-center justify-center space-x-3'>
+                  <div className='relative'>
+                    <WalletIcon className='h-5 w-5 text-gray-300 group-hover:text-purple-400 transition-colors duration-300' />
+                    <div className='absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300'></div>
+                  </div>
+                  <span className='text-gray-200 group-hover:text-purple-300 transition-colors duration-300'>
+                    Continue with Wallet
+                  </span>
+                </div>
               </Button>
-            </div>
-
-            <div className='text-center'>
-              <p className='text-xs text-muted-foreground'>
-                By continuing, you agree to our Terms of Service
-              </p>
             </div>
           </div>
         );
@@ -412,34 +406,26 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       case 'wallet-connect':
         return (
           <div className='space-y-6'>
-            <div className='flex items-center gap-3 mb-4'>
+            {/* Header with Back Button */}
+            <div className='flex items-center space-x-4'>
               <Button
                 variant='ghost'
                 size='sm'
                 onClick={goBack}
-                className='p-2 hover:bg-gray-100 rounded-lg'>
+                className='p-2 hover:bg-gray-700 rounded-xl transition-colors text-gray-300'>
                 <ArrowLeft className='h-4 w-4' />
               </Button>
-              <div>
-                <h3 className='text-lg font-semibold'>Connect Your Wallet</h3>
-                <p className='text-xs text-muted-foreground'>Step 1 of 3</p>
+              <div className='flex-1'>
+                <h2 className='text-xl font-bold text-white'>Connect Wallet</h2>
+                <p className='text-sm text-gray-400 mt-1'>Choose your Solana wallet</p>
               </div>
             </div>
 
-            <div className='space-y-4'>
-              <div className='text-center space-y-4'>
-                <div className='w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center'>
-                  <WalletIcon className='h-8 w-8 text-gray-600' />
-                </div>
-                <div>
-                  <h4 className='font-semibold text-lg'>Choose Your Wallet</h4>
-                  <p className='text-sm text-muted-foreground'>
-                    Connect your Solana wallet to continue
-                  </p>
-                </div>
-              </div>
-
+            {/* Main Content */}
+            <div className='space-y-6'>
+              {/* Wallet List */}
               <div className='space-y-3'>
+                {/* Installed Wallets */}
                 {wallets
                   .filter((wallet) => wallet.readyState === 'Installed')
                   .map((wallet) => (
@@ -447,18 +433,29 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       key={wallet.adapter.name}
                       onClick={() => connectWallet(wallet)}
                       variant='outline'
-                      className='w-full h-12 justify-start'
+                      className='group w-full h-16 border-2 border-gray-600 hover:border-purple-400 hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-pink-500/10 transition-all duration-300 rounded-2xl justify-start p-4 bg-gray-800/50'
                       disabled={loading}>
-                      <img
-                        src={wallet.adapter.icon}
-                        alt={wallet.adapter.name}
-                        className='w-6 h-6 mr-3'
-                      />
-                      <span className='flex-1 text-left'>{wallet.adapter.name}</span>
-                      <span className='text-xs text-muted-foreground'>Detected</span>
+                      <div className='flex items-center space-x-4 w-full'>
+                        <div className='relative'>
+                          <img
+                            src={wallet.adapter.icon}
+                            alt={wallet.adapter.name}
+                            className='w-8 h-8 rounded-lg'
+                          />
+                          <div className='absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-800'></div>
+                        </div>
+                        <div className='flex-1 text-left'>
+                          <p className='font-semibold text-white group-hover:text-purple-300 transition-colors'>
+                            {wallet.adapter.name}
+                          </p>
+                          <p className='text-xs text-green-400 font-medium'>Detected</p>
+                        </div>
+                        <div className='w-2 h-2 bg-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity'></div>
+                      </div>
                     </Button>
                   ))}
 
+                {/* Available Wallets */}
                 {wallets
                   .filter((wallet) => wallet.readyState !== 'Installed')
                   .slice(0, 2)
@@ -467,28 +464,39 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       key={wallet.adapter.name}
                       onClick={() => connectWallet(wallet)}
                       variant='outline'
-                      className='w-full h-12 justify-start'
+                      className='group w-full h-16 border-2 border-gray-700 hover:border-gray-600 hover:bg-gray-800/30 transition-all duration-300 rounded-2xl justify-start p-4 bg-gray-800/20'
                       disabled={loading}>
-                      <img
-                        src={wallet.adapter.icon}
-                        alt={wallet.adapter.name}
-                        className='w-6 h-6 mr-3'
-                      />
-                      <span className='flex-1 text-left'>{wallet.adapter.name}</span>
+                      <div className='flex items-center space-x-4 w-full'>
+                        <img
+                          src={wallet.adapter.icon}
+                          alt={wallet.adapter.name}
+                          className='w-8 h-8 rounded-lg opacity-60 group-hover:opacity-80 transition-opacity'
+                        />
+                        <div className='flex-1 text-left'>
+                          <p className='font-semibold text-gray-300 group-hover:text-gray-200 transition-colors'>
+                            {wallet.adapter.name}
+                          </p>
+                          <p className='text-xs text-gray-500'>Install to use</p>
+                        </div>
+                      </div>
                     </Button>
                   ))}
               </div>
 
+              {/* Loading State */}
               {loading && (
-                <div className='text-center text-sm text-muted-foreground'>
-                  <Loader2 className='h-4 w-4 mr-2 animate-spin inline' />
-                  Connecting...
+                <div className='text-center py-4'>
+                  <div className='inline-flex items-center space-x-2 text-gray-300'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    <span className='text-sm font-medium'>Connecting...</span>
+                  </div>
                 </div>
               )}
 
+              {/* Error State */}
               {error && (
-                <Alert variant='destructive'>
-                  <AlertDescription>{error}</AlertDescription>
+                <Alert variant='destructive' className='rounded-xl border-red-500/50 bg-red-500/10'>
+                  <AlertDescription className='text-red-400'>{error}</AlertDescription>
                 </Alert>
               )}
             </div>
@@ -498,46 +506,55 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       case 'wallet-profile':
         return (
           <div className='space-y-6'>
-            <div className='flex items-center gap-3 mb-4'>
+            {/* Header */}
+            <div className='flex items-center space-x-4'>
               <Button
-                variant='outline'
+                variant='ghost'
                 size='sm'
                 onClick={goBack}
-                className='flex items-center justify-center p-3 border-gray-300 hover:bg-gray-50 rounded-lg min-w-[40px] min-h-[40px]'>
+                className='p-2 hover:bg-gray-700 rounded-xl transition-colors text-gray-300'>
                 <ArrowLeft className='h-4 w-4' />
               </Button>
               <div className='flex-1'>
-                <h3 className='text-lg font-semibold text-gray-900'>Create Your Profile</h3>
-                <p className='text-xs text-muted-foreground'>Step 2 of 3</p>
+                <h2 className='text-xl font-bold text-white'>Create Profile</h2>
+                <p className='text-sm text-gray-400 mt-1'>Set up your account details</p>
               </div>
             </div>
 
-            <div className='space-y-6'>
-              {/* Avatar Upload Section */}
+            {/* Content */}
+            <div className='space-y-8'>
+              {/* Avatar Upload */}
               <div className='text-center space-y-4'>
                 <div className='relative inline-block'>
                   <div
                     onClick={!isUploadingAvatar ? triggerFileUpload : undefined}
-                    className={`w-24 h-24 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center transition-all duration-200 border-2 border-dashed border-purple-300 hover:border-purple-400 relative ${
-                      isUploadingAvatar
-                        ? 'cursor-not-allowed opacity-50'
-                        : 'cursor-pointer hover:from-purple-500/30 hover:to-pink-500/30'
+                    className={`relative w-28 h-28 rounded-3xl cursor-pointer group transition-all duration-300 ${
+                      isUploadingAvatar ? 'cursor-not-allowed' : 'hover:scale-105 hover:shadow-lg'
                     }`}>
                     {isUploadingAvatar ? (
-                      <div className='text-center'>
-                        <Loader2 className='h-8 w-8 text-purple-500 mx-auto mb-1 animate-spin' />
-                        <p className='text-xs text-purple-600 font-medium'>Uploading...</p>
+                      <div className='w-full h-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-3xl flex items-center justify-center border border-purple-500/30'>
+                        <div className='text-center space-y-2'>
+                          <Loader2 className='h-6 w-6 text-purple-400 mx-auto animate-spin' />
+                          <p className='text-xs text-purple-400 font-medium'>Uploading...</p>
+                        </div>
                       </div>
                     ) : avatarPreview ? (
-                      <img
-                        src={avatarPreview}
-                        alt='Avatar preview'
-                        className='w-full h-full rounded-full object-cover'
-                      />
+                      <div className='relative w-full h-full'>
+                        <img
+                          src={avatarPreview}
+                          alt='Avatar preview'
+                          className='w-full h-full rounded-3xl object-cover'
+                        />
+                        <div className='absolute inset-0 bg-black/0 group-hover:bg-black/40 rounded-3xl transition-colors duration-300 flex items-center justify-center'>
+                          <Camera className='h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+                        </div>
+                      </div>
                     ) : (
-                      <div className='text-center'>
-                        <Camera className='h-8 w-8 text-purple-500 mx-auto mb-1' />
-                        <p className='text-xs text-purple-600 font-medium'>Upload</p>
+                      <div className='w-full h-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-3xl flex items-center justify-center border-2 border-dashed border-purple-400/50 group-hover:border-purple-400 transition-colors duration-300'>
+                        <div className='text-center space-y-1'>
+                          <Camera className='h-6 w-6 text-purple-400 mx-auto group-hover:text-purple-300 transition-colors duration-300' />
+                          <p className='text-xs text-purple-400 font-medium'>Add Photo</p>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -551,23 +568,16 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   className='hidden'
                 />
 
-                <div className='space-y-3'>
-                  <Alert className='border-blue-200 bg-blue-50'>
-                    <Info className='h-4 w-4 text-blue-600' />
-                    <AlertDescription className='text-blue-700'>
-                      🎉 This wallet is new to DYOR Hub. Let&apos;s create your profile!
-                    </AlertDescription>
-                  </Alert>
-                  <p className='text-xs text-center text-muted-foreground'>
-                    Click the camera icon to upload your avatar (max 5MB, JPG/PNG/GIF/WebP)
-                  </p>
-                </div>
+                <p className='text-xs text-gray-400 max-w-xs mx-auto'>
+                  Upload your avatar (max 5MB, JPG/PNG/WebP)
+                </p>
               </div>
 
-              <div className='space-y-4'>
-                <div className='space-y-2'>
-                  <Label htmlFor='username' className='text-sm font-medium text-gray-700'>
-                    Username *
+              {/* Form Fields */}
+              <div className='space-y-6'>
+                <div className='space-y-3'>
+                  <Label htmlFor='username' className='text-sm font-semibold text-gray-200'>
+                    Username
                   </Label>
                   <Input
                     id='username'
@@ -576,16 +586,14 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       setProfileData((prev) => ({ ...prev, username: e.target.value }))
                     }
                     placeholder='johndoe'
-                    className='h-12'
+                    className='h-12 rounded-xl border-2 border-gray-600 bg-gray-800/50 text-white placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/30 transition-colors'
                   />
-                  <p className='text-xs text-muted-foreground'>
-                    This will be your unique identifier
-                  </p>
+                  <p className='text-xs text-gray-400'>Your unique identifier</p>
                 </div>
 
-                <div className='space-y-2'>
-                  <Label htmlFor='displayName' className='text-sm font-medium text-gray-700'>
-                    Display Name *
+                <div className='space-y-3'>
+                  <Label htmlFor='displayName' className='text-sm font-semibold text-gray-200'>
+                    Display Name
                   </Label>
                   <Input
                     id='displayName'
@@ -594,23 +602,23 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       setProfileData((prev) => ({ ...prev, displayName: e.target.value }))
                     }
                     placeholder='John Doe'
-                    className='h-12'
+                    className='h-12 rounded-xl border-2 border-gray-600 bg-gray-800/50 text-white placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/30 transition-colors'
                   />
-                  <p className='text-xs text-muted-foreground'>
-                    How your name will appear to others
-                  </p>
+                  <p className='text-xs text-gray-400'>How others will see your name</p>
                 </div>
               </div>
 
+              {/* Error */}
               {error && (
-                <Alert variant='destructive'>
-                  <AlertDescription>{error}</AlertDescription>
+                <Alert variant='destructive' className='rounded-xl border-red-500/50 bg-red-500/10'>
+                  <AlertDescription className='text-red-400'>{error}</AlertDescription>
                 </Alert>
               )}
 
+              {/* Create Button */}
               <Button
                 onClick={handleWalletSignup}
-                className='w-full h-12 bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-200 font-medium rounded-lg'
+                className='w-full h-14 bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl font-semibold text-base border border-purple-600 hover:border-purple-700'
                 disabled={
                   loading ||
                   isUploadingAvatar ||
@@ -636,73 +644,100 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
       case 'wallet-verify':
         return (
-          <div className='space-y-4'>
-            <div className='flex items-center gap-3 mb-4'>
+          <div className='space-y-6'>
+            {/* Header */}
+            <div className='flex items-center space-x-4'>
               <Button
-                variant='outline'
+                variant='ghost'
                 size='sm'
                 onClick={goBack}
-                className='flex items-center justify-center p-3 border-gray-300 hover:bg-gray-50 rounded-lg min-w-[40px] min-h-[40px]'>
+                className='p-2 hover:bg-gray-700 rounded-xl transition-colors text-gray-300'>
                 <ArrowLeft className='h-4 w-4' />
               </Button>
-              <div>
-                <h3 className='text-lg font-semibold'>Sign In</h3>
-                <p className='text-xs text-muted-foreground'>Step 3 of 3</p>
+              <div className='flex-1'>
+                <h2 className='text-xl font-bold text-white'>Verify Wallet</h2>
+                <p className='text-sm text-gray-400 mt-1'>Confirm wallet ownership</p>
               </div>
             </div>
 
-            <div className='text-center space-y-4'>
-              <div className='w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center'>
-                <WalletIcon className='h-8 w-8 text-green-600' />
+            {/* Content */}
+            <div className='space-y-6'>
+              <div className='text-center space-y-4'>
+                <div className='relative mx-auto w-20 h-20'>
+                  <div className='absolute inset-0 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-3xl animate-pulse'></div>
+                  <div className='relative bg-gradient-to-br from-green-500/30 to-blue-500/30 rounded-3xl p-5 flex items-center justify-center border border-green-500/30'>
+                    <Shield className='h-10 w-10 text-green-400' />
+                  </div>
+                </div>
+
+                <div className='space-y-2'>
+                  <h3 className='text-lg font-semibold text-white'>Welcome Back!</h3>
+                  <p className='text-gray-300'>Sign the message to verify your wallet ownership</p>
+                </div>
               </div>
 
-              <Alert>
-                <Info className='h-4 w-4' />
-                <AlertDescription>
-                  This wallet is linked to an existing account. Sign the message to verify ownership
-                  and access your account.
-                </AlertDescription>
-              </Alert>
+              <div className='p-4 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-2xl border border-green-500/30'>
+                <div className='flex items-start space-x-3'>
+                  <Info className='h-5 w-5 text-green-400 mt-0.5 flex-shrink-0' />
+                  <div className='text-sm text-green-300'>
+                    <p className='font-medium'>Wallet Found</p>
+                    <p>This wallet is linked to an existing account. Verify to continue.</p>
+                  </div>
+                </div>
+              </div>
 
               {error && (
-                <Alert variant='destructive'>
-                  <AlertDescription>{error}</AlertDescription>
+                <Alert variant='destructive' className='rounded-xl border-red-500/50 bg-red-500/10'>
+                  <AlertDescription className='text-red-400'>{error}</AlertDescription>
                 </Alert>
               )}
 
-              <div className='space-y-3'>
-                <Button
-                  onClick={handleWalletLogin}
-                  className='w-full h-12 bg-blue-600 hover:bg-blue-700 text-white'
-                  disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className='h-4 w-4 mr-2 animate-spin' />
-                      Signing In...
-                    </>
-                  ) : (
-                    'Sign In with Wallet'
-                  )}
-                </Button>
-              </div>
+              <Button
+                onClick={handleWalletLogin}
+                className='w-full h-14 bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl font-semibold text-base border border-green-600 hover:border-green-700'
+                disabled={loading}>
+                {loading ? (
+                  <div className='flex items-center justify-center space-x-2'>
+                    <Loader2 className='h-5 w-5 animate-spin' />
+                    <span>Signing In...</span>
+                  </div>
+                ) : (
+                  <div className='flex items-center justify-center space-x-2'>
+                    <Shield className='h-5 w-5' />
+                    <span>Verify & Sign In</span>
+                  </div>
+                )}
+              </Button>
             </div>
           </div>
         );
 
       case 'wallet-success':
         return (
-          <div className='text-center space-y-4'>
-            <div className='w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center'>
-              <span className='text-green-600 text-2xl'>✓</span>
+          <div className='text-center space-y-6 py-8'>
+            <div className='relative mx-auto w-24 h-24'>
+              <div className='absolute inset-0 bg-gradient-to-br from-green-500/30 to-emerald-500/30 rounded-full animate-ping'></div>
+              <div className='relative bg-gradient-to-br from-green-500 to-emerald-500 rounded-full p-6 flex items-center justify-center'>
+                <CheckCircle2 className='h-12 w-12 text-white' />
+              </div>
             </div>
 
-            <div className='space-y-1'>
-              <h3 className='text-lg font-medium'>Success!</h3>
-              <p className='text-sm text-muted-foreground'>
+            <div className='space-y-3'>
+              <h2 className='text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent'>
+                {walletStatus === 'existing_user' ? 'Welcome Back!' : 'Account Created!'}
+              </h2>
+              <p className='text-gray-300 text-lg'>
                 {walletStatus === 'existing_user'
-                  ? 'You have been signed in'
-                  : 'Your account has been created'}
+                  ? 'You have been successfully signed in'
+                  : 'Your account has been created successfully'}
               </p>
+            </div>
+
+            <div className='pt-4'>
+              <div className='inline-flex items-center space-x-2 text-green-400'>
+                <div className='w-2 h-2 bg-green-500 rounded-full animate-pulse'></div>
+                <span className='text-sm font-medium'>Redirecting...</span>
+              </div>
             </div>
           </div>
         );
@@ -714,24 +749,15 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className='max-w-md'>
-        <DialogHeader className='pb-6'>
-          <DialogTitle className='text-center text-xl font-semibold'>
-            {step === 'choose' ? 'Sign in to your account' : 'Authentication'}
-          </DialogTitle>
-          {step === 'choose' && (
-            <DialogDescription className='text-center text-sm text-muted-foreground mt-2'>
-              Connect with Twitter or your Solana wallet
-            </DialogDescription>
-          )}
-          {step !== 'choose' && (
-            <DialogDescription className='text-center text-sm text-muted-foreground'>
-              Complete the authentication process
-            </DialogDescription>
-          )}
-        </DialogHeader>
+      <DialogContent className='max-w-md border-0 shadow-2xl rounded-3xl p-0 overflow-hidden bg-gray-900'>
+        <div className='bg-gray-900 p-2'>
+          <DialogHeader className='sr-only'>
+            <DialogTitle>Authentication</DialogTitle>
+            <DialogDescription>Complete the authentication process</DialogDescription>
+          </DialogHeader>
 
-        <div className='pb-6'>{renderContent()}</div>
+          {renderContent()}
+        </div>
       </DialogContent>
     </Dialog>
   );

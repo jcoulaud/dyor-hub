@@ -58,6 +58,24 @@ export class AuthService {
     let isNew = false;
 
     if (!user) {
+      // Check if username already exists for non-Twitter users
+      const normalizedUsername = username.toLowerCase().trim();
+      const existingUser = await this.userRepository
+        .createQueryBuilder('user')
+        .where('LOWER(user.username) = :normalizedUsername', {
+          normalizedUsername,
+        })
+        .andWhere('user.twitterId IS NULL OR user.twitterId != :twitterId', {
+          twitterId,
+        })
+        .getOne();
+
+      if (existingUser) {
+        throw new ConflictException(
+          `The username "${username}" is already taken. Please use a different Twitter username or contact support.`,
+        );
+      }
+
       isNew = true;
       user = this.userRepository.create({
         twitterId,
@@ -258,24 +276,24 @@ export class AuthService {
       );
     }
 
-    // Check username uniqueness
-    const existingUser = await this.userRepository.findOne({
-      where: { username },
-    });
+    // Check username uniqueness (case-insensitive)
+    const normalizedUsername = username.toLowerCase().trim();
+    const existingUser = await this.userRepository
+      .createQueryBuilder('user')
+      .where('LOWER(user.username) = :normalizedUsername', {
+        normalizedUsername,
+      })
+      .getOne();
     if (existingUser) {
       throw new ConflictException('Username is already taken');
     }
 
-    // Confirm avatar upload
+    // Confirm avatar upload and validate content
     let finalAvatarUrl = avatarUrl;
     if (avatarUrl && avatarUrl.includes('temp-uploads/')) {
-      try {
-        const urlParts = avatarUrl.split('/');
-        const tempObjectKey = `images/temp-uploads/${urlParts.slice(-2).join('/')}`;
-        finalAvatarUrl = await this.uploadsService.confirmUpload(tempObjectKey);
-      } catch (error) {
-        console.error('Failed to confirm avatar upload:', error);
-      }
+      const urlParts = avatarUrl.split('/');
+      const tempObjectKey = `images/temp-uploads/${urlParts.slice(-2).join('/')}`;
+      finalAvatarUrl = await this.uploadsService.confirmUpload(tempObjectKey);
     }
 
     // Create user
