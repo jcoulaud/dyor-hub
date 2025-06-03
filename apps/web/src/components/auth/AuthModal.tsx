@@ -76,6 +76,14 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       setError(null);
       setWalletStatus(null);
       setShouldAutoCheck(false);
+      // Reset profile form state
+      setProfileData({
+        username: '',
+        displayName: '',
+        avatarUrl: '',
+      });
+      setAvatarPreview(null);
+      setIsUploadingAvatar(false);
     }
   }, [isOpen]);
 
@@ -343,7 +351,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   Welcome to DYOR Hub
                 </h1>
                 <p className='text-gray-300 text-lg font-medium'>
-                  Your gateway to smarter trading decisions
+                  Choose your preferred sign-in method
                 </p>
               </div>
             </div>
