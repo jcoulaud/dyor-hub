@@ -88,6 +88,7 @@ export function WalletDetails() {
             });
           } catch (connectErr: unknown) {
             const alreadyConnectedMsg = 'Wallet address already connected to another account';
+            const authConflictMsg = 'This wallet is used for authentication by another account';
             let backendErrorMessage = '';
 
             if (typeof connectErr === 'object' && connectErr !== null) {
@@ -117,6 +118,22 @@ export function WalletDetails() {
               toast({
                 title: 'Association Conflict',
                 description: conflictMsg,
+                variant: 'destructive',
+              });
+            } else if (backendErrorMessage.includes(authConflictMsg)) {
+              // Use the exact backend message for authentication conflicts
+              setAssociationConflictError(backendErrorMessage);
+              toast({
+                title: 'Authentication Conflict',
+                description: backendErrorMessage,
+                variant: 'destructive',
+              });
+            } else if (backendErrorMessage) {
+              // Use the backend error message if available
+              setError(backendErrorMessage);
+              toast({
+                title: 'Association Failed',
+                description: backendErrorMessage,
                 variant: 'destructive',
               });
             } else {

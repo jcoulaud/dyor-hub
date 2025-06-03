@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { AuthGuard } from '../auth/auth.guard';
 import { UploadsService } from './uploads.service';
 
@@ -62,6 +63,40 @@ export class UploadsController {
         `Error generating presigned URL for user ${userId}:`,
         error,
       );
+      throw new BadRequestException('Could not generate upload URL.');
+    }
+  }
+
+  @Post('signup/image-presigned-url')
+  @HttpCode(HttpStatus.OK)
+  async getSignupPresignedUrl(
+    @Body() body: PresignedUrlRequest,
+  ): Promise<PresignedUrlResponse> {
+    // 1. Validate file type
+    if (!ALLOWED_TYPES.includes(body.contentType)) {
+      throw new BadRequestException(
+        `Invalid file type. Allowed types: ${ALLOWED_TYPES.join(', ')}`,
+      );
+    }
+
+    // 2. Validate file size
+    if (body.contentLength > MAX_FILE_SIZE_BYTES) {
+      throw new BadRequestException(
+        `File too large. Maximum size: ${MAX_FILE_SIZE_MB}MB`,
+      );
+    }
+
+    // 3. Generate presigned URL using a temporary signup identifier
+    try {
+      const tempSignupId = `signup-${uuidv4()}`;
+      return await this.uploadsService.generatePresignedUrlForTempUpload(
+        tempSignupId,
+        body.filename,
+        body.contentType,
+        body.contentLength,
+      );
+    } catch (error) {
+      console.error(`Error generating presigned URL for signup:`, error);
       throw new BadRequestException('Could not generate upload URL.');
     }
   }

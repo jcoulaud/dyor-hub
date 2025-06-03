@@ -1,5 +1,6 @@
 export * from './activity';
 export * from './admin';
+export * from './auth';
 export * from './badge';
 export * from './comment';
 export * from './credits';

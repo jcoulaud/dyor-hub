@@ -1,4 +1,4 @@
-// Existing entities
+export * from './auth-method.entity';
 export * from './badge.entity';
 export * from './comment-vote.entity';
 export * from './comment.entity';

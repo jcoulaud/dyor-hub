@@ -1,12 +1,22 @@
 import { CreditTransactionType } from '@dyor-hub/types';
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
+import { PublicKey } from '@solana/web3.js';
+import * as nacl from 'tweetnacl';
 import { Repository } from 'typeorm';
 import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
+import { AuthMethodEntity } from '../entities/auth-method.entity';
 import { UserEntity } from '../entities/user.entity';
+import { WalletEntity } from '../entities/wallet.entity';
 import { GamificationEvent } from '../gamification/services/activity-hooks.service';
+import { ReferralService } from '../referral/referral.service';
+import { UploadsService } from '../uploads/uploads.service';
 import { AuthConfigService } from './config/auth.config';
 import {
   InvalidTokenException,
@@ -22,9 +32,15 @@ export class AuthService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(CreditTransaction)
     private readonly creditTransactionRepository: Repository<CreditTransaction>,
+    @InjectRepository(AuthMethodEntity)
+    private readonly authMethodRepository: Repository<AuthMethodEntity>,
+    @InjectRepository(WalletEntity)
+    private readonly walletRepository: Repository<WalletEntity>,
     private readonly jwtService: JwtService,
     private readonly authConfigService: AuthConfigService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly referralService: ReferralService,
+    private readonly uploadsService: UploadsService,
   ) {}
 
   async validateTwitterUser(profile: any): Promise<ValidateTwitterUserResult> {
@@ -132,6 +148,206 @@ export class AuthService {
       });
     } catch (error) {
       throw new InvalidTokenException();
+    }
+  }
+
+  async checkWalletAuth(walletAddress: string): Promise<any> {
+    // Check if wallet is already used for authentication
+    const existingAuthMethod = await this.authMethodRepository.findOne({
+      where: { provider: 'wallet' as any, providerId: walletAddress },
+      relations: ['user'],
+    });
+
+    if (existingAuthMethod?.user) {
+      return {
+        status: 'existing_user',
+        user: existingAuthMethod.user,
+      };
+    }
+
+    // Check if wallet exists in wallets table but without auth method
+    const existingWallet = await this.walletRepository.findOne({
+      where: { address: walletAddress },
+      relations: ['user'],
+    });
+
+    if (existingWallet?.user) {
+      // This wallet is linked to a user but not set up for authentication
+      // Allow them to use it for auth by treating as existing user
+      return {
+        status: 'existing_user',
+        user: existingWallet.user,
+      };
+    }
+
+    return { status: 'new_wallet' };
+  }
+
+  async authenticateWithWallet(
+    walletAddress: string,
+    signature: string,
+  ): Promise<UserEntity> {
+    // Verify signature first
+    const isValidSignature = await this.verifyWalletSignature(
+      walletAddress,
+      signature,
+    );
+    if (!isValidSignature) {
+      throw new ConflictException('Invalid wallet signature');
+    }
+
+    // Check if this wallet is already an auth method
+    const authMethod = await this.authMethodRepository.findOne({
+      where: { provider: 'wallet' as any, providerId: walletAddress },
+      relations: ['user'],
+    });
+
+    if (authMethod?.user) {
+      return authMethod.user;
+    }
+
+    // Check if wallet exists in wallets table (user has wallet but no auth method yet)
+    const existingWallet = await this.walletRepository.findOne({
+      where: { address: walletAddress },
+      relations: ['user'],
+    });
+
+    if (existingWallet?.user) {
+      // Create auth method for this existing wallet
+      const newAuthMethod = this.authMethodRepository.create({
+        userId: existingWallet.user.id,
+        provider: 'wallet' as any,
+        providerId: walletAddress,
+        isPrimary: false, // Don't override existing primary auth method
+        metadata: { signature },
+      });
+      await this.authMethodRepository.save(newAuthMethod);
+
+      return existingWallet.user;
+    }
+
+    throw new NotFoundException(
+      'No account found for this wallet. Please sign up first.',
+    );
+  }
+
+  async signupWithWallet(walletSignupData: any): Promise<UserEntity> {
+    const {
+      walletAddress,
+      signature,
+      username,
+      displayName,
+      avatarUrl,
+      referralCode,
+    } = walletSignupData;
+
+    // Verify signature
+    const isValidSignature = await this.verifyWalletSignature(
+      walletAddress,
+      signature,
+    );
+    if (!isValidSignature) {
+      throw new ConflictException('Invalid wallet signature');
+    }
+
+    // Check if wallet is already used
+    const authCheckResult = await this.checkWalletAuth(walletAddress);
+    if (authCheckResult.status !== 'new_wallet') {
+      throw new ConflictException(
+        'This wallet is already associated with an account',
+      );
+    }
+
+    // Check username uniqueness
+    const existingUser = await this.userRepository.findOne({
+      where: { username },
+    });
+    if (existingUser) {
+      throw new ConflictException('Username is already taken');
+    }
+
+    // Confirm avatar upload
+    let finalAvatarUrl = avatarUrl;
+    if (avatarUrl && avatarUrl.includes('temp-uploads/')) {
+      try {
+        const urlParts = avatarUrl.split('/');
+        const tempObjectKey = `images/temp-uploads/${urlParts.slice(-2).join('/')}`;
+        finalAvatarUrl = await this.uploadsService.confirmUpload(tempObjectKey);
+      } catch (error) {
+        console.error('Failed to confirm avatar upload:', error);
+      }
+    }
+
+    // Create user
+    const user = this.userRepository.create({
+      username,
+      displayName,
+      avatarUrl: finalAvatarUrl,
+      credits: 5,
+      twitterId: null, // No Twitter ID for wallet-only users
+    });
+    await this.userRepository.save(user);
+
+    // Create auth method
+    const authMethod = this.authMethodRepository.create({
+      userId: user.id,
+      provider: 'wallet' as any,
+      providerId: walletAddress,
+      isPrimary: true,
+      metadata: { signature },
+    });
+    await this.authMethodRepository.save(authMethod);
+
+    // Create wallet entry (verified and primary by default)
+    const wallet = this.walletRepository.create({
+      address: walletAddress,
+      userId: user.id,
+      isVerified: true,
+      isPrimary: true,
+      signature,
+    });
+    await this.walletRepository.save(wallet);
+
+    // Grant welcome credit bonus
+    const creditTransaction = this.creditTransactionRepository.create({
+      userId: user.id,
+      type: CreditTransactionType.PURCHASE,
+      amount: 5,
+      details: 'Welcome bonus: 5 credits upon signup',
+    });
+    await this.creditTransactionRepository.save(creditTransaction);
+
+    // Process referral if provided
+    if (referralCode) {
+      try {
+        await this.referralService.processReferral(referralCode, user.id);
+      } catch (error) {
+        console.error('Failed to process referral code:', error);
+      }
+    }
+
+    return user;
+  }
+
+  private async verifyWalletSignature(
+    walletAddress: string,
+    signature: string,
+  ): Promise<boolean> {
+    try {
+      const publicKey = new PublicKey(walletAddress);
+      const signatureBytes = Buffer.from(signature, 'base64');
+
+      // Create the message that should have been signed (without timestamp to avoid mismatch)
+      const message = `Sign this message to authenticate with DYOR Hub.\n\nWallet: ${walletAddress}`;
+      const messageBytes = new TextEncoder().encode(message);
+
+      return nacl.sign.detached.verify(
+        messageBytes,
+        signatureBytes,
+        publicKey.toBytes(),
+      );
+    } catch (error) {
+      return false;
     }
   }
 }

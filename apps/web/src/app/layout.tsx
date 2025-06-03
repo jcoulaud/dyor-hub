@@ -61,9 +61,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className='font-sans antialiased' suppressHydrationWarning>
         <PlausibleProvider domain='dyorhub.xyz'>
           <ThemeProvider>
-            <AuthProvider>
-              <ModalProvider>
-                <SolanaWalletProvider>
+            <SolanaWalletProvider>
+              <AuthProvider>
+                <ModalProvider>
                   <ReferralHandler />
                   <Toaster>
                     <div className='flex flex-col min-h-screen w-full'>
@@ -71,9 +71,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       <main className='flex-1 flex flex-col w-full relative'>{children}</main>
                     </div>
                   </Toaster>
-                </SolanaWalletProvider>
-              </ModalProvider>
-            </AuthProvider>
+                </ModalProvider>
+              </AuthProvider>
+            </SolanaWalletProvider>
           </ThemeProvider>
         </PlausibleProvider>
       </body>

@@ -62,7 +62,11 @@ import {
   UserStats,
   UserStreak,
   VoteType,
+  WalletAuthResponse,
+  WalletCheckResponse,
+  WalletLoginRequest,
   WalletResponse,
+  WalletSignupRequest,
   WatchlistFolder,
 } from '@dyor-hub/types';
 
@@ -2482,6 +2486,14 @@ export const uploads = {
       body: data,
     });
   },
+
+  getSignupPresignedImageUrl: async (data: PresignedUrlRequest): Promise<PresignedUrlResponse> => {
+    const endpoint = 'uploads/signup/image-presigned-url';
+    return api<PresignedUrlResponse>(endpoint, {
+      method: 'POST',
+      body: data,
+    });
+  },
 };
 
 export const credits = {
@@ -2538,6 +2550,62 @@ export const credits = {
 };
 
 export type ApiInstance = typeof api;
+
+// Wallet authentication API
+export const walletAuth = {
+  async checkWallet(walletAddress: string): Promise<WalletCheckResponse> {
+    return api<WalletCheckResponse>('/auth/wallet/check', {
+      method: 'POST',
+      body: { walletAddress },
+    });
+  },
+
+  async login(request: WalletLoginRequest): Promise<WalletAuthResponse> {
+    return api<WalletAuthResponse>('/auth/wallet/login', {
+      method: 'POST',
+      body: request,
+    });
+  },
+
+  async signup(request: WalletSignupRequest): Promise<WalletAuthResponse> {
+    return api<WalletAuthResponse>('/auth/wallet/signup', {
+      method: 'POST',
+      body: request,
+    });
+  },
+
+  async linkAuthMethod(
+    provider: 'twitter' | 'wallet',
+    data: Record<string, unknown>,
+  ): Promise<{ success: boolean; message: string }> {
+    return api<{ success: boolean; message: string }>('/auth/wallet/link', {
+      method: 'POST',
+      body: { provider, ...data },
+    });
+  },
+
+  async getUserAuthMethods(): Promise<
+    Array<{
+      id: string;
+      provider: string;
+      providerId: string;
+      isPrimary: boolean;
+      createdAt: string;
+    }>
+  > {
+    return api<
+      Array<{
+        id: string;
+        provider: string;
+        providerId: string;
+        isPrimary: boolean;
+        createdAt: string;
+      }>
+    >('/auth/wallet/auth-methods', {
+      method: 'POST',
+    });
+  },
+};
 
 export interface TokenRiskData {
   score: number;
