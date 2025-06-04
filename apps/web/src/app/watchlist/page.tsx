@@ -1108,9 +1108,6 @@ export default function WatchlistPage() {
                 <PlusIcon className='w-4 h-4 mr-2' />
                 Create Folder
               </Button>
-              <Button asChild variant='default'>
-                <Link href='/'>Discover Tokens</Link>
-              </Button>
             </div>
           </div>
         </Card>
