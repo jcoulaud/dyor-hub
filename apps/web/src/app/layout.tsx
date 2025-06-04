@@ -8,6 +8,7 @@ import { SolanaWalletProvider } from '@/providers/wallet-provider';
 import type { Metadata } from 'next';
 import PlausibleProvider from 'next-plausible';
 import { Poppins } from 'next/font/google';
+import { Suspense } from 'react';
 import './globals.css';
 
 const poppins = Poppins({
@@ -61,19 +62,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className='font-sans antialiased' suppressHydrationWarning>
         <PlausibleProvider domain='dyorhub.xyz'>
           <ThemeProvider>
-            <SolanaWalletProvider>
-              <AuthProvider>
-                <ModalProvider>
-                  <ReferralHandler />
-                  <Toaster>
-                    <div className='flex flex-col min-h-screen w-full'>
-                      <Header />
-                      <main className='flex-1 flex flex-col w-full relative'>{children}</main>
-                    </div>
-                  </Toaster>
-                </ModalProvider>
-              </AuthProvider>
-            </SolanaWalletProvider>
+            <Suspense fallback={<div>Loading...</div>}>
+              <SolanaWalletProvider>
+                <AuthProvider>
+                  <ModalProvider>
+                    <ReferralHandler />
+                    <Toaster>
+                      <div className='flex flex-col min-h-screen w-full'>
+                        <Header />
+                        <main className='flex-1 flex flex-col w-full relative'>{children}</main>
+                      </div>
+                    </Toaster>
+                  </ModalProvider>
+                </AuthProvider>
+              </SolanaWalletProvider>
+            </Suspense>
           </ThemeProvider>
         </PlausibleProvider>
       </body>
