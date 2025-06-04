@@ -2627,17 +2627,11 @@ export const walletAuth = {
       createdAt: string;
     }>
   > {
-    return api<
-      Array<{
-        id: string;
-        provider: string;
-        providerId: string;
-        isPrimary: boolean;
-        createdAt: string;
-      }>
-    >('/auth/wallet/auth-methods', {
-      method: 'POST',
-    });
+    return api('/auth/wallet/auth-methods', { method: 'POST' });
+  },
+
+  async removeAuthMethod(authMethodId: string): Promise<{ success: boolean; message: string }> {
+    return api(`/auth/wallet/auth-methods/${authMethodId}`, { method: 'DELETE' });
   },
 };
 

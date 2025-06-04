@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Param,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { UserEntity } from '../entities/user.entity';
 import { AuthService } from './auth.service';
@@ -110,5 +118,14 @@ export class WalletAuthController {
     }>
   > {
     return this.authService.getUserAuthMethods(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('auth-methods/:id')
+  async removeAuthMethod(
+    @Param('id') authMethodId: string,
+    @CurrentUser() user: UserEntity,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.authService.removeAuthMethod(user.id, authMethodId);
   }
 }

@@ -430,6 +430,66 @@ export class AuthService {
     }));
   }
 
+  async removeAuthMethod(
+    userId: string,
+    authMethodId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    // Get all user's auth methods
+    const userAuthMethods = await this.authMethodRepository.find({
+      where: { userId },
+    });
+
+    // Check if user has more than one auth method
+    if (userAuthMethods.length <= 1) {
+      throw new ConflictException(
+        'Cannot remove the only authentication method. You must have at least one way to sign in.',
+      );
+    }
+
+    // Find the specific auth method to remove
+    const authMethodToRemove = userAuthMethods.find(
+      (method) => method.id === authMethodId,
+    );
+
+    if (!authMethodToRemove) {
+      throw new NotFoundException('Authentication method not found');
+    }
+
+    // Check if this belongs to the user
+    if (authMethodToRemove.userId !== userId) {
+      throw new ConflictException(
+        'You can only remove your own authentication methods',
+      );
+    }
+
+    // Remove the auth method
+    await this.authMethodRepository.remove(authMethodToRemove);
+
+    // If we removed a Twitter auth method, also clear the user's Twitter ID if no other Twitter auth exists
+    if (authMethodToRemove.provider === 'twitter') {
+      const remainingTwitterMethods = await this.authMethodRepository.findOne({
+        where: { userId, provider: 'twitter' as any },
+      });
+
+      if (!remainingTwitterMethods) {
+        const user = await this.userRepository.findOne({
+          where: { id: userId },
+        });
+        if (user && user.twitterId) {
+          user.twitterId = null;
+          await this.userRepository.save(user);
+        }
+      }
+    }
+
+    const providerName =
+      authMethodToRemove.provider === 'twitter' ? 'Twitter' : 'Wallet';
+    return {
+      success: true,
+      message: `${providerName} authentication method removed successfully`,
+    };
+  }
+
   async linkTwitterToUser(userId: string, twitterProfile: any): Promise<void> {
     // Check if this Twitter account is already linked to another user
     const existingAuthMethod = await this.authMethodRepository.findOne({

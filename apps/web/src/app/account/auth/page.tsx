@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { auth, walletAuth } from '@/lib/api';
-import { CheckCircle2, Loader2, Shield, Twitter, Wallet } from 'lucide-react';
+import { CheckCircle2, Loader2, Shield, Trash2, Twitter, Wallet } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 interface AuthMethod {
@@ -20,6 +20,7 @@ export default function AuthenticationPage() {
   const [authMethods, setAuthMethods] = useState<AuthMethod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLinkingTwitter, setIsLinkingTwitter] = useState(false);
+  const [removingMethodId, setRemovingMethodId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchAuthMethods = useCallback(async () => {
@@ -79,6 +80,41 @@ export default function AuthenticationPage() {
         variant: 'destructive',
       });
       setIsLinkingTwitter(false);
+    }
+  };
+
+  const handleRemoveAuthMethod = async (authMethodId: string) => {
+    // Prevent removing the only auth method
+    if (authMethods.length <= 1) {
+      toast({
+        title: 'Cannot Remove',
+        description: 'You must have at least one authentication method to sign in.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setRemovingMethodId(authMethodId);
+      const result = await walletAuth.removeAuthMethod(authMethodId);
+
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: result.message,
+        });
+        // Refresh the auth methods list
+        await fetchAuthMethods();
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error ? error.message : 'Failed to remove authentication method',
+        variant: 'destructive',
+      });
+    } finally {
+      setRemovingMethodId(null);
     }
   };
 
@@ -167,9 +203,25 @@ export default function AuthenticationPage() {
                       </p>
                     </div>
                   </div>
-                  <p className='text-xs text-muted-foreground'>
-                    Linked {new Date(method.createdAt).toLocaleDateString()}
-                  </p>
+                  <div className='flex items-center gap-3'>
+                    <p className='text-xs text-muted-foreground'>
+                      Linked {new Date(method.createdAt).toLocaleDateString()}
+                    </p>
+                    {authMethods.length > 1 && (
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => handleRemoveAuthMethod(method.id)}
+                        disabled={removingMethodId === method.id}
+                        className='text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200'>
+                        {removingMethodId === method.id ? (
+                          <Loader2 className='h-4 w-4 animate-spin' />
+                        ) : (
+                          <Trash2 className='h-4 w-4' />
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
