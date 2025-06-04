@@ -225,10 +225,26 @@ export function WalletDetails() {
           description: `Successfully removed wallet ${truncateAddress(walletAddress)}`,
         });
       }
-    } catch {
+    } catch (error: unknown) {
+      let errorMessage = 'An unexpected error occurred while removing the wallet.';
+
+      if (error && typeof error === 'object' && 'message' in error) {
+        const message = (error as { message: string }).message;
+        if (message.includes('only authentication method')) {
+          errorMessage =
+            'Cannot remove this wallet as it is your only way to sign in. Add another login method first.';
+        } else if (message.includes('not found')) {
+          errorMessage = 'Wallet not found or already removed.';
+        } else if (message.includes('permission') || message.includes('unauthorized')) {
+          errorMessage = 'You do not have permission to remove this wallet.';
+        } else if (message) {
+          errorMessage = message;
+        }
+      }
+
       toast({
-        title: 'Error',
-        description: 'Failed to remove wallet completely.',
+        title: 'Unable to Remove Wallet',
+        description: errorMessage,
         variant: 'destructive',
       });
       setWalletDeletionState(false);
