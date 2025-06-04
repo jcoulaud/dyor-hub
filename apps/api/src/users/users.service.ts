@@ -174,6 +174,9 @@ export class UsersService {
     if (updateProfileDto.bio !== undefined) {
       user.bio = processBio(updateProfileDto.bio);
     }
+    if (updateProfileDto.avatarUrl !== undefined) {
+      user.avatarUrl = updateProfileDto.avatarUrl;
+    }
 
     await this.userRepository.save(user);
     return user;

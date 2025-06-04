@@ -10,6 +10,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
+import { AuthMethodEntity } from './auth-method.entity';
 import { CommentVoteEntity } from './comment-vote.entity';
 import { CommentEntity } from './comment.entity';
 import { LeaderboardEntity } from './leaderboard.entity';
@@ -34,8 +35,8 @@ export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'twitter_id', type: 'varchar' })
-  twitterId: string;
+  @Column({ name: 'twitter_id', type: 'varchar', nullable: true })
+  twitterId: string | null;
 
   @Column({ name: 'username', type: 'varchar' })
   username: string;
@@ -50,10 +51,10 @@ export class UserEntity {
   avatarUrl: string;
 
   @Column({ name: 'twitter_access_token', nullable: true, type: 'varchar' })
-  twitterAccessToken: string;
+  twitterAccessToken: string | null;
 
   @Column({ name: 'twitter_refresh_token', nullable: true, type: 'varchar' })
-  twitterRefreshToken: string;
+  twitterRefreshToken: string | null;
 
   @Column({ name: 'is_admin', type: 'boolean', default: false })
   isAdmin: boolean;
@@ -81,6 +82,9 @@ export class UserEntity {
 
   @OneToMany(() => CommentVoteEntity, (vote) => vote.user)
   commentVotes: CommentVoteEntity[];
+
+  @OneToMany(() => AuthMethodEntity, (authMethod) => authMethod.user)
+  authMethods: AuthMethodEntity[];
 
   @OneToMany(() => WalletEntity, (wallet) => wallet.user)
   wallets: WalletEntity[];

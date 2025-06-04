@@ -31,6 +31,7 @@ import {
   UserStreakEntity,
   WalletEntity,
 } from './entities';
+import { AuthMethodEntity } from './entities/auth-method.entity';
 import { EventsModule } from './events/events.module';
 import { FeedModule } from './feed/feed.module';
 import { FollowsModule } from './follows/follows.module';
@@ -63,6 +64,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     EventEmitterModule.forRoot(),
     TypeOrmModule.forRoot(dataSource.options),
     TypeOrmModule.forFeature([
+      AuthMethodEntity,
       UserEntity,
       CommentEntity,
       CommentVoteEntity,

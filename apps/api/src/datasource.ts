@@ -4,6 +4,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { CreditPackage } from './credits/entities/credit-package.entity';
 import { CreditTransaction } from './credits/entities/credit-transaction.entity';
 import {
+  AuthMethodEntity,
   BadgeEntity,
   CommentEntity,
   CommentVoteEntity,
@@ -47,6 +48,7 @@ export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   url: process.env.DATABASE_URL,
   entities: [
+    AuthMethodEntity,
     TokenEntity,
     CommentEntity,
     CommentVoteEntity,
@@ -55,11 +57,9 @@ export const dataSourceOptions: DataSourceOptions = {
     WalletEntity,
     TokenWatchlistEntity,
     EarlyTokenBuyerEntity,
-    // Watchlist folder entities
     WatchlistFolderEntity,
     TokenWatchlistFolderItemEntity,
     UserWatchlistFolderItemEntity,
-    // Gamification entities
     UserActivityEntity,
     UserStreakEntity,
     BadgeEntity,

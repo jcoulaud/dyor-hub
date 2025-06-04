@@ -8,6 +8,7 @@ import { PublicKey } from '@solana/web3.js';
 import * as crypto from 'crypto';
 import * as nacl from 'tweetnacl';
 import { Not, Repository } from 'typeorm';
+import { AuthMethodEntity } from '../entities/auth-method.entity';
 import { UserEntity } from '../entities/user.entity';
 import { WalletEntity } from '../entities/wallet.entity';
 import { SolanaRpcService } from '../solana/solana-rpc.service';
@@ -24,6 +25,8 @@ export class WalletsService {
     private walletsRepository: Repository<WalletEntity>,
     @InjectRepository(UserEntity)
     private usersRepository: Repository<UserEntity>,
+    @InjectRepository(AuthMethodEntity)
+    private authMethodRepository: Repository<AuthMethodEntity>,
     private readonly solanaRpcService: SolanaRpcService,
   ) {}
 
@@ -32,6 +35,21 @@ export class WalletsService {
     connectWalletDto: ConnectWalletDto,
   ): Promise<WalletResponseDto> {
     const { address } = connectWalletDto;
+
+    // Check if this wallet is used for authentication by another user
+    const existingAuthMethod = await this.authMethodRepository.findOne({
+      where: {
+        provider: 'wallet' as any,
+        providerId: address,
+        userId: Not(userId),
+      },
+    });
+
+    if (existingAuthMethod) {
+      throw new ConflictException(
+        'This wallet is used for authentication by another account and cannot be added to your portfolio',
+      );
+    }
 
     let wallet = await this.walletsRepository.findOne({
       where: { address },
@@ -183,15 +201,32 @@ export class WalletsService {
   }
 
   async deleteWallet(userId: string, walletId: string): Promise<void> {
+    // Find the wallet to get its address
+    const wallet = await this.walletsRepository.findOne({
+      where: { id: walletId, userId },
+    });
+
+    if (!wallet) {
+      throw new NotFoundException(
+        'Wallet not found or you do not own this wallet.',
+      );
+    }
+
+    // Delete the wallet from wallets table
     const result = await this.walletsRepository.delete({
       id: walletId,
       userId,
     });
+
     if (result.affected === 0) {
       throw new NotFoundException(
         'Wallet not found or you do not own this wallet.',
       );
     }
+
+    // Note: We intentionally do NOT delete the corresponding auth method
+    // This allows users to remove wallets from their portfolio while still
+    // being able to authenticate with them. This is the desired behavior.
   }
 
   async setPrimaryWallet(

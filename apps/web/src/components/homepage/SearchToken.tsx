@@ -1,13 +1,18 @@
 import { cn, isValidSolanaAddress } from '@/lib/utils';
 import { Loader2, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { FormEvent, memo, useCallback, useState } from 'react';
+import { FormEvent, memo, useCallback, useEffect, useState } from 'react';
 
 export const SearchToken = memo(() => {
   const router = useRouter();
   const [address, setAddress] = useState('');
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
@@ -78,32 +83,34 @@ export const SearchToken = memo(() => {
         {/* Subtle noise texture */}
         <div className='absolute inset-0 bg-noise opacity-[0.02] pointer-events-none' />
 
-        {/* Enhanced particle effect */}
-        <div className='absolute inset-0 pointer-events-none overflow-hidden'>
-          {Array.from({ length: 15 }).map((_, i) => (
-            <div
-              key={i}
-              className='absolute rounded-full opacity-0 animate-twinkle pointer-events-none'
-              style={{
-                width: `${Math.random() * 3 + 1}px`,
-                height: `${Math.random() * 3 + 1}px`,
-                backgroundColor:
-                  i % 4 === 0
-                    ? 'rgba(96,165,250,0.8)'
-                    : i % 4 === 1
-                      ? 'rgba(16,185,129,0.8)'
-                      : i % 4 === 2
-                        ? 'rgba(139,92,246,0.8)'
-                        : 'rgba(255,255,255,0.8)',
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                animationDelay: `${i * 0.5}s`,
-                animationDuration: `${Math.random() * 10 + 5}s`,
-                boxShadow: '0 0 4px rgba(255,255,255,0.3)',
-              }}
-            />
-          ))}
-        </div>
+        {/* Enhanced particle effect - client only to prevent hydration mismatch */}
+        {mounted && (
+          <div className='absolute inset-0 pointer-events-none overflow-hidden'>
+            {Array.from({ length: 15 }).map((_, i) => (
+              <div
+                key={i}
+                className='absolute rounded-full opacity-0 animate-twinkle pointer-events-none'
+                style={{
+                  width: `${Math.random() * 3 + 1}px`,
+                  height: `${Math.random() * 3 + 1}px`,
+                  backgroundColor:
+                    i % 4 === 0
+                      ? 'rgba(96,165,250,0.8)'
+                      : i % 4 === 1
+                        ? 'rgba(16,185,129,0.8)'
+                        : i % 4 === 2
+                          ? 'rgba(139,92,246,0.8)'
+                          : 'rgba(255,255,255,0.8)',
+                  top: `${Math.random() * 100}%`,
+                  left: `${Math.random() * 100}%`,
+                  animationDelay: `${i * 0.5}s`,
+                  animationDuration: `${Math.random() * 10 + 5}s`,
+                  boxShadow: '0 0 4px rgba(255,255,255,0.3)',
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Content container */}
         <div className='p-5 relative z-10'>
