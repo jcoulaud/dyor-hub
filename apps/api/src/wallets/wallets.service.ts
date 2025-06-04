@@ -188,6 +188,23 @@ export class WalletsService {
 
       await this.walletsRepository.save(wallet);
 
+      // Check if an auth method already exists for this wallet
+      const existingAuthMethod = await this.authMethodRepository.findOne({
+        where: { provider: 'wallet' as any, providerId: address, userId },
+      });
+
+      // If no auth method exists, create one so the user can authenticate with this wallet
+      if (!existingAuthMethod) {
+        const authMethod = this.authMethodRepository.create({
+          userId,
+          provider: 'wallet' as any,
+          providerId: address,
+          isPrimary: false, // Don't override existing primary auth method
+          metadata: { signature },
+        });
+        await this.authMethodRepository.save(authMethod);
+      }
+
       return WalletResponseDto.fromEntity(wallet);
     } catch (error) {
       throw new Error(`Wallet verification failed: ${error.message}`);
