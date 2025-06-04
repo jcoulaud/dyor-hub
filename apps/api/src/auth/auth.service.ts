@@ -319,6 +319,15 @@ export class AuthService {
       await this.walletRepository.remove(existingUnverifiedWallet);
     }
 
+    // Also check for orphaned auth methods (from old wallet deletions)
+    // If wallet was deleted but auth method remains, clean it up
+    const orphanedAuthMethod = await this.authMethodRepository.findOne({
+      where: { provider: 'wallet' as any, providerId: walletAddress },
+    });
+    if (orphanedAuthMethod) {
+      await this.authMethodRepository.remove(orphanedAuthMethod);
+    }
+
     // Create auth method
     const authMethod = this.authMethodRepository.create({
       userId: user.id,

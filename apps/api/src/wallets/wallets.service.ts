@@ -212,6 +212,22 @@ export class WalletsService {
       );
     }
 
+    // Check if user has other auth methods before removing wallet's auth method
+    const userAuthMethods = await this.authMethodRepository.find({
+      where: { userId },
+    });
+
+    const walletAuthMethod = await this.authMethodRepository.findOne({
+      where: { provider: 'wallet' as any, providerId: wallet.address, userId },
+    });
+
+    // If this is the user's only auth method, prevent deletion
+    if (userAuthMethods.length <= 1 && walletAuthMethod) {
+      throw new ConflictException(
+        'Cannot remove this wallet as it is your only authentication method. Add another login method first.',
+      );
+    }
+
     // Delete the wallet from wallets table
     const result = await this.walletsRepository.delete({
       id: walletId,
@@ -224,9 +240,11 @@ export class WalletsService {
       );
     }
 
-    // Note: We intentionally do NOT delete the corresponding auth method
-    // This allows users to remove wallets from their portfolio while still
-    // being able to authenticate with them. This is the desired behavior.
+    // Also remove the corresponding auth method to maintain consistency
+    // This ensures that removed wallets cannot be used for authentication
+    if (walletAuthMethod) {
+      await this.authMethodRepository.remove(walletAuthMethod);
+    }
   }
 
   async setPrimaryWallet(
