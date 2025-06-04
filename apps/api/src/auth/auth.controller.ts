@@ -115,6 +115,45 @@ export class AuthController {
     return { url };
   }
 
+  @UseGuards(AuthGuard)
+  @Get('twitter-link-url')
+  getTwitterLinkUrl(
+    @Req() req: AuthenticatedRequest,
+    @CurrentUser() user: any,
+  ): { url: string } {
+    let apiBaseUrl: string;
+
+    if (this.authConfigService.isDevelopment) {
+      apiBaseUrl = new URL(
+        '/api',
+        this.authConfigService.clientUrl.replace('3000', '3001'),
+      ).toString();
+    } else {
+      const clientUrl = new URL(this.authConfigService.clientUrl);
+      const apiHostname = `api.${clientUrl.hostname}`;
+      apiBaseUrl = `${clientUrl.protocol}//${apiHostname}`;
+    }
+
+    const baseUrl = `${apiBaseUrl}/auth/twitter-link`;
+    const params = [];
+
+    // Add user ID for linking
+    params.push(`userId=${encodeURIComponent(user.id)}`);
+
+    if (req.query?.return_to) {
+      params.push(
+        `return_to=${encodeURIComponent(req.query.return_to as string)}`,
+      );
+    }
+
+    if (req.query?.use_popup) {
+      params.push(`use_popup=${req.query.use_popup}`);
+    }
+
+    const url = params.length > 0 ? `${baseUrl}?${params.join('&')}` : baseUrl;
+    return { url };
+  }
+
   @Public()
   @Get('twitter')
   @UseGuards(PassportAuthGuard('twitter'))
@@ -286,6 +325,206 @@ export class AuthController {
         res.send(html);
       } else {
         res.redirect(clientUrl.toString());
+      }
+    }
+  }
+
+  @Public()
+  @Get('twitter-link')
+  @UseGuards(PassportAuthGuard('twitter'))
+  async twitterLink(
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (req.query?.return_to && req.session) {
+      req.session.returnTo = req.query.return_to as string;
+    }
+
+    if (req.user && req.user.redirectUrl) {
+      return res.redirect(req.user.redirectUrl);
+    }
+
+    res.status(500).json({
+      error: 'Twitter linking failed to generate a redirect URL',
+    });
+  }
+
+  @Public()
+  @Get('twitter-link/callback')
+  @UseGuards(PassportAuthGuard('twitter'))
+  async twitterLinkCallback(
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new TwitterAuthenticationException(
+          'No user data received from Twitter',
+        );
+      }
+
+      if (req.user.cancelled) {
+        return res.redirect(req.user.redirectUrl);
+      }
+
+      // For linking, we don't create a new user or set auth cookies
+      // Instead, we link the Twitter account to the existing user
+      const userId = req.user?.userId || (req.query?.userId as string);
+      if (!userId) {
+        throw new Error('No user ID provided for linking');
+      }
+
+      // Link the Twitter account to the existing user
+      await this.authService.linkTwitterToUser(userId, req.user);
+
+      let redirectUrl: URL;
+      const returnToParam =
+        req.user?.returnTo || req.query?.return_to || req.session?.returnTo;
+      const isPopup = req.user.usePopup === true;
+
+      if (returnToParam) {
+        try {
+          const returnTo = decodeURIComponent(returnToParam as string);
+          const returnToUrl = new URL(returnTo);
+          const clientUrl = new URL(this.authConfigService.clientUrl);
+
+          if (returnToUrl.hostname === clientUrl.hostname) {
+            redirectUrl = returnToUrl;
+            redirectUrl.searchParams.append('twitter_link_success', 'true');
+          } else {
+            redirectUrl = new URL(this.authConfigService.clientUrl);
+            redirectUrl.searchParams.append('twitter_link_success', 'true');
+          }
+        } catch (error) {
+          redirectUrl = new URL(this.authConfigService.clientUrl);
+          redirectUrl.searchParams.append('twitter_link_success', 'true');
+        }
+      } else {
+        redirectUrl = new URL(this.authConfigService.clientUrl);
+        redirectUrl.searchParams.append('twitter_link_success', 'true');
+      }
+
+      if (isPopup) {
+        const html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Twitter Linked Successfully</title>
+            <script>
+              window.onload = function() {
+                if (window.opener) {
+                  try {
+                    window.opener.postMessage({ 
+                      type: 'twitter_link_result', 
+                      success: true 
+                    }, '*');
+                    
+                    setTimeout(function() {
+                      window.close();
+                    }, 500);
+                  } catch(e) {
+                    window.location.href = '${redirectUrl.toString()}';
+                  }
+                } else {
+                  window.location.href = '${redirectUrl.toString()}';
+                }
+              };
+            </script>
+          </head>
+          <body>
+            <h3>Twitter Account Linked!</h3>
+            <p>This window should close automatically. If it doesn't, you can <a href="${redirectUrl.toString()}">click here</a> to continue.</p>
+          </body>
+          </html>
+        `;
+
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+      } else {
+        res.redirect(redirectUrl.toString());
+      }
+    } catch (error: any) {
+      const clientUrl = new URL(this.authConfigService.clientUrl);
+      const isPopup = req.user?.usePopup === true;
+
+      const returnToParam =
+        req.user?.returnTo || req.query?.return_to || req.session?.returnTo;
+
+      let errorMessage = 'Twitter linking failed';
+      let errorDetails = '';
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        errorDetails = error.stack || '';
+      }
+      let errorRedirectUrl: URL;
+      if (returnToParam) {
+        try {
+          const returnTo = decodeURIComponent(returnToParam as string);
+          const returnToUrl = new URL(returnTo);
+          const allowedClientUrl = new URL(this.authConfigService.clientUrl);
+
+          if (returnToUrl.hostname === allowedClientUrl.hostname) {
+            errorRedirectUrl = returnToUrl;
+          } else {
+            errorRedirectUrl = clientUrl;
+          }
+        } catch (e) {
+          errorRedirectUrl = clientUrl;
+        }
+      } else {
+        errorRedirectUrl = clientUrl;
+      }
+
+      errorRedirectUrl.searchParams.append(
+        'twitter_link_error',
+        errorMessage, // Don't double-encode, URLSearchParams handles encoding
+      );
+      errorRedirectUrl.searchParams.append(
+        'twitter_link_error_details',
+        errorDetails, // Don't double-encode, URLSearchParams handles encoding
+      );
+
+      if (isPopup) {
+        const html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Twitter Linking Failed</title>
+            <script>
+              window.onload = function() {
+                if (window.opener) {
+                  try {
+                    window.opener.postMessage({ 
+                      type: 'twitter_link_result', 
+                      success: false,
+                      error: '${errorMessage.replace(/'/g, "\\'")}'
+                    }, '*');
+                    
+                    setTimeout(function() {
+                      window.close();
+                    }, 500);
+                  } catch(e) {
+                    window.location.href = '${errorRedirectUrl.toString()}';
+                  }
+                } else {
+                  window.location.href = '${errorRedirectUrl.toString()}';
+                }
+              };
+            </script>
+          </head>
+          <body>
+            <h3>Twitter Linking Failed</h3>
+            <p>${errorMessage}</p>
+            <p>This window should close automatically. If it doesn't, you can <a href="${errorRedirectUrl.toString()}">click here</a> to continue.</p>
+          </body>
+          </html>
+        `;
+
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+      } else {
+        res.redirect(errorRedirectUrl.toString());
       }
     }
   }

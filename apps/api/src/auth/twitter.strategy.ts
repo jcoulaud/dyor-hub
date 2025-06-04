@@ -23,6 +23,9 @@ interface TwitterAuthStateData {
   returnTo?: string;
   usePopup?: boolean;
   referralCode?: string;
+  userId?: string;
+  isLinking?: boolean;
+  callbackUrl?: string;
   createdAt: string;
 }
 
@@ -134,10 +137,12 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
       }
 
       try {
+        const callbackUrl = stateData.callbackUrl || this.callbackUrl;
+
         const { accessToken } = await this.twitterClient.loginWithOAuth2({
           code,
           codeVerifier,
-          redirectUri: this.callbackUrl,
+          redirectUri: callbackUrl,
         });
 
         const twitterClient = new TwitterApi(accessToken);
@@ -165,6 +170,22 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
           },
         };
 
+        // Check if this is a linking flow
+        const userId = stateData.userId;
+        const isLinking = stateData.isLinking;
+
+        if (isLinking && userId) {
+          await this.deleteAuthStateData(state);
+          return {
+            ...twitterProfile,
+            usePopup,
+            isLinking: true,
+            userId,
+            returnTo,
+          };
+        }
+
+        // Regular authentication flow
         const validationResult =
           await this.authService.validateTwitterUser(twitterProfile);
         const user = validationResult.user;
@@ -201,19 +222,32 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
 
   private async getAuthLink(req: Request): Promise<string> {
     try {
+      let callbackUrl = this.callbackUrl;
+      const isLinking = req.url?.includes('/twitter-link');
+
+      if (isLinking) {
+        callbackUrl = callbackUrl.replace(
+          '/twitter/callback',
+          '/twitter-link/callback',
+        );
+      }
+
       const { url, codeVerifier, state } =
-        this.twitterClient.generateOAuth2AuthLink(this.callbackUrl, {
+        this.twitterClient.generateOAuth2AuthLink(callbackUrl, {
           scope: ['tweet.read', 'users.read'],
         });
 
-      // Extract referral code from query parameters if present
       const referralCode = req.query.referralCode as string | undefined;
+      const userId = req.query.userId as string | undefined;
 
       const stateData: TwitterAuthStateData = {
         codeVerifier,
         returnTo: (req.query.return_to as string) || req.session?.returnTo,
         usePopup: req.query.use_popup === 'true',
         referralCode,
+        userId,
+        isLinking,
+        callbackUrl,
         createdAt: new Date().toISOString(),
       };
 

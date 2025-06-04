@@ -347,6 +347,135 @@ export class AuthService {
     return user;
   }
 
+  async linkAuthMethod(
+    userId: string,
+    linkAuthMethodDto: any,
+  ): Promise<{ success: boolean; message: string }> {
+    const { provider } = linkAuthMethodDto;
+
+    if (provider === 'twitter') {
+      throw new ConflictException(
+        'Twitter linking must be done through the OAuth flow. Please use the Connect Twitter button in your account settings.',
+      );
+    } else if (provider === 'wallet') {
+      const { walletAddress, signature } = linkAuthMethodDto;
+
+      // Verify signature
+      const isValidSignature = await this.verifyWalletSignature(
+        walletAddress,
+        signature,
+      );
+      if (!isValidSignature) {
+        throw new ConflictException('Invalid wallet signature');
+      }
+
+      // Check if this wallet is already linked to another user
+      const existingAuthMethod = await this.authMethodRepository.findOne({
+        where: { provider: 'wallet' as any, providerId: walletAddress },
+      });
+
+      if (existingAuthMethod && existingAuthMethod.userId !== userId) {
+        throw new ConflictException(
+          'This wallet is already linked to another account',
+        );
+      }
+
+      // Check if this user already has this wallet linked
+      if (existingAuthMethod && existingAuthMethod.userId === userId) {
+        return {
+          success: true,
+          message: 'Wallet is already linked to your account',
+        };
+      }
+
+      // Create new auth method
+      const authMethod = this.authMethodRepository.create({
+        userId,
+        provider: 'wallet' as any,
+        providerId: walletAddress,
+        isPrimary: false, // Don't override existing primary auth method
+        metadata: { signature },
+      });
+      await this.authMethodRepository.save(authMethod);
+
+      return {
+        success: true,
+        message: 'Wallet successfully linked to your account',
+      };
+    }
+
+    throw new ConflictException('Unsupported auth method provider');
+  }
+
+  async getUserAuthMethods(userId: string): Promise<
+    Array<{
+      id: string;
+      provider: string;
+      providerId: string;
+      isPrimary: boolean;
+      createdAt: string;
+    }>
+  > {
+    const authMethods = await this.authMethodRepository.find({
+      where: { userId },
+      order: { isPrimary: 'DESC', createdAt: 'ASC' },
+    });
+
+    return authMethods.map((method) => ({
+      id: method.id,
+      provider: method.provider,
+      providerId: method.providerId,
+      isPrimary: method.isPrimary,
+      createdAt: method.createdAt.toISOString(),
+    }));
+  }
+
+  async linkTwitterToUser(userId: string, twitterProfile: any): Promise<void> {
+    // Check if this Twitter account is already linked to another user
+    const existingAuthMethod = await this.authMethodRepository.findOne({
+      where: { provider: 'twitter' as any, providerId: twitterProfile.id },
+    });
+
+    if (existingAuthMethod && existingAuthMethod.userId !== userId) {
+      throw new ConflictException(
+        'This Twitter account is already linked to another user',
+      );
+    }
+
+    // Check if this user already has this Twitter account linked
+    if (existingAuthMethod && existingAuthMethod.userId === userId) {
+      return; // Already linked, nothing to do
+    }
+
+    // Get the user to update their Twitter ID if they don't have one
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Create auth method
+    const authMethod = this.authMethodRepository.create({
+      userId,
+      provider: 'twitter' as any,
+      providerId: twitterProfile.id,
+      isPrimary: false, // Don't override existing primary auth method
+      metadata: {
+        username: twitterProfile.username,
+        displayName: twitterProfile.displayName,
+      },
+    });
+    await this.authMethodRepository.save(authMethod);
+
+    // Update user's Twitter ID if they don't have one
+    if (!user.twitterId) {
+      user.twitterId = twitterProfile.id;
+      await this.userRepository.save(user);
+    }
+  }
+
   private async verifyWalletSignature(
     walletAddress: string,
     signature: string,

@@ -1,13 +1,17 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
+import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
+import { UserEntity } from '../entities/user.entity';
 import { AuthService } from './auth.service';
 import { AuthConfigService } from './config/auth.config';
+import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import {
   CheckWalletDto,
+  LinkAuthMethodDto,
   WalletLoginDto,
   WalletSignupDto,
 } from './dto/wallet-auth.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth/wallet')
 export class WalletAuthController {
@@ -83,5 +87,28 @@ export class WalletAuthController {
         preferences: user.preferences,
       },
     });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('link')
+  async linkAuthMethod(
+    @CurrentUser() user: UserEntity,
+    @Body() linkAuthMethodDto: LinkAuthMethodDto,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.authService.linkAuthMethod(user.id, linkAuthMethodDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('auth-methods')
+  async getUserAuthMethods(@CurrentUser() user: UserEntity): Promise<
+    Array<{
+      id: string;
+      provider: string;
+      providerId: string;
+      isPrimary: boolean;
+      createdAt: string;
+    }>
+  > {
+    return this.authService.getUserAuthMethods(user.id);
   }
 }

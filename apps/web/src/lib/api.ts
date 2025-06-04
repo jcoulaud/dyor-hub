@@ -612,6 +612,31 @@ export const auth = {
       window.location.href = loginUrl;
     }
   },
+
+  getTwitterLinkUrl: async (options?: TwitterLoginUrlOptions): Promise<string> => {
+    const params = new URLSearchParams();
+
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+    const returnTo = options?.returnTo || currentUrl;
+    if (returnTo) {
+      params.set('return_to', returnTo);
+    }
+
+    if (options?.usePopup !== undefined) {
+      params.set('use_popup', String(options.usePopup));
+    }
+
+    const response = await api<{ url: string }>(`auth/twitter-link-url?${params.toString()}`);
+    return response.url;
+  },
+
+  twitterLink: async (): Promise<void> => {
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+    const linkUrl = await auth.getTwitterLinkUrl({ returnTo: currentUrl });
+    if (typeof window !== 'undefined') {
+      window.location.href = linkUrl;
+    }
+  },
 };
 
 export const tokens = {
