@@ -184,13 +184,14 @@ export class AuthService {
     }
 
     // Check if wallet exists in wallets table but without auth method
+    // Only consider VERIFIED wallets as existing users
     const existingWallet = await this.walletRepository.findOne({
-      where: { address: walletAddress },
+      where: { address: walletAddress, isVerified: true },
       relations: ['user'],
     });
 
     if (existingWallet?.user) {
-      // This wallet is linked to a user but not set up for authentication
+      // This wallet is verified and linked to a user but not set up for authentication
       // Allow them to use it for auth by treating as existing user
       return {
         status: 'existing_user',
@@ -198,6 +199,8 @@ export class AuthService {
       };
     }
 
+    // If wallet exists but is NOT verified, treat it as available for new account creation
+    // The verification step is what actually claims ownership of the wallet
     return { status: 'new_wallet' };
   }
 
@@ -225,13 +228,14 @@ export class AuthService {
     }
 
     // Check if wallet exists in wallets table (user has wallet but no auth method yet)
+    // Only consider VERIFIED wallets for authentication
     const existingWallet = await this.walletRepository.findOne({
-      where: { address: walletAddress },
+      where: { address: walletAddress, isVerified: true },
       relations: ['user'],
     });
 
     if (existingWallet?.user) {
-      // Create auth method for this existing wallet
+      // Create auth method for this existing verified wallet
       const newAuthMethod = this.authMethodRepository.create({
         userId: existingWallet.user.id,
         provider: 'wallet' as any,
@@ -305,6 +309,15 @@ export class AuthService {
       twitterId: null, // No Twitter ID for wallet-only users
     });
     await this.userRepository.save(user);
+
+    // Check if there's an existing unverified wallet entry and remove it
+    // Since unverified wallets are not "claimed", anyone can create a new account with them
+    const existingUnverifiedWallet = await this.walletRepository.findOne({
+      where: { address: walletAddress, isVerified: false },
+    });
+    if (existingUnverifiedWallet) {
+      await this.walletRepository.remove(existingUnverifiedWallet);
+    }
 
     // Create auth method
     const authMethod = this.authMethodRepository.create({
