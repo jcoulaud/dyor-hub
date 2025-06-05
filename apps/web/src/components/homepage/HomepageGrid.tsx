@@ -14,6 +14,11 @@ export const HomepageGrid = memo(() => {
       <div className='max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
         {/* Grid Layout */}
         <div className='flex flex-col gap-6'>
+          {/* Mobile-first: Search Token at top */}
+          <div className='lg:hidden transform hover:scale-[1.01] transition-transform duration-300'>
+            <SearchToken />
+          </div>
+
           {/* Main Content Area */}
           <div className='grid grid-cols-12 gap-6'>
             {/* Left Column */}
@@ -28,7 +33,8 @@ export const HomepageGrid = memo(() => {
 
             {/* Middle Column */}
             <div className='col-span-12 lg:col-span-6 flex flex-col gap-6 h-full'>
-              <div className='transform hover:scale-[1.01] transition-transform duration-300'>
+              {/* Search Token - Desktop only */}
+              <div className='hidden lg:block transform hover:scale-[1.01] transition-transform duration-300'>
                 <SearchToken />
               </div>
               <div className='transform hover:scale-[1.01] transition-transform duration-300'>
