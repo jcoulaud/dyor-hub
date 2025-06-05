@@ -81,129 +81,107 @@ export const TokenPageTabs = memo(function TokenPageTabs({
         {/* Tab Navigation */}
         <div className='relative z-50 mb-8'>
           <TabsList
-            className={`grid w-full ${tokenData?.twitterHandle ? 'grid-cols-5' : 'grid-cols-4'} bg-zinc-900/80 backdrop-blur-xl border border-zinc-700/50 p-1.5 h-12 rounded-2xl`}>
+            className={`grid w-full ${tokenData?.twitterHandle ? 'grid-cols-5' : 'grid-cols-4'} bg-zinc-900/80 backdrop-blur-xl border border-zinc-700/50 p-1.5 h-12 rounded-2xl group/tabs`}>
             <TabsTrigger
               value='security'
-              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
-              style={{
-                animation: `tab1 ${tokenData?.twitterHandle ? '5s' : '4s'} infinite`,
-              }}>
+              className='tab-trigger tab-1 flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
               <Shield className='w-4 h-4' />
               <span className='hidden sm:inline'>Security</span>
             </TabsTrigger>
             <TabsTrigger
               value='discussion'
-              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
-              style={{
-                animation: `tab2 ${tokenData?.twitterHandle ? '5s' : '4s'} infinite`,
-              }}>
+              className='tab-trigger tab-2 flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
               <MessageSquare className='w-4 h-4' />
               <span className='hidden sm:inline'>Discussion</span>
             </TabsTrigger>
             <TabsTrigger
               value='analysis'
-              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
-              style={{
-                animation: `tab3 ${tokenData?.twitterHandle ? '5s' : '4s'} infinite`,
-              }}>
+              className='tab-trigger tab-3 flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
               <BarChart3 className='w-4 h-4' />
               <span className='hidden sm:inline'>Analysis</span>
             </TabsTrigger>
             <TabsTrigger
               value='calls'
-              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
-              style={{
-                animation: `tab4 ${tokenData?.twitterHandle ? '5s' : '4s'} infinite`,
-              }}>
+              className='tab-trigger tab-4 flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
               <TrendingUp className='w-4 h-4' />
               <span className='hidden sm:inline'>Calls</span>
             </TabsTrigger>
             {tokenData?.twitterHandle && (
               <TabsTrigger
                 value='twitter'
-                className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
-                style={{
-                  animation: 'tab5 5s infinite',
-                }}>
+                className='tab-trigger tab-5 flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
                 <Twitter className='w-4 h-4' />
                 <span className='hidden sm:inline'>Twitter Feed</span>
               </TabsTrigger>
             )}
-            <style jsx>{`
-              @keyframes tab1 {
+            <style jsx global>{`
+              /* Hover state - individual tab gets background */
+              .tab-trigger:hover {
+                background-color: rgba(63, 63, 70, 0.5) !important;
+                color: white !important;
+              }
+
+              /* When any tab is hovered, completely stop all animations */
+              .group\/tabs:hover .tab-trigger {
+                animation: none !important;
+                background-color: transparent;
+                color: rgb(212 212 216);
+              }
+
+              /* Keep the hovered tab highlighted even when animations are stopped */
+              .group\/tabs:hover .tab-trigger:hover {
+                background-color: rgba(63, 63, 70, 0.5) !important;
+                color: white !important;
+              }
+
+              /* 4-tab animation (when no Twitter) */
+              .tab-1 {
+                animation: tabSequence4 4s infinite;
+              }
+              .tab-2 {
+                animation: tabSequence4 4s infinite;
+                animation-delay: -3s;
+              }
+              .tab-3 {
+                animation: tabSequence4 4s infinite;
+                animation-delay: -2s;
+              }
+              .tab-4 {
+                animation: tabSequence4 4s infinite;
+                animation-delay: -1s;
+              }
+
+              /* 5-tab animation (when Twitter exists) */
+              ${tokenData?.twitterHandle
+                ? `
+                .tab-1 { animation: tabSequence5 5s infinite; }
+                .tab-2 { animation: tabSequence5 5s infinite; animation-delay: -4s; }
+                .tab-3 { animation: tabSequence5 5s infinite; animation-delay: -3s; }
+                .tab-4 { animation: tabSequence5 5s infinite; animation-delay: -2s; }
+                .tab-5 { animation: tabSequence5 5s infinite; animation-delay: -1s; }
+              `
+                : ''}
+
+              @keyframes tabSequence4 {
                 0%,
-                15% {
+                25% {
                   background-color: rgba(63, 63, 70, 0.5);
                   color: white;
                 }
-                20%,
+                25.01%,
                 100% {
                   background-color: transparent;
                   color: rgb(212 212 216);
                 }
               }
-              @keyframes tab2 {
+
+              @keyframes tabSequence5 {
                 0%,
-                15% {
-                  background-color: transparent;
-                  color: rgb(212 212 216);
-                }
-                20%,
-                35% {
+                20% {
                   background-color: rgba(63, 63, 70, 0.5);
                   color: white;
                 }
-                40%,
-                100% {
-                  background-color: transparent;
-                  color: rgb(212 212 216);
-                }
-              }
-              @keyframes tab3 {
-                0%,
-                35% {
-                  background-color: transparent;
-                  color: rgb(212 212 216);
-                }
-                40%,
-                55% {
-                  background-color: rgba(63, 63, 70, 0.5);
-                  color: white;
-                }
-                60%,
-                100% {
-                  background-color: transparent;
-                  color: rgb(212 212 216);
-                }
-              }
-              @keyframes tab4 {
-                0%,
-                55% {
-                  background-color: transparent;
-                  color: rgb(212 212 216);
-                }
-                60%,
-                75% {
-                  background-color: rgba(63, 63, 70, 0.5);
-                  color: white;
-                }
-                80%,
-                100% {
-                  background-color: transparent;
-                  color: rgb(212 212 216);
-                }
-              }
-              @keyframes tab5 {
-                0%,
-                75% {
-                  background-color: transparent;
-                  color: rgb(212 212 216);
-                }
-                80%,
-                95% {
-                  background-color: rgba(63, 63, 70, 0.5);
-                  color: white;
-                }
+                20.01%,
                 100% {
                   background-color: transparent;
                   color: rgb(212 212 216);
