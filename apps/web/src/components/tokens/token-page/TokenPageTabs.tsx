@@ -85,7 +85,9 @@ export const TokenPageTabs = memo(function TokenPageTabs({
             <TabsTrigger
               value='security'
               className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
-              style={{ animation: `hoverSim ${tokenData?.twitterHandle ? '10s' : '8s'} infinite` }}>
+              style={{
+                animation: `tab1 ${tokenData?.twitterHandle ? '5s' : '4s'} infinite`,
+              }}>
               <Shield className='w-4 h-4' />
               <span className='hidden sm:inline'>Security</span>
             </TabsTrigger>
@@ -93,8 +95,7 @@ export const TokenPageTabs = memo(function TokenPageTabs({
               value='discussion'
               className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
               style={{
-                animation: `hoverSim ${tokenData?.twitterHandle ? '10s' : '8s'} infinite`,
-                animationDelay: '2s',
+                animation: `tab2 ${tokenData?.twitterHandle ? '5s' : '4s'} infinite`,
               }}>
               <MessageSquare className='w-4 h-4' />
               <span className='hidden sm:inline'>Discussion</span>
@@ -103,8 +104,7 @@ export const TokenPageTabs = memo(function TokenPageTabs({
               value='analysis'
               className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
               style={{
-                animation: `hoverSim ${tokenData?.twitterHandle ? '10s' : '8s'} infinite`,
-                animationDelay: '4s',
+                animation: `tab3 ${tokenData?.twitterHandle ? '5s' : '4s'} infinite`,
               }}>
               <BarChart3 className='w-4 h-4' />
               <span className='hidden sm:inline'>Analysis</span>
@@ -113,8 +113,7 @@ export const TokenPageTabs = memo(function TokenPageTabs({
               value='calls'
               className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
               style={{
-                animation: `hoverSim ${tokenData?.twitterHandle ? '10s' : '8s'} infinite`,
-                animationDelay: '6s',
+                animation: `tab4 ${tokenData?.twitterHandle ? '5s' : '4s'} infinite`,
               }}>
               <TrendingUp className='w-4 h-4' />
               <span className='hidden sm:inline'>Calls</span>
@@ -123,24 +122,88 @@ export const TokenPageTabs = memo(function TokenPageTabs({
               <TabsTrigger
                 value='twitter'
                 className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
-                style={{ animation: 'hoverSim 10s infinite', animationDelay: '8s' }}>
+                style={{
+                  animation: 'tab5 5s infinite',
+                }}>
                 <Twitter className='w-4 h-4' />
                 <span className='hidden sm:inline'>Twitter Feed</span>
               </TabsTrigger>
             )}
             <style jsx>{`
-              @keyframes hoverSim {
+              @keyframes tab1 {
                 0%,
-                10% {
-                  background-color: transparent;
-                  color: rgb(212 212 216);
-                }
-                12.5%,
-                22.5% {
+                15% {
                   background-color: rgba(63, 63, 70, 0.5);
                   color: white;
                 }
-                25%,
+                20%,
+                100% {
+                  background-color: transparent;
+                  color: rgb(212 212 216);
+                }
+              }
+              @keyframes tab2 {
+                0%,
+                15% {
+                  background-color: transparent;
+                  color: rgb(212 212 216);
+                }
+                20%,
+                35% {
+                  background-color: rgba(63, 63, 70, 0.5);
+                  color: white;
+                }
+                40%,
+                100% {
+                  background-color: transparent;
+                  color: rgb(212 212 216);
+                }
+              }
+              @keyframes tab3 {
+                0%,
+                35% {
+                  background-color: transparent;
+                  color: rgb(212 212 216);
+                }
+                40%,
+                55% {
+                  background-color: rgba(63, 63, 70, 0.5);
+                  color: white;
+                }
+                60%,
+                100% {
+                  background-color: transparent;
+                  color: rgb(212 212 216);
+                }
+              }
+              @keyframes tab4 {
+                0%,
+                55% {
+                  background-color: transparent;
+                  color: rgb(212 212 216);
+                }
+                60%,
+                75% {
+                  background-color: rgba(63, 63, 70, 0.5);
+                  color: white;
+                }
+                80%,
+                100% {
+                  background-color: transparent;
+                  color: rgb(212 212 216);
+                }
+              }
+              @keyframes tab5 {
+                0%,
+                75% {
+                  background-color: transparent;
+                  color: rgb(212 212 216);
+                }
+                80%,
+                95% {
+                  background-color: rgba(63, 63, 70, 0.5);
+                  color: white;
+                }
                 100% {
                   background-color: transparent;
                   color: rgb(212 212 216);
