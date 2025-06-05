@@ -107,9 +107,6 @@ export class UsersService {
       const primaryWallet =
         await this.walletsService.getUserPrimaryWallet(userId);
       if (!primaryWallet || !primaryWallet.isVerified) {
-        this.logger.debug(
-          `User ${userId} has no primary verified wallet for platform token balance check.`,
-        );
         return { balance: 0 };
       }
 
