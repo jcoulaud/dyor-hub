@@ -8,6 +8,7 @@ export * from './giphy';
 export * from './notification';
 export * from './referral';
 export * from './reputation';
+export * from './sentiment';
 export * from './streak';
 export * from './tip';
 export * from './token';

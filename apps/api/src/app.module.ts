@@ -41,6 +41,7 @@ import { HealthModule } from './health/health.module';
 import { ModerationModule } from './moderation/moderation.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReferralModule } from './referral/referral.module';
+import { SentimentAnalysisModule } from './sentiment-analysis/sentiment-analysis.module';
 import { SessionModule } from './session/session.module';
 import { SolanaModule } from './solana/solana.module';
 import { TelegramModule } from './telegram/telegram.module';
@@ -103,6 +104,7 @@ import { WatchlistModule } from './watchlist/watchlist.module';
     FollowsModule,
     FeedModule,
     ReferralModule,
+    SentimentAnalysisModule,
     TippingModule,
     UploadsModule,
     ModerationModule,

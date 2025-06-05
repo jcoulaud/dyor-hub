@@ -33,6 +33,8 @@ import {
   RecordTipRequestDto,
   Referral,
   ReferralLeaderboardEntry,
+  SentimentAnalysisRequest,
+  SentimentAnalysisResponse,
   SentimentType,
   SolanaTrackerHoldersChartResponse,
   StreakMilestone,
@@ -2645,3 +2647,13 @@ export interface TokenRiskData {
     value?: string;
   }>;
 }
+
+// Sentiment Analysis API
+export const sentimentAnalysis = {
+  async analyzeSentiment(request: SentimentAnalysisRequest): Promise<SentimentAnalysisResponse> {
+    return api<SentimentAnalysisResponse>('/sentiment-analysis/analyze', {
+      method: 'POST',
+      body: request,
+    });
+  },
+};
