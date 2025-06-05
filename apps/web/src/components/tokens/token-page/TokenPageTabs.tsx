@@ -81,39 +81,72 @@ export const TokenPageTabs = memo(function TokenPageTabs({
         {/* Tab Navigation */}
         <div className='relative z-50 mb-8'>
           <TabsList
-            className={`grid w-full ${tokenData?.twitterHandle ? 'grid-cols-5' : 'grid-cols-4'} bg-zinc-900/80 backdrop-blur-xl border border-zinc-700/50 p-1.5 h-14 rounded-2xl`}>
+            className={`grid w-full ${tokenData?.twitterHandle ? 'grid-cols-5' : 'grid-cols-4'} bg-zinc-900/80 backdrop-blur-xl border border-zinc-700/50 p-1.5 h-12 rounded-2xl`}>
             <TabsTrigger
               value='security'
-              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
+              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
+              style={{ animation: `hoverSim ${tokenData?.twitterHandle ? '10s' : '8s'} infinite` }}>
               <Shield className='w-4 h-4' />
               <span className='hidden sm:inline'>Security</span>
             </TabsTrigger>
             <TabsTrigger
               value='discussion'
-              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
+              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
+              style={{
+                animation: `hoverSim ${tokenData?.twitterHandle ? '10s' : '8s'} infinite`,
+                animationDelay: '2s',
+              }}>
               <MessageSquare className='w-4 h-4' />
               <span className='hidden sm:inline'>Discussion</span>
             </TabsTrigger>
             <TabsTrigger
               value='analysis'
-              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
+              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
+              style={{
+                animation: `hoverSim ${tokenData?.twitterHandle ? '10s' : '8s'} infinite`,
+                animationDelay: '4s',
+              }}>
               <BarChart3 className='w-4 h-4' />
               <span className='hidden sm:inline'>Analysis</span>
             </TabsTrigger>
             <TabsTrigger
               value='calls'
-              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
+              className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
+              style={{
+                animation: `hoverSim ${tokenData?.twitterHandle ? '10s' : '8s'} infinite`,
+                animationDelay: '6s',
+              }}>
               <TrendingUp className='w-4 h-4' />
               <span className='hidden sm:inline'>Calls</span>
             </TabsTrigger>
             {tokenData?.twitterHandle && (
               <TabsTrigger
                 value='twitter'
-                className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'>
+                className='flex items-center gap-3 text-sm font-semibold text-zinc-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white hover:bg-zinc-700/50 hover:text-white rounded-xl'
+                style={{ animation: 'hoverSim 10s infinite', animationDelay: '8s' }}>
                 <Twitter className='w-4 h-4' />
                 <span className='hidden sm:inline'>Twitter Feed</span>
               </TabsTrigger>
             )}
+            <style jsx>{`
+              @keyframes hoverSim {
+                0%,
+                10% {
+                  background-color: transparent;
+                  color: rgb(212 212 216);
+                }
+                12.5%,
+                22.5% {
+                  background-color: rgba(63, 63, 70, 0.5);
+                  color: white;
+                }
+                25%,
+                100% {
+                  background-color: transparent;
+                  color: rgb(212 212 216);
+                }
+              }
+            `}</style>
           </TabsList>
         </div>
 
