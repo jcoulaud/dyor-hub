@@ -58,14 +58,14 @@ export class AuthService {
     let isNew = false;
 
     if (!user) {
-      // Check if username already exists for non-Twitter users
+      // Check if username is taken by a different user (not this Twitter account)
       const normalizedUsername = username.toLowerCase().trim();
       const existingUser = await this.userRepository
         .createQueryBuilder('user')
         .where('LOWER(user.username) = :normalizedUsername', {
           normalizedUsername,
         })
-        .andWhere('user.twitterId IS NULL OR user.twitterId != :twitterId', {
+        .andWhere('user.twitterId != :twitterId', {
           twitterId,
         })
         .getOne();
