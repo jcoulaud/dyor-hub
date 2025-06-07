@@ -631,14 +631,15 @@ export function TokenAiTradingAnalysis({
         </div>
         <Button
           variant='outline'
-          size='sm'
+          size='lg'
           disabled={true}
-          className='w-full bg-zinc-900/60 border-zinc-700/50 text-zinc-200 flex items-center justify-between animate-pulse'>
+          className='w-full h-14 bg-zinc-900/70 border-zinc-700/60 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg'>
           <div className='flex items-center'>
-            <Sparkles className='w-4 h-4 mr-2 text-zinc-400' />
-            <span className='font-medium text-zinc-400'>View AI Trading Analysis</span>
+            <div className='w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center mr-3'>
+              <Loader2 className='w-5 h-5 text-blue-100 animate-spin' />
+            </div>
+            <span className='font-semibold'>Authenticating...</span>
           </div>
-          <ChevronRight className='w-4 h-4 ml-auto text-zinc-400' />
         </Button>
       </div>
     );

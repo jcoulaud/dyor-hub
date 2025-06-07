@@ -1,6 +1,7 @@
 'use client';
 
 import { EarlyBuyersInfo } from '@/components/tokens/EarlyBuyersInfo';
+import { SentimentAnalysisInfo } from '@/components/tokens/SentimentAnalysisInfo';
 import { TokenAiTradingAnalysis } from '@/components/tokens/TokenAiTradingAnalysis';
 import { TokenHolderAnalysisInfo } from '@/components/tokens/TokenHolderAnalysisInfo';
 import { TopTradersAnalysisInfo } from '@/components/tokens/TopTradersAnalysisInfo';
@@ -44,6 +45,11 @@ export const TokenAnalysisTab = memo(function TokenAnalysisTab({
             <EarlyBuyersInfo
               mintAddress={mintAddress}
               userPlatformTokenBalance={userDyorHubBalance}
+            />
+            <SentimentAnalysisInfo
+              mintAddress={mintAddress}
+              userPlatformTokenBalance={userDyorHubBalance}
+              tokenData={tokenData}
             />
             <TopTradersAnalysisInfo
               mintAddress={mintAddress}

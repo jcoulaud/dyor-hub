@@ -33,7 +33,6 @@ import {
   RecordTipRequestDto,
   Referral,
   ReferralLeaderboardEntry,
-  SentimentAnalysisRequest,
   SentimentAnalysisResponse,
   SentimentType,
   SolanaTrackerHoldersChartResponse,
@@ -135,6 +134,16 @@ export interface ChartWhispererSchemaForWeb {
 
 export interface AiTradingAnalysisResponse {
   analysisOutput: ChartWhispererSchemaForWeb;
+}
+
+export interface SentimentAnalysisProgressEvent {
+  status: 'analyzing' | 'complete' | 'error' | 'queued';
+  message?: string;
+  error?: string;
+  sentimentData?: SentimentAnalysisResponse;
+  progress?: number; // 0-100 percentage
+  stage?: string; // e.g., 'Fetching tweets', 'Analyzing sentiment', 'Generating insights'
+  sessionId?: string;
 }
 
 // Use configured API URL for cross-domain requests
@@ -1088,6 +1097,33 @@ export const tokens = {
       console.error(`Error fetching Twitter feed for ${mintAddress}:`, error);
       return null;
     }
+  },
+
+  startSentimentAnalysis: async (
+    tokenAddress: string,
+    useCredits?: boolean,
+    sessionId?: string,
+  ): Promise<{ success: boolean; message: string }> => {
+    if (!tokenAddress) {
+      throw new Error('Token address is required for sentiment analysis.');
+    }
+    return api<{ success: boolean; message: string }>(
+      `sentiment-analysis/${encodeURIComponent(tokenAddress)}/start`,
+      {
+        method: 'POST',
+        body: { useCredits, sessionId },
+      },
+    );
+  },
+
+  getSentimentAnalysisCost: async (tokenAddress: string): Promise<{ cost: number }> => {
+    if (!tokenAddress) {
+      throw new Error('Token address is required to fetch sentiment analysis cost.');
+    }
+    const sanitizedTokenAddress = encodeURIComponent(tokenAddress);
+    return api<{ cost: number }>(`sentiment-analysis/${sanitizedTokenAddress}/cost`, {
+      method: 'GET',
+    });
   },
 };
 
@@ -2647,13 +2683,3 @@ export interface TokenRiskData {
     value?: string;
   }>;
 }
-
-// Sentiment Analysis API
-export const sentimentAnalysis = {
-  async analyzeSentiment(request: SentimentAnalysisRequest): Promise<SentimentAnalysisResponse> {
-    return api<SentimentAnalysisResponse>('/sentiment-analysis/analyze', {
-      method: 'POST',
-      body: request,
-    });
-  },
-};

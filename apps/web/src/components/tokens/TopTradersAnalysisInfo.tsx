@@ -366,7 +366,7 @@ export const TopTradersAnalysisInfo = ({
           variant='outline'
           size='lg'
           className={cn(
-            'w-full h-14 bg-zinc-900/70 border-zinc-700/60 text-zinc-100 flex items-center justify-between rounded-lg',
+            'w-full h-14 bg-zinc-900/70 border-zinc-700/60 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg',
             className,
           )}
           disabled>
@@ -393,14 +393,12 @@ export const TopTradersAnalysisInfo = ({
         )}
         disabled={isLoading}>
         {isLoading ? (
-          <>
-            <div className='flex items-center'>
-              <div className='w-8 h-8 rounded-full bg-orange-700 flex items-center justify-center mr-3'>
-                <Loader2 className='w-5 h-5 text-orange-100 animate-spin' />
-              </div>
-              <span className='font-semibold'>Analyzing...</span>
+          <div className='flex items-center'>
+            <div className='w-8 h-8 rounded-full bg-orange-700 flex items-center justify-center mr-3'>
+              <Loader2 className='w-5 h-5 text-orange-100 animate-spin' />
             </div>
-          </>
+            <span className='font-semibold'>Analyzing...</span>
+          </div>
         ) : (
           <>
             <div className='flex items-center'>

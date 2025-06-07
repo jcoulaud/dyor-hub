@@ -36,6 +36,16 @@ export interface TradingAnalysisProgressEvent {
   sessionId?: string;
 }
 
+export interface SentimentAnalysisProgressEvent {
+  status: 'analyzing' | 'complete' | 'error' | 'queued';
+  message?: string;
+  error?: string;
+  sentimentData?: any;
+  progress?: number;
+  stage?: string;
+  sessionId?: string;
+}
+
 @WebSocketGateway({
   namespace: '/analysis',
 })
@@ -50,6 +60,10 @@ export class EventsGateway
   private lastProgressByUser: Map<string, AnalysisProgressEvent> = new Map();
   private lastTradingAnalysisByUser: Map<string, TradingAnalysisProgressEvent> =
     new Map();
+  private lastSentimentAnalysisByUser: Map<
+    string,
+    SentimentAnalysisProgressEvent
+  > = new Map();
 
   constructor(private readonly authService: AuthService) {}
 
@@ -119,6 +133,12 @@ export class EventsGateway
       if (lastTradingAnalysis) {
         client.emit('trading_analysis_progress', lastTradingAnalysis);
       }
+
+      const lastSentimentAnalysis =
+        this.lastSentimentAnalysisByUser.get(userId);
+      if (lastSentimentAnalysis) {
+        client.emit('sentiment_analysis_progress', lastSentimentAnalysis);
+      }
     } catch (error) {
       this.logger.error(
         `WebSocket Authentication failed for socket ${client.id}: ${error.message || error}`,
@@ -165,6 +185,25 @@ export class EventsGateway
           const currentProgress = this.lastTradingAnalysisByUser.get(userId);
           if (currentProgress === progress) {
             this.lastTradingAnalysisByUser.delete(userId);
+          }
+        }, 90000);
+      }
+    }
+  }
+
+  sendSentimentAnalysisProgress(
+    userId: string,
+    progress: SentimentAnalysisProgressEvent,
+  ): void {
+    if (userId) {
+      this.lastSentimentAnalysisByUser.set(userId, progress);
+      this.server.to(userId).emit('sentiment_analysis_progress', progress);
+
+      if (progress.status === 'complete' || progress.status === 'error') {
+        setTimeout(() => {
+          const currentProgress = this.lastSentimentAnalysisByUser.get(userId);
+          if (currentProgress === progress) {
+            this.lastSentimentAnalysisByUser.delete(userId);
           }
         }, 90000);
       }
