@@ -298,7 +298,7 @@ export const SentimentAnalysisInfo = ({
   userPlatformTokenBalance,
   tokenData,
 }: SentimentAnalysisInfoProps) => {
-  const { isAuthenticated, user, checkAuth, isLoading: authLoading } = useAuthContext();
+  const { isAuthenticated, user, checkAuth } = useAuthContext();
   const [sentimentData, setSentimentData] = useState<SentimentAnalysisResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -562,15 +562,13 @@ export const SentimentAnalysisInfo = ({
           'w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-blue-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg',
           className,
         )}
-        disabled={isLoading || authLoading}>
-        {isLoading || authLoading ? (
+        disabled={isLoading}>
+        {isLoading ? (
           <div className='flex items-center'>
             <div className='w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center mr-3'>
               <Loader2 className='w-5 h-5 text-blue-100 animate-spin' />
             </div>
-            <span className='font-semibold'>
-              {authLoading ? 'Authenticating...' : 'Analyzing...'}
-            </span>
+            <span className='font-semibold'>Analyzing...</span>
           </div>
         ) : (
           <>
@@ -656,7 +654,7 @@ export const SentimentAnalysisInfo = ({
                 <DialogFooter className='mt-6'>
                   <Button
                     onClick={handleConfirmAnalysis}
-                    disabled={isLoading || authLoading || !isAuthenticated}
+                    disabled={isLoading || !isAuthenticated}
                     className='bg-blue-600 hover:bg-blue-700 text-white ml-auto'>
                     {isLoading ? (
                       <Loader2 className='h-4 w-4 animate-spin mr-2' />

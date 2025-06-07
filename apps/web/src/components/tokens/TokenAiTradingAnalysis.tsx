@@ -623,35 +623,12 @@ export function TokenAiTradingAnalysis({
 
   const formattedDateRangeLabel = `Selected: ${format(dateRange.from, 'MMM d, yyyy')} - ${format(dateRange.to, 'MMM d, yyyy')}`;
 
-  if (authLoading && !isModalOpen) {
-    return (
-      <div className={className}>
-        <div className='mb-2'>
-          <p className='text-sm font-medium text-zinc-300'>AI Technical Analysis</p>
-        </div>
-        <Button
-          variant='outline'
-          size='lg'
-          disabled={true}
-          className='w-full h-14 bg-zinc-900/70 border-zinc-700/60 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg'>
-          <div className='flex items-center'>
-            <div className='w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center mr-3'>
-              <Loader2 className='w-5 h-5 text-blue-100 animate-spin' />
-            </div>
-            <span className='font-semibold'>Authenticating...</span>
-          </div>
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className={className}>
       <Button
         onClick={handleOpenModal}
         variant='outline'
         size='lg'
-        disabled={authLoading}
         className='w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-blue-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg'>
         <div className='flex items-center'>
           <div className='w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center mr-3'>
@@ -815,8 +792,7 @@ export function TokenAiTradingAnalysis({
                     <h3 className='text-base font-semibold text-zinc-100'>
                       AI Analysis Results:{' '}
                       <span className='text-zinc-400 text-sm font-normal'>
-                        {format(dateRange.from, 'MMM d, yyyy')} -{' '}
-                        {format(dateRange.to, 'MMM d, yyyy')}
+                        {formattedDateRangeLabel}
                       </span>
                     </h3>
 

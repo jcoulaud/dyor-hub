@@ -984,6 +984,9 @@ export function TokenHolderAnalysisInfo({
   const [isCostFetching, setIsCostFetching] = useState<boolean>(false);
   const [showInsufficientCreditsError, setShowInsufficientCreditsError] = useState<boolean>(false);
 
+  // Isolated loading state for the main button - only true during active analysis
+  const isButtonLoading = analysisProgress?.status === 'analyzing';
+
   const minHoldingForFree = MIN_TOKEN_HOLDING_FOR_HOLDERS_ANALYSIS;
 
   const ANALYTICS_FEATURE_NAME = 'Diamond Hands Analysis';
@@ -1102,7 +1105,16 @@ export function TokenHolderAnalysisInfo({
         user &&
         (userPlatformTokenBalance === undefined || userPlatformTokenBalance === null)
       ) {
+        // User is authenticated but balance is still loading
+        // Set a timeout to prevent infinite loading - assume not eligible for free tier after timeout
+        const balanceTimeout = setTimeout(() => {
+          setIsFreeTier(false);
+          fetchCreditCostsInternal().finally(() => setIsLoading(false));
+        }, 5000); // 5 second timeout
+
+        return () => clearTimeout(balanceTimeout);
       } else {
+        // User is not authenticated
         setIsFreeTier(false);
         fetchCreditCostsInternal().finally(() => setIsLoading(false));
       }
@@ -1357,23 +1369,14 @@ export function TokenHolderAnalysisInfo({
         'w-full h-14 bg-zinc-900/70 border-zinc-700/60 hover:border-teal-400 hover:bg-zinc-800/70 text-zinc-100 flex items-center justify-between rounded-lg transition-all duration-200 shadow-md hover:shadow-lg',
         className,
       )}
-      disabled={
-        isLoading ||
-        (socketRef.current?.connected &&
-          analysisProgress !== null &&
-          analysisProgress.status !== 'complete')
-      }>
+      disabled={isButtonLoading}>
       <div className='flex items-center'>
         <div className='w-8 h-8 rounded-full bg-teal-700 flex items-center justify-center mr-3'>
           <Diamond className='w-5 h-5 text-teal-100' />
         </div>
         <span className='font-semibold'>{ANALYTICS_FEATURE_NAME}</span>
       </div>
-      {(isLoading ||
-        (socketRef.current?.connected &&
-          analysisProgress !== null &&
-          analysisProgress.status !== 'complete')) &&
-      analysisProgress?.status !== 'error' ? (
+      {isButtonLoading ? (
         <Loader2 className='w-5 h-5 text-teal-400 animate-spin' />
       ) : (
         <ChevronRight className='w-5 h-5 text-teal-400' />
