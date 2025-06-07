@@ -473,7 +473,24 @@ export class TokensService {
         };
 
         const newToken = this.tokenRepository.create(baseTokenData);
-        token = await this.tokenRepository.save(newToken);
+        try {
+          token = await this.tokenRepository.save(newToken);
+        } catch (saveError) {
+          // Handle race condition where another request created the token simultaneously
+          if (saveError.code === '23505') {
+            token = await this.tokenRepository.findOne({
+              where: { mintAddress },
+              relations: { verifiedCreatorUser: true },
+            });
+            if (!token) {
+              throw new InternalServerErrorException(
+                `Token ${mintAddress} was created but could not be retrieved`,
+              );
+            }
+          } else {
+            throw saveError;
+          }
+        }
 
         // Fetch and store security info
         try {
@@ -580,19 +597,19 @@ export class TokensService {
 
   async getTokenStats(mintAddress: string): Promise<TokenStats> {
     try {
-      const tokenExists = await this.tokenRepository.findOne({
-        where: { mintAddress: mintAddress },
-        select: ['mintAddress'],
-      });
-      if (!tokenExists) {
-        throw new NotFoundException(
-          `Token with mint address ${mintAddress} not found in DB for stats`,
-        );
-      }
       const overviewData = await this.fetchTokenOverview(mintAddress);
       if (!overviewData) {
         throw new InternalServerErrorException(
           `Could not fetch overview data from Birdeye for token ${mintAddress}.`,
+        );
+      }
+
+      // Try to ensure token exists in DB for future references, but don't fail if it can't be created
+      try {
+        await this.getTokenData(mintAddress);
+      } catch (tokenDataError) {
+        this.logger.warn(
+          `Could not create/fetch token data for ${mintAddress}, but continuing with stats: ${tokenDataError.message}`,
         );
       }
 

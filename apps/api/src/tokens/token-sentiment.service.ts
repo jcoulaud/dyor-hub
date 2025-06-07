@@ -1,9 +1,16 @@
 import { SentimentType, TokenSentimentStats } from '@dyor-hub/types';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TokenSentimentEntity } from '../entities/token-sentiment.entity';
 import { TokenEntity } from '../entities/token.entity';
+import { TokensService } from './tokens.service';
 
 @Injectable()
 export class TokenSentimentService {
@@ -14,6 +21,8 @@ export class TokenSentimentService {
     private readonly sentimentRepository: Repository<TokenSentimentEntity>,
     @InjectRepository(TokenEntity)
     private readonly tokenRepository: Repository<TokenEntity>,
+    @Inject(forwardRef(() => TokensService))
+    private readonly tokensService: TokensService,
   ) {}
 
   async getUserSentiment(
@@ -41,14 +50,11 @@ export class TokenSentimentService {
     userId?: string,
   ): Promise<TokenSentimentStats> {
     try {
-      // Check if token exists
-      const token = await this.tokenRepository.findOne({
-        where: { mintAddress: tokenMintAddress },
-      });
-
-      if (!token) {
-        throw new NotFoundException(
-          `Token with mint address ${tokenMintAddress} not found`,
+      try {
+        await this.tokensService.getTokenData(tokenMintAddress);
+      } catch (tokenDataError) {
+        this.logger.warn(
+          `Could not create/fetch token data for ${tokenMintAddress}, but continuing with sentiment stats: ${tokenDataError.message}`,
         );
       }
 
@@ -99,14 +105,11 @@ export class TokenSentimentService {
     sentimentType: SentimentType,
   ): Promise<TokenSentimentEntity> {
     try {
-      // Check if token exists
-      const token = await this.tokenRepository.findOne({
-        where: { mintAddress: tokenMintAddress },
-      });
-
-      if (!token) {
+      try {
+        await this.tokensService.getTokenData(tokenMintAddress);
+      } catch (tokenDataError) {
         throw new NotFoundException(
-          `Token with mint address ${tokenMintAddress} not found`,
+          `Token with mint address ${tokenMintAddress} not found and could not be created`,
         );
       }
 
