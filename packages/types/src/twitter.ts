@@ -159,3 +159,35 @@ export interface TwitterTweetInfo {
     }>;
   };
 }
+
+// TwitterAPI.io response types for sentiment analysis
+export interface TwitterAPITweet {
+  id: string;
+  text: string;
+  created_at: string;
+  author_id: string;
+  public_metrics: {
+    like_count: number;
+    retweet_count: number;
+    reply_count: number;
+    quote_count: number;
+  };
+}
+
+export interface TwitterAPIUser {
+  id: string;
+  username: string;
+  name: string;
+  profile_image_url?: string;
+}
+
+export interface TwitterAPIResponse {
+  data: TwitterAPITweet[];
+  includes?: {
+    users: TwitterAPIUser[];
+  };
+  meta: {
+    result_count: number;
+    next_token?: string;
+  };
+}

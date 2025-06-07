@@ -494,16 +494,14 @@ export const EarlyBuyersInfo = ({
         )}
         disabled={isLoading || authLoading}>
         {isLoading || authLoading ? (
-          <>
-            <div className='flex items-center'>
-              <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
-                <Loader2 className='w-5 h-5 text-purple-100 animate-spin' />
-              </div>
-              <span className='font-semibold'>
-                {authLoading ? 'Authenticating...' : 'Analyzing...'}
-              </span>
+          <div className='flex items-center'>
+            <div className='w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center mr-3'>
+              <Loader2 className='w-5 h-5 text-purple-100 animate-spin' />
             </div>
-          </>
+            <span className='font-semibold'>
+              {authLoading ? 'Authenticating...' : 'Analyzing...'}
+            </span>
+          </div>
         ) : (
           <>
             <div className='flex items-center'>
